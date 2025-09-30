@@ -15,9 +15,9 @@ import {
   getDoc,
   setDoc,
 } from "firebase/firestore";
-import { useTypingStatus } from "../components/useTypingStatus";
 import PrivateChat from "./chats_rooms/PrivateChat";
 import { getAnonName } from "../login/anonymous_login";
+import { useTypingStatus } from "../components/useTypingStatus";
 
 function TherapistDashboard() {
   const [messages, setMessages] = useState([]);
@@ -33,10 +33,12 @@ function TherapistDashboard() {
     rating: 0,
   });
   const therapistId = auth.currentUser?.uid;
-  const displayName = auth.currentUser?.email ? auth.currentUser.displayName || "Therapist" : getAnonName();
-  const { handleTyping } = useTypingStatus(displayName);
+  const displayName = auth.currentUser?.email
+    ? auth.currentUser.displayName || "Therapist"
+    : getAnonName();
+  const { typingUsers, handleTyping } = useTypingStatus(displayName);
   const messagesEndRef = useRef(null);
-  
+
   // Auto scroll chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -108,7 +110,6 @@ function TherapistDashboard() {
     });
 
     setReply("");
-    // Stop typing for this therapist
     const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
     await updateDoc(typingDoc, { typing: false }).catch(async () => {
       await setDoc(typingDoc, { typing: false, name: displayName, timestamp: serverTimestamp() });
@@ -148,7 +149,7 @@ function TherapistDashboard() {
     <div style={{ padding: "20px" }}>
       <h2>Therapist Dashboard</h2>
 
-      {/* Therapist Profile */}
+      {/* Therapist Profile (editable) */}
       <div
         style={{
           border: "1px solid #ddd",
@@ -165,18 +166,14 @@ function TherapistDashboard() {
               type="text"
               placeholder="Name"
               value={therapistInfo.name}
-              onChange={(e) =>
-                setTherapistInfo((prev) => ({ ...prev, name: e.target.value }))
-              }
+              onChange={(e) => setTherapistInfo((prev) => ({ ...prev, name: e.target.value }))}
               style={{ width: "100%", marginBottom: "5px" }}
             />
             <input
               type="text"
               placeholder="Gender"
               value={therapistInfo.gender}
-              onChange={(e) =>
-                setTherapistInfo((prev) => ({ ...prev, gender: e.target.value }))
-              }
+              onChange={(e) => setTherapistInfo((prev) => ({ ...prev, gender: e.target.value }))}
               style={{ width: "100%", marginBottom: "5px" }}
             />
             <input
@@ -191,9 +188,7 @@ function TherapistDashboard() {
             <textarea
               placeholder="Profile description"
               value={therapistInfo.profile}
-              onChange={(e) =>
-                setTherapistInfo((prev) => ({ ...prev, profile: e.target.value }))
-              }
+              onChange={(e) => setTherapistInfo((prev) => ({ ...prev, profile: e.target.value }))}
               style={{ width: "100%", marginBottom: "5px" }}
             />
             <input
@@ -201,10 +196,7 @@ function TherapistDashboard() {
               placeholder="Rating"
               value={therapistInfo.rating}
               onChange={(e) =>
-                setTherapistInfo((prev) => ({
-                  ...prev,
-                  rating: parseFloat(e.target.value) || 0,
-                }))
+                setTherapistInfo((prev) => ({ ...prev, rating: parseFloat(e.target.value) || 0 }))
               }
               style={{ width: "100%", marginBottom: "5px" }}
               min={0}
@@ -218,13 +210,20 @@ function TherapistDashboard() {
           </>
         ) : (
           <>
-            <p><strong>Name:</strong> {therapistInfo.name}</p>
-            <p><strong>Gender:</strong> {therapistInfo.gender}</p>
-            <p><strong>Position:</strong> {therapistInfo.position}</p>
-            <p><strong>About:</strong> {therapistInfo.profile}</p>
             <p>
-              <strong>Rating:</strong>{" "}
-              <span style={{ color: "gold" }}>⭐ {therapistInfo.rating}</span>
+              <strong>Name:</strong> {therapistInfo.name}
+            </p>
+            <p>
+              <strong>Gender:</strong> {therapistInfo.gender}
+            </p>
+            <p>
+              <strong>Position:</strong> {therapistInfo.position}
+            </p>
+            <p>
+              <strong>About:</strong> {therapistInfo.profile}
+            </p>
+            <p>
+              <strong>Rating:</strong> <span style={{ color: "gold" }}>⭐ {therapistInfo.rating}</span>
             </p>
             <button onClick={() => setEditing(true)}>Edit Profile</button>
           </>
@@ -248,12 +247,7 @@ function TherapistDashboard() {
               <p
                 key={msg.id}
                 style={{
-                  color:
-                    msg.role === "therapist"
-                      ? "blue"
-                      : msg.role === "ai"
-                      ? "green"
-                      : "black",
+                  color: msg.role === "therapist" ? "blue" : msg.role === "ai" ? "green" : "black",
                   fontWeight: msg.role === "therapist" ? "bold" : "normal",
                   fontStyle: msg.role === "ai" ? "italic" : "normal",
                 }}
@@ -261,6 +255,11 @@ function TherapistDashboard() {
                 <strong>{msg.displayName || "Anonymous"}</strong>: {msg.text}
               </p>
             ))}
+            {typingUsers.length > 0 && (
+              <p style={{ fontStyle: "italic", color: "gray" }}>
+                {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+              </p>
+            )}
             <div ref={messagesEndRef} />
           </div>
           <input

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   collection,
   addDoc,
@@ -27,6 +28,7 @@ function Chatroom() {
   const displayName = auth.currentUser?.email ? auth.currentUser.displayName || "Therapist" : getAnonName();
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
   const messagesEndRef = useRef(null);
+  const navigate = useNavigate();
   
   // Auto scroll chat
   useEffect(() => {
@@ -69,6 +71,46 @@ function Chatroom() {
 
     return () => unsubscribeAuth();
   }, []);
+
+  // Handle clicking on a therapist in the chat
+  const handleTherapistClick = async (msg) => {
+    if (msg.role !== "therapist") return;
+
+    try {
+      const snap = await getDoc(doc(db, "therapists", msg.userId));
+      if (snap.exists()) {
+        // Always attach uid to the therapist object
+        setSelectedTherapist({ ...snap.data(), uid: msg.userId });
+      } else {
+        console.warn("Therapist profile not found for uid:", msg.userId);
+      }
+    } catch (err) {
+      console.error("Error fetching therapist profile:", err);
+    }
+  };
+
+  // Start private chat
+  const startPrivateChat = async (therapist) => {
+    if (!therapist || !therapist.uid) {
+      console.error("Cannot start chat: invalid therapist object", therapist);
+      return;
+    }
+
+    const chatId = `chat_${auth.currentUser.uid}_${therapist.uid}`;
+    const chatRef = doc(db, "privateChats", chatId);
+    const chatSnap = await getDoc(chatRef);
+
+    if (!chatSnap.exists()) {
+      await setDoc(chatRef, {
+        participants: [auth.currentUser.uid, therapist.uid],
+        lastMessage: "",
+        lastUpdated: serverTimestamp(),
+        unreadCountForTherapist: 0,
+      });
+    }
+
+    navigate(`/private/${chatId}`);
+  };
 
   // Handle therapist leaving on window unload
   useEffect(() => {
@@ -147,16 +189,6 @@ function Chatroom() {
     }
   };
 
-  const handleTherapistClick = async (msg) => {
-    if (msg.role !== "therapist") return;
-    try {
-      const snap = await getDoc(doc(db, "therapists", msg.userId));
-      if (snap.exists()) setSelectedTherapist(snap.data());
-    } catch (err) {
-      console.error("Error fetching therapist profile:", err);
-    }
-  };
-
   const isTherapistOnline = (name) => therapistsOnline.includes(name);
 
   return (
@@ -174,8 +206,8 @@ function Chatroom() {
           therapist={selectedTherapist}
           isOnline={isTherapistOnline(selectedTherapist.name)}
           onBack={() => setSelectedTherapist(null)}
-          onStartChat={() => alert(`Starting private chat with ${selectedTherapist.name}`)}
-          onBookAppointment={() => alert(`Booking appointment with ${selectedTherapist.name}`)}
+          onStartChat={() => startPrivateChat(selectedTherapist)}
+          onBookAppointment={() => {}}
         />
       ) : (
         <>
