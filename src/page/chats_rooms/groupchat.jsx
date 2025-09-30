@@ -74,13 +74,26 @@ function Chatroom() {
       setIsLoggedIn(!!user);
 
       if (user?.email && !sessionStorage.getItem("therapistJoined")) {
+        let name = "Therapist";
+
+        try {
+          const snap = await getDoc(doc(db, "therapists", user.uid));
+          if (snap.exists()) {
+            name = snap.data().name || "Therapist";
+            setTherapistName(name); // keep state in sync too
+          }
+        } catch (err) {
+          console.error("Error fetching therapist name:", err);
+        }
+
         await addDoc(collection(db, "messages"), {
-          text: `${user.displayName || "Therapist"} joined the chat`,
+          text: `${name} joined the chat`,
           role: "system",
           timestamp: serverTimestamp(),
         });
         sessionStorage.setItem("therapistJoined", "true");
       }
+
     });
 
     return () => unsubscribeAuth();
@@ -131,8 +144,14 @@ function Chatroom() {
     const handleBeforeUnload = async () => {
       if (auth.currentUser?.email) {
         try {
+          let name = therapistName;
+          const snap = await getDoc(doc(db, "therapists", auth.currentUser.uid));
+          if (snap.exists()) {
+            name = snap.data().name || therapistName;
+          }
+
           await addDoc(collection(db, "messages"), {
-            text: `${auth.currentUser.displayName || "Therapist"} left the chat`,
+            text: `${name} left the chat`,
             role: "system",
             timestamp: serverTimestamp(),
           });
@@ -141,9 +160,10 @@ function Chatroom() {
         }
       }
     };
+
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, []);
+  }, [therapistName]);
 
   // Send a new message
   const sendMessage = async () => {
