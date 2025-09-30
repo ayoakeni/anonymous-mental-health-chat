@@ -13,7 +13,7 @@ export const getAIResponse = async (message) => {
         {
           role: "system",
           content:
-            "You are a supportive mental health chatbot.",
+            "You",
         },
         { role: "user", content: message },
       ],

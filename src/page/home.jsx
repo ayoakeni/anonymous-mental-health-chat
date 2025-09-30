@@ -1,4 +1,4 @@
-import {Link} from "react-router-dom";
+import Header from "../components/header";
 function Home() {
   return (
     <div style={{ padding: "20px" }}>
@@ -6,12 +6,7 @@ function Home() {
       <p>
         Connect with peers, talk to AI Support, or chat privately with a therapist.
       </p>
-      <nav>
-        <Link to="/chat">Go to Chatroom</Link> |{" "}
-        <Link to="/private">Private Chat</Link> |{" "}
-        <Link to="/about">About</Link> |{" "}
-        <Link to="/therapist">Login therapist</Link>
-      </nav>
+      <Header/>
     </div>
   );
 }

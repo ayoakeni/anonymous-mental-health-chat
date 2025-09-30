@@ -1,4 +1,3 @@
-// TherapistDashboard.js
 import React, { useEffect, useState, useRef } from "react";
 import { db, auth } from "../utils/firebase";
 import {

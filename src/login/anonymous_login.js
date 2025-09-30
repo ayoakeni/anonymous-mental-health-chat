@@ -2,8 +2,9 @@ import { signInAnonymously } from "firebase/auth";
 import { auth } from "../utils/firebase";
 export const loginAnonymously = async () => {
   try {
-    const result = await signInAnonymously(auth);
-    console.log("Logged in anonymously:", result.user.uid);
+    // const result = 
+    await signInAnonymously(auth);
+    // console.log("Logged in anonymously:", result.user.uid);
 
     // Assign a random display name
     if (!localStorage.getItem("anonName")) {
@@ -12,7 +13,7 @@ export const loginAnonymously = async () => {
       localStorage.setItem("anonName", anonName);
     }
   } catch (error) {
-    console.error("Login error:", error);
+    // console.error("Login error:", error);
   }
 };
 

@@ -20,8 +20,13 @@ function PrivateChat({ chatId }) {
   const [newMessage, setNewMessage] = useState("");
   const [activeTherapists, setActiveTherapists] = useState([]);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
-  const [therapistName, setTherapistName] = useState("Therapist"); // fallback
+  const [therapistName, setTherapistName] = useState("Therapist");
   const messagesEndRef = useRef(null);
+
+  // Auto scroll chat
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   // Fetch the therapist name if current user is a therapist
   useEffect(() => {
@@ -36,11 +41,6 @@ function PrivateChat({ chatId }) {
 
   const displayName = auth.currentUser?.email ? therapistName : getAnonName();
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
-
-  // Auto scroll chat
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   // Listen for messages
   useEffect(() => {

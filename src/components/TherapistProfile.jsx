@@ -1,4 +1,3 @@
-// TherapistProfile.js
 import React from "react";
 
 function TherapistProfile({ therapist, onBack, onStartChat, onBookAppointment, isOnline }) {
@@ -44,7 +43,7 @@ function TherapistProfile({ therapist, onBack, onStartChat, onBookAppointment, i
             marginRight: "10px",
           }}
         >
-          💬 Chat with Therapist
+          Chat with Therapist
         </button>
         <button
           onClick={onBookAppointment}
@@ -57,7 +56,7 @@ function TherapistProfile({ therapist, onBack, onStartChat, onBookAppointment, i
             cursor: "pointer",
           }}
         >
-          📅 Book Appointment
+          Book Appointment
         </button>
       </div>
     </div>
