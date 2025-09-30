@@ -16,7 +16,6 @@ import {
   setDoc,
 } from "firebase/firestore";
 import PrivateChat from "./chats_rooms/PrivateChat";
-import { getAnonName } from "../login/anonymous_login";
 import { useTypingStatus } from "../components/useTypingStatus";
 
 function TherapistDashboard() {
@@ -33,9 +32,7 @@ function TherapistDashboard() {
     rating: 0,
   });
   const therapistId = auth.currentUser?.uid;
-  const displayName = auth.currentUser?.email
-    ? auth.currentUser.displayName || "Therapist"
-    : getAnonName();
+  const displayName = therapistInfo.name || "Therapist";
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
   const messagesEndRef = useRef(null);
 
@@ -112,7 +109,7 @@ function TherapistDashboard() {
     setReply("");
     const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
     await updateDoc(typingDoc, { typing: false }).catch(async () => {
-      await setDoc(typingDoc, { typing: false, name: displayName, timestamp: serverTimestamp() });
+    await setDoc(typingDoc, { typing: false, name: therapistInfo.name || "Therapist", timestamp: serverTimestamp() });
     });
   };
 

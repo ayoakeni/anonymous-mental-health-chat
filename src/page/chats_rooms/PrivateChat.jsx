@@ -20,10 +20,23 @@ function PrivateChat({ chatId }) {
   const [newMessage, setNewMessage] = useState("");
   const [activeTherapists, setActiveTherapists] = useState([]);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
-  const displayName = auth.currentUser?.email ? "Therapist" : getAnonName();
-  const { typingUsers, handleTyping } = useTypingStatus(displayName);
+  const [therapistName, setTherapistName] = useState("Therapist"); // fallback
   const messagesEndRef = useRef(null);
-  
+
+  // Fetch the therapist name if current user is a therapist
+  useEffect(() => {
+    const fetchTherapistName = async () => {
+      if (auth.currentUser?.email) {
+        const snap = await getDoc(doc(db, "therapists", auth.currentUser.uid));
+        if (snap.exists()) setTherapistName(snap.data().name || "Therapist");
+      }
+    };
+    fetchTherapistName();
+  }, []);
+
+  const displayName = auth.currentUser?.email ? therapistName : getAnonName();
+  const { typingUsers, handleTyping } = useTypingStatus(displayName);
+
   // Auto scroll chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -57,12 +70,12 @@ function PrivateChat({ chatId }) {
     if (!newMessage.trim() || !auth.currentUser || !chatId) return;
 
     const role = auth.currentUser.email ? "therapist" : "user";
-    const displayName = role === "therapist" ? "Therapist" : getAnonName();
+    const nameToUse = role === "therapist" ? therapistName : getAnonName();
 
     await addDoc(collection(db, "privateChats", chatId, "messages"), {
       text: newMessage,
       userId: auth.currentUser.uid,
-      displayName,
+      displayName: nameToUse,
       role,
       timestamp: serverTimestamp(),
     });
@@ -82,11 +95,8 @@ function PrivateChat({ chatId }) {
 
     try {
       const snap = await getDoc(doc(db, "therapists", msg.userId));
-      if (snap.exists()) {
-        setSelectedTherapist(snap.data());
-      } else {
-        console.warn("Therapist not found");
-      }
+      if (snap.exists()) setSelectedTherapist(snap.data());
+      else console.warn("Therapist not found");
     } catch (err) {
       console.error("Error fetching therapist profile:", err);
     }
@@ -135,7 +145,13 @@ function PrivateChat({ chatId }) {
             }}
             onClick={() => handleTherapistClick(msg)}
           >
-            {msg.role === "system" ? <em>{msg.text}</em> : <><strong>{msg.displayName}:</strong> {msg.text}</>}
+            {msg.role === "system" ? (
+              <em>{msg.text}</em>
+            ) : (
+              <>
+                <strong>{msg.displayName}:</strong> {msg.text}
+              </>
+            )}
           </p>
         ))}
 

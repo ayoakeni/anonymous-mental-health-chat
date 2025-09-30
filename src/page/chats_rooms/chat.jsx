@@ -25,7 +25,8 @@ function Chatroom() {
   const [aiTyping, setAiTyping] = useState(false);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const [therapistsOnline, setTherapistsOnline] = useState([]);
-  const displayName = auth.currentUser?.email ? auth.currentUser.displayName || "Therapist" : getAnonName();
+  const [therapistName, setTherapistName] = useState("Therapist");
+  const displayName = auth.currentUser?.email ? therapistName : getAnonName();
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
@@ -34,6 +35,19 @@ function Chatroom() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Fetch therapist name from Firestore
+  useEffect(() => {
+    const fetchName = async () => {
+      if (auth.currentUser?.email) {
+        const snap = await getDoc(doc(db, "therapists", auth.currentUser.uid));
+        if (snap.exists()) {
+          setTherapistName(snap.data().name || "Therapist");
+        }
+      }
+    };
+    fetchName();
+  }, []);
 
   // Initialize chat & track messages
   useEffect(() => {
