@@ -64,6 +64,7 @@ function PrivateChat({ chatId }) {
           text: `${displayName} joined the chat`,
           role: "system",
           timestamp: serverTimestamp(),
+          therapistId: auth.currentUser?.email ? auth.currentUser.uid : null,
         });
       }
     };
@@ -93,7 +94,7 @@ function PrivateChat({ chatId }) {
       unsubscribe();
       clearTimeout(typingTimeoutRef.current);
     };
-  }, [chatId]); // ✅ no warning now
+  }, [chatId]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !auth.currentUser || !chatId) return;

@@ -32,7 +32,7 @@ function Chatroom() {
       const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setMessages(msgs);
 
-      // Update therapist presence based on active messages
+      // Track online therapists
       const onlineTherapists = msgs
         .filter((m) => m.role === "therapist")
         .map((t) => t.displayName || "Therapist");
@@ -47,16 +47,14 @@ function Chatroom() {
     const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
       setIsLoggedIn(!!user);
 
-      if (user?.email) {
-        // Only send join message once per session
-        if (!sessionStorage.getItem("therapistJoined")) {
-          await addDoc(collection(db, "messages"), {
-            text: `${user.displayName || "Therapist"} joined the chat`,
-            role: "system",
-            timestamp: serverTimestamp(),
-          });
-          sessionStorage.setItem("therapistJoined", "true");
-        }
+      if (user?.email && !sessionStorage.getItem("therapistJoined")) {
+        await addDoc(collection(db, "messages"), {
+          text: `${user.displayName || "Therapist"} joined the chat`,
+          role: "system",
+          timestamp: serverTimestamp(),
+          therapistId: auth.currentUser?.email ? auth.currentUser.uid : null,
+        });
+        sessionStorage.setItem("therapistJoined", "true");
       }
     });
 
@@ -87,13 +85,11 @@ function Chatroom() {
     if (!newMessage.trim() || !auth.currentUser) return;
 
     const role = auth.currentUser.email ? "therapist" : "user";
-
     let displayName = role === "therapist" ? "Therapist" : getAnonName();
-    let therapistId;
+    const therapistId = role === "therapist" ? auth.currentUser.uid : null;
 
+    // Fetch therapist name if needed
     if (role === "therapist") {
-      therapistId = auth.currentUser.uid;
-
       try {
         const ref = doc(db, "therapists", therapistId);
         const snap = await getDoc(ref);
@@ -112,9 +108,8 @@ function Chatroom() {
       displayName,
       role,
       timestamp: serverTimestamp(),
+      therapistId: role === "therapist" ? auth.currentUser.uid : null,
     };
-
-    if (role === "therapist") messageData.therapistId = therapistId;
 
     await addDoc(collection(db, "messages"), messageData);
     setNewMessage("");
@@ -144,6 +139,40 @@ function Chatroom() {
     }
   };
 
+  // Handle clicking therapist name
+  const handleTherapistClick = async (msg) => {
+    if (msg.role !== "therapist") return;
+    if (!msg.therapistId) return;
+
+    const therapistId = msg.therapistId;
+    if (!therapistId) {
+      console.warn("No therapistId found for this message");
+      return;
+    }
+
+    try {
+      // Check cache first
+      if (therapistCache[therapistId]) {
+        setSelectedTherapist({ ...msg, name: therapistCache[therapistId] });
+        return;
+      }
+
+      const ref = doc(db, "therapists", therapistId);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const data = snap.data();
+        setTherapistCache((prev) => ({ ...prev, [therapistId]: data.name }));
+        setSelectedTherapist(data);
+      } else {
+        console.warn("Therapist document not found");
+      }
+    } catch (err) {
+      console.error("Error fetching therapist profile:", err);
+    }
+  };
+
+  const isTherapistOnline = (name) => therapistsOnline.includes(name);
+
   return (
     <div
       className="chat-box"
@@ -166,10 +195,10 @@ function Chatroom() {
       {selectedTherapist ? (
         <TherapistProfile
           therapist={selectedTherapist}
+          isOnline={isTherapistOnline(selectedTherapist.name)}
           onBack={() => setSelectedTherapist(null)}
-            onStartChat={() => {
-            alert(`Starting private chat with ${selectedTherapist.name}`);
-          }}
+          onStartChat={() => alert(`Starting private chat with ${selectedTherapist.name}`)}
+          onBookAppointment={() => alert(`Booking appointment with ${selectedTherapist.name}`)}
         />
       ) : (
         <>
@@ -213,32 +242,10 @@ function Chatroom() {
                     <>
                       <strong
                         style={{
-                          cursor:
-                            msg.role === "therapist" ? "pointer" : "default",
-                          textDecoration:
-                            msg.role === "therapist" ? "underline" : "none",
+                          cursor: msg.role === "therapist" ? "pointer" : "default",
+                          textDecoration: msg.role === "therapist" ? "underline" : "none",
                         }}
-                        onClick={async () => {
-                          if (msg.role === "therapist" && msg.therapistId) {
-                            try {
-                              const ref = doc(db, "therapists", msg.therapistId);
-                              const snap = await getDoc(ref);
-                              if (snap.exists()) {
-                                const data = snap.data();
-                                setSelectedTherapist(data);
-                                setTherapistCache((prev) => ({
-                                  ...prev,
-                                  [msg.therapistId]: data.name,
-                                }));
-                              }
-                            } catch (err) {
-                              console.error(
-                                "Error fetching therapist profile:",
-                                err
-                              );
-                            }
-                          }
-                        }}
+                        onClick={() => handleTherapistClick(msg)}
                       >
                         {displayName || "Anonymous"}
                       </strong>
