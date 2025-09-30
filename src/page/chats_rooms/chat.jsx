@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   collection,
   addDoc,
@@ -8,11 +8,14 @@ import {
   orderBy,
   doc,
   getDoc,
+  updateDoc,
+  setDoc,
 } from "firebase/firestore";
 import { db, auth } from "../../utils/firebase";
 import { getAIResponse } from "../../components/AiChat";
 import { loginAnonymously, getAnonName } from "../../login/anonymous_login";
 import TherapistProfile from "../../components/TherapistProfile";
+import { useTypingStatus } from "../../components/useTypingStatus";
 
 function Chatroom() {
   const [messages, setMessages] = useState([]);
@@ -21,6 +24,14 @@ function Chatroom() {
   const [aiTyping, setAiTyping] = useState(false);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const [therapistsOnline, setTherapistsOnline] = useState([]);
+  const displayName = auth.currentUser?.email ? auth.currentUser.displayName || "Therapist" : getAnonName();
+  const { typingUsers, handleTyping } = useTypingStatus(displayName);
+  const messagesEndRef = useRef(null);
+  
+  // Auto scroll chat
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   // Initialize chat & track messages
   useEffect(() => {
@@ -85,13 +96,10 @@ function Chatroom() {
     const role = auth.currentUser.email ? "therapist" : "user";
     let displayName = role === "therapist" ? "Therapist" : getAnonName();
 
-    // Fetch therapist name from collection if role is therapist
     if (role === "therapist") {
       try {
         const snap = await getDoc(doc(db, "therapists", auth.currentUser.uid));
-        if (snap.exists()) {
-          displayName = snap.data().name;
-        }
+        if (snap.exists()) displayName = snap.data().name;
       } catch (err) {
         console.error("Error fetching therapist name:", err);
       }
@@ -107,6 +115,12 @@ function Chatroom() {
 
     await addDoc(collection(db, "messages"), messageData);
     setNewMessage("");
+
+    // Stop typing for this therapist
+    const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
+    await updateDoc(typingDoc, { typing: false }).catch(async () => {
+      await setDoc(typingDoc, { typing: false, name: displayName, timestamp: serverTimestamp() });
+    });
 
     // Trigger AI if user mentions @ai
     if (role === "user" && newMessage.toLowerCase().includes("@ai")) {
@@ -133,18 +147,11 @@ function Chatroom() {
     }
   };
 
-  // Handle clicking therapist name
   const handleTherapistClick = async (msg) => {
     if (msg.role !== "therapist") return;
-
     try {
-      const ref = doc(db, "therapists", msg.userId); // Use userId instead of therapistId
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        setSelectedTherapist(snap.data());
-      } else {
-        console.warn("Therapist not found");
-      }
+      const snap = await getDoc(doc(db, "therapists", msg.userId));
+      if (snap.exists()) setSelectedTherapist(snap.data());
     } catch (err) {
       console.error("Error fetching therapist profile:", err);
     }
@@ -153,16 +160,7 @@ function Chatroom() {
   const isTherapistOnline = (name) => therapistsOnline.includes(name);
 
   return (
-    <div
-      className="chat-box"
-      style={{
-        border: "1px solid #ccc",
-        padding: "10px",
-        height: "350px",
-        overflowY: "scroll",
-        marginBottom: "10px",
-      }}
-    >
+    <div className="chat-box" style={{ border: "1px solid #ccc", padding: "10px", height: "350px", overflowY: "scroll", marginBottom: "10px" }}>
       <h2>Anonymous Mental Health Chat</h2>
 
       <p>
@@ -186,26 +184,11 @@ function Chatroom() {
               <p
                 key={msg.id}
                 style={{
-                  backgroundColor:
-                    msg.role === "ai"
-                      ? "#f0fff0"
-                      : msg.role === "system"
-                      ? "#f9f9f9"
-                      : "transparent",
+                  backgroundColor: msg.role === "ai" ? "#f0fff0" : msg.role === "system" ? "#f9f9f9" : "transparent",
                   padding: "8px",
                   borderRadius: "6px",
-                  color:
-                    msg.role === "ai"
-                      ? "green"
-                      : msg.role === "therapist"
-                      ? "blue"
-                      : msg.role === "system"
-                      ? "gray"
-                      : "black",
-                  fontStyle:
-                    msg.role === "ai" || msg.role === "system"
-                      ? "italic"
-                      : "normal",
+                  color: msg.role === "ai" ? "green" : msg.role === "therapist" ? "blue" : msg.role === "system" ? "gray" : "black",
+                  fontStyle: msg.role === "ai" || msg.role === "system" ? "italic" : "normal",
                   fontWeight: msg.role === "therapist" ? "bold" : "normal",
                 }}
               >
@@ -227,19 +210,26 @@ function Chatroom() {
                 )}
               </p>
             ))}
-            {aiTyping && (
+            {typingUsers.length > 0 && (
               <p style={{ fontStyle: "italic", color: "gray" }}>
-                AI Support is typing...
+                {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
               </p>
             )}
+            {aiTyping && (
+              <p style={{ fontStyle: "italic", color: "gray" }}>AI Support is typing...</p>
+            )}
+            <div ref={messagesEndRef} />
           </div>
-
           <input
+            type="text"
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder={isLoggedIn ? "Type your message..." : "Logging in..."}
+            onChange={(e) => {
+              setNewMessage(e.target.value);
+              handleTyping(e.target.value);
+            }}
             disabled={!isLoggedIn}
             style={{ width: "70%", marginRight: "5px" }}
+            placeholder="Type a message..."
           />
           <button onClick={sendMessage} disabled={!isLoggedIn}>
             Send

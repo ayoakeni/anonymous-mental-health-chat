@@ -1,5 +1,5 @@
 // TherapistDashboard.js
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { db, auth } from "../utils/firebase";
 import {
   collection,
@@ -15,7 +15,9 @@ import {
   getDoc,
   setDoc,
 } from "firebase/firestore";
+import { useTypingStatus } from "../components/useTypingStatus";
 import PrivateChat from "./chats_rooms/PrivateChat";
+import { getAnonName } from "../login/anonymous_login";
 
 function TherapistDashboard() {
   const [messages, setMessages] = useState([]);
@@ -30,8 +32,15 @@ function TherapistDashboard() {
     profile: "",
     rating: 0,
   });
-
   const therapistId = auth.currentUser?.uid;
+  const displayName = auth.currentUser?.email ? auth.currentUser.displayName || "Therapist" : getAnonName();
+  const { handleTyping } = useTypingStatus(displayName);
+  const messagesEndRef = useRef(null);
+  
+  // Auto scroll chat
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   // Fetch therapist profile
   useEffect(() => {
@@ -99,6 +108,11 @@ function TherapistDashboard() {
     });
 
     setReply("");
+    // Stop typing for this therapist
+    const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
+    await updateDoc(typingDoc, { typing: false }).catch(async () => {
+      await setDoc(typingDoc, { typing: false, name: displayName, timestamp: serverTimestamp() });
+    });
   };
 
   // Join private chat
@@ -189,7 +203,7 @@ function TherapistDashboard() {
               onChange={(e) =>
                 setTherapistInfo((prev) => ({
                   ...prev,
-                  rating: parseFloat(e.target.value),
+                  rating: parseFloat(e.target.value) || 0,
                 }))
               }
               style={{ width: "100%", marginBottom: "5px" }}
@@ -247,11 +261,15 @@ function TherapistDashboard() {
                 <strong>{msg.displayName || "Anonymous"}</strong>: {msg.text}
               </p>
             ))}
+            <div ref={messagesEndRef} />
           </div>
           <input
             type="text"
             value={reply}
-            onChange={(e) => setReply(e.target.value)}
+            onChange={(e) => {
+              setReply(e.target.value);
+              handleTyping(e.target.value);
+            }}
             placeholder="Reply to group chat..."
             style={{ width: "70%", marginRight: "5px" }}
           />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { db, auth } from "../../utils/firebase";
 import { getAnonName } from "../../login/anonymous_login";
+import { useTypingStatus } from "../../components/useTypingStatus";
 import {
   collection,
   addDoc,
@@ -18,10 +19,17 @@ function PrivateChat({ chatId }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [activeTherapists, setActiveTherapists] = useState([]);
-  const [therapistTyping, setTherapistTyping] = useState(false);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
-  const typingTimeoutRef = useRef(null);
+  const displayName = auth.currentUser?.email ? "Therapist" : getAnonName();
+  const { typingUsers, handleTyping } = useTypingStatus(displayName);
+  const messagesEndRef = useRef(null);
+  
+  // Auto scroll chat
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
+  // Listen for messages
   useEffect(() => {
     if (!chatId) return;
 
@@ -30,7 +38,7 @@ function PrivateChat({ chatId }) {
       orderBy("timestamp")
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribeMessages = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setMessages(msgs);
 
@@ -39,56 +47,12 @@ function PrivateChat({ chatId }) {
         .filter((m) => m.role === "therapist")
         .map((m) => m.displayName);
       setActiveTherapists([...new Set(therapists)]);
-
-      // Track typing
-      const lastMsg = msgs[msgs.length - 1];
-      if (lastMsg?.role === "therapist" && lastMsg?.typing) {
-        setTherapistTyping(true);
-
-        clearTimeout(typingTimeoutRef.current);
-        typingTimeoutRef.current = setTimeout(() => setTherapistTyping(false), 3000);
-      } else {
-        setTherapistTyping(false);
-      }
     });
 
-    // System message: therapist joined
-    const handleTherapistJoin = async () => {
-      if (auth.currentUser?.email) {
-        await addDoc(collection(db, "privateChats", chatId, "messages"), {
-          text: "Therapist joined the chat",
-          role: "system",
-          timestamp: serverTimestamp(),
-        });
-      }
-    };
-    handleTherapistJoin();
-
-    // Reset unread count
-    if (auth.currentUser?.email) {
-      const chatRef = doc(db, "privateChats", chatId);
-      updateDoc(chatRef, { unreadCountForTherapist: 0 });
-    }
-
-    // Therapist leaving
-    const handleBeforeUnload = async () => {
-      if (auth.currentUser?.email) {
-        await addDoc(collection(db, "privateChats", chatId, "messages"), {
-          text: "Therapist left the chat",
-          role: "system",
-          timestamp: serverTimestamp(),
-        });
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      unsubscribe();
-      clearTimeout(typingTimeoutRef.current);
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
+    return () => unsubscribeMessages();
   }, [chatId]);
 
+  // Send a message
   const sendMessage = async () => {
     if (!newMessage.trim() || !auth.currentUser || !chatId) return;
 
@@ -111,20 +75,6 @@ function PrivateChat({ chatId }) {
     });
 
     setNewMessage("");
-  };
-
-  const handleTyping = async (e) => {
-    setNewMessage(e.target.value);
-
-    if (auth.currentUser?.email) {
-      await addDoc(collection(db, "privateChats", chatId, "messages"), {
-        userId: auth.currentUser.uid,
-        displayName: "Therapist",
-        role: "therapist",
-        typing: true,
-        timestamp: serverTimestamp(),
-      });
-    }
   };
 
   const handleTherapistClick = async (msg) => {
@@ -185,21 +135,25 @@ function PrivateChat({ chatId }) {
             }}
             onClick={() => handleTherapistClick(msg)}
           >
-            {msg.role === "system" ? (
-              <em>{msg.text}</em>
-            ) : (
-              <>
-                <strong>{msg.displayName}:</strong> {msg.text}
-              </>
-            )}
+            {msg.role === "system" ? <em>{msg.text}</em> : <><strong>{msg.displayName}:</strong> {msg.text}</>}
           </p>
         ))}
-        {therapistTyping && <p style={{ fontStyle: "italic", color: "gray" }}>Therapist is typing...</p>}
+
+        {typingUsers.length > 0 && (
+          <p style={{ fontStyle: "italic", color: "gray" }}>
+            {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+          </p>
+        )}
+        <div ref={messagesEndRef} />
       </div>
 
       <input
+        type="text"
         value={newMessage}
-        onChange={handleTyping}
+        onChange={(e) => {
+          setNewMessage(e.target.value);
+          handleTyping(e.target.value);
+        }}
         placeholder="Type a message..."
         style={{ width: "70%", marginRight: "5px" }}
       />
