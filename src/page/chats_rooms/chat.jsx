@@ -20,7 +20,6 @@ function Chatroom() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
-  const [therapistCache, setTherapistCache] = useState({});
   const [therapistsOnline, setTherapistsOnline] = useState([]);
 
   // Initialize chat & track messages
@@ -52,7 +51,6 @@ function Chatroom() {
           text: `${user.displayName || "Therapist"} joined the chat`,
           role: "system",
           timestamp: serverTimestamp(),
-          therapistId: auth.currentUser?.email ? auth.currentUser.uid : null,
         });
         sessionStorage.setItem("therapistJoined", "true");
       }
@@ -86,16 +84,13 @@ function Chatroom() {
 
     const role = auth.currentUser.email ? "therapist" : "user";
     let displayName = role === "therapist" ? "Therapist" : getAnonName();
-    const therapistId = role === "therapist" ? auth.currentUser.uid : null;
 
-    // Fetch therapist name if needed
+    // Fetch therapist name from collection if role is therapist
     if (role === "therapist") {
       try {
-        const ref = doc(db, "therapists", therapistId);
-        const snap = await getDoc(ref);
+        const snap = await getDoc(doc(db, "therapists", auth.currentUser.uid));
         if (snap.exists()) {
           displayName = snap.data().name;
-          setTherapistCache((prev) => ({ ...prev, [therapistId]: displayName }));
         }
       } catch (err) {
         console.error("Error fetching therapist name:", err);
@@ -108,7 +103,6 @@ function Chatroom() {
       displayName,
       role,
       timestamp: serverTimestamp(),
-      therapistId: role === "therapist" ? auth.currentUser.uid : null,
     };
 
     await addDoc(collection(db, "messages"), messageData);
@@ -142,29 +136,14 @@ function Chatroom() {
   // Handle clicking therapist name
   const handleTherapistClick = async (msg) => {
     if (msg.role !== "therapist") return;
-    if (!msg.therapistId) return;
-
-    const therapistId = msg.therapistId;
-    if (!therapistId) {
-      console.warn("No therapistId found for this message");
-      return;
-    }
 
     try {
-      // Check cache first
-      if (therapistCache[therapistId]) {
-        setSelectedTherapist({ ...msg, name: therapistCache[therapistId] });
-        return;
-      }
-
-      const ref = doc(db, "therapists", therapistId);
+      const ref = doc(db, "therapists", msg.userId); // Use userId instead of therapistId
       const snap = await getDoc(ref);
       if (snap.exists()) {
-        const data = snap.data();
-        setTherapistCache((prev) => ({ ...prev, [therapistId]: data.name }));
-        setSelectedTherapist(data);
+        setSelectedTherapist(snap.data());
       } else {
-        console.warn("Therapist document not found");
+        console.warn("Therapist not found");
       }
     } catch (err) {
       console.error("Error fetching therapist profile:", err);
@@ -203,58 +182,51 @@ function Chatroom() {
       ) : (
         <>
           <div className="chat-box" style={{ marginBottom: "10px" }}>
-            {messages.map((msg) => {
-              let displayName = msg.displayName;
-              if (msg.role === "therapist" && msg.therapistId) {
-                displayName = therapistCache[msg.therapistId] || displayName;
-              }
-
-              return (
-                <p
-                  key={msg.id}
-                  style={{
-                    backgroundColor:
-                      msg.role === "ai"
-                        ? "#f0fff0"
-                        : msg.role === "system"
-                        ? "#f9f9f9"
-                        : "transparent",
-                    padding: "8px",
-                    borderRadius: "6px",
-                    color:
-                      msg.role === "ai"
-                        ? "green"
-                        : msg.role === "therapist"
-                        ? "blue"
-                        : msg.role === "system"
-                        ? "gray"
-                        : "black",
-                    fontStyle:
-                      msg.role === "ai" || msg.role === "system"
-                        ? "italic"
-                        : "normal",
-                    fontWeight: msg.role === "therapist" ? "bold" : "normal",
-                  }}
-                >
-                  {msg.role === "system" ? (
-                    <em>{msg.text}</em>
-                  ) : (
-                    <>
-                      <strong
-                        style={{
-                          cursor: msg.role === "therapist" ? "pointer" : "default",
-                          textDecoration: msg.role === "therapist" ? "underline" : "none",
-                        }}
-                        onClick={() => handleTherapistClick(msg)}
-                      >
-                        {displayName || "Anonymous"}
-                      </strong>
-                      : {msg.text}
-                    </>
-                  )}
-                </p>
-              );
-            })}
+            {messages.map((msg) => (
+              <p
+                key={msg.id}
+                style={{
+                  backgroundColor:
+                    msg.role === "ai"
+                      ? "#f0fff0"
+                      : msg.role === "system"
+                      ? "#f9f9f9"
+                      : "transparent",
+                  padding: "8px",
+                  borderRadius: "6px",
+                  color:
+                    msg.role === "ai"
+                      ? "green"
+                      : msg.role === "therapist"
+                      ? "blue"
+                      : msg.role === "system"
+                      ? "gray"
+                      : "black",
+                  fontStyle:
+                    msg.role === "ai" || msg.role === "system"
+                      ? "italic"
+                      : "normal",
+                  fontWeight: msg.role === "therapist" ? "bold" : "normal",
+                }}
+              >
+                {msg.role === "system" ? (
+                  <em>{msg.text}</em>
+                ) : (
+                  <>
+                    <strong
+                      style={{
+                        cursor: msg.role === "therapist" ? "pointer" : "default",
+                        textDecoration: msg.role === "therapist" ? "underline" : "none",
+                      }}
+                      onClick={() => handleTherapistClick(msg)}
+                    >
+                      {msg.displayName || "Anonymous"}
+                    </strong>
+                    : {msg.text}
+                  </>
+                )}
+              </p>
+            ))}
             {aiTyping && (
               <p style={{ fontStyle: "italic", color: "gray" }}>
                 AI Support is typing...

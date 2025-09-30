@@ -33,17 +33,15 @@ function TherapistDashboard() {
 
   const therapistId = auth.currentUser?.uid;
 
-  // Load therapist profile from Firestore
+  // Fetch therapist profile
   useEffect(() => {
     if (!therapistId) return;
     const fetchProfile = async () => {
       try {
-        const ref = doc(db, "therapists", therapistId);
-        const snap = await getDoc(ref);
+        const snap = await getDoc(doc(db, "therapists", therapistId));
         if (snap.exists()) {
           setTherapistInfo(snap.data());
         } else {
-          // If no profile exists, initialize with default values
           setTherapistInfo({
             name: "New Therapist",
             gender: "",
@@ -63,8 +61,7 @@ function TherapistDashboard() {
   const saveProfile = async () => {
     if (!therapistId) return;
     try {
-      const ref = doc(db, "therapists", therapistId);
-      await setDoc(ref, therapistInfo, { merge: true });
+      await setDoc(doc(db, "therapists", therapistId), therapistInfo, { merge: true });
       alert("Profile saved successfully!");
       setEditing(false);
     } catch (err) {
@@ -91,8 +88,7 @@ function TherapistDashboard() {
 
   // Send message to group
   const sendReply = async () => {
-    if (!reply.trim()) return;
-    if (!auth.currentUser) return;
+    if (!reply.trim() || !auth.currentUser) return;
 
     await addDoc(collection(db, "messages"), {
       text: reply,
@@ -138,7 +134,7 @@ function TherapistDashboard() {
     <div style={{ padding: "20px" }}>
       <h2>Therapist Dashboard</h2>
 
-      {/* Therapist Information */}
+      {/* Therapist Profile */}
       <div
         style={{
           border: "1px solid #ddd",
@@ -191,7 +187,10 @@ function TherapistDashboard() {
               placeholder="Rating"
               value={therapistInfo.rating}
               onChange={(e) =>
-                setTherapistInfo((prev) => ({ ...prev, rating: parseFloat(e.target.value) }))
+                setTherapistInfo((prev) => ({
+                  ...prev,
+                  rating: parseFloat(e.target.value),
+                }))
               }
               style={{ width: "100%", marginBottom: "5px" }}
               min={0}

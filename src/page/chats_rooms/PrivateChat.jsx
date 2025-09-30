@@ -11,6 +11,7 @@ import {
   doc,
   updateDoc,
   increment,
+  getDoc,
 } from "firebase/firestore";
 
 function PrivateChat({ chatId }) {
@@ -18,7 +19,8 @@ function PrivateChat({ chatId }) {
   const [newMessage, setNewMessage] = useState("");
   const [activeTherapists, setActiveTherapists] = useState([]);
   const [therapistTyping, setTherapistTyping] = useState(false);
-  const typingTimeoutRef = useRef(null); // Use ref instead of state
+  const [selectedTherapist, setSelectedTherapist] = useState(null);
+  const typingTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (!chatId) return;
@@ -38,19 +40,13 @@ function PrivateChat({ chatId }) {
         .map((m) => m.displayName);
       setActiveTherapists([...new Set(therapists)]);
 
-      // Check typing
+      // Track typing
       const lastMsg = msgs[msgs.length - 1];
       if (lastMsg?.role === "therapist" && lastMsg?.typing) {
         setTherapistTyping(true);
 
-        // Clear previous timeout
         clearTimeout(typingTimeoutRef.current);
-
-        // Set new timeout to hide typing
-        typingTimeoutRef.current = setTimeout(
-          () => setTherapistTyping(false),
-          3000
-        );
+        typingTimeoutRef.current = setTimeout(() => setTherapistTyping(false), 3000);
       } else {
         setTherapistTyping(false);
       }
@@ -59,12 +55,10 @@ function PrivateChat({ chatId }) {
     // System message: therapist joined
     const handleTherapistJoin = async () => {
       if (auth.currentUser?.email) {
-        const displayName = "Therapist";
         await addDoc(collection(db, "privateChats", chatId, "messages"), {
-          text: `${displayName} joined the chat`,
+          text: "Therapist joined the chat",
           role: "system",
           timestamp: serverTimestamp(),
-          therapistId: auth.currentUser?.email ? auth.currentUser.uid : null,
         });
       }
     };
@@ -79,9 +73,8 @@ function PrivateChat({ chatId }) {
     // Therapist leaving
     const handleBeforeUnload = async () => {
       if (auth.currentUser?.email) {
-        const displayName = "Therapist";
         await addDoc(collection(db, "privateChats", chatId, "messages"), {
-          text: `${displayName} left the chat`,
+          text: "Therapist left the chat",
           role: "system",
           timestamp: serverTimestamp(),
         });
@@ -90,9 +83,9 @@ function PrivateChat({ chatId }) {
     window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
       unsubscribe();
       clearTimeout(typingTimeoutRef.current);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [chatId]);
 
@@ -122,6 +115,7 @@ function PrivateChat({ chatId }) {
 
   const handleTyping = async (e) => {
     setNewMessage(e.target.value);
+
     if (auth.currentUser?.email) {
       await addDoc(collection(db, "privateChats", chatId, "messages"), {
         userId: auth.currentUser.uid,
@@ -133,6 +127,21 @@ function PrivateChat({ chatId }) {
     }
   };
 
+  const handleTherapistClick = async (msg) => {
+    if (msg.role !== "therapist") return;
+
+    try {
+      const snap = await getDoc(doc(db, "therapists", msg.userId));
+      if (snap.exists()) {
+        setSelectedTherapist(snap.data());
+      } else {
+        console.warn("Therapist not found");
+      }
+    } catch (err) {
+      console.error("Error fetching therapist profile:", err);
+    }
+  };
+
   return (
     <div>
       <h3>
@@ -141,6 +150,14 @@ function PrivateChat({ chatId }) {
           ? `with ${activeTherapists.join(", ")}`
           : "(Waiting for Therapist)"}
       </h3>
+
+      {selectedTherapist && (
+        <div style={{ border: "1px solid #ccc", padding: "10px", marginBottom: "10px" }}>
+          <button onClick={() => setSelectedTherapist(null)}>⬅ Back</button>
+          <h4>{selectedTherapist.name}</h4>
+          <p>{selectedTherapist.profile}</p>
+        </div>
+      )}
 
       <div
         style={{
@@ -163,7 +180,10 @@ function PrivateChat({ chatId }) {
                   : "black",
               fontWeight: msg.role === "therapist" ? "bold" : "normal",
               fontStyle: msg.role === "system" ? "italic" : "normal",
+              cursor: msg.role === "therapist" ? "pointer" : "default",
+              textDecoration: msg.role === "therapist" ? "underline" : "none",
             }}
+            onClick={() => handleTherapistClick(msg)}
           >
             {msg.role === "system" ? (
               <em>{msg.text}</em>
@@ -174,11 +194,7 @@ function PrivateChat({ chatId }) {
             )}
           </p>
         ))}
-        {therapistTyping && (
-          <p style={{ fontStyle: "italic", color: "gray" }}>
-            Therapist is typing...
-          </p>
-        )}
+        {therapistTyping && <p style={{ fontStyle: "italic", color: "gray" }}>Therapist is typing...</p>}
       </div>
 
       <input
