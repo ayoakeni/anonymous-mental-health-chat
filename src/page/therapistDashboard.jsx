@@ -63,7 +63,7 @@ function TherapistDashboard() {
 
     return () => unsubscribe();
   }, [isGroupChatOpen, messages.length]);
-  
+
   useEffect(() => {
     if (!auth.currentUser) return;
     const groupRef = doc(db, "groupChat", "mainGroup");
@@ -198,21 +198,26 @@ function TherapistDashboard() {
     if (!auth.currentUser) return;
     const groupRef = doc(db, "groupChat", "mainGroup");
 
-    await setDoc(
-      groupRef,
-      { participants: arrayRemove(auth.currentUser.uid) },
-      { merge: true }
-    );
-
-    await addDoc(collection(db, "messages"), {
-      text: `${therapistInfo.name} left the group chat`,
-      role: "system",
-      timestamp: serverTimestamp(),
-    });
-
-    // Immediately update local state
+    // Immediately update local state to close UI
     setIsGroupChatOpen(false);
-    setInGroupChat(false);  // <- ensure UI knows user left
+    setInGroupChat(false);
+    setGroupUnreadCount(0);
+
+    try {
+      await setDoc(
+        groupRef,
+        { participants: arrayRemove(auth.currentUser.uid) },
+        { merge: true }
+      );
+
+      await addDoc(collection(db, "messages"), {
+        text: `${therapistInfo.name} left the group chat`,
+        role: "system",
+        timestamp: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("Error leaving group chat:", err);
+    }
   };
 
   // Join private chat
@@ -459,10 +464,23 @@ function TherapistDashboard() {
       {activeChatId && (
         <div>
           <LeaveChatButton
-            type="private"
-            chatId={activeChatId}
-            therapistInfo={therapistInfo}
-            setActiveChatId={setActiveChatId}
+            onLeave={async () => {
+              if (!activeChatId) return;
+
+              // Firestore: log system message & remove participant
+              const chatRef = doc(db, "privateChats", activeChatId);
+              await addDoc(collection(db, "privateChats", activeChatId, "messages"), {
+                text: `${therapistInfo.name} left the chat`,
+                role: "system",
+                timestamp: serverTimestamp(),
+              });
+              await updateDoc(chatRef, {
+                participants: arrayRemove(auth.currentUser.uid),
+              });
+
+              // Close chat locally
+              setActiveChatId(null);
+            }}
           />
           <PrivateChat chatId={activeChatId} />
         </div>
