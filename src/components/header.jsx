@@ -5,7 +5,7 @@ function Header() {
       <nav>
         <Link to="/chat">Go to Chatroom</Link> |{" "}
         <Link to="/about">About</Link> |{" "}
-        <Link to="/therapist">Login therapist</Link>
+        <Link to="/therapist_login">Login therapist</Link>
       </nav>
     </div>
   );

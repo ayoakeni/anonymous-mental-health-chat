@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { db, auth } from "../utils/firebase";
 import {
   collection,
@@ -16,11 +17,16 @@ import {
 } from "firebase/firestore";
 import PrivateChat from "./chats_rooms/PrivateChat";
 import { useTypingStatus } from "../components/useTypingStatus";
+import { signOut } from "firebase/auth";
+import LeaveChatButton from "../components/LeaveChatButton";
 
 function TherapistDashboard() {
   const [messages, setMessages] = useState([]);
   const [reply, setReply] = useState("");
   const [privateChats, setPrivateChats] = useState([]);
+  const [isGroupChatOpen, setIsGroupChatOpen] = useState(false);
+  const [inGroupChat, setInGroupChat] = useState(false);
+  const [groupUnreadCount, setGroupUnreadCount] = useState(0);
   const [activeChatId, setActiveChatId] = useState(null);
   const [editing, setEditing] = useState(false);
   const [therapistInfo, setTherapistInfo] = useState({
@@ -34,11 +40,44 @@ function TherapistDashboard() {
   const displayName = therapistInfo.name || "Therapist";
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
   const messagesEndRef = useRef(null);
+  const navigate = useNavigate();
 
   // Auto scroll chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Group messages listener + unread count
+  useEffect(() => {
+    const q = query(collection(db, "messages"), orderBy("timestamp"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+      // Update unread count if new messages arrive while closed
+      if (!isGroupChatOpen && msgs.length > messages.length) {
+        setGroupUnreadCount((prev) => prev + (msgs.length - messages.length));
+      }
+
+      setMessages(msgs);
+    });
+
+    return () => unsubscribe();
+  }, [isGroupChatOpen, messages.length]);
+  
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    const groupRef = doc(db, "groupChat", "mainGroup");
+    const unsub = onSnapshot(groupRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        const isParticipant = data.participants.includes(auth.currentUser.uid);
+        setInGroupChat(isParticipant);
+        setIsGroupChatOpen(isParticipant && isGroupChatOpen); 
+        // keeps group chat open only if user is still a participant
+      }
+    });
+    return () => unsub();
+  }, [isGroupChatOpen]);
 
   // Fetch therapist profile
   useEffect(() => {
@@ -64,6 +103,37 @@ function TherapistDashboard() {
     fetchProfile();
   }, [therapistId]);
 
+  const handleLogout = async () => {
+    try {
+      if (!auth.currentUser) return;
+      // If therapist is inside a private chat, log a system message before leaving
+      if (activeChatId) {
+        const chatRef = doc(db, "privateChats", activeChatId);
+        await addDoc(collection(db, "privateChats", activeChatId, "messages"), {
+          text: `${therapistInfo.name} left the chat`,
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
+        await updateDoc(chatRef, {
+          participants: arrayRemove(auth.currentUser.uid),
+        });
+      }
+
+      // Sign out from Firebase
+      await signOut(auth);
+
+      // Reset state
+      setTherapistInfo({ name: "#", gender: "#", position: "#", profile: "#", rating: 0 });
+      setMessages([]);
+      setPrivateChats([]);
+      setActiveChatId(null);
+
+      navigate("/therapist_login");
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+  };
+
   // Save therapist profile
   const saveProfile = async () => {
     if (!therapistId) return;
@@ -75,15 +145,6 @@ function TherapistDashboard() {
       console.error("Error saving profile:", err);
     }
   };
-
-  // Load group chat messages
-  useEffect(() => {
-    const q = query(collection(db, "messages"), orderBy("timestamp"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setMessages(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-    });
-    return () => unsubscribe();
-  }, []);
 
   // Load private chats
   useEffect(() => {
@@ -112,8 +173,51 @@ function TherapistDashboard() {
     });
   };
 
+  const joinGroupChat = async () => {
+    if (!auth.currentUser) return;
+    const groupRef = doc(db, "groupChat", "mainGroup");
+
+    // Ensure the doc exists, create if missing
+    await setDoc(
+      groupRef,
+      { participants: arrayUnion(auth.currentUser.uid) },
+      { merge: true }
+    );
+
+    await addDoc(collection(db, "messages"), {
+      text: `${therapistInfo.name} joined the group chat`,
+      role: "system",
+      timestamp: serverTimestamp(),
+    });
+
+    setIsGroupChatOpen(true);
+    setGroupUnreadCount(0);
+  };
+
+  const leaveGroupChat = async () => {
+    if (!auth.currentUser) return;
+    const groupRef = doc(db, "groupChat", "mainGroup");
+
+    await setDoc(
+      groupRef,
+      { participants: arrayRemove(auth.currentUser.uid) },
+      { merge: true }
+    );
+
+    await addDoc(collection(db, "messages"), {
+      text: `${therapistInfo.name} left the group chat`,
+      role: "system",
+      timestamp: serverTimestamp(),
+    });
+
+    // Immediately update local state
+    setIsGroupChatOpen(false);
+    setInGroupChat(false);  // <- ensure UI knows user left
+  };
+
   // Join private chat
   const joinPrivateChat = async (chatId) => {
+    if (!auth.currentUser) return;
     const chatRef = doc(db, "privateChats", chatId);
     await updateDoc(chatRef, {
       participants: arrayUnion(auth.currentUser.uid),
@@ -127,24 +231,12 @@ function TherapistDashboard() {
     setActiveChatId(chatId);
   };
 
-  // Leave private chat
-  const leavePrivateChat = async (chatId) => {
-    const chatRef = doc(db, "privateChats", chatId);
-    await addDoc(collection(db, "privateChats", chatId, "messages"), {
-      text: `${therapistInfo.name} left the chat`,
-      role: "system",
-      timestamp: serverTimestamp(),
-    });
-    await updateDoc(chatRef, {
-      participants: arrayRemove(auth.currentUser.uid),
-    });
-    setActiveChatId(null);
-  };
-
   return (
     <div style={{ padding: "20px" }}>
       <h2>Therapist Dashboard</h2>
-
+      <button onClick={handleLogout} style={{ marginBottom: "20px", background: "red", color: "white" }}>
+        Logout
+      </button>
       {/* Therapist Profile (editable) */}
       <div
         style={{
@@ -226,10 +318,14 @@ function TherapistDashboard() {
         )}
       </div>
 
-      {/* Group Chat */}
-      {!activeChatId && (
-        <>
-          <h3>Group Chat</h3>
+      {/* Active Group Chat */}
+      {isGroupChatOpen && inGroupChat && !activeChatId && (
+        <div>
+          <LeaveChatButton
+            type="group"
+            therapistInfo={therapistInfo}
+            onLeave={leaveGroupChat}
+          />
           <div
             style={{
               border: "1px solid #ccc",
@@ -269,12 +365,55 @@ function TherapistDashboard() {
             style={{ width: "70%", marginRight: "5px" }}
           />
           <button onClick={sendReply}>Send</button>
-        </>
+        </div>
       )}
 
-      {/* Private Chats */}
-      {!activeChatId && (
+      {/* Group Chat List Style */}
+      {!activeChatId && !isGroupChatOpen && (
         <div style={{ marginTop: "20px" }}>
+          <h3>Chats</h3>
+
+          {/* Group Chat as a card */}
+          <div
+            style={{
+              border: "1px solid #ddd",
+              padding: "10px",
+              marginBottom: "8px",
+              cursor: "pointer",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+            onClick={joinGroupChat}
+          >
+            <div>
+              <strong>Group Chat</strong> <br />
+              <small>
+                {messages.length > 0
+                  ? `${messages[messages.length - 1].displayName || "Anonymous"}: ${
+                      messages[messages.length - 1].text
+                    }`
+                  : "No messages yet"}
+              </small>
+            </div>
+
+            {/* Show unread messages as badge */}
+            {groupUnreadCount > 0 && (
+              <span
+                style={{
+                  background: "red",
+                  color: "white",
+                  borderRadius: "50%",
+                  padding: "5px 10px",
+                  fontSize: "12px",
+                }}
+              >
+                {groupUnreadCount}
+              </span>
+            )}
+          </div>
+
+          {/* Private Chats below group chat */}
           <h3>Private Chats</h3>
           {privateChats.length === 0 ? (
             <p>No private chats yet</p>
@@ -319,7 +458,12 @@ function TherapistDashboard() {
       {/* Active Private Chat */}
       {activeChatId && (
         <div>
-          <button onClick={() => leavePrivateChat(activeChatId)}>⬅ Leave Chat</button>
+          <LeaveChatButton
+            type="private"
+            chatId={activeChatId}
+            therapistInfo={therapistInfo}
+            setActiveChatId={setActiveChatId}
+          />
           <PrivateChat chatId={activeChatId} />
         </div>
       )}

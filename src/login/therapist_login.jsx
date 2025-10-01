@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import { auth } from "../utils/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import TherapistDashboard from "../page/therapistDashboard";
+import { useNavigate } from "react-router-dom";
 
 function TherapistLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -22,7 +23,7 @@ function TherapistLogin() {
   };
 
   if (isLoggedIn) {
-    return <TherapistDashboard />;
+    return navigate("/dashboard_therapist");
   }
 
   return (

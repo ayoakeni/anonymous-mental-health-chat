@@ -4,6 +4,7 @@ import Home from "./page/home";
 import About from "./page/about";
 import TherapistLogin from "./login/therapist_login";
 import PrivateChatWrapper from "./components/PrivateChatWrapper";
+import TherapistDashboard from "./page/therapistDashboard";
 
 function App() {
   return (
@@ -13,7 +14,8 @@ function App() {
         <Route path="/chat" element={<Chatroom />} />
         <Route path="/private/:chatId" element={<PrivateChatWrapper />} />
         <Route path="/about" element={<About />} />
-        <Route path="/therapist" element={<TherapistLogin />} />
+        <Route path="/therapist_login" element={<TherapistLogin />} />
+        <Route path="/dashboard_therapist" element={<TherapistDashboard/>} />
       </Routes>
     </Router>
   );
