@@ -13,7 +13,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db, auth } from "../../utils/firebase";
-import { getAIResponse } from "../../components/AiChat";
+import { getAIResponse } from "../../components/AiChatIntegration";
 import { loginAnonymously, getAnonName } from "../../login/anonymous_login";
 import TherapistProfile from "../../components/TherapistProfile";
 import { useTypingStatus } from "../../components/useTypingStatus";
