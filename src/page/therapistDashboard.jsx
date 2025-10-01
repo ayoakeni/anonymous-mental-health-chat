@@ -1,20 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { db, auth } from "../utils/firebase";
-import {
-  collection,
-  query,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  serverTimestamp,
-  doc,
-  updateDoc,
-  arrayUnion,
-  arrayRemove,
-  getDoc,
-  setDoc,
-} from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc, } from "firebase/firestore";
 import PrivateChat from "./chats_rooms/PrivateChat";
 import { useTypingStatus } from "../components/useTypingStatus";
 import { signOut } from "firebase/auth";
@@ -27,6 +14,7 @@ function TherapistDashboard() {
   const [isGroupChatOpen, setIsGroupChatOpen] = useState(false);
   const [inGroupChat, setInGroupChat] = useState(false);
   const [groupUnreadCount, setGroupUnreadCount] = useState(0);
+  const [lastSeenTimestamp, setLastSeenTimestamp] = useState(null);
   const [activeChatId, setActiveChatId] = useState(null);
   const [editing, setEditing] = useState(false);
   const [therapistInfo, setTherapistInfo] = useState({
@@ -52,17 +40,20 @@ function TherapistDashboard() {
     const q = query(collection(db, "messages"), orderBy("timestamp"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-
-      // Update unread count if new messages arrive while closed
-      if (!isGroupChatOpen && msgs.length > messages.length) {
-        setGroupUnreadCount((prev) => prev + (msgs.length - messages.length));
-      }
-
       setMessages(msgs);
+
+      if (!isGroupChatOpen) {
+        // Count only messages after lastSeenTimestamp
+        const unread = msgs.filter((msg) => {
+          const msgTime = msg.timestamp?.toMillis();
+          return msgTime && (!lastSeenTimestamp || msgTime > lastSeenTimestamp);
+        }).length;
+        setGroupUnreadCount(unread);
+      }
     });
 
     return () => unsubscribe();
-  }, [isGroupChatOpen, messages.length]);
+  }, [isGroupChatOpen, lastSeenTimestamp]);
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -192,18 +183,33 @@ function TherapistDashboard() {
 
     setIsGroupChatOpen(true);
     setGroupUnreadCount(0);
+
+    // Update lastSeenTimestamp to last message's timestamp
+    if (messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      setLastSeenTimestamp(lastMsg.timestamp?.toMillis() || Date.now());
+    } else {
+      // Update lastSeenTimestamp to now when opening group chat
+      setLastSeenTimestamp(Date.now());
+      setGroupUnreadCount(0);
+    }
   };
 
   const leaveGroupChat = async () => {
     if (!auth.currentUser) return;
-    const groupRef = doc(db, "groupChat", "mainGroup");
 
-    // Immediately update local state to close UI
+    // Set lastSeenTimestamp to last message's timestamp before leaving
+    if (messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      setLastSeenTimestamp(lastMsg.timestamp?.toMillis() || Date.now());
+    }
+
     setIsGroupChatOpen(false);
     setInGroupChat(false);
     setGroupUnreadCount(0);
 
     try {
+      const groupRef = doc(db, "groupChat", "mainGroup");
       await setDoc(
         groupRef,
         { participants: arrayRemove(auth.currentUser.uid) },
