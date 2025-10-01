@@ -70,6 +70,23 @@ function TherapistDashboard() {
     return () => unsub();
   }, [isGroupChatOpen]);
 
+  useEffect(() => {
+    if (!therapistId) return;
+
+    const fetchLastSeen = async () => {
+      const docRef = doc(db, "therapists", therapistId);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const lastSeen = snap.data().lastSeenGroupChat?.toMillis() || Date.now();
+        setLastSeenTimestamp(lastSeen);
+      } else {
+        setLastSeenTimestamp(Date.now());
+      }
+    };
+
+    fetchLastSeen();
+  }, [therapistId]);
+
   // Fetch therapist profile
   useEffect(() => {
     if (!therapistId) return;
@@ -193,16 +210,30 @@ function TherapistDashboard() {
       setLastSeenTimestamp(Date.now());
       setGroupUnreadCount(0);
     }
+
+    const lastMsgTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
+    setLastSeenTimestamp(lastMsgTime);
+
+    await setDoc(
+      doc(db, "therapists", therapistId),
+      { lastSeenGroupChat: serverTimestamp() },
+      { merge: true }
+    );
+    setGroupUnreadCount(0);
   };
 
   const leaveGroupChat = async () => {
     if (!auth.currentUser) return;
 
     // Set lastSeenTimestamp to last message's timestamp before leaving
-    if (messages.length > 0) {
-      const lastMsg = messages[messages.length - 1];
-      setLastSeenTimestamp(lastMsg.timestamp?.toMillis() || Date.now());
-    }
+    const lastMsgTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
+    setLastSeenTimestamp(lastMsgTime);
+
+    await setDoc(
+      doc(db, "therapists", therapistId),
+      { lastSeenGroupChat: serverTimestamp() },
+      { merge: true }
+    );
 
     setIsGroupChatOpen(false);
     setInGroupChat(false);
