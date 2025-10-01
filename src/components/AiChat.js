@@ -13,7 +13,7 @@ export const getAIResponse = async (message) => {
         {
           role: "system",
           content:
-            "You are a helpful mental health support assistant. Provide empathetic, structured, and action-oriented responses. (Disclaimer: Not a substitute for a professional therapist).",
+            "You are a supportive mental health assistant. Respond kindly, with empathy and encouragement, but remember you are not a professional therapist.",
         },
         { role: "user", content: message },
       ],
