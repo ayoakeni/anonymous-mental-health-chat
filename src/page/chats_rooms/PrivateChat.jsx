@@ -59,6 +59,7 @@ function PrivateChat({ chatId }) {
             timestamp: serverTimestamp(),
           });
           setAiEnabled(false);
+          setAiTyping(false);
         }
       }
     });
@@ -250,8 +251,12 @@ function PrivateChat({ chatId }) {
             {msg.type === "ai-offer" ? (
               <div style={{ marginBottom: "10px" }}>
                 <p style={{ color: "gray" }}>{msg.text}</p>
-                <button onClick={() => handleAiChoice("yes")}>Yes</button>
-                <button onClick={() => handleAiChoice("no")}>No</button>
+                {!aiEnabled && (
+                  <>
+                    <button onClick={() => handleAiChoice("yes")}>Yes</button>
+                    <button onClick={() => handleAiChoice("no")}>No</button>
+                  </>
+                )}
               </div>
             ) : (
               <p
