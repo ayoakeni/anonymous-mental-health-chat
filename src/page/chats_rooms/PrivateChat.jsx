@@ -54,10 +54,10 @@ function PrivateChat({ chatId }) {
       const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setMessages(msgs);
 
-      // Detect therapist joining for the first time
+      // Detect therapist joining while AI was active
       const hasTherapistNow = msgs.some((m) => m.role === "therapist");
       if (hasTherapistNow && aiEnabled) {
-        setAiEnabled(false); // stop AI responses
+        setAiEnabled(false); // stop AI from responding
         await addDoc(collection(db, "privateChats", chatId, "messages"), {
           text: "A therapist has joined. You can now continue your conversation with them.",
           role: "system",
