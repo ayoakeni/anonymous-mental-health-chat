@@ -139,16 +139,15 @@ function PrivateChat({ chatId }) {
   const displayName = auth.currentUser?.email ? therapistName : getAnonName();
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
 
-  // ✅ Send a message
+  // Send a message
   const sendMessage = async () => {
     if (!newMessage.trim() || !auth.currentUser || !chatId) return;
 
     const role = auth.currentUser.email ? "therapist" : "user";
     const nameToUse = role === "therapist" ? therapistName : getAnonName();
-    const chatRef = doc(db, "privateChats", chatId);
 
     // Save message
-    await addDoc(collection(chatRef, "messages"), {
+    await addDoc(collection(db, "privateChats", chatId, "messages"), {
       text: newMessage,
       userId: auth.currentUser.uid,
       displayName: nameToUse,
@@ -159,13 +158,14 @@ function PrivateChat({ chatId }) {
     const userMessage = newMessage;
     setNewMessage("");
 
+    const chatRef = doc(db, "privateChats", chatId);
     const chatSnap = await getDoc(chatRef);
 
-    // ✅ If no therapist online → offer AI immediately
+    // ✅ Case 1: No therapist online at all → offer AI immediately
     if (!isTherapistAvailable && !aiEnabled) {
       if (chatSnap.exists() && !chatSnap.data().aiOffered) {
         await updateDoc(chatRef, { aiOffered: true });
-        await addDoc(collection(chatRef, "messages"), {
+        await addDoc(collection(db, "privateChats", chatId, "messages"), {
           text: "No therapist is online right now. Would you like to chat with our support assistant while you wait?",
           role: "system",
           type: "ai-offer",
@@ -175,18 +175,16 @@ function PrivateChat({ chatId }) {
       }
     }
 
-    // ✅ If therapist online globally but not joined yet → wait 30s
-    const hasTherapistInChat = messages.some((m) => m.role === "therapist");
-    if (isTherapistAvailable && !hasTherapistInChat && !aiEnabled) {
-      if (chatSnap.exists() && !chatSnap.data().aiOffered) {
+    // ✅ Case 2: Therapists online globally but none in this chat → wait 30s then offer AI
+    if (isTherapistAvailable && !aiEnabled) {
+      const hasTherapistInChat = messages.some((m) => m.role === "therapist");
+      if (!hasTherapistInChat && chatSnap.exists() && !chatSnap.data().aiOffered) {
         setTimeout(async () => {
           const latestSnap = await getDoc(chatRef);
-          const stillNoTherapist = !messages.some(
-            (m) => m.role === "therapist"
-          );
+          const stillNoTherapist = !messages.some((m) => m.role === "therapist");
           if (stillNoTherapist && latestSnap.exists() && !latestSnap.data().aiOffered) {
             await updateDoc(chatRef, { aiOffered: true });
-            await addDoc(collection(chatRef, "messages"), {
+            await addDoc(collection(db, "privateChats", chatId, "messages"), {
               text: "No therapist has joined your chat yet. Would you like to chat with our support assistant while you wait?",
               role: "system",
               type: "ai-offer",
@@ -197,35 +195,38 @@ function PrivateChat({ chatId }) {
       }
     }
 
-    // ✅ AI replies if enabled (even if therapists are online globally)
-    if (aiEnabled) {
-      const participants = chatSnap.exists()
-        ? chatSnap.data().participants || []
-        : [];
-      const hasTherapistNow = participants.some(
-        (uid) => uid !== auth.currentUser?.uid
-      );
+    // ✅ Case 3: Therapist WAS in chat but has now left → re-offer AI
+    if (!isTherapistAvailable && chatSnap.exists() && !chatSnap.data().aiOffered) {
+      await updateDoc(chatRef, { aiOffered: true });
+      await addDoc(collection(db, "privateChats", chatId, "messages"), {
+        text: "Your therapist has left the chat. Would you like to continue chatting with our support assistant while you wait for another therapist?",
+        role: "system",
+        type: "ai-offer",
+        timestamp: serverTimestamp(),
+      });
+      return;
+    }
 
-      if (!hasTherapistNow) {
-        try {
-          setAiTyping(true);
-          const aiReply = await getAIResponse(userMessage);
-          setAiTyping(false);
+    // ✅ Case 4: AI enabled → auto reply
+    if (aiEnabled && !isTherapistAvailable) {
+      try {
+        setAiTyping(true);
+        const aiReply = await getAIResponse(userMessage);
+        setAiTyping(false);
 
-          await addDoc(collection(chatRef, "messages"), {
-            text: aiReply,
-            role: "ai",
-            displayName: "Support Assistant",
-            timestamp: serverTimestamp(),
-          });
-        } catch (err) {
-          console.error("AI error:", err);
-          setAiTyping(false);
-        }
+        await addDoc(collection(db, "privateChats", chatId, "messages"), {
+          text: aiReply,
+          role: "ai",
+          displayName: "Support Assistant",
+          timestamp: serverTimestamp(),
+        });
+      } catch (err) {
+        console.error("AI error:", err);
+        setAiTyping(false);
       }
     }
 
-    // Update chat metadata
+    // ✅ Update chat metadata
     await updateDoc(chatRef, {
       lastMessage: userMessage,
       lastUpdated: serverTimestamp(),
