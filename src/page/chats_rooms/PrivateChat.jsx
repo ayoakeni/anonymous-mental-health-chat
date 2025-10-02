@@ -160,17 +160,35 @@ function PrivateChat({ chatId }) {
 
     const chatRef = doc(db, "privateChats", chatId);
 
-    // If no therapist & AI not enabled, offer AI
+    // If no therapist at all (none logged in), show AI option immediately
     if (!isTherapistAvailable && !aiEnabled) {
       const snap = await getDoc(chatRef);
       if (snap.exists() && !snap.data().aiOffered) {
-        await updateDoc(chatRef, { aiOffered: true });
-        await addDoc(collection(db, "privateChats", chatId, "messages"), {
-          text: "No therapist is available right now. Would you like to chat with our support assistant while you wait?",
-          role: "system",
-          type: "ai-offer",
-          timestamp: serverTimestamp(),
-        });
+        if (activeTherapists.length === 0) {
+          // No therapists logged in at all → show AI immediately
+          await updateDoc(chatRef, { aiOffered: true });
+          await addDoc(collection(db, "privateChats", chatId, "messages"), {
+            text: "No therapist is online right now. Would you like to chat with our support assistant while you wait?",
+            role: "system",
+            type: "ai-offer",
+            timestamp: serverTimestamp(),
+          });
+        } else {
+          // Therapists exist but none joined yet → wait 30s
+          setTimeout(async () => {
+            const latestSnap = await getDoc(chatRef);
+            const stillNoTherapist = !latestSnap.data().handoverNotified;
+            if (stillNoTherapist) {
+              await updateDoc(chatRef, { aiOffered: true });
+              await addDoc(collection(db, "privateChats", chatId, "messages"), {
+                text: "No therapist has joined yet. Would you like to chat with our support assistant while you wait?",
+                role: "system",
+                type: "ai-offer",
+                timestamp: serverTimestamp(),
+              });
+            }
+          }, 30000);
+        }
         return; // stop here until user accepts AI
       }
     }
