@@ -44,9 +44,10 @@ function PrivateChat({ chatId }) {
   // Watch messages
   useEffect(() => {
     if (!chatId) return;
-
+    const chatRef = doc(db, "privateChats", chatId);
+    // Watch messages
     const q = query(
-      collection(db, "privateChats", chatId, "messages"),
+      collection(chatRef, "messages"),
       orderBy("timestamp")
     );
 
@@ -54,11 +55,12 @@ function PrivateChat({ chatId }) {
       const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setMessages(msgs);
 
-      // Detect therapist joining while AI was active
+      // Detect therapist joined
       const hasTherapistNow = msgs.some((m) => m.role === "therapist");
       if (hasTherapistNow && aiEnabled) {
-        setAiEnabled(false); // stop AI from responding
-        await addDoc(collection(db, "privateChats", chatId, "messages"), {
+        setAiEnabled(false);
+        await updateDoc(chatRef, { aiActive: false }); // persist state
+        await addDoc(collection(chatRef, "messages"), {
           text: "A therapist has joined. You can now continue your conversation with them.",
           role: "system",
           timestamp: serverTimestamp(),
@@ -113,6 +115,8 @@ function PrivateChat({ chatId }) {
     const role = auth.currentUser.email ? "therapist" : "user";
     const nameToUse = role === "therapist" ? therapistName : getAnonName();
 
+    const chatRef = doc(db, "privateChats", chatId);
+
     // Save message
     await addDoc(collection(db, "privateChats", chatId, "messages"), {
       text: newMessage,
@@ -125,10 +129,9 @@ function PrivateChat({ chatId }) {
     const userMessage = newMessage;
     setNewMessage("");
 
-    const chatRef = doc(db, "privateChats", chatId);
     const chatSnap = await getDoc(chatRef);
 
-    // ✅ If no therapist online globally → offer AI immediately
+    // If no therapist online → offer AI immediately
     if (!isTherapistAvailable && !aiEnabled) {
       if (chatSnap.exists() && !chatSnap.data().aiOffered) {
         await updateDoc(chatRef, { aiOffered: true });
@@ -142,7 +145,7 @@ function PrivateChat({ chatId }) {
       }
     }
 
-    // ✅ If therapists are online globally but none have joined this chat yet → wait 30s
+    // If therapist online globally but hasn’t joined this chat → wait 30s
     if (isTherapistAvailable && !aiEnabled) {
       const hasTherapistInChat = messages.some((m) => m.role === "therapist");
       if (!hasTherapistInChat && chatSnap.exists() && !chatSnap.data().aiOffered) {
@@ -162,7 +165,22 @@ function PrivateChat({ chatId }) {
       }
     }
 
-    // ✅ If AI is enabled and no therapist, auto-reply
+    // If therapist was present but has now left → re-offer AI
+    if (!isTherapistAvailable && !aiEnabled) {
+      const hadTherapistBefore = messages.some((m) => m.role === "therapist");
+      if (hadTherapistBefore) {
+        await updateDoc(chatRef, { aiOffered: true });
+        await addDoc(collection(db, "privateChats", chatId, "messages"), {
+          text: "The therapist has left. Would you like to continue with our support assistant?",
+          role: "system",
+          type: "ai-offer",
+          timestamp: serverTimestamp(),
+        });
+        return;
+      }
+    }
+
+    // If AI is enabled and no therapist, auto-reply
     if (!isTherapistAvailable && aiEnabled) {
       try {
         setAiTyping(true);
