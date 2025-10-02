@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { db, auth } from "../../utils/firebase";
 import { getAnonName } from "../../login/anonymous_login";
 import { useTypingStatus } from "../../components/useTypingStatus";
+import { getAIResponse } from "../../components/AiChatIntegration";
 import {
   collection,
   addDoc,
@@ -17,11 +18,81 @@ import {
 
 function PrivateChat({ chatId }) {
   const [messages, setMessages] = useState([]);
+  const [isTherapistAvailable, setIsTherapistAvailable] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [activeTherapists, setActiveTherapists] = useState([]);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const [therapistName, setTherapistName] = useState("Therapist");
   const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    if (!chatId) return;
+
+    const chatRef = doc(db, "privateChats", chatId);
+
+    // Detect therapists more accurately
+    const isTherapist = (uid) => {
+      // Example: treat email-based accounts as therapists
+      return uid && uid.includes("@"); 
+    };
+
+    const unsubChat = onSnapshot(chatRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        const therapistUids = data.participants?.filter((p) => isTherapist(p)) || [];
+        const hasTherapist = therapistUids.length > 0;
+        setIsTherapistAvailable(hasTherapist);
+
+        // If therapist left, reset flags
+        if (!hasTherapist && data.handoverNotified) {
+          updateDoc(chatRef, { handoverNotified: false, aiOffered: false });
+        }
+
+        // If therapist joins for the first time
+        if (hasTherapist && !data.handoverNotified) {
+          updateDoc(chatRef, { handoverNotified: true });
+          addDoc(collection(db, "privateChats", chatId, "messages"), {
+            text: "A therapist has joined. You can now continue your conversation with them.",
+            role: "system",
+            timestamp: serverTimestamp(),
+          });
+          setAiEnabled(false);
+        }
+      }
+    });
+
+    // Watch messages
+    const unsubMsgs = onSnapshot(
+      collection(db, "privateChats", chatId, "messages"),
+      (snap) => {
+        setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      }
+    );
+
+    return () => {
+      unsubChat();
+      unsubMsgs();
+    };
+  }, [chatId]);
+
+  const handleAiChoice = async (choice) => {
+    if (choice === "yes") {
+      setAiEnabled(true);
+      await addDoc(collection(db, "privateChats", chatId, "messages"), {
+        text: "You are now chatting with our support assistant until a therapist joins.",
+        role: "system",
+        timestamp: serverTimestamp(),
+      });
+    } else {
+      setAiEnabled(false);
+      await addDoc(collection(db, "privateChats", chatId, "messages"), {
+        text: "Okay, please hold on while we connect you to a therapist.",
+        role: "system",
+        timestamp: serverTimestamp(),
+      });
+    }
+  };
 
   // Auto scroll chat
   useEffect(() => {
@@ -72,6 +143,7 @@ function PrivateChat({ chatId }) {
     const role = auth.currentUser.email ? "therapist" : "user";
     const nameToUse = role === "therapist" ? therapistName : getAnonName();
 
+    // Save user/therapist message
     await addDoc(collection(db, "privateChats", chatId, "messages"), {
       text: newMessage,
       userId: auth.currentUser.uid,
@@ -80,14 +152,44 @@ function PrivateChat({ chatId }) {
       timestamp: serverTimestamp(),
     });
 
+    // Store message before clearing
+    const userMessage = newMessage;
+    setNewMessage("");
+
     const chatRef = doc(db, "privateChats", chatId);
+
+    // If no therapist & AI not enabled, offer AI
+    if (!isTherapistAvailable && !aiEnabled) {
+      const snap = await getDoc(chatRef);
+      if (snap.exists() && !snap.data().aiOffered) {
+        await updateDoc(chatRef, { aiOffered: true });
+        await addDoc(collection(db, "privateChats", chatId, "messages"), {
+          text: "No therapist is available right now. Would you like to chat with our support assistant while you wait?",
+          role: "system",
+          type: "ai-offer",
+          timestamp: serverTimestamp(),
+        });
+        return; // stop here until user accepts AI
+      }
+    }
+
+    // If AI is enabled and no therapist, auto-respond
+    if (!isTherapistAvailable && aiEnabled) {
+      const aiReply = await getAIResponse(userMessage);
+      await addDoc(collection(db, "privateChats", chatId, "messages"), {
+        text: aiReply,
+        role: "ai",
+        displayName: "Support Assistant",
+        timestamp: serverTimestamp(),
+      });
+    }
+
+    // Update chat metadata
     await updateDoc(chatRef, {
-      lastMessage: newMessage,
+      lastMessage: userMessage,
       lastUpdated: serverTimestamp(),
       unreadCountForTherapist: role === "therapist" ? 0 : increment(1),
     });
-
-    setNewMessage("");
   };
 
   const handleTherapistClick = async (msg) => {
@@ -112,7 +214,13 @@ function PrivateChat({ chatId }) {
       </h3>
 
       {selectedTherapist && (
-        <div style={{ border: "1px solid #ccc", padding: "10px", marginBottom: "10px" }}>
+        <div
+          style={{
+            border: "1px solid #ccc",
+            padding: "10px",
+            marginBottom: "10px",
+          }}
+        >
           <button onClick={() => setSelectedTherapist(null)}>⬅ Back</button>
           <h4>{selectedTherapist.name}</h4>
           <p>{selectedTherapist.profile}</p>
@@ -129,35 +237,49 @@ function PrivateChat({ chatId }) {
         }}
       >
         {messages.map((msg) => (
-          <p
-            key={msg.id}
-            style={{
-              color:
-                msg.role === "therapist"
-                  ? "blue"
-                  : msg.role === "system"
-                  ? "gray"
-                  : "black",
-              fontWeight: msg.role === "therapist" ? "bold" : "normal",
-              fontStyle: msg.role === "system" ? "italic" : "normal",
-              cursor: msg.role === "therapist" ? "pointer" : "default",
-              textDecoration: msg.role === "therapist" ? "underline" : "none",
-            }}
-            onClick={() => handleTherapistClick(msg)}
-          >
-            {msg.role === "system" ? (
-              <em>{msg.text}</em>
+          <div key={msg.id}>
+            {msg.type === "ai-offer" ? (
+              <div style={{ marginBottom: "10px" }}>
+                <p style={{ color: "gray" }}>{msg.text}</p>
+                <button onClick={() => handleAiChoice("yes")}>Yes</button>
+                <button onClick={() => handleAiChoice("no")}>No</button>
+              </div>
             ) : (
-              <>
-                <strong>{msg.displayName}:</strong> {msg.text}
-              </>
+              <p
+                style={{
+                  color:
+                    msg.role === "therapist"
+                      ? "blue"
+                      : msg.role === "system"
+                      ? "gray"
+                      : msg.role === "ai"
+                      ? "green"
+                      : "black",
+                  fontWeight: msg.role === "therapist" ? "bold" : "normal",
+                  fontStyle: msg.role === "system" ? "italic" : "normal",
+                  cursor: msg.role === "therapist" ? "pointer" : "default",
+                  textDecoration: msg.role === "therapist" ? "underline" : "none",
+                }}
+                onClick={() =>
+                  msg.role === "therapist" ? handleTherapistClick(msg) : null
+                }
+              >
+                {msg.role === "system" ? (
+                  <em>{msg.text}</em>
+                ) : (
+                  <>
+                    <strong>{msg.displayName || msg.role}:</strong> {msg.text}
+                  </>
+                )}
+              </p>
             )}
-          </p>
+          </div>
         ))}
 
         {typingUsers.length > 0 && (
           <p style={{ fontStyle: "italic", color: "gray" }}>
-            {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+            {typingUsers.join(", ")}{" "}
+            {typingUsers.length === 1 ? "is" : "are"} typing...
           </p>
         )}
         <div ref={messagesEndRef} />
