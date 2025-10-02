@@ -27,56 +27,47 @@ function PrivateChat({ chatId }) {
   const [therapistName, setTherapistName] = useState("Therapist");
   const messagesEndRef = useRef(null);
 
+  // Watch therapist presence in real-time
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "therapistsOnline"), (snap) => {
+      const onlineTherapists = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((t) => t.online);
+
+      setIsTherapistAvailable(onlineTherapists.length > 0);
+      setActiveTherapists(onlineTherapists.map((t) => t.name || "Therapist"));
+    });
+
+    return () => unsub();
+  }, []);
+
+  // Watch messages
   useEffect(() => {
     if (!chatId) return;
 
-    const chatRef = doc(db, "privateChats", chatId);
+    const q = query(
+      collection(db, "privateChats", chatId, "messages"),
+      orderBy("timestamp")
+    );
 
-    // Detect therapists more accurately
-    const isTherapist = (uid) => {
-      // Example: treat email-based accounts as therapists
-      return uid && uid.includes("@"); 
-    };
+    const unsubscribeMessages = onSnapshot(q, async (snapshot) => {
+      const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setMessages(msgs);
 
-    const unsubChat = onSnapshot(chatRef, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        const therapistUids = data.participants?.filter((p) => isTherapist(p)) || [];
-        const hasTherapist = therapistUids.length > 0;
-        setIsTherapistAvailable(hasTherapist);
-
-        // If therapist left, reset flags
-        if (!hasTherapist && data.handoverNotified) {
-          updateDoc(chatRef, { handoverNotified: false, aiOffered: false });
-        }
-
-        // If therapist joins for the first time
-        if (hasTherapist && !data.handoverNotified) {
-          updateDoc(chatRef, { handoverNotified: true });
-          addDoc(collection(db, "privateChats", chatId, "messages"), {
-            text: "A therapist has joined. You can now continue your conversation with them.",
-            role: "system",
-            timestamp: serverTimestamp(),
-          });
-          setAiEnabled(false);
-          setAiTyping(false);
-        }
+      // Detect therapist joining for the first time
+      const hasTherapistNow = msgs.some((m) => m.role === "therapist");
+      if (hasTherapistNow && aiEnabled) {
+        setAiEnabled(false); // stop AI responses
+        await addDoc(collection(db, "privateChats", chatId, "messages"), {
+          text: "A therapist has joined. You can now continue your conversation with them.",
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
       }
     });
 
-    // Watch messages
-    const unsubMsgs = onSnapshot(
-      collection(db, "privateChats", chatId, "messages"),
-      (snap) => {
-        setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      }
-    );
-
-    return () => {
-      unsubChat();
-      unsubMsgs();
-    };
-  }, [chatId]);
+    return () => unsubscribeMessages();
+  }, [chatId, aiEnabled]);
 
   const handleAiChoice = async (choice) => {
     if (choice === "yes") {
@@ -115,29 +106,6 @@ function PrivateChat({ chatId }) {
   const displayName = auth.currentUser?.email ? therapistName : getAnonName();
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
 
-  // Listen for messages
-  useEffect(() => {
-    if (!chatId) return;
-
-    const q = query(
-      collection(db, "privateChats", chatId, "messages"),
-      orderBy("timestamp")
-    );
-
-    const unsubscribeMessages = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setMessages(msgs);
-
-      // Track active therapists
-      const therapists = msgs
-        .filter((m) => m.role === "therapist")
-        .map((m) => m.displayName);
-      setActiveTherapists([...new Set(therapists)]);
-    });
-
-    return () => unsubscribeMessages();
-  }, [chatId]);
-
   // Send a message
   const sendMessage = async () => {
     if (!newMessage.trim() || !auth.currentUser || !chatId) return;
@@ -145,7 +113,7 @@ function PrivateChat({ chatId }) {
     const role = auth.currentUser.email ? "therapist" : "user";
     const nameToUse = role === "therapist" ? therapistName : getAnonName();
 
-    // Save user/therapist message
+    // Save message
     await addDoc(collection(db, "privateChats", chatId, "messages"), {
       text: newMessage,
       userId: auth.currentUser.uid,
@@ -154,46 +122,47 @@ function PrivateChat({ chatId }) {
       timestamp: serverTimestamp(),
     });
 
-    // Store message before clearing
     const userMessage = newMessage;
     setNewMessage("");
 
     const chatRef = doc(db, "privateChats", chatId);
+    const chatSnap = await getDoc(chatRef);
 
-    // If no therapist at all (none logged in), show AI option immediately
+    // ✅ If no therapist online globally → offer AI immediately
     if (!isTherapistAvailable && !aiEnabled) {
-      const snap = await getDoc(chatRef);
-      if (snap.exists() && !snap.data().aiOffered) {
-        if (activeTherapists.length === 0) {
-          // No therapists logged in at all → show AI immediately
-          await updateDoc(chatRef, { aiOffered: true });
-          await addDoc(collection(db, "privateChats", chatId, "messages"), {
-            text: "No therapist is online right now. Would you like to chat with our support assistant while you wait?",
-            role: "system",
-            type: "ai-offer",
-            timestamp: serverTimestamp(),
-          });
-        } else {
-          // Therapists exist but none joined yet → wait 30s
-          setTimeout(async () => {
-            const latestSnap = await getDoc(chatRef);
-            const stillNoTherapist = !latestSnap.data().handoverNotified;
-            if (stillNoTherapist) {
-              await updateDoc(chatRef, { aiOffered: true });
-              await addDoc(collection(db, "privateChats", chatId, "messages"), {
-                text: "No therapist has joined yet. Would you like to chat with our support assistant while you wait?",
-                role: "system",
-                type: "ai-offer",
-                timestamp: serverTimestamp(),
-              });
-            }
-          }, 30000);
-        }
-        return; // stop here until user accepts AI
+      if (chatSnap.exists() && !chatSnap.data().aiOffered) {
+        await updateDoc(chatRef, { aiOffered: true });
+        await addDoc(collection(db, "privateChats", chatId, "messages"), {
+          text: "No therapist is online right now. Would you like to chat with our support assistant while you wait?",
+          role: "system",
+          type: "ai-offer",
+          timestamp: serverTimestamp(),
+        });
+        return;
       }
     }
 
-    // If AI is enabled and no therapist, auto-respond
+    // ✅ If therapists are online globally but none have joined this chat yet → wait 30s
+    if (isTherapistAvailable && !aiEnabled) {
+      const hasTherapistInChat = messages.some((m) => m.role === "therapist");
+      if (!hasTherapistInChat && chatSnap.exists() && !chatSnap.data().aiOffered) {
+        setTimeout(async () => {
+          const latestSnap = await getDoc(chatRef);
+          const stillNoTherapist = !messages.some((m) => m.role === "therapist");
+          if (stillNoTherapist && latestSnap.exists() && !latestSnap.data().aiOffered) {
+            await updateDoc(chatRef, { aiOffered: true });
+            await addDoc(collection(db, "privateChats", chatId, "messages"), {
+              text: "No therapist has joined your chat yet. Would you like to chat with our support assistant while you wait?",
+              role: "system",
+              type: "ai-offer",
+              timestamp: serverTimestamp(),
+            });
+          }
+        }, 30000); // 30s delay
+      }
+    }
+
+    // ✅ If AI is enabled and no therapist, auto-reply
     if (!isTherapistAvailable && aiEnabled) {
       try {
         setAiTyping(true);
@@ -222,7 +191,6 @@ function PrivateChat({ chatId }) {
 
   const handleTherapistClick = async (msg) => {
     if (msg.role !== "therapist") return;
-
     try {
       const snap = await getDoc(doc(db, "therapists", msg.userId));
       if (snap.exists()) setSelectedTherapist(snap.data());
@@ -236,34 +204,20 @@ function PrivateChat({ chatId }) {
     <div>
       <h3>
         Anonymous Chat{" "}
-        {activeTherapists.length > 0
-          ? `with ${activeTherapists.join(", ")}`
+        {isTherapistAvailable
+          ? `(Therapist Online: ${activeTherapists.join(", ")})`
           : "(Waiting for Therapist)"}
       </h3>
 
       {selectedTherapist && (
-        <div
-          style={{
-            border: "1px solid #ccc",
-            padding: "10px",
-            marginBottom: "10px",
-          }}
-        >
+        <div style={{ border: "1px solid #ccc", padding: "10px", marginBottom: "10px" }}>
           <button onClick={() => setSelectedTherapist(null)}>⬅ Back</button>
           <h4>{selectedTherapist.name}</h4>
           <p>{selectedTherapist.profile}</p>
         </div>
       )}
 
-      <div
-        style={{
-          border: "1px solid #ccc",
-          padding: "10px",
-          height: "250px",
-          overflowY: "scroll",
-          marginBottom: "10px",
-        }}
-      >
+      <div style={{ border: "1px solid #ccc", padding: "10px", height: "250px", overflowY: "scroll", marginBottom: "10px" }}>
         {messages.map((msg) => (
           <div key={msg.id}>
             {msg.type === "ai-offer" ? (
@@ -292,9 +246,7 @@ function PrivateChat({ chatId }) {
                   cursor: msg.role === "therapist" ? "pointer" : "default",
                   textDecoration: msg.role === "therapist" ? "underline" : "none",
                 }}
-                onClick={() =>
-                  msg.role === "therapist" ? handleTherapistClick(msg) : null
-                }
+                onClick={() => msg.role === "therapist" ? handleTherapistClick(msg) : null}
               >
                 {msg.role === "system" ? (
                   <em>{msg.text}</em>
@@ -314,11 +266,7 @@ function PrivateChat({ chatId }) {
             {typingUsers.length === 1 ? "is" : "are"} typing...
           </p>
         )}
-        {aiTyping && (
-          <p style={{ fontStyle: "italic", color: "green" }}>
-            Support Assistant is typing...
-          </p>
-        )}
+        {aiTyping && <p style={{ fontStyle: "italic", color: "green" }}>Support Assistant is typing...</p>}
         <div ref={messagesEndRef} />
       </div>
 

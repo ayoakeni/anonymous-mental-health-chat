@@ -11,8 +11,8 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/chat" element={<Chatroom />} />
-        <Route path="/private/:chatId" element={<PrivateChatWrapper />} />
+        <Route path="/chat_room" element={<Chatroom />} />
+        <Route path="/private_chat/:chatId" element={<PrivateChatWrapper />} />
         <Route path="/about" element={<About />} />
         <Route path="/therapist_login" element={<TherapistLogin />} />
         <Route path="/dashboard_therapist" element={<TherapistDashboard/>} />

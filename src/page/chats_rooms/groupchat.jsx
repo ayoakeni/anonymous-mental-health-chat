@@ -136,7 +136,7 @@ function Chatroom() {
       });
     }
 
-    navigate(`/private/${chatId}`);
+    navigate(`/private_chat/${chatId}`);
   };
 
   // Handle therapist leaving on window unload
