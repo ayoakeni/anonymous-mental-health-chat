@@ -1,28 +1,26 @@
-import { HfInference } from "@huggingface/inference";
+import { getGenerativeModel } from "firebase/ai";
+import { ai } from "../utils/firebase";
 
-const HF_MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.2";
+// Gemini model
+const model = getGenerativeModel(ai, { model: "gemini-flash-latest" });
 
-// Initialize the Hugging Face Inference client
-const inference = new HfInference(process.env.REACT_APP_HF_API_KEY);
-
+// Supportive AI response function
 export const getAIResponse = async (message) => {
   try {
-    const response = await inference.chatCompletion({
-      model: HF_MODEL_NAME,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a supportive mental health assistant. Respond kindly, with empathy and encouragement, but remember you are not a professional therapist.",
-        },
-        { role: "user", content: message },
-      ],
-      max_tokens: 150,
-    });
+    const prompt = `
+    You are a supportive mental health assistant. 
+    Respond kindly, with empathy and encouragement, 
+    but remember you are not a professional therapist.
+    
+    User message: "${message}"
+    `;
 
-    return response.choices[0].message.content;
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+
+    return text || "I'm here to listen. Can you tell me more about how you're feeling?";
   } catch (error) {
-    console.error("Hugging Face AI error:", error);
+    console.error("Firebase AI error:", error);
     return "Sorry, I’m having trouble responding right now.";
   }
 };
