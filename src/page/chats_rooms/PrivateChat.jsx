@@ -20,6 +20,7 @@ function PrivateChat({ chatId }) {
   const [messages, setMessages] = useState([]);
   const [isTherapistAvailable, setIsTherapistAvailable] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiTyping, setAiTyping] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [activeTherapists, setActiveTherapists] = useState([]);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
@@ -175,13 +176,21 @@ function PrivateChat({ chatId }) {
 
     // If AI is enabled and no therapist, auto-respond
     if (!isTherapistAvailable && aiEnabled) {
-      const aiReply = await getAIResponse(userMessage);
-      await addDoc(collection(db, "privateChats", chatId, "messages"), {
-        text: aiReply,
-        role: "ai",
-        displayName: "Support Assistant",
-        timestamp: serverTimestamp(),
-      });
+      try {
+        setAiTyping(true);
+        const aiReply = await getAIResponse(userMessage);
+        setAiTyping(false);
+
+        await addDoc(collection(db, "privateChats", chatId, "messages"), {
+          text: aiReply,
+          role: "ai",
+          displayName: "Support Assistant",
+          timestamp: serverTimestamp(),
+        });
+      } catch (err) {
+        console.error("AI error:", err);
+        setAiTyping(false);
+      }
     }
 
     // Update chat metadata
@@ -280,6 +289,11 @@ function PrivateChat({ chatId }) {
           <p style={{ fontStyle: "italic", color: "gray" }}>
             {typingUsers.join(", ")}{" "}
             {typingUsers.length === 1 ? "is" : "are"} typing...
+          </p>
+        )}
+        {aiTyping && (
+          <p style={{ fontStyle: "italic", color: "green" }}>
+            Support Assistant is typing...
           </p>
         )}
         <div ref={messagesEndRef} />
