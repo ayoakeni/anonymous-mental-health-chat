@@ -86,11 +86,43 @@ function PrivateChat({ chatId }) {
     if (choice === "yes") {
       setAiEnabled(true);
       await updateDoc(chatRef, { aiActive: true });
+
+      // System message
       await addDoc(collection(chatRef, "messages"), {
         text: "You are now chatting with our support assistant until a therapist joins.",
         role: "system",
         timestamp: serverTimestamp(),
       });
+
+      // 🔹 Trigger AI auto-reply right away
+      try {
+        setAiTyping(true);
+
+        const aiResponse = await getAIResponse(
+          "Start conversation",  // you can customize this prompt
+          messages.map((m) => ({
+            role: m.role === "user" ? "user" : "assistant",
+            content: m.text,
+          }))
+        );
+
+        await addDoc(collection(chatRef, "messages"), {
+          text: aiResponse,
+          role: "ai",
+          displayName: "Support Assistant",
+          timestamp: serverTimestamp(),
+        });
+      } catch (err) {
+        console.error("AI response error:", err);
+        await addDoc(collection(chatRef, "messages"), {
+          text: "Sorry, I couldn’t respond right now. Please wait for a therapist.",
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
+      } finally {
+        setAiTyping(false);
+      }
+
     } else {
       setAiEnabled(false);
       await updateDoc(chatRef, { aiActive: false });
