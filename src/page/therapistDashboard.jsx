@@ -177,7 +177,11 @@ function TherapistDashboard() {
   // Load private chats
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "privateChats"), (snapshot) => {
-      setPrivateChats(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      const chatsWithMessages = snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((chat) => chat.lastMessage && chat.lastMessage.trim() !== "");
+
+      setPrivateChats(chatsWithMessages);
     });
     return () => unsubscribe();
   }, []);

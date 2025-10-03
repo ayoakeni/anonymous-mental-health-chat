@@ -214,10 +214,13 @@ function PrivateChat({ chatId }) {
       try {
         setAiTyping(true);
 
-        const aiResponse = await getAIResponse(userMessage, messages.map(m => ({
-          role: m.role === "user" ? "user" : "assistant",
-          content: m.text,
-        })));
+        const aiResponse = await getAIResponse(
+          userMessage,
+          messages.map((m) => ({
+            role: m.role === "user" ? "user" : "assistant",
+            content: m.text,
+          }))
+        );
 
         await addDoc(collection(db, "privateChats", chatId, "messages"), {
           text: aiResponse,
@@ -237,7 +240,7 @@ function PrivateChat({ chatId }) {
       }
     }
 
-    // Update chat metadata
+    // -------- Update chat metadata --------
     await updateDoc(chatRef, {
       lastMessage: userMessage,
       lastUpdated: serverTimestamp(),
