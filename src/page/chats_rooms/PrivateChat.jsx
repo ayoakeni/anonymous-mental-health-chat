@@ -29,12 +29,19 @@ function PrivateChat({ chatId }) {
   const [therapistName, setTherapistName] = useState("Therapist");
   const [therapistJoinedBefore, setTherapistJoinedBefore] = useState(false);
   const messagesEndRef = useRef(null);
+  const aiOfferTimerRef = useRef(null);
   const navigate = useNavigate();
   
   // Auto-scroll chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    return () => {
+      if (aiOfferTimerRef.current) clearTimeout(aiOfferTimerRef.current);
+    };
+  }, []);
 
   // Watch therapist presence globally
   useEffect(() => {
@@ -260,13 +267,14 @@ function PrivateChat({ chatId }) {
 
     // Case 2: Therapists online globally but none in this chat → wait 30s then offer AI
     if (isTherapistAvailable && !aiEnabled) {
-      const hasTherapistInChat = messages.some((m) => m.role === "therapist");
-      if (!hasTherapistInChat && chatSnap.exists() && !chatSnap.data().aiOffered) {
-        setTimeout(async () => {
+      if (!chatSnap.data().aiOffered) {
+        // Clear any existing timer
+        if (aiOfferTimerRef.current) clearTimeout(aiOfferTimerRef.current);
+
+        aiOfferTimerRef.current = setTimeout(async () => {
           const latestSnap = await getDoc(chatRef);
           if (!latestSnap.exists()) return;
 
-          // Get updated participants directly from Firestore
           const participants = latestSnap.data().participants || [];
           const therapistInChat = participants.some(uid => uid !== auth.currentUser?.uid);
 
