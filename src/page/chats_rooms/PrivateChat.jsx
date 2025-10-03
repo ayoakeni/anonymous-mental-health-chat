@@ -25,6 +25,7 @@ function PrivateChat({ chatId }) {
   const [activeTherapists, setActiveTherapists] = useState([]);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const [therapistName, setTherapistName] = useState("Therapist");
+  const [therapistJoinedBefore, setTherapistJoinedBefore] = useState(false);
   const messagesEndRef = useRef(null);
   
   // Auto-scroll chat
@@ -79,32 +80,6 @@ function PrivateChat({ chatId }) {
     return () => unsubscribeMessages();
   }, [chatId, aiEnabled]);
 
-  // Detect therapist leaving → re-offer AI
-  useEffect(() => {
-    if (!chatId) return;
-    const chatRef = doc(db, "privateChats", chatId);
-
-    const unsub = onSnapshot(chatRef, async (snap) => {
-      if (!snap.exists()) return;
-      const participants = snap.data().participants || [];
-      const hasTherapistNow = participants.some(
-        (uid) => uid !== auth.currentUser?.uid
-      );
-
-      if (!hasTherapistNow && !aiEnabled && !snap.data().aiOffered) {
-        await updateDoc(chatRef, { aiOffered: true });
-        await addDoc(collection(chatRef, "messages"), {
-          text: "The therapist has left. Would you like to continue with our support assistant?",
-          role: "system",
-          type: "ai-offer",
-          timestamp: serverTimestamp(),
-        });
-      }
-    });
-
-    return () => unsub();
-  }, [chatId, aiEnabled]);
-
   // Handle AI choice
   const handleAiChoice = async (choice) => {
     const chatRef = doc(db, "privateChats", chatId);
@@ -126,6 +101,37 @@ function PrivateChat({ chatId }) {
       });
     }
   };
+
+  // Detect therapist leaving → re-offer AI (with joined-before check)
+  useEffect(() => {
+    if (!chatId) return;
+    const chatRef = doc(db, "privateChats", chatId);
+
+    const unsub = onSnapshot(chatRef, async (snap) => {
+      if (!snap.exists()) return;
+      const participants = snap.data().participants || [];
+      const hasTherapistNow = participants.some(
+        (uid) => uid !== auth.currentUser?.uid
+      );
+
+      if (hasTherapistNow) {
+        setTherapistJoinedBefore(true);
+      }
+
+      // Only show "therapist left" if they were here before
+      if (!hasTherapistNow && therapistJoinedBefore && !aiEnabled && !snap.data().aiOffered) {
+        await updateDoc(chatRef, { aiOffered: true });
+        await addDoc(collection(chatRef, "messages"), {
+          text: "The therapist has left. Would you like to continue with our support assistant?",
+          role: "system",
+          type: "ai-offer",
+          timestamp: serverTimestamp(),
+        });
+      }
+    });
+
+    return () => unsub();
+  }, [chatId, aiEnabled, therapistJoinedBefore]);
 
   // Fetch therapist name if logged in as therapist
   useEffect(() => {
