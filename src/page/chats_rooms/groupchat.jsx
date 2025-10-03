@@ -24,13 +24,14 @@ function Chatroom() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
-  const [therapistsOnline, setTherapistsOnline] = useState([]);
+  const [therapistsOnline, setTherapistsOnline] = useState([]); // 🔹 from Firestore presence
   const [therapistName, setTherapistName] = useState("Therapist");
+
   const displayName = auth.currentUser?.email ? therapistName : getAnonName();
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
-  
+
   // Auto scroll chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -57,14 +58,21 @@ function Chatroom() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setMessages(msgs);
-
-      // Track online therapists
-      const onlineTherapists = msgs
-        .filter((m) => m.role === "therapist")
-        .map((t) => t.displayName || "Therapist");
-      setTherapistsOnline([...new Set(onlineTherapists)]);
     });
 
+    return () => unsubscribe();
+  }, []);
+
+  // 🔹 Subscribe to therapistsOnline collection
+  useEffect(() => {
+    const q = collection(db, "therapistsOnline");
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const onlineList = snapshot.docs.map((doc) => ({
+        uid: doc.id,
+        ...doc.data(),
+      }));
+      setTherapistsOnline(onlineList);
+    });
     return () => unsubscribe();
   }, []);
 
@@ -80,7 +88,7 @@ function Chatroom() {
           const snap = await getDoc(doc(db, "therapists", user.uid));
           if (snap.exists()) {
             name = snap.data().name || "Therapist";
-            setTherapistName(name); // keep state in sync too
+            setTherapistName(name);
           }
         } catch (err) {
           console.error("Error fetching therapist name:", err);
@@ -93,7 +101,6 @@ function Chatroom() {
         });
         sessionStorage.setItem("therapistJoined", "true");
       }
-
     });
 
     return () => unsubscribeAuth();
@@ -102,11 +109,9 @@ function Chatroom() {
   // Handle clicking on a therapist in the chat
   const handleTherapistClick = async (msg) => {
     if (msg.role !== "therapist") return;
-
     try {
       const snap = await getDoc(doc(db, "therapists", msg.userId));
       if (snap.exists()) {
-        // Always attach uid to the therapist object
         setSelectedTherapist({ ...snap.data(), uid: msg.userId });
       } else {
         console.warn("Therapist profile not found for uid:", msg.userId);
@@ -223,7 +228,9 @@ function Chatroom() {
     }
   };
 
-  const isTherapistOnline = (name) => therapistsOnline.includes(name);
+  // 🔹 Check therapist online by uid instead of name
+  const isTherapistOnline = (uid) =>
+    therapistsOnline.some((t) => t.uid === uid && t.online);
 
   return (
     <div className="chat-box" style={{ border: "1px solid #ccc", padding: "10px", height: "350px", overflowY: "scroll", marginBottom: "10px" }}>
@@ -231,14 +238,14 @@ function Chatroom() {
 
       <p>
         {therapistsOnline.length > 0
-          ? `Therapists online: ${therapistsOnline.join(", ")}`
+          ? `Therapists online: ${therapistsOnline.map((t) => t.name).join(", ")}`
           : "No therapist online currently"}
       </p>
 
       {selectedTherapist ? (
         <TherapistProfile
           therapist={selectedTherapist}
-          isOnline={isTherapistOnline(selectedTherapist.name)}
+          isOnline={isTherapistOnline(selectedTherapist.uid)}
           onBack={() => setSelectedTherapist(null)}
           onStartChat={() => startPrivateChat(selectedTherapist)}
           onBookAppointment={() => {}}

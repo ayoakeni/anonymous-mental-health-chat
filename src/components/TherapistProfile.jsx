@@ -19,7 +19,11 @@ function TherapistProfile({ therapist, onBack, onStartChat, onBookAppointment, i
       <h3>Therapist Profile</h3>
       <p>
         <strong>Name:</strong> {therapist.name}{" "}
-        {isOnline && <span style={{ color: "green" }}>● Online</span>}
+        {isOnline ? (
+          <span style={{ color: "green" }}>● Online</span>
+        ) : (
+          <span style={{ color: "red" }}>● Offline</span>
+        )}
       </p>
       <p><strong>Gender:</strong> {therapist.gender}</p>
       <p><strong>Position:</strong> {therapist.position}</p>
