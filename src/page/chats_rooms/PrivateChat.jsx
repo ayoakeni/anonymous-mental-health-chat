@@ -103,12 +103,12 @@ function PrivateChat({ chatId }) {
         timestamp: serverTimestamp(),
       });
 
-      // 🔹 Trigger AI auto-reply right away
+      // Trigger AI auto-reply right away
       try {
         setAiTyping(true);
 
         const aiResponse = await getAIResponse(
-          "Start conversation",  // you can customize this prompt
+          "Start conversation",
           messages.map((m) => ({
             role: m.role === "user" ? "user" : "assistant",
             content: m.text,
@@ -259,8 +259,13 @@ function PrivateChat({ chatId }) {
       }
     }
 
-    // Case 3: Therapist left → re-offer AI
-    if (!isTherapistAvailable && chatSnap.exists() && !chatSnap.data().aiOffered) {
+    // Case 3: Therapist has left to re-offer AI
+    const participants = chatSnap.data().participants || [];
+    const therapistInChat = participants.some(uid => uid !== auth.currentUser?.uid);
+    const therapistPreviouslyJoined = chatSnap.data().therapistJoinedOnce || false;
+
+    // Show "Your therapist has left" only if a therapist was previously in the chat
+    if (!therapistInChat && therapistPreviouslyJoined && !chatSnap.data().aiOffered) {
       await updateDoc(chatRef, { aiOffered: true });
       await addDoc(collection(chatRef, "messages"), {
         text: "Your therapist has left the chat. Would you like to continue chatting with our support assistant?",
