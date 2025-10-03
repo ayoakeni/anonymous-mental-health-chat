@@ -133,11 +133,25 @@ function Chatroom() {
     const chatSnap = await getDoc(chatRef);
 
     if (!chatSnap.exists()) {
+      // First participant starts the chat
       await setDoc(chatRef, {
-        participants: [auth.currentUser.uid, therapist.uid],
+        participants: [auth.currentUser.uid],
+        createdBy: auth.currentUser.uid,
         lastMessage: "",
         lastUpdated: serverTimestamp(),
         unreadCountForTherapist: 0,
+        aiOffered: false,
+        chatStatus: "waiting",
+      });
+    } else {
+      // Chat exists → add second participant
+      const currentData = chatSnap.data();
+      const updatedParticipants = [...new Set([...(currentData.participants || []), auth.currentUser.uid])];
+
+      await updateDoc(chatRef, {
+        participants: updatedParticipants,
+        lastUpdated: serverTimestamp(),
+        chatStatus: updatedParticipants.length === 2 ? "active" : "waiting",
       });
     }
 

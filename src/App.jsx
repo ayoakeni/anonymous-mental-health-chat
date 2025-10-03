@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Chatroom from "./page/chats_rooms/groupchat";
+import Chatroom from "./page/chats_rooms/chatRoom";
 import Home from "./page/home";
 import About from "./page/about";
 import TherapistLogin from "./login/therapist_login";
