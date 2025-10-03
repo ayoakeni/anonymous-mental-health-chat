@@ -216,7 +216,7 @@ function PrivateChat({ chatId }) {
     }
 
     // Case 4: AI enabled → auto-reply
-    if (aiEnabled && !isTherapistAvailable) {
+    if (aiEnabled) {
       try {
         setAiTyping(true);
 
