@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { db, auth } from "../../utils/firebase";
 import { getAnonName } from "../../login/anonymous_login";
 import { useTypingStatus } from "../../components/useTypingStatus";
@@ -14,6 +15,7 @@ import {
   updateDoc,
   increment,
   getDoc,
+  arrayRemove 
 } from "firebase/firestore";
 
 function PrivateChat({ chatId }) {
@@ -27,6 +29,7 @@ function PrivateChat({ chatId }) {
   const [therapistName, setTherapistName] = useState("Therapist");
   const [therapistJoinedBefore, setTherapistJoinedBefore] = useState(false);
   const messagesEndRef = useRef(null);
+  const navigate = useNavigate();
   
   // Auto-scroll chat
   useEffect(() => {
@@ -133,6 +136,44 @@ function PrivateChat({ chatId }) {
       });
     }
   };
+
+  // Anonymous exist button
+  const leaveChat = async () => {
+    if (!chatId || !auth.currentUser) return;
+    const chatRef = doc(db, "privateChats", chatId);
+
+    try {
+      await updateDoc(chatRef, {
+        participants: arrayRemove(auth.currentUser.uid),
+      });
+
+      // system message anonymous left
+      await addDoc(collection(chatRef, "messages"), {
+        text: `${displayName} has left the chat.`,
+        role: "system",
+        timestamp: serverTimestamp(),
+      });
+
+      // Redirect user after leaving
+      navigate("/chat_room");
+    } catch (err) {
+      console.error("Error leaving chat:", err);
+    }
+  };
+
+  // Anonymous remove on unload or closing tabs
+  useEffect(() => {
+    const handleBeforeUnload = async () => {
+      if (!chatId || !auth.currentUser) return;
+      const chatRef = doc(db, "privateChats", chatId);
+      await updateDoc(chatRef, {
+        participants: arrayRemove(auth.currentUser.uid),
+      });
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [chatId]);
 
   // Detect therapist leaving → re-offer AI (with joined-before check)
   useEffect(() => {
@@ -319,6 +360,12 @@ function PrivateChat({ chatId }) {
       )}
 
       <div style={{ border: "1px solid #ccc", padding: "10px", height: "250px", overflowY: "scroll", marginBottom: "10px" }}>
+        <button
+          onClick={leaveChat}
+          style={{ marginLeft: "10px", backgroundColor: "red", color: "white" }}
+        >
+          Exit Chat
+        </button>
         {messages.map((msg) => (
           <div key={msg.id}>
             {msg.type === "ai-offer" ? (
