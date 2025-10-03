@@ -1,5 +1,5 @@
 // TherapistLogin.js
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { db, auth } from "../utils/firebase";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
@@ -9,23 +9,22 @@ function TherapistLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const navigate = useNavigate();
 
-  // Handle login
+  // ✅ Login handler
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
       await signInWithEmailAndPassword(auth, email, password);
       console.log("Therapist logged in:", email);
-      setIsLoggedIn(true);
+      // no need to set isLoggedIn anymore
     } catch (err) {
       console.error("Login error:", err.message);
       setError("Invalid email or password");
     }
   };
 
-  // Presence effect: only runs once logged in
+  // ✅ Presence + redirect
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) return; // not logged in
@@ -50,8 +49,11 @@ function TherapistLogin() {
         }
       };
 
-      // Mark online immediately
+      // Mark therapist online
       updatePresence(true);
+
+      // Redirect therapist after successful login
+      navigate("/dashboard_therapist");
 
       // Mark offline when tab is closed
       const handleBeforeUnload = () => updatePresence(false);
@@ -65,12 +67,7 @@ function TherapistLogin() {
     });
 
     return () => unsubscribe();
-  }, []);
-
-  if (isLoggedIn) {
-    navigate("/dashboard_therapist");
-    return null; // prevent double render
-  }
+  }, [navigate]);
 
   return (
     <div style={{ margin: "20px" }}>

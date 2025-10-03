@@ -114,24 +114,44 @@ function TherapistDashboard() {
   const handleLogout = async () => {
     try {
       if (!auth.currentUser) return;
+
+      const uid = auth.currentUser.uid;
+      const therapistRef = doc(db, "therapistsOnline", uid);
+
       // If therapist is inside a private chat, log a system message before leaving
       if (activeChatId) {
         const chatRef = doc(db, "privateChats", activeChatId);
-        await addDoc(collection(db, "privateChats", activeChatId, "messages"), {
+
+        await addDoc(collection(chatRef, "messages"), {
           text: `${therapistInfo.name} left the chat`,
           role: "system",
           timestamp: serverTimestamp(),
         });
+
         await updateDoc(chatRef, {
-          participants: arrayRemove(auth.currentUser.uid),
+          participants: arrayRemove(uid),
+          aiOffered: false,
         });
       }
 
-      // Sign out from Firebase
+      // ✅ Mark therapist as offline before signing out
+      await setDoc(therapistRef, {
+        name: therapistInfo.name || auth.currentUser.email,
+        online: false,
+        lastSeen: serverTimestamp(),
+      });
+
+      // Firebase sign out
       await signOut(auth);
 
-      // Reset state
-      setTherapistInfo({ name: "#", gender: "#", position: "#", profile: "#", rating: 0 });
+      // Reset local state
+      setTherapistInfo({
+        name: "#",
+        gender: "#",
+        position: "#",
+        profile: "#",
+        rating: 0,
+      });
       setMessages([]);
       setPrivateChats([]);
       setActiveChatId(null);
@@ -264,6 +284,7 @@ function TherapistDashboard() {
     await updateDoc(chatRef, {
       participants: arrayUnion(auth.currentUser.uid),
       unreadCountForTherapist: 0,
+      aiOffered: false,
     });
     await addDoc(collection(db, "privateChats", chatId, "messages"), {
       text: `${therapistInfo.name} joined the chat`,
