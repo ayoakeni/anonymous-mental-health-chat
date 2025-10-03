@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { db, auth } from "../utils/firebase";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 
 function TherapistLogin() {
@@ -27,44 +27,45 @@ function TherapistLogin() {
 
   // Presence effect: only runs once logged in
   useEffect(() => {
-    if (!isLoggedIn || !auth.currentUser) return;
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) return; // not logged in
 
-    const uid = auth.currentUser.uid;
-    const therapistRef = doc(db, "therapistsOnline", uid);
+      const uid = user.uid;
+      const therapistRef = doc(db, "therapistsOnline", uid);
 
-    const updatePresence = async (online) => {
-      try {
-        // ✅ fetch display name from therapists/{uid}
-        const profileSnap = await getDoc(doc(db, "therapists", uid));
-        const therapistName = profileSnap.exists()
-          ? profileSnap.data().name
-          : auth.currentUser.email; // fallback
+      const updatePresence = async (online) => {
+        try {
+          const profileSnap = await getDoc(doc(db, "therapists", uid));
+          const therapistName = profileSnap.exists()
+            ? profileSnap.data().name
+            : user.email; // fallback
 
-        await setDoc(therapistRef, {
-          name: therapistName,
-          online,
-          lastSeen: serverTimestamp(),
-        });
-      } catch (err) {
-        console.error("Error setting therapist presence:", err);
-      }
-    };
+          await setDoc(therapistRef, {
+            name: therapistName,
+            online,
+            lastSeen: serverTimestamp(),
+          });
+        } catch (err) {
+          console.error("Error setting therapist presence:", err);
+        }
+      };
 
-    // Mark online
-    updatePresence(true);
+      // Mark online immediately
+      updatePresence(true);
 
-    // On window/tab close → mark offline
-    const handleBeforeUnload = async () => {
-      await updatePresence(false);
-    };
+      // Mark offline when tab is closed
+      const handleBeforeUnload = () => updatePresence(false);
+      window.addEventListener("beforeunload", handleBeforeUnload);
 
-    window.addEventListener("beforeunload", handleBeforeUnload);
+      // Cleanup
+      return () => {
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+        updatePresence(false);
+      };
+    });
 
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      updatePresence(false);
-    };
-  }, [isLoggedIn]);
+    return () => unsubscribe();
+  }, []);
 
   if (isLoggedIn) {
     navigate("/dashboard_therapist");
