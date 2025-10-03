@@ -130,7 +130,7 @@ function TherapistDashboard() {
 
         await updateDoc(chatRef, {
           participants: arrayRemove(uid),
-          aiOffered: false,
+          aiOffered: true,
         });
       }
 
@@ -534,7 +534,7 @@ function TherapistDashboard() {
               });
               await updateDoc(chatRef, {
                 participants: arrayRemove(auth.currentUser.uid),
-                aiOffered: false,
+                aiOffered: true,
               });
 
               // Close chat locally
