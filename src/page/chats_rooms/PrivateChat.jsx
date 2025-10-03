@@ -26,6 +26,11 @@ function PrivateChat({ chatId }) {
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const [therapistName, setTherapistName] = useState("Therapist");
   const messagesEndRef = useRef(null);
+  
+  // Auto-scroll chat
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   // Watch therapist presence globally
   useEffect(() => {
@@ -121,11 +126,6 @@ function PrivateChat({ chatId }) {
       });
     }
   };
-
-  // Auto-scroll chat
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   // Fetch therapist name if logged in as therapist
   useEffect(() => {
