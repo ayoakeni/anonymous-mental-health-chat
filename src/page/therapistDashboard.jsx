@@ -134,7 +134,7 @@ function TherapistDashboard() {
         });
       }
 
-      // ✅ Mark therapist as offline before signing out
+      // Mark therapist as offline before signing out
       await setDoc(therapistRef, {
         name: therapistInfo.name || auth.currentUser.email,
         online: false,
@@ -534,6 +534,7 @@ function TherapistDashboard() {
               });
               await updateDoc(chatRef, {
                 participants: arrayRemove(auth.currentUser.uid),
+                aiOffered: false,
               });
 
               // Close chat locally

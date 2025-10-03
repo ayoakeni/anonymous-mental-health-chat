@@ -207,21 +207,30 @@ function PrivateChat({ chatId }) {
       return;
     }
 
-    // ✅ Case 4: AI enabled → auto reply
+    // Case 4: AI enabled → auto reply
     if (aiEnabled && !isTherapistAvailable) {
       try {
         setAiTyping(true);
-        const aiReply = await getAIResponse(userMessage);
-        setAiTyping(false);
+
+        const aiResponse = await getAIResponse(userMessage, messages.map(m => ({
+          role: m.role === "user" ? "user" : "assistant",
+          content: m.text
+        })));
 
         await addDoc(collection(db, "privateChats", chatId, "messages"), {
-          text: aiReply,
+          text: aiResponse,
           role: "ai",
           displayName: "Support Assistant",
           timestamp: serverTimestamp(),
         });
       } catch (err) {
-        console.error("AI error:", err);
+        console.error("AI response error:", err);
+        await addDoc(collection(db, "privateChats", chatId, "messages"), {
+          text: "Sorry, I couldn't respond right now. Please wait for a therapist.",
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
+      } finally {
         setAiTyping(false);
       }
     }

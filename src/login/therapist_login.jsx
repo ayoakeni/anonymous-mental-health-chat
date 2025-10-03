@@ -11,7 +11,7 @@ function TherapistLogin() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  // ✅ Login handler
+  // Login handler
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -24,7 +24,7 @@ function TherapistLogin() {
     }
   };
 
-  // ✅ Presence + redirect
+  // Presence + redirect
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) return; // not logged in
