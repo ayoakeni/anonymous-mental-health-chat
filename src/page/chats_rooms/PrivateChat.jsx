@@ -143,6 +143,7 @@ function PrivateChat({ chatId }) {
     const chatRef = doc(db, "privateChats", chatId);
 
     try {
+      await updateDoc(chatRef, { aiOffered: false, aiActive: false });
       await updateDoc(chatRef, {
         participants: arrayRemove(auth.currentUser.uid),
       });
@@ -166,6 +167,7 @@ function PrivateChat({ chatId }) {
     const handleBeforeUnload = async () => {
       if (!chatId || !auth.currentUser) return;
       const chatRef = doc(db, "privateChats", chatId);
+      await updateDoc(chatRef, { aiOffered: false, aiActive: false });
       await updateDoc(chatRef, {
         participants: arrayRemove(auth.currentUser.uid),
       });
