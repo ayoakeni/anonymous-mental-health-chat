@@ -1,6 +1,7 @@
+// TherapistLogin.js
 import React, { useEffect, useState } from "react";
 import { db, auth } from "../utils/firebase";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 
@@ -28,33 +29,40 @@ function TherapistLogin() {
   useEffect(() => {
     if (!isLoggedIn || !auth.currentUser) return;
 
-    const therapistRef = doc(db, "therapistsOnline", auth.currentUser.uid);
+    const uid = auth.currentUser.uid;
+    const therapistRef = doc(db, "therapistsOnline", uid);
+
+    const updatePresence = async (online) => {
+      try {
+        // ✅ fetch display name from therapists/{uid}
+        const profileSnap = await getDoc(doc(db, "therapists", uid));
+        const therapistName = profileSnap.exists()
+          ? profileSnap.data().name
+          : auth.currentUser.email; // fallback
+
+        await setDoc(therapistRef, {
+          name: therapistName,
+          online,
+          lastSeen: serverTimestamp(),
+        });
+      } catch (err) {
+        console.error("Error setting therapist presence:", err);
+      }
+    };
 
     // Mark online
-    setDoc(therapistRef, {
-      name: auth.currentUser.email,
-      online: true,
-      lastSeen: serverTimestamp(),
-    });
+    updatePresence(true);
 
     // On window/tab close → mark offline
     const handleBeforeUnload = async () => {
-      await setDoc(therapistRef, {
-        name: auth.currentUser.email,
-        online: false,
-        lastSeen: serverTimestamp(),
-      });
+      await updatePresence(false);
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      setDoc(therapistRef, {
-        name: auth.currentUser.email,
-        online: false,
-        lastSeen: serverTimestamp(),
-      });
+      updatePresence(false);
     };
   }, [isLoggedIn]);
 
