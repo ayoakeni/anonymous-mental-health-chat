@@ -189,8 +189,13 @@ function PrivateChat({ chatId }) {
       if (!hasTherapistInChat && chatSnap.exists() && !chatSnap.data().aiOffered) {
         setTimeout(async () => {
           const latestSnap = await getDoc(chatRef);
-          const stillNoTherapist = !messages.some((m) => m.role === "therapist");
-          if (stillNoTherapist && latestSnap.exists() && !latestSnap.data().aiOffered) {
+          if (!latestSnap.exists()) return;
+
+          // Get updated participants directly from Firestore
+          const participants = latestSnap.data().participants || [];
+          const therapistInChat = participants.some(uid => uid !== auth.currentUser?.uid);
+
+          if (!therapistInChat && !latestSnap.data().aiOffered) {
             await updateDoc(chatRef, { aiOffered: true });
             await addDoc(collection(chatRef, "messages"), {
               text: "No therapist has joined yet. Would you like to chat with our support assistant while you wait?",
@@ -199,7 +204,7 @@ function PrivateChat({ chatId }) {
               timestamp: serverTimestamp(),
             });
           }
-        }, 30000); // 30s delay
+        }, 30000);
       }
     }
 
