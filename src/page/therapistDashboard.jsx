@@ -35,6 +35,18 @@ function TherapistDashboard() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Load private chats
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "privateChats"), (snapshot) => {
+      const chatsWithMessages = snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((chat) => chat.lastMessage && chat.lastMessage.trim() !== "");
+
+      setPrivateChats(chatsWithMessages);
+    });
+    return () => unsubscribe();
+  }, []);
+
   // Group messages listener + unread count
   useEffect(() => {
     const q = query(collection(db, "messages"), orderBy("timestamp"));
@@ -118,20 +130,31 @@ function TherapistDashboard() {
     let isReloading = false;
 
     const handleBeforeUnload = async () => {
-      if (isReloading) return; // skip if refresh/navigation
+      if (isReloading) return; // skip refresh/navigation
 
-      // Leave active private chat if any
+      const uid = auth.currentUser.uid;
+
+      // Private chat cleanup if active
       if (activeChatId) {
         const privateChatRef = doc(db, "privateChats", activeChatId);
         try {
           await updateDoc(privateChatRef, {
-            participants: arrayRemove(auth.currentUser.uid),
-            aiOffered: false, // re-offer AI when therapist leaves
+            participants: arrayRemove(uid),
+            aiOffered: false, // allow re-offer AI when therapist leaves
           });
 
+          // System message
           await addDoc(collection(privateChatRef, "messages"), {
-            text: `${auth.currentUser.email} (Therapist) has left the chat.`,
+            text: `${therapistInfo?.name || "Therapist"} left the chat.`,
             role: "system",
+            timestamp: serverTimestamp(),
+          });
+
+          // Event log
+          await addDoc(collection(privateChatRef, "events"), {
+            type: "leave",
+            user: therapistInfo?.name || "Therapist",
+            uid,
             timestamp: serverTimestamp(),
           });
         } catch (err) {
@@ -139,16 +162,17 @@ function TherapistDashboard() {
         }
       }
 
-      // Leave group chat
+      // Group chat cleanup
       const groupChatRef = doc(db, "groupChats", "mainGroup");
       try {
         await updateDoc(groupChatRef, {
-          participants: arrayRemove(auth.currentUser.uid),
+          participants: arrayRemove(uid),
         });
 
-        await addDoc(collection(groupChatRef, "messages"), {
-          text: `${auth.currentUser.email} (Therapist) has left the group chat.`,
-          role: "system",
+        await addDoc(collection(groupChatRef, "events"), {
+          type: "leave",
+          user: therapistInfo?.name || "Therapist",
+          uid,
           timestamp: serverTimestamp(),
         });
       } catch (err) {
@@ -169,7 +193,7 @@ function TherapistDashboard() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [activeChatId]);
+  }, [activeChatId, therapistInfo]);
 
   const handleLogout = async () => {
     try {
@@ -178,13 +202,14 @@ function TherapistDashboard() {
       const uid = auth.currentUser.uid;
       const therapistRef = doc(db, "therapistsOnline", uid);
 
-      // If therapist is inside a private chat, log a system message before leaving
+      // If therapist is inside a private chat, log an event before leaving
       if (activeChatId) {
         const chatRef = doc(db, "privateChats", activeChatId);
 
-        await addDoc(collection(chatRef, "messages"), {
-          text: `${therapistInfo.name} left the chat`,
-          role: "system",
+        await addDoc(collection(chatRef, "events"), {
+          type: "leave",
+          user: therapistInfo.name || "Therapist",
+          uid,
           timestamp: serverTimestamp(),
         });
 
@@ -234,55 +259,20 @@ function TherapistDashboard() {
     }
   };
 
-  // Load private chats
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "privateChats"), (snapshot) => {
-      const chatsWithMessages = snapshot.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }))
-        .filter((chat) => chat.lastMessage && chat.lastMessage.trim() !== "");
-
-      setPrivateChats(chatsWithMessages);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // Send message to group
-  const sendReply = async () => {
-    if (!reply.trim() || !auth.currentUser) return;
-
-    await addDoc(collection(db, "messages"), {
-      text: reply,
-      userId: auth.currentUser.uid,
-      displayName: therapistInfo.name,
-      role: "therapist",
-      timestamp: serverTimestamp(),
-    });
-
-    setReply("");
-    const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
-    await updateDoc(typingDoc, { typing: false }).catch(async () => {
-    await setDoc(typingDoc, { typing: false, name: therapistInfo.name || "Therapist", timestamp: serverTimestamp() });
-    });
-  };
-
+  //join chat group
   const joinGroupChat = async () => {
     if (!auth.currentUser) return;
-    const groupRef = doc(db, "groupChat", "mainGroup");
+    const groupRef = doc(db, "groupChats", "mainGroup");
 
-    // Ensure the doc exists, create if missing
+    // if doc exists, create if missing
     await setDoc(
       groupRef,
       { participants: arrayUnion(auth.currentUser.uid) },
       { merge: true }
     );
 
-    await addDoc(collection(db, "messages"), {
-      text: `${therapistInfo.name} joined the group chat`,
-      role: "system",
-      timestamp: serverTimestamp(),
-    });
-
     setIsGroupChatOpen(true);
+    setInGroupChat(true);
     setGroupUnreadCount(0);
 
     // Update lastSeenTimestamp to last message's timestamp
@@ -297,6 +287,7 @@ function TherapistDashboard() {
 
     const lastMsgTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
     setLastSeenTimestamp(lastMsgTime);
+    setLastSeenTimestamp(lastMsgTime);
 
     await setDoc(
       doc(db, "therapists", therapistId),
@@ -306,6 +297,7 @@ function TherapistDashboard() {
     setGroupUnreadCount(0);
   };
 
+  // Leave group chat
   const leaveGroupChat = async () => {
     if (!auth.currentUser) return;
 
@@ -324,21 +316,34 @@ function TherapistDashboard() {
     setGroupUnreadCount(0);
 
     try {
-      const groupRef = doc(db, "groupChat", "mainGroup");
+      const groupRef = doc(db, "groupChats", "mainGroup");
       await setDoc(
         groupRef,
         { participants: arrayRemove(auth.currentUser.uid) },
         { merge: true }
       );
-
-      await addDoc(collection(db, "messages"), {
-        text: `${therapistInfo.name} left the group chat`,
-        role: "system",
-        timestamp: serverTimestamp(),
-      });
     } catch (err) {
       console.error("Error leaving group chat:", err);
     }
+  };
+  
+  // Send message to chat group
+  const sendReply = async () => {
+    if (!reply.trim() || !auth.currentUser) return;
+
+    await addDoc(collection(db, "messages"), {
+      text: reply,
+      userId: auth.currentUser.uid,
+      displayName: therapistInfo.name,
+      role: "therapist",
+      timestamp: serverTimestamp(),
+    });
+
+    setReply("");
+    const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
+    await updateDoc(typingDoc, { typing: false }).catch(async () => {
+    await setDoc(typingDoc, { typing: false, name: therapistInfo.name || "Therapist", timestamp: serverTimestamp() });
+    });
   };
 
   // Join private chat
@@ -352,11 +357,12 @@ function TherapistDashboard() {
       unreadCountForTherapist: 0,
     });
     
-    await addDoc(collection(db, "privateChats", chatId, "messages"), {
-      text: `${therapistInfo.name} joined the chat`,
-      role: "system",
+    await addDoc(collection(chatRef, "events"), {
+      type: "join",
+      user: displayName,
+      uid: auth.currentUser.uid,
       timestamp: serverTimestamp(),
-    });
+    })
     setActiveChatId(chatId);
   };
 

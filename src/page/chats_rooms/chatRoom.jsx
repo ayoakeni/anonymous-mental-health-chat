@@ -13,7 +13,8 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db, auth } from "../../utils/firebase";
-import { getAIResponse } from "../../components/AiChatIntegration";
+import { getAIResponse } from "../../utils/AiChatIntegration";
+import { mapMessagesForAI } from "../../utils/aiMessageMapper";
 import { loginAnonymously, getAnonName } from "../../login/anonymous_login";
 import TherapistProfile from "../../components/TherapistProfile";
 import { useTypingStatus } from "../../components/useTypingStatus";
@@ -190,7 +191,8 @@ function Chatroom() {
 
       setTimeout(async () => {
         try {
-          const aiReply = await getAIResponse(cleanMessage);
+          const aiInputMessages = mapMessagesForAI(messages);
+          const aiReply = await getAIResponse(cleanMessage, aiInputMessages);
           await addDoc(collection(db, "messages"), {
             text: `You said: "${originalMessage}"\n\n${aiReply}`,
             userId: "AI_BOT",

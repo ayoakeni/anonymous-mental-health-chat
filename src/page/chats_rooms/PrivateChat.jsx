@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { db, auth } from "../../utils/firebase";
 import { getAnonName } from "../../login/anonymous_login";
 import { useTypingStatus } from "../../components/useTypingStatus";
-import { getAIResponse } from "../../components/AiChatIntegration";
+import { getAIResponse } from "../../utils/AiChatIntegration";
+import { mapMessagesForAI } from "../../utils/aiMessageMapper";
 import {
   collection,
   addDoc,
@@ -38,7 +39,10 @@ function PrivateChat({ chatId }) {
 
   useEffect(() => {
     return () => {
-      if (aiOfferTimerRef.current) clearTimeout(aiOfferTimerRef.current);
+      if (aiOfferTimerRef.current) {
+        clearTimeout(aiOfferTimerRef.current);
+        aiOfferTimerRef.current = null;
+      }
     };
   }, []);
 
@@ -106,14 +110,8 @@ function PrivateChat({ chatId }) {
       // Trigger AI auto-reply right away
       try {
         setAiTyping(true);
-
-        const aiResponse = await getAIResponse(
-          "Start conversation",
-          messages.map((m) => ({
-            role: m.role === "user" ? "user" : "assistant",
-            content: m.text,
-          }))
-        );
+        const aiInputMessages = mapMessagesForAI(messages);
+        const aiResponse = await getAIResponse("Start conversation", aiInputMessages);
 
         await addDoc(collection(chatRef, "messages"), {
           text: aiResponse,
@@ -175,31 +173,48 @@ function PrivateChat({ chatId }) {
     let isReloading = false;
 
     const handleBeforeUnload = async () => {
-      if (isReloading) return; // skip if refresh/navigation
+      if (isReloading) return; // skip refresh/navigation
 
+      const uid = auth.currentUser.uid;
       const privateChatRef = doc(db, "privateChats", chatId);
       const groupChatRef = doc(db, "groupChats", "mainGroup");
 
       try {
-        // Auto-leave private chat
+        // Remove from private chat
         await updateDoc(privateChatRef, {
-          participants: arrayRemove(auth.currentUser.uid),
+          participants: arrayRemove(uid),
         });
 
+        // System message (visible to chat)
         await addDoc(collection(privateChatRef, "messages"), {
           text: `${getAnonName()} has left the chat.`,
           role: "system",
           timestamp: serverTimestamp(),
         });
 
-        // Auto-leave group chat
+        // Event log (invisible)
+        await addDoc(collection(privateChatRef, "events"), {
+          type: "leave",
+          user: getAnonName(),
+          uid,
+          timestamp: serverTimestamp(),
+        });
+
+        // Remove from group chat
         await updateDoc(groupChatRef, {
-          participants: arrayRemove(auth.currentUser.uid),
+          participants: arrayRemove(uid),
         });
 
         await addDoc(collection(groupChatRef, "messages"), {
           text: `${getAnonName()} has left the group chat.`,
           role: "system",
+          timestamp: serverTimestamp(),
+        });
+
+        await addDoc(collection(groupChatRef, "events"), {
+          type: "leave",
+          user: getAnonName(),
+          uid,
           timestamp: serverTimestamp(),
         });
       } catch (err) {
@@ -276,7 +291,10 @@ function PrivateChat({ chatId }) {
     if (isTherapistAvailable && !aiEnabled) {
       if (!chatSnap.data().aiOffered) {
         // Clear any existing timer
-        if (aiOfferTimerRef.current) clearTimeout(aiOfferTimerRef.current);
+        if (aiOfferTimerRef.current) {
+          clearTimeout(aiOfferTimerRef.current);
+          aiOfferTimerRef.current = null;
+        }
 
         aiOfferTimerRef.current = setTimeout(async () => {
           const latestSnap = await getDoc(chatRef);
@@ -320,13 +338,8 @@ function PrivateChat({ chatId }) {
       try {
         setAiTyping(true);
 
-        const aiResponse = await getAIResponse(
-          userMessage,
-          messages.map((m) => ({
-            role: m.role === "user" ? "user" : "assistant",
-            content: m.text,
-          }))
-        );
+        const aiInputMessages = mapMessagesForAI(messages);
+        const aiResponse = await getAIResponse(userMessage, aiInputMessages);
 
         await addDoc(collection(db, "privateChats", chatId, "messages"), {
           text: aiResponse,

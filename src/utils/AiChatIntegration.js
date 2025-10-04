@@ -10,8 +10,7 @@ export const getAIResponse = async (message) => {
     const prompt = `
     You are a supportive mental health assistant. 
     Respond kindly, with empathy and encouragement, 
-    but remember you are not a professional therapist.
-    and when they seek help let them contact this line "08130164483"
+    but remember you are not a professional therapist."
     
     User message: "${message}"
     `;
