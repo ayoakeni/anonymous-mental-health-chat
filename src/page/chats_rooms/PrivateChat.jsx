@@ -21,6 +21,7 @@ import {
 
 function PrivateChat({ chatId }) {
   const [messages, setMessages] = useState([]);
+  const [events, setEvents] = useState([]);
   const [isTherapistAvailable, setIsTherapistAvailable] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
@@ -93,6 +94,29 @@ function PrivateChat({ chatId }) {
     return () => unsubscribeMessages();
   }, [chatId, aiEnabled]);
 
+  // Subscribe to events collection
+  useEffect(() => {
+    if (!chatId) return;
+
+    const chatRef = doc(db, "privateChats", chatId);
+    const q = query(collection(chatRef, "events"), orderBy("timestamp"));
+
+    const unsubscribeEvents = onSnapshot(q, (snapshot) => {
+      const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setEvents(evts);
+    });
+
+    return () => unsubscribeEvents();
+  }, [chatId]);
+
+  // Combine messages + events for rendering
+  const combinedChat = [...messages, ...events].sort((a, b) => {
+    // Firestore timestamps are objects, convert to millis
+    const t1 = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
+    const t2 = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
+    return t1 - t2;
+  });
+
   // Handle AI choice
   const handleAiChoice = async (choice) => {
     const chatRef = doc(db, "privateChats", chatId);
@@ -145,16 +169,19 @@ function PrivateChat({ chatId }) {
   const leaveChat = async () => {
     if (!chatId || !auth.currentUser) return;
     const chatRef = doc(db, "privateChats", chatId);
-
+    const uid = auth.currentUser.uid;
     try {
       await updateDoc(chatRef, { aiOffered: false, aiActive: false, therapistJoinedOnce: false });
       await updateDoc(chatRef, {
         participants: arrayRemove(auth.currentUser.uid),
       });
 
-      // system message anonymous left
-      await addDoc(collection(chatRef, "messages"), {
-        text: `${displayName} has left the chat.`,
+      // Event
+      await addDoc(collection(chatRef, "events"), {
+        type: "leave",
+        user: getAnonName(),
+        uid,
+        text: getAnonName()`has left the chat.`,
         role: "system",
         timestamp: serverTimestamp(),
       });
@@ -185,18 +212,13 @@ function PrivateChat({ chatId }) {
           participants: arrayRemove(uid),
         });
 
-        // System message (visible to chat)
-        await addDoc(collection(privateChatRef, "messages"), {
-          text: `${getAnonName()} has left the chat.`,
-          role: "system",
-          timestamp: serverTimestamp(),
-        });
-
-        // Event log (invisible)
+        // Event
         await addDoc(collection(privateChatRef, "events"), {
           type: "leave",
           user: getAnonName(),
           uid,
+          text: getAnonName()`has left the chat.`,
+          role: "system",
           timestamp: serverTimestamp(),
         });
 
@@ -204,17 +226,14 @@ function PrivateChat({ chatId }) {
         await updateDoc(groupChatRef, {
           participants: arrayRemove(uid),
         });
-
-        await addDoc(collection(groupChatRef, "messages"), {
-          text: `${getAnonName()} has left the group chat.`,
-          role: "system",
-          timestamp: serverTimestamp(),
-        });
-
+        
+        // Event
         await addDoc(collection(groupChatRef, "events"), {
           type: "leave",
           user: getAnonName(),
           uid,
+          text: getAnonName()`has left the chat.`,
+          role: "system",
           timestamp: serverTimestamp(),
         });
       } catch (err) {
@@ -277,7 +296,7 @@ function PrivateChat({ chatId }) {
     if (!isTherapistAvailable && !aiEnabled) {
       if (chatSnap.exists() && !chatSnap.data().aiOffered) {
         await updateDoc(chatRef, { aiOffered: true });
-        await addDoc(collection(chatRef, "messages"), {
+        await addDoc(collection(chatRef, "events"), {
           text: "No therapist is online right now. Would you like to chat with our support assistant while you wait?",
           role: "system",
           type: "ai-offer",
@@ -305,7 +324,7 @@ function PrivateChat({ chatId }) {
 
           if (!therapistInChat && !latestSnap.data().aiOffered) {
             await updateDoc(chatRef, { aiOffered: true });
-            await addDoc(collection(chatRef, "messages"), {
+            await addDoc(collection(chatRef, "events"), {
               text: "No therapist has joined yet. Would you like to chat with our support assistant while you wait?",
               role: "system",
               type: "ai-offer",
@@ -324,7 +343,7 @@ function PrivateChat({ chatId }) {
     // Show "Your therapist has left" only if a therapist was previously in the chat
     if (!therapistInChat && therapistPreviouslyJoined && !chatSnap.data().aiOffered) {
       await updateDoc(chatRef, { aiOffered: false });
-      await addDoc(collection(chatRef, "messages"), {
+      await addDoc(collection(chatRef, "events"), {
         text: "Your therapist has left the chat. Would you like to continue chatting with our support assistant?",
         role: "system",
         type: "ai-offer",
@@ -359,7 +378,7 @@ function PrivateChat({ chatId }) {
       }
     }
 
-    // -------- Update chat metadata --------
+    // Update chat metadata
     await updateDoc(chatRef, {
       lastMessage: userMessage,
       lastUpdated: serverTimestamp(),
@@ -385,7 +404,12 @@ function PrivateChat({ chatId }) {
           ? `(Therapist Online: ${activeTherapists.join(", ")})`
           : "(Waiting for Therapist)"}
       </h3>
-
+      <button
+        onClick={leaveChat}
+        style={{ marginLeft: "10px", backgroundColor: "red", color: "white" }}
+      >
+        Exit Chat
+      </button>
       {selectedTherapist && (
         <div style={{ border: "1px solid #ccc", padding: "10px", marginBottom: "10px" }}>
           <button onClick={() => setSelectedTherapist(null)}>⬅ Back</button>
@@ -395,69 +419,63 @@ function PrivateChat({ chatId }) {
       )}
 
       <div style={{ border: "1px solid #ccc", padding: "10px", height: "250px", overflowY: "scroll", marginBottom: "10px" }}>
-        <button
-          onClick={leaveChat}
-          style={{ marginLeft: "10px", backgroundColor: "red", color: "white" }}
-        >
-          Exit Chat
-        </button>
-        {messages.map((msg) => (
-          <div key={msg.id}>
-            {msg.type === "ai-offer" ? (
-              <div style={{ marginBottom: "10px" }}>
-                <p style={{ color: "gray" }}>{msg.text}</p>
-                {!aiEnabled && (
-                  <>
-                    <button onClick={() => handleAiChoice("yes")}>Yes</button>
-                    <button onClick={() => handleAiChoice("no")}>No</button>
-                  </>
-                )}
-              </div>
-            ) : (
-              <p
-                style={{
-                  color:
-                    msg.role === "therapist"
-                      ? "blue"
-                      : msg.role === "system"
-                      ? "gray"
-                      : msg.role === "ai"
-                      ? "green"
-                      : "black",
-                  fontWeight: msg.role === "therapist" ? "bold" : "normal",
-                  fontStyle: msg.role === "system" ? "italic" : "normal",
-                  cursor: msg.role === "therapist" ? "pointer" : "default",
-                  textDecoration: msg.role === "therapist" ? "underline" : "none",
-                }}
-                onClick={() =>
-                  msg.role === "therapist" ? handleTherapistClick(msg) : null
-                }
-              >
-                {msg.role === "system" ? (
-                  <em>{msg.text}</em>
-                ) : (
-                  <>
-                    <strong>{msg.displayName || msg.role}:</strong> {msg.text}
-                  </>
-                )}
-              </p>
-            )}
-          </div>
-        ))}
+      {combinedChat.map((msg) => (
+        <div key={msg.id}>
+          {msg.type === "ai-offer" ? (
+            <div style={{ marginBottom: "10px" }}>
+              <p style={{ color: "gray" }}>{msg.text}</p>
+              {!aiEnabled && (
+                <>
+                  <button onClick={() => handleAiChoice("yes")}>Yes</button>
+                  <button onClick={() => handleAiChoice("no")}>No</button>
+                </>
+              )}
+            </div>
+          ) : (
+            <p
+              style={{
+                color:
+                  msg.role === "therapist"
+                    ? "blue"
+                    : msg.role === "system"
+                    ? "gray"
+                    : msg.role === "ai"
+                    ? "green"
+                    : "black",
+                fontWeight: msg.role === "therapist" ? "bold" : "normal",
+                fontStyle: msg.role === "system" ? "italic" : "normal",
+                cursor: msg.role === "therapist" ? "pointer" : "default",
+                textDecoration: msg.role === "therapist" ? "underline" : "none",
+              }}
+              onClick={() =>
+                msg.role === "therapist" ? handleTherapistClick(msg) : null
+              }
+            >
+              {msg.role === "system" ? (
+                <em>{msg.text}</em>
+              ) : (
+                <>
+                  <strong>{msg.displayName || msg.role}:</strong> {msg.text}
+                </>
+              )}
+            </p>
+          )}
+        </div>
+      ))}
 
-        {typingUsers.length > 0 && (
-          <p style={{ fontStyle: "italic", color: "gray" }}>
-            {typingUsers.join(", ")}{" "}
-            {typingUsers.length === 1 ? "is" : "are"} typing...
-          </p>
-        )}
-        {aiTyping && (
-          <p style={{ fontStyle: "italic", color: "green" }}>
-            Support Assistant is typing...
-          </p>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+      {typingUsers.length > 0 && (
+        <p style={{ fontStyle: "italic", color: "gray" }}>
+          {typingUsers.join(", ")}{" "}
+          {typingUsers.length === 1 ? "is" : "are"} typing...
+        </p>
+      )}
+      {aiTyping && (
+        <p style={{ fontStyle: "italic", color: "green" }}>
+          Support Assistant is typing...
+        </p>
+      )}
+      <div ref={messagesEndRef} />
+    </div>
 
       <input
         type="text"

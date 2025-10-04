@@ -9,6 +9,7 @@ import LeaveChatButton from "../components/LeaveChatButton";
 
 function TherapistDashboard() {
   const [messages, setMessages] = useState([]);
+  const [groupEvents, setGroupEvents] = useState([]);
   const [reply, setReply] = useState("");
   const [privateChats, setPrivateChats] = useState([]);
   const [isGroupChatOpen, setIsGroupChatOpen] = useState(false);
@@ -25,7 +26,7 @@ function TherapistDashboard() {
     rating: 0,
   });
   const therapistId = auth.currentUser?.uid;
-  const displayName = therapistInfo.name || "Therapist";
+  const displayName = therapistInfo.name || "Unknown Therapist";
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
@@ -46,6 +47,26 @@ function TherapistDashboard() {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const groupRef = doc(db, "groupChats", "mainGroup");
+    const q = collection(groupRef, "events");
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const evts = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(evt => evt.type !== "join" && evt.type !== "leave"); // skip join/leave
+      setGroupEvents(evts);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const combinedGroupChat = [...messages, ...groupEvents].sort((a, b) => {
+    const t1 = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
+    const t2 = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
+    return t1 - t2;
+  });
 
   // Group messages listener + unread count
   useEffect(() => {
@@ -143,18 +164,13 @@ function TherapistDashboard() {
             aiOffered: false, // allow re-offer AI when therapist leaves
           });
 
-          // System message
-          await addDoc(collection(privateChatRef, "messages"), {
-            text: `${therapistInfo?.name || "Therapist"} left the chat.`,
-            role: "system",
-            timestamp: serverTimestamp(),
-          });
-
           // Event log
           await addDoc(collection(privateChatRef, "events"), {
             type: "leave",
-            user: therapistInfo?.name || "Therapist",
+            user: displayName,
             uid,
+            text: displayName `left the chat.`,
+            role: "system",
             timestamp: serverTimestamp(),
           });
         } catch (err) {
@@ -171,7 +187,7 @@ function TherapistDashboard() {
 
         await addDoc(collection(groupChatRef, "events"), {
           type: "leave",
-          user: therapistInfo?.name || "Therapist",
+          user: displayName,
           uid,
           timestamp: serverTimestamp(),
         });
@@ -193,7 +209,7 @@ function TherapistDashboard() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [activeChatId, therapistInfo]);
+  }, [activeChatId, displayName]);
 
   const handleLogout = async () => {
     try {
@@ -208,7 +224,7 @@ function TherapistDashboard() {
 
         await addDoc(collection(chatRef, "events"), {
           type: "leave",
-          user: therapistInfo.name || "Therapist",
+          user: displayName,
           uid,
           timestamp: serverTimestamp(),
         });
@@ -221,7 +237,7 @@ function TherapistDashboard() {
 
       // Mark therapist as offline before signing out
       await setDoc(therapistRef, {
-        name: therapistInfo.name || auth.currentUser.email,
+        name: displayName || auth.currentUser.email,
         online: false,
         lastSeen: serverTimestamp(),
       });
@@ -350,8 +366,9 @@ function TherapistDashboard() {
   const joinPrivateChat = async (chatId) => {
     if (!auth.currentUser) return;
     const chatRef = doc(db, "privateChats", chatId);
+    const uid = auth.currentUser.uid;
     await updateDoc(chatRef, {
-      participants: arrayUnion(auth.currentUser.uid),
+      participants: arrayUnion(uid),
       therapistJoinedOnce: true,
       aiOffered: false,
       unreadCountForTherapist: 0,
@@ -360,7 +377,9 @@ function TherapistDashboard() {
     await addDoc(collection(chatRef, "events"), {
       type: "join",
       user: displayName,
-      uid: auth.currentUser.uid,
+      uid,
+      text: `${displayName} joined the chat.`,
+      role: "system",
       timestamp: serverTimestamp(),
     })
     setActiveChatId(chatId);
@@ -470,7 +489,7 @@ function TherapistDashboard() {
               marginBottom: "10px",
             }}
           >
-            {messages.map((msg) => (
+            {combinedGroupChat.map(msg => (
               <p
                 key={msg.id}
                 style={{
@@ -479,7 +498,7 @@ function TherapistDashboard() {
                   fontStyle: msg.role === "ai" ? "italic" : "normal",
                 }}
               >
-                <strong>{msg.displayName || "Anonymous"}</strong>: {msg.text}
+                <strong>{msg.displayName || msg.user || "Anonymous"}</strong>: {msg.text || msg.message}
               </p>
             ))}
             {typingUsers.length > 0 && (
