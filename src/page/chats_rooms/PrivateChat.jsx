@@ -36,7 +36,7 @@ function PrivateChat({ chatId }) {
   // Auto-scroll chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, events]);
 
   useEffect(() => {
     return () => {
@@ -180,7 +180,6 @@ function PrivateChat({ chatId }) {
       await addDoc(collection(chatRef, "events"), {
         type: "leave",
         user: getAnonName(),
-        uid,
         text: getAnonName()`has left the chat.`,
         role: "system",
         timestamp: serverTimestamp(),
@@ -216,7 +215,6 @@ function PrivateChat({ chatId }) {
         await addDoc(collection(privateChatRef, "events"), {
           type: "leave",
           user: getAnonName(),
-          uid,
           text: getAnonName()`has left the chat.`,
           role: "system",
           timestamp: serverTimestamp(),
@@ -231,7 +229,6 @@ function PrivateChat({ chatId }) {
         await addDoc(collection(groupChatRef, "events"), {
           type: "leave",
           user: getAnonName(),
-          uid,
           text: getAnonName()`has left the chat.`,
           role: "system",
           timestamp: serverTimestamp(),

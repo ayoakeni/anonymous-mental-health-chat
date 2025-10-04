@@ -34,7 +34,7 @@ function TherapistDashboard() {
   // Auto scroll chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, groupEvents]);
 
   // Load private chats
   useEffect(() => {
@@ -168,7 +168,6 @@ function TherapistDashboard() {
           await addDoc(collection(privateChatRef, "events"), {
             type: "leave",
             user: displayName,
-            uid,
             text: displayName `left the chat.`,
             role: "system",
             timestamp: serverTimestamp(),
@@ -188,7 +187,6 @@ function TherapistDashboard() {
         await addDoc(collection(groupChatRef, "events"), {
           type: "leave",
           user: displayName,
-          uid,
           timestamp: serverTimestamp(),
         });
       } catch (err) {
@@ -225,7 +223,6 @@ function TherapistDashboard() {
         await addDoc(collection(chatRef, "events"), {
           type: "leave",
           user: displayName,
-          uid,
           timestamp: serverTimestamp(),
         });
 
@@ -377,7 +374,6 @@ function TherapistDashboard() {
     await addDoc(collection(chatRef, "events"), {
       type: "join",
       user: displayName,
-      uid,
       text: `${displayName} joined the chat.`,
       role: "system",
       timestamp: serverTimestamp(),
