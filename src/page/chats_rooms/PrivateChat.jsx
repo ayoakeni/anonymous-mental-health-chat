@@ -91,7 +91,7 @@ function PrivateChat({ chatId }) {
   }, [chatId]);
 
   // Watch chat document for therapist join / AI disable
-  useEffect(() => {
+    useEffect(() => {
     if (!chatId) return;
     const chatRef = doc(db, "privateChats", chatId);
 
@@ -99,22 +99,25 @@ function PrivateChat({ chatId }) {
       if (!snap.exists()) return;
       const data = snap.data();
       const participants = data.participants || [];
-      const hasTherapistNow = participants.some(
-        (uid) => uid !== auth.currentUser?.uid
-      );
 
-      if (hasTherapistNow && aiEnabled) {
-        setAiEnabled(false);
-        await updateDoc(chatRef, { aiActive: false });
+      const otherParticipants = participants.filter(uid => uid !== auth.currentUser?.uid);
+      const therapistPresent = otherParticipants.length > 0; // or check role in data
 
-        // Add event only once
-        if (!data.therapistJoinedOnce) {
-          await updateDoc(chatRef, { therapistJoinedOnce: true });
-          await addDoc(collection(chatRef, "events"), {
-            text: "A therapist has joined. You can now continue your conversation with them.",
-            role: "system",
-            timestamp: serverTimestamp(),
-          });
+      if (therapistPresent && !data.therapistJoinedOnce) {
+        // Mark that therapist joined
+        await updateDoc(chatRef, { therapistJoinedOnce: true });
+
+        // Add system event
+        await addDoc(collection(chatRef, "events"), {
+          text: "A therapist has joined. You can now continue your conversation with them.",
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
+
+        // Disable AI if it was enabled
+        if (aiEnabled) {
+          setAiEnabled(false);
+          await updateDoc(chatRef, { aiActive: false });
         }
       }
     });
