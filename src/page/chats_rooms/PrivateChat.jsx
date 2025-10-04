@@ -168,19 +168,58 @@ function PrivateChat({ chatId }) {
     }
   };
 
-  // Anonymous remove on unload or closing tabs
+  // Anonymous remove only on full tab close (not refresh)
   useEffect(() => {
+    if (!chatId || !auth.currentUser) return;
+
+    let isReloading = false;
+
     const handleBeforeUnload = async () => {
-      if (!chatId || !auth.currentUser) return;
-      const chatRef = doc(db, "privateChats", chatId);
-      await updateDoc(chatRef, { aiOffered: false, aiActive: false });
-      await updateDoc(chatRef, {
-        participants: arrayRemove(auth.currentUser.uid),
-      });
+      if (isReloading) return; // skip if refresh/navigation
+
+      const privateChatRef = doc(db, "privateChats", chatId);
+      const groupChatRef = doc(db, "groupChats", "mainGroup");
+
+      try {
+        // Auto-leave private chat
+        await updateDoc(privateChatRef, {
+          participants: arrayRemove(auth.currentUser.uid),
+        });
+
+        await addDoc(collection(privateChatRef, "messages"), {
+          text: `${getAnonName()} has left the chat.`,
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
+
+        // Auto-leave group chat
+        await updateDoc(groupChatRef, {
+          participants: arrayRemove(auth.currentUser.uid),
+        });
+
+        await addDoc(collection(groupChatRef, "messages"), {
+          text: `${getAnonName()} has left the group chat.`,
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
+      } catch (err) {
+        console.error("Error auto-leaving chats:", err);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        isReloading = true;
+      }
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [chatId]);
 
   // Fetch therapist name if logged in as therapist
@@ -266,7 +305,7 @@ function PrivateChat({ chatId }) {
 
     // Show "Your therapist has left" only if a therapist was previously in the chat
     if (!therapistInChat && therapistPreviouslyJoined && !chatSnap.data().aiOffered) {
-      await updateDoc(chatRef, { aiOffered: true });
+      await updateDoc(chatRef, { aiOffered: false });
       await addDoc(collection(chatRef, "messages"), {
         text: "Your therapist has left the chat. Would you like to continue chatting with our support assistant?",
         role: "system",

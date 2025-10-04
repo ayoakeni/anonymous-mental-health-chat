@@ -111,6 +111,66 @@ function TherapistDashboard() {
     fetchProfile();
   }, [therapistId]);
 
+  //For Tab close vs refresh detection
+  useEffect(() => {
+    if (!auth.currentUser) return;
+
+    let isReloading = false;
+
+    const handleBeforeUnload = async () => {
+      if (isReloading) return; // skip if refresh/navigation
+
+      // Leave active private chat if any
+      if (activeChatId) {
+        const privateChatRef = doc(db, "privateChats", activeChatId);
+        try {
+          await updateDoc(privateChatRef, {
+            participants: arrayRemove(auth.currentUser.uid),
+            aiOffered: false, // re-offer AI when therapist leaves
+          });
+
+          await addDoc(collection(privateChatRef, "messages"), {
+            text: `${auth.currentUser.email} (Therapist) has left the chat.`,
+            role: "system",
+            timestamp: serverTimestamp(),
+          });
+        } catch (err) {
+          console.error("Error auto-leaving private chat:", err);
+        }
+      }
+
+      // Leave group chat
+      const groupChatRef = doc(db, "groupChats", "mainGroup");
+      try {
+        await updateDoc(groupChatRef, {
+          participants: arrayRemove(auth.currentUser.uid),
+        });
+
+        await addDoc(collection(groupChatRef, "messages"), {
+          text: `${auth.currentUser.email} (Therapist) has left the group chat.`,
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
+      } catch (err) {
+        console.error("Error auto-leaving group chat:", err);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        isReloading = true;
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [activeChatId]);
+
   const handleLogout = async () => {
     try {
       if (!auth.currentUser) return;
@@ -130,7 +190,7 @@ function TherapistDashboard() {
 
         await updateDoc(chatRef, {
           participants: arrayRemove(uid),
-          aiOffered: true,
+          aiOffered: false,
         });
       }
 
@@ -540,7 +600,7 @@ function TherapistDashboard() {
               });
               await updateDoc(chatRef, {
                 participants: arrayRemove(auth.currentUser.uid),
-                aiOffered: true,
+                aiOffered: false,
               });
 
               // Close chat locally

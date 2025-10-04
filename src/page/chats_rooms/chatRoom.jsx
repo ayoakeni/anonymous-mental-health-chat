@@ -24,7 +24,7 @@ function Chatroom() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
-  const [therapistsOnline, setTherapistsOnline] = useState([]); // 🔹 from Firestore presence
+  const [therapistsOnline, setTherapistsOnline] = useState([]);
   const [therapistName, setTherapistName] = useState("Therapist");
 
   const displayName = auth.currentUser?.email ? therapistName : getAnonName();
@@ -37,7 +37,7 @@ function Chatroom() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Fetch therapist name from Firestore
+  // Fetch therapist name
   useEffect(() => {
     const fetchName = async () => {
       if (auth.currentUser?.email) {
@@ -50,7 +50,7 @@ function Chatroom() {
     fetchName();
   }, []);
 
-  // Initialize chat & track messages
+  // Initialize chat & messages
   useEffect(() => {
     loginAnonymously();
 
@@ -63,7 +63,7 @@ function Chatroom() {
     return () => unsubscribe();
   }, []);
 
-  // 🔹 Subscribe to therapistsOnline collection
+  // Track therapists online
   useEffect(() => {
     const q = collection(db, "therapistsOnline");
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -76,29 +76,21 @@ function Chatroom() {
     return () => unsubscribe();
   }, []);
 
-  // Track auth state & handle therapist join message
+  // Track therapist login
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
       setIsLoggedIn(!!user);
 
       if (user?.email && !sessionStorage.getItem("therapistJoined")) {
-        let name = "Therapist";
-
         try {
           const snap = await getDoc(doc(db, "therapists", user.uid));
           if (snap.exists()) {
-            name = snap.data().name || "Therapist";
-            setTherapistName(name);
+            setTherapistName(snap.data().name || "Therapist");
           }
         } catch (err) {
           console.error("Error fetching therapist name:", err);
         }
 
-        await addDoc(collection(db, "messages"), {
-          text: `${name} joined the chat`,
-          role: "system",
-          timestamp: serverTimestamp(),
-        });
         sessionStorage.setItem("therapistJoined", "true");
       }
     });
@@ -106,15 +98,13 @@ function Chatroom() {
     return () => unsubscribeAuth();
   }, []);
 
-  // Handle clicking on a therapist in the chat
+  // Therapist click to view profile
   const handleTherapistClick = async (msg) => {
     if (msg.role !== "therapist") return;
     try {
       const snap = await getDoc(doc(db, "therapists", msg.userId));
       if (snap.exists()) {
         setSelectedTherapist({ ...snap.data(), uid: msg.userId });
-      } else {
-        console.warn("Therapist profile not found for uid:", msg.userId);
       }
     } catch (err) {
       console.error("Error fetching therapist profile:", err);
@@ -123,10 +113,7 @@ function Chatroom() {
 
   // Start private chat
   const startPrivateChat = async (therapist) => {
-    if (!therapist || !therapist.uid) {
-      console.error("Cannot start chat: invalid therapist object", therapist);
-      return;
-    }
+    if (!therapist || !therapist.uid) return;
 
     const chatId = `chat_${auth.currentUser.uid}_${therapist.uid}`;
     const chatRef = doc(db, "privateChats", chatId);
@@ -144,10 +131,11 @@ function Chatroom() {
         chatStatus: "waiting",
       });
     } else {
-      // Chat exists → add second participant
+      // Chat exists to add second participant
       const currentData = chatSnap.data();
-      const updatedParticipants = [...new Set([...(currentData.participants || []), auth.currentUser.uid])];
-
+      const updatedParticipants = [
+        ...new Set([...(currentData.participants || []), auth.currentUser.uid]),
+      ];
       await updateDoc(chatRef, {
         participants: updatedParticipants,
         lastUpdated: serverTimestamp(),
@@ -158,33 +146,7 @@ function Chatroom() {
     navigate(`/private_chat/${chatId}`);
   };
 
-  // Handle therapist leaving on window unload
-  useEffect(() => {
-    const handleBeforeUnload = async () => {
-      if (auth.currentUser?.email) {
-        try {
-          let name = therapistName;
-          const snap = await getDoc(doc(db, "therapists", auth.currentUser.uid));
-          if (snap.exists()) {
-            name = snap.data().name || therapistName;
-          }
-
-          await addDoc(collection(db, "messages"), {
-            text: `${name} left the chat`,
-            role: "system",
-            timestamp: serverTimestamp(),
-          });
-        } catch (err) {
-          console.error("Error sending therapist leave message:", err);
-        }
-      }
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [therapistName]);
-
-  // Send a new message
+  // Send message
   const sendMessage = async () => {
     if (!newMessage.trim() || !auth.currentUser) return;
 
@@ -200,24 +162,27 @@ function Chatroom() {
       }
     }
 
-    const messageData = {
+    await addDoc(collection(db, "messages"), {
       text: newMessage,
       userId: auth.currentUser.uid,
       displayName,
       role,
       timestamp: serverTimestamp(),
-    };
+    });
 
-    await addDoc(collection(db, "messages"), messageData);
     setNewMessage("");
 
     // Stop typing for this therapist
     const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
     await updateDoc(typingDoc, { typing: false }).catch(async () => {
-      await setDoc(typingDoc, { typing: false, name: displayName, timestamp: serverTimestamp() });
+      await setDoc(typingDoc, {
+        typing: false,
+        name: displayName,
+        timestamp: serverTimestamp(),
+      });
     });
 
-    // Trigger AI if user mentions @ai
+    // Trigger AI on @ai
     if (role === "user" && newMessage.toLowerCase().includes("@ai")) {
       const cleanMessage = newMessage.replace(/@ai/gi, "").trim();
       const originalMessage = newMessage.trim();
@@ -242,7 +207,7 @@ function Chatroom() {
     }
   };
 
-  // 🔹 Check therapist online by uid instead of name
+  // Check therapist online by uid instead of name
   const isTherapistOnline = (uid) =>
     therapistsOnline.some((t) => t.uid === uid && t.online);
 
@@ -271,11 +236,26 @@ function Chatroom() {
               <p
                 key={msg.id}
                 style={{
-                  backgroundColor: msg.role === "ai" ? "#f0fff0" : msg.role === "system" ? "#f9f9f9" : "transparent",
+                  backgroundColor:
+                    msg.role === "ai"
+                      ? "#f0fff0"
+                      : msg.role === "system"
+                      ? "#f9f9f9"
+                      : "transparent",
                   padding: "8px",
                   borderRadius: "6px",
-                  color: msg.role === "ai" ? "green" : msg.role === "therapist" ? "blue" : msg.role === "system" ? "gray" : "black",
-                  fontStyle: msg.role === "ai" || msg.role === "system" ? "italic" : "normal",
+                  color:
+                    msg.role === "ai"
+                      ? "green"
+                      : msg.role === "therapist"
+                      ? "blue"
+                      : msg.role === "system"
+                      ? "gray"
+                      : "black",
+                  fontStyle:
+                    msg.role === "ai" || msg.role === "system"
+                      ? "italic"
+                      : "normal",
                   fontWeight: msg.role === "therapist" ? "bold" : "normal",
                 }}
               >
@@ -286,7 +266,8 @@ function Chatroom() {
                     <strong
                       style={{
                         cursor: msg.role === "therapist" ? "pointer" : "default",
-                        textDecoration: msg.role === "therapist" ? "underline" : "none",
+                        textDecoration:
+                          msg.role === "therapist" ? "underline" : "none",
                       }}
                       onClick={() => handleTherapistClick(msg)}
                     >
@@ -299,11 +280,14 @@ function Chatroom() {
             ))}
             {typingUsers.length > 0 && (
               <p style={{ fontStyle: "italic", color: "gray" }}>
-                {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+                {typingUsers.join(", ")}{" "}
+                {typingUsers.length === 1 ? "is" : "are"} typing...
               </p>
             )}
             {aiTyping && (
-              <p style={{ fontStyle: "italic", color: "gray" }}>AI Support is typing...</p>
+              <p style={{ fontStyle: "italic", color: "gray" }}>
+                AI Support is typing...
+              </p>
             )}
             <div ref={messagesEndRef} />
           </div>
