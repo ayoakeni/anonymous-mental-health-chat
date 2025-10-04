@@ -614,7 +614,7 @@ function TherapistDashboard() {
 
               // Firestore: log system message & remove participant
               const chatRef = doc(db, "privateChats", activeChatId);
-              await addDoc(collection(db, "privateChats", activeChatId, "messages"), {
+              await addDoc(collection(db, "privateChats", activeChatId, "events"), {
                 text: `${therapistInfo.name} left the chat`,
                 role: "system",
                 timestamp: serverTimestamp(),

@@ -61,38 +61,19 @@ function PrivateChat({ chatId }) {
     return () => unsub();
   }, []);
 
-  // Watch messages + therapist join
+  // Watch messages only for rendering
   useEffect(() => {
     if (!chatId) return;
     const chatRef = doc(db, "privateChats", chatId);
     const q = query(collection(chatRef, "messages"), orderBy("timestamp"));
 
-    const unsubscribeMessages = onSnapshot(q, async (snapshot) => {
+    const unsubscribeMessages = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setMessages(msgs);
-
-      // Check participants → disable AI if therapist joined
-      const chatSnap = await getDoc(chatRef);
-      const participants = chatSnap.exists()
-        ? chatSnap.data().participants || []
-        : [];
-      const hasTherapistNow = participants.some(
-        (uid) => uid !== auth.currentUser?.uid
-      );
-
-      if (hasTherapistNow && aiEnabled) {
-        setAiEnabled(false);
-        await updateDoc(chatRef, { aiActive: false });
-        await addDoc(collection(chatRef, "messages"), {
-          text: "A therapist has joined. You can now continue your conversation with them.",
-          role: "system",
-          timestamp: serverTimestamp(),
-        });
-      }
     });
 
     return () => unsubscribeMessages();
-  }, [chatId, aiEnabled]);
+  }, [chatId]);
 
   // Subscribe to events collection
   useEffect(() => {
@@ -108,6 +89,38 @@ function PrivateChat({ chatId }) {
 
     return () => unsubscribeEvents();
   }, [chatId]);
+
+  // Watch chat document for therapist join / AI disable
+  useEffect(() => {
+    if (!chatId) return;
+    const chatRef = doc(db, "privateChats", chatId);
+
+    const unsubscribeChat = onSnapshot(chatRef, async (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+      const participants = data.participants || [];
+      const hasTherapistNow = participants.some(
+        (uid) => uid !== auth.currentUser?.uid
+      );
+
+      if (hasTherapistNow && aiEnabled) {
+        setAiEnabled(false);
+        await updateDoc(chatRef, { aiActive: false });
+
+        // Add event only once
+        if (!data.therapistJoinedOnce) {
+          await updateDoc(chatRef, { therapistJoinedOnce: true });
+          await addDoc(collection(chatRef, "events"), {
+            text: "A therapist has joined. You can now continue your conversation with them.",
+            role: "system",
+            timestamp: serverTimestamp(),
+          });
+        }
+      }
+    });
+
+    return () => unsubscribeChat();
+  }, [chatId, aiEnabled]);
 
   // Combine messages + events for rendering
   const combinedChat = [...messages, ...events].sort((a, b) => {
@@ -169,7 +182,6 @@ function PrivateChat({ chatId }) {
   const leaveChat = async () => {
     if (!chatId || !auth.currentUser) return;
     const chatRef = doc(db, "privateChats", chatId);
-    const uid = auth.currentUser.uid;
     try {
       await updateDoc(chatRef, { aiOffered: false, aiActive: false, therapistJoinedOnce: false });
       await updateDoc(chatRef, {
