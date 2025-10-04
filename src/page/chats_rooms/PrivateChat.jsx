@@ -149,7 +149,7 @@ function PrivateChat({ chatId }) {
     const chatRef = doc(db, "privateChats", chatId);
 
     try {
-      await updateDoc(chatRef, { aiOffered: false, aiActive: false });
+      await updateDoc(chatRef, { aiOffered: false, aiActive: false, therapistJoinedOnce: false });
       await updateDoc(chatRef, {
         participants: arrayRemove(auth.currentUser.uid),
       });

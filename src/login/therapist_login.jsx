@@ -17,7 +17,6 @@ function TherapistLogin() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       console.log("Therapist logged in:", email);
-      // no need to set isLoggedIn anymore
     } catch (err) {
       console.error("Login error:", err.message);
       setError("Invalid email or password");
