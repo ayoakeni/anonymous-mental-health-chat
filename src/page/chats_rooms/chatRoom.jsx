@@ -132,7 +132,7 @@ function Chatroom() {
         chatStatus: "waiting",
       });
     } else {
-      // Chat exists to add second participant
+      // Chat exists, add second participant
       const currentData = chatSnap.data();
       const updatedParticipants = [
         ...new Set([...(currentData.participants || []), auth.currentUser.uid]),
@@ -173,7 +173,7 @@ function Chatroom() {
 
     setNewMessage("");
 
-    // Stop typing for this therapist
+    // Stop typing for this user
     const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
     await updateDoc(typingDoc, { typing: false }).catch(async () => {
       await setDoc(typingDoc, {
@@ -209,7 +209,7 @@ function Chatroom() {
     }
   };
 
-  // Check therapist online by uid instead of name
+  // Check therapist online by uid
   const isTherapistOnline = (uid) =>
     therapistsOnline.some((t) => t.uid === uid && t.online);
 

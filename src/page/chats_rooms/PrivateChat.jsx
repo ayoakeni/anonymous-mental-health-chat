@@ -29,6 +29,9 @@ function PrivateChat({ chatId }) {
   const [activeTherapists, setActiveTherapists] = useState([]);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const [therapistName, setTherapistName] = useState("Therapist");
+  const [chatData, setChatData] = useState(null);
+  const [chatLoaded, setChatLoaded] = useState(false);
+  const [therapistsLoaded, setTherapistsLoaded] = useState(false);
   const messagesEndRef = useRef(null);
   const aiOfferTimerRef = useRef(null);
   const navigate = useNavigate();
@@ -56,12 +59,13 @@ function PrivateChat({ chatId }) {
 
       setIsTherapistAvailable(onlineTherapists.length > 0);
       setActiveTherapists(onlineTherapists.map((t) => t.name || "Therapist"));
+      setTherapistsLoaded(true); // Mark loaded after first snapshot
     });
 
     return () => unsub();
   }, []);
 
-  // Watch messages only for rendering
+  // Watch messages for rendering
   useEffect(() => {
     if (!chatId) return;
     const chatRef = doc(db, "privateChats", chatId);
@@ -90,44 +94,83 @@ function PrivateChat({ chatId }) {
     return () => unsubscribeEvents();
   }, [chatId]);
 
-  // Watch chat document for therapist join / AI disable
-    useEffect(() => {
+  // Watch chat document
+  useEffect(() => {
     if (!chatId) return;
     const chatRef = doc(db, "privateChats", chatId);
 
-    const unsubscribeChat = onSnapshot(chatRef, async (snap) => {
+    const unsubscribeChat = onSnapshot(chatRef, (snap) => {
       if (!snap.exists()) return;
       const data = snap.data();
-      const participants = data.participants || [];
-
-      const otherParticipants = participants.filter(uid => uid !== auth.currentUser?.uid);
-      const therapistPresent = otherParticipants.length > 0; // or check role in data
-
-      if (therapistPresent && !data.therapistJoinedOnce) {
-        // Mark that therapist joined
-        await updateDoc(chatRef, { therapistJoinedOnce: true });
-
-        // Add system event
-        await addDoc(collection(chatRef, "events"), {
-          text: "A therapist has joined. You can now continue your conversation with them.",
-          role: "system",
-          timestamp: serverTimestamp(),
-        });
-
-        // Disable AI if it was enabled
-        if (aiEnabled) {
-          setAiEnabled(false);
-          await updateDoc(chatRef, { aiActive: false });
-        }
-      }
+      setChatData(data);
+      setAiEnabled(data.aiActive || false); // Sync local with FS
+      setChatLoaded(true); // Mark loaded after first snapshot
     });
 
     return () => unsubscribeChat();
-  }, [chatId, aiEnabled]);
+  }, [chatId]);
+
+  // Combined logic for join/offer (runs when data or availability changes, but only after loaded)
+  useEffect(() => {
+    if (!chatLoaded || !therapistsLoaded || !chatData) return;
+
+    const { participants, aiOffered, therapistJoinedOnce, aiActive } = chatData;
+    const therapistPresent = participants.some(uid => uid !== auth.currentUser?.uid);
+    const chatRef = doc(db, "privateChats", chatId);
+
+    // Therapist join logic
+    if (therapistPresent && !therapistJoinedOnce) {
+      updateDoc(chatRef, { therapistJoinedOnce: true });
+      addDoc(collection(chatRef, "events"), {
+        text: "A therapist has joined. You can now continue your conversation with them.",
+        role: "system",
+        timestamp: serverTimestamp(),
+      });
+
+      // Disable AI if active
+      if (aiActive) {
+        setAiEnabled(false);
+        updateDoc(chatRef, { aiActive: false });
+      }
+    }
+
+    // AI offer logic (only if no therapist present and not already offered/joined)
+    if (!therapistPresent && !aiOffered && !therapistJoinedOnce) {
+      if (!isTherapistAvailable) {
+        // Immediate offer if no therapists online
+        updateDoc(chatRef, { aiOffered: true });
+        addDoc(collection(chatRef, "events"), {
+          text: "No therapist is online right now. Would you like to chat with our support assistant while you wait?",
+          role: "system",
+          type: "ai-offer",
+          timestamp: serverTimestamp(),
+        });
+      } else {
+        // Therapists available: Start 30s timer for no-join offer
+        if (aiOfferTimerRef.current) clearTimeout(aiOfferTimerRef.current);
+        aiOfferTimerRef.current = setTimeout(async () => {
+          const latestSnap = await getDoc(chatRef);
+          if (!latestSnap.exists()) return;
+
+          const latestData = latestSnap.data();
+          const latestPresent = (latestData.participants || []).some(uid => uid !== auth.currentUser?.uid);
+
+          if (!latestPresent && !latestData.aiOffered && !latestData.therapistJoinedOnce) {
+            await updateDoc(chatRef, { aiOffered: true });
+            await addDoc(collection(chatRef, "events"), {
+              text: "No therapist has joined yet. Would you like to chat with our support assistant while you wait?",
+              role: "system",
+              type: "ai-offer",
+              timestamp: serverTimestamp(),
+            });
+          }
+        }, 30000);
+      }
+    }
+  }, [chatData, isTherapistAvailable, chatLoaded, therapistsLoaded, chatId]);
 
   // Combine messages + events for rendering
   const combinedChat = [...messages, ...events].sort((a, b) => {
-    // Firestore timestamps are objects, convert to millis
     const t1 = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
     const t2 = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
     return t1 - t2;
@@ -181,7 +224,7 @@ function PrivateChat({ chatId }) {
     }
   };
 
-  // Anonymous exist button
+  // Anonymous exit button
   const leaveChat = async () => {
     if (!chatId || !auth.currentUser) return;
     const chatRef = doc(db, "privateChats", chatId);
@@ -195,7 +238,7 @@ function PrivateChat({ chatId }) {
       await addDoc(collection(chatRef, "events"), {
         type: "leave",
         user: getAnonName(),
-        text: getAnonName()`has left the chat.`,
+        text: `${getAnonName()} has left the chat.`,
         role: "system",
         timestamp: serverTimestamp(),
       });
@@ -230,7 +273,7 @@ function PrivateChat({ chatId }) {
         await addDoc(collection(privateChatRef, "events"), {
           type: "leave",
           user: getAnonName(),
-          text: getAnonName()`has left the chat.`,
+          text: `${getAnonName()} has left the chat.`,
           role: "system",
           timestamp: serverTimestamp(),
         });
@@ -244,7 +287,7 @@ function PrivateChat({ chatId }) {
         await addDoc(collection(groupChatRef, "events"), {
           type: "leave",
           user: getAnonName(),
-          text: getAnonName()`has left the chat.`,
+          text: `${getAnonName()} has left the chat.`,
           role: "system",
           timestamp: serverTimestamp(),
         });
@@ -302,70 +345,25 @@ function PrivateChat({ chatId }) {
     setNewMessage("");
 
     const chatRef = doc(db, "privateChats", chatId);
-    const chatSnap = await getDoc(chatRef);
+    const chatSnap = await getDoc(chatRef); // Always get latest
 
-    // Case 1: No therapist online → offer AI immediately
-    if (!isTherapistAvailable && !aiEnabled) {
-      if (chatSnap.exists() && !chatSnap.data().aiOffered) {
-        await updateDoc(chatRef, { aiOffered: true });
-        await addDoc(collection(chatRef, "events"), {
-          text: "No therapist is online right now. Would you like to chat with our support assistant while you wait?",
-          role: "system",
-          type: "ai-offer",
-          timestamp: serverTimestamp(),
-        });
-        return;
-      }
-    }
-
-    // Case 2: Therapists online globally but none in this chat → wait 30s then offer AI
-    if (isTherapistAvailable && !aiEnabled) {
-      if (!chatSnap.data().aiOffered) {
-        // Clear any existing timer
-        if (aiOfferTimerRef.current) {
-          clearTimeout(aiOfferTimerRef.current);
-          aiOfferTimerRef.current = null;
-        }
-
-        aiOfferTimerRef.current = setTimeout(async () => {
-          const latestSnap = await getDoc(chatRef);
-          if (!latestSnap.exists()) return;
-
-          const participants = latestSnap.data().participants || [];
-          const therapistInChat = participants.some(uid => uid !== auth.currentUser?.uid);
-
-          if (!therapistInChat && !latestSnap.data().aiOffered) {
-            await updateDoc(chatRef, { aiOffered: true });
-            await addDoc(collection(chatRef, "events"), {
-              text: "No therapist has joined yet. Would you like to chat with our support assistant while you wait?",
-              role: "system",
-              type: "ai-offer",
-              timestamp: serverTimestamp(),
-            });
-          }
-        }, 30000);
-      }
-    }
-
-    // Case 3: Therapist has left to re-offer AI
+    // Therapist left re-offer (only after message)
     const participants = chatSnap.data().participants || [];
     const therapistInChat = participants.some(uid => uid !== auth.currentUser?.uid);
     const therapistPreviouslyJoined = chatSnap.data().therapistJoinedOnce || false;
 
-    // Show "Your therapist has left" only if a therapist was previously in the chat
     if (!therapistInChat && therapistPreviouslyJoined && !chatSnap.data().aiOffered) {
-      await updateDoc(chatRef, { aiOffered: false });
+      await updateDoc(chatRef, { aiOffered: true });
       await addDoc(collection(chatRef, "events"), {
         text: "Your therapist has left the chat. Would you like to continue chatting with our support assistant?",
         role: "system",
         type: "ai-offer",
         timestamp: serverTimestamp(),
       });
-      return;
     }
 
-    // Case 4: AI enabled → auto-reply
-    if (aiEnabled) {
+    // AI auto-reply only if currently active (from latest snap)
+    if (chatSnap.data().aiActive) {
       try {
         setAiTyping(true);
 
@@ -431,63 +429,63 @@ function PrivateChat({ chatId }) {
       )}
 
       <div style={{ border: "1px solid #ccc", padding: "10px", height: "250px", overflowY: "scroll", marginBottom: "10px" }}>
-      {combinedChat.map((msg) => (
-        <div key={msg.id}>
-          {msg.type === "ai-offer" ? (
-            <div style={{ marginBottom: "10px" }}>
-              <p style={{ color: "gray" }}>{msg.text}</p>
-              {!aiEnabled && (
-                <>
-                  <button onClick={() => handleAiChoice("yes")}>Yes</button>
-                  <button onClick={() => handleAiChoice("no")}>No</button>
-                </>
-              )}
-            </div>
-          ) : (
-            <p
-              style={{
-                color:
-                  msg.role === "therapist"
-                    ? "blue"
-                    : msg.role === "system"
-                    ? "gray"
-                    : msg.role === "ai"
-                    ? "green"
-                    : "black",
-                fontWeight: msg.role === "therapist" ? "bold" : "normal",
-                fontStyle: msg.role === "system" ? "italic" : "normal",
-                cursor: msg.role === "therapist" ? "pointer" : "default",
-                textDecoration: msg.role === "therapist" ? "underline" : "none",
-              }}
-              onClick={() =>
-                msg.role === "therapist" ? handleTherapistClick(msg) : null
-              }
-            >
-              {msg.role === "system" ? (
-                <em>{msg.text}</em>
-              ) : (
-                <>
-                  <strong>{msg.displayName || msg.role}:</strong> {msg.text}
-                </>
-              )}
-            </p>
-          )}
-        </div>
-      ))}
+        {combinedChat.map((msg) => (
+          <div key={msg.id}>
+            {msg.type === "ai-offer" ? (
+              <div style={{ marginBottom: "10px" }}>
+                <p style={{ color: "gray" }}>{msg.text}</p>
+                {!aiEnabled && (
+                  <>
+                    <button onClick={() => handleAiChoice("yes")}>Yes</button>
+                    <button onClick={() => handleAiChoice("no")}>No</button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <p
+                style={{
+                  color:
+                    msg.role === "therapist"
+                      ? "blue"
+                      : msg.role === "system"
+                      ? "gray"
+                      : msg.role === "ai"
+                      ? "green"
+                      : "black",
+                  fontWeight: msg.role === "therapist" ? "bold" : "normal",
+                  fontStyle: msg.role === "system" ? "italic" : "normal",
+                  cursor: msg.role === "therapist" ? "pointer" : "default",
+                  textDecoration: msg.role === "therapist" ? "underline" : "none",
+                }}
+                onClick={() =>
+                  msg.role === "therapist" ? handleTherapistClick(msg) : null
+                }
+              >
+                {msg.role === "system" ? (
+                  <em>{msg.text}</em>
+                ) : (
+                  <>
+                    <strong>{msg.displayName || msg.role}:</strong> {msg.text}
+                  </>
+                )}
+              </p>
+            )}
+          </div>
+        ))}
 
-      {typingUsers.length > 0 && (
-        <p style={{ fontStyle: "italic", color: "gray" }}>
-          {typingUsers.join(", ")}{" "}
-          {typingUsers.length === 1 ? "is" : "are"} typing...
-        </p>
-      )}
-      {aiTyping && (
-        <p style={{ fontStyle: "italic", color: "green" }}>
-          Support Assistant is typing...
-        </p>
-      )}
-      <div ref={messagesEndRef} />
-    </div>
+        {typingUsers.length > 0 && (
+          <p style={{ fontStyle: "italic", color: "gray" }}>
+            {typingUsers.join(", ")}{" "}
+            {typingUsers.length === 1 ? "is" : "are"} typing...
+          </p>
+        )}
+        {aiTyping && (
+          <p style={{ fontStyle: "italic", color: "green" }}>
+            Support Assistant is typing...
+          </p>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
 
       <input
         type="text"

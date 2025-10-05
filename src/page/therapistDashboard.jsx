@@ -90,11 +90,11 @@ function TherapistDashboard() {
 
   useEffect(() => {
     if (!auth.currentUser) return;
-    const groupRef = doc(db, "groupChat", "mainGroup");
+    const groupRef = doc(db, "groupChats", "mainGroup"); // Fixed from "groupChat"
     const unsub = onSnapshot(groupRef, (snap) => {
       if (snap.exists()) {
         const data = snap.data();
-        const isParticipant = data.participants.includes(auth.currentUser.uid);
+        const isParticipant = data.participants?.includes(auth.currentUser.uid) || false;
         setInGroupChat(isParticipant);
         setIsGroupChatOpen(isParticipant && isGroupChatOpen); 
         // keeps group chat open only if user is still a participant
@@ -144,7 +144,7 @@ function TherapistDashboard() {
     fetchProfile();
   }, [therapistId]);
 
-  //For Tab close vs refresh detection
+  // For Tab close vs refresh detection
   useEffect(() => {
     if (!auth.currentUser) return;
 
@@ -162,13 +162,14 @@ function TherapistDashboard() {
           await updateDoc(privateChatRef, {
             participants: arrayRemove(uid),
             aiOffered: false, // allow re-offer AI when therapist leaves
+            therapistJoinedOnce: false, // Reset for rejoin message
           });
 
           // Event log
           await addDoc(collection(privateChatRef, "events"), {
             type: "leave",
             user: displayName,
-            text: displayName `left the chat.`,
+            text: `${displayName} left the chat.`,
             role: "system",
             timestamp: serverTimestamp(),
           });
@@ -229,6 +230,7 @@ function TherapistDashboard() {
         await updateDoc(chatRef, {
           participants: arrayRemove(uid),
           aiOffered: false,
+          therapistJoinedOnce: false, // Reset for rejoin
         });
       }
 
@@ -244,10 +246,10 @@ function TherapistDashboard() {
 
       // Reset local state
       setTherapistInfo({
-        name: "#",
-        gender: "#",
-        position: "#",
-        profile: "#",
+        name: "",
+        gender: "",
+        position: "",
+        profile: "",
         rating: 0,
       });
       setMessages([]);
@@ -272,12 +274,12 @@ function TherapistDashboard() {
     }
   };
 
-  //join chat group
+  // Join group chat
   const joinGroupChat = async () => {
     if (!auth.currentUser) return;
     const groupRef = doc(db, "groupChats", "mainGroup");
 
-    // if doc exists, create if missing
+    // If doc doesn't exist, create it
     await setDoc(
       groupRef,
       { participants: arrayUnion(auth.currentUser.uid) },
@@ -289,17 +291,7 @@ function TherapistDashboard() {
     setGroupUnreadCount(0);
 
     // Update lastSeenTimestamp to last message's timestamp
-    if (messages.length > 0) {
-      const lastMsg = messages[messages.length - 1];
-      setLastSeenTimestamp(lastMsg.timestamp?.toMillis() || Date.now());
-    } else {
-      // Update lastSeenTimestamp to now when opening group chat
-      setLastSeenTimestamp(Date.now());
-      setGroupUnreadCount(0);
-    }
-
     const lastMsgTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
-    setLastSeenTimestamp(lastMsgTime);
     setLastSeenTimestamp(lastMsgTime);
 
     await setDoc(
@@ -340,7 +332,7 @@ function TherapistDashboard() {
     }
   };
   
-  // Send message to chat group
+  // Send message to group chat
   const sendReply = async () => {
     if (!reply.trim() || !auth.currentUser) return;
 
@@ -355,7 +347,7 @@ function TherapistDashboard() {
     setReply("");
     const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
     await updateDoc(typingDoc, { typing: false }).catch(async () => {
-    await setDoc(typingDoc, { typing: false, name: therapistInfo.name || "Therapist", timestamp: serverTimestamp() });
+      await setDoc(typingDoc, { typing: false, name: therapistInfo.name || "Therapist", timestamp: serverTimestamp() });
     });
   };
 
@@ -377,7 +369,7 @@ function TherapistDashboard() {
       text: `${displayName} joined the chat.`,
       role: "system",
       timestamp: serverTimestamp(),
-    })
+    });
     setActiveChatId(chatId);
   };
 
@@ -622,6 +614,7 @@ function TherapistDashboard() {
               await updateDoc(chatRef, {
                 participants: arrayRemove(auth.currentUser.uid),
                 aiOffered: false,
+                therapistJoinedOnce: false, // Reset for rejoin message
               });
 
               // Close chat locally
