@@ -224,6 +224,8 @@ function TherapistDashboard() {
         await addDoc(collection(chatRef, "events"), {
           type: "leave",
           user: displayName,
+          text: `${displayName} left the chat.`,
+          role: "system",
           timestamp: serverTimestamp(),
         });
 
