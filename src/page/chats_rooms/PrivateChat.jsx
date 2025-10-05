@@ -104,7 +104,7 @@ function PrivateChat({ chatId }) {
     if (!chatId) return;
     const chatRef = doc(db, "privateChats", chatId);
 
-    const unsubscribeChat = onSnapshot(chatRef, async (snap) => {
+    const unsubscribeChat = onSnapshot(chatRef, (snap) => {
       if (!snap.exists()) return;
       const data = snap.data();
       setChatData(data);
@@ -129,39 +129,42 @@ function PrivateChat({ chatId }) {
       );
 
       const now = Date.now();
+      const lastJoinEventTime = data.lastJoinEvent || 0;
+      const lastLeaveEventTime = data.lastLeaveEvent || 0;
 
-      // Handle join
-      if (therapistJoined && (!lastJoinEvent || now - lastJoinEvent > 1000)) {
-        await updateDoc(chatRef, { therapistJoinedOnce: true });
-        await addDoc(collection(chatRef, "events"), {
-          text: "A therapist has joined. You can now continue your conversation with them.",
-          role: "system",
-          type: "join",
-          timestamp: serverTimestamp(),
-        });
+      // Handle join (rely on TherapistDashboard to log join event)
+      if (therapistJoined && (!lastJoinEvent || now - lastJoinEvent > 2000) && now > lastJoinEventTime) {
         setLastJoinEvent(now);
-
-        if (data.aiActive) {
-          setAiEnabled(false);
-          await updateDoc(chatRef, { aiActive: false });
-        }
+        setHasOfferedNoTherapist(false); // Reset AI offer
+        setHasOfferedNoJoin(false); // Reset AI offer
+        updateDoc(chatRef, {
+          therapistJoinedOnce: true,
+          aiActive: false,
+          aiOffered: false,
+        }).catch((err) => console.error("Error updating on join:", err));
+        console.log("Therapist join detected", { therapistJoined, lastJoinEvent, lastJoinEventTime: chatData?.lastJoinEvent, now });
       }
 
       // Handle leave
-      if (therapistLeft && data.therapistJoinedOnce && !data.aiOffered && (!lastLeaveEvent || now - lastLeaveEvent > 1000)) {
-        await addDoc(collection(chatRef, "events"), {
+      if (therapistLeft && data.therapistJoinedOnce && (!lastLeaveEvent || now - lastLeaveEvent > 2000) && now > lastLeaveEventTime) {
+        addDoc(collection(chatRef, "events"), {
           text: "Your therapist has left the chat. Would you like to continue chatting with our support assistant?",
           role: "system",
           type: "ai-offer",
           timestamp: serverTimestamp(),
-        });
-        await updateDoc(chatRef, { aiOffered: true, therapistJoinedOnce: false });
+        }).then(() => {
+          updateDoc(chatRef, {
+            aiOffered: true,
+            therapistJoinedOnce: false,
+            lastLeaveEvent: now,
+          }).catch((err) => console.error("Error updating on leave:", err));
+        }).catch((err) => console.error("Error adding leave event:", err));
         setLastLeaveEvent(now);
+        console.log("Therapist leave detected", { therapistLeft, lastLeaveEvent, lastLeaveEventTime: chatData?.lastLeaveEvent, now });
       }
 
       setPrevParticipants(currentParticipants);
     });
-
     return () => unsubscribeChat();
   }, [chatId, prevParticipants, lastJoinEvent, lastLeaveEvent]);
 
@@ -173,15 +176,18 @@ function PrivateChat({ chatId }) {
     const therapistPresent = participants.some((uid) => uid !== auth.currentUser?.uid);
 
     if (!therapistPresent && !aiOffered && !therapistJoinedOnce && !isTherapistAvailable) {
-      setHasOfferedNoTherapist(true);
-      const chatRef = doc(db, "privateChats", chatId);
-      updateDoc(chatRef, { aiOffered: true });
-      addDoc(collection(chatRef, "events"), {
-        text: "No therapist is online right now. Would you like to chat with our support assistant while you wait?",
-        role: "system",
-        type: "ai-offer",
-        timestamp: serverTimestamp(),
-      });
+      const offerAI = async () => {
+        setHasOfferedNoTherapist(true);
+        const chatRef = doc(db, "privateChats", chatId);
+        await updateDoc(chatRef, { aiOffered: true });
+        await addDoc(collection(chatRef, "events"), {
+          text: "No therapist is online right now. Would you like to chat with our support assistant while you wait?",
+          role: "system",
+          type: "ai-offer",
+          timestamp: serverTimestamp(),
+        });
+      };
+      offerAI().catch((err) => console.error("Error offering AI:", err));
     }
   }, [chatLoaded, therapistsLoaded, chatData, hasOfferedNoTherapist, isTherapistAvailable, chatId, messages]);
 
@@ -240,6 +246,7 @@ function PrivateChat({ chatId }) {
           });
         }
       }, 7000);
+      console.log("Starting 7s timer", { isTherapistAvailable, therapistInChat, hasOfferedNoJoin, aiOffered: data.aiOffered, therapistJoinedOnce: data.therapistJoinedOnce });
     }
 
     // AI response
@@ -452,17 +459,13 @@ function PrivateChat({ chatId }) {
       <div style={{ border: "1px solid #ccc", padding: "10px", height: "250px", overflowY: "scroll", marginBottom: "10px" }}>
         {combinedChat.map((msg) => (
           <div key={msg.id}>
-            {msg.type === "ai-offer" ? (
+            {msg.type === "ai-offer" && chatData?.aiOffered && !aiEnabled ? (
               <div style={{ marginBottom: "10px" }}>
                 <p style={{ color: "gray" }}>{msg.text}</p>
-                {!aiEnabled && (
-                  <>
-                    <button onClick={() => handleAiChoice("yes")}>Yes</button>
-                    <button onClick={() => handleAiChoice("no")}>No</button>
-                  </>
-                )}
+                <button onClick={() => handleAiChoice("yes")}>Yes</button>
+                <button onClick={() => handleAiChoice("no")}>No</button>
               </div>
-            ) : (
+            ) : msg.type !== "ai-offer" ? (
               <p
                 style={{
                   color:
@@ -488,7 +491,7 @@ function PrivateChat({ chatId }) {
                   </>
                 )}
               </p>
-            )}
+            ) : null}
           </div>
         ))}
 

@@ -364,11 +364,14 @@ function TherapistDashboard() {
       return;
     }
 
+    const now = Date.now();
     await updateDoc(chatRef, {
       participants: arrayUnion(uid),
       therapistJoinedOnce: true,
       aiOffered: false,
+      aiActive: false,
       unreadCountForTherapist: 0,
+      lastJoinEvent: now,
     });
 
     await addDoc(collection(chatRef, "events"), {
@@ -378,6 +381,7 @@ function TherapistDashboard() {
       role: "system",
       timestamp: serverTimestamp(),
     });
+    console.log("Joining private chat", { chatId, uid, displayName });
     setActiveChatId(chatId);
   };
 
@@ -610,21 +614,25 @@ function TherapistDashboard() {
         <div>
           <LeaveChatButton
             onLeave={async () => {
-              if (!activeChatId) return;
+              if (!activeChatId || !auth.currentUser) return;
 
-              // Firestore: log system message & remove participant
               const chatRef = doc(db, "privateChats", activeChatId);
-              await addDoc(collection(db, "privateChats", activeChatId, "events"), {
-                text: `${therapistInfo.name} left the chat`,
+              const now = Date.now();
+              await addDoc(collection(chatRef, "events"), {
+                type: "leave",
+                user: therapistInfo.name,
+                text: `${therapistInfo.name} left the chat.`,
                 role: "system",
                 timestamp: serverTimestamp(),
               });
               await updateDoc(chatRef, {
                 participants: arrayRemove(auth.currentUser.uid),
                 aiOffered: false,
+                aiActive: false,
+                therapistJoinedOnce: false,
+                lastLeaveEvent: now,
               });
 
-              // Close chat locally
               setActiveChatId(null);
             }}
           />
