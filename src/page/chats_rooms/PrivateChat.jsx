@@ -216,7 +216,7 @@ function PrivateChat({ chatId }) {
     const data = chatSnap.data();
     const therapistInChat = data.participants.some((uid) => uid !== auth.currentUser?.uid);
 
-    // Start 30s timer for no join if therapists online and no therapist joined
+    // Start 7s timer for no join if therapists online and no therapist joined
     if (isTherapistAvailable && !therapistInChat && !hasOfferedNoJoin && !data.aiOffered && !data.therapistJoinedOnce) {
       setHasOfferedNoJoin(true);
       noJoinTimerRef.current = setTimeout(async () => {
