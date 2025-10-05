@@ -32,6 +32,8 @@ function PrivateChat({ chatId }) {
   const [chatData, setChatData] = useState(null);
   const [chatLoaded, setChatLoaded] = useState(false);
   const [therapistsLoaded, setTherapistsLoaded] = useState(false);
+  const [prevParticipants, setPrevParticipants] = useState([]);
+  const [hasInitializedOffer, setHasInitializedOffer] = useState(false);
   const messagesEndRef = useRef(null);
   const aiOfferTimerRef = useRef(null);
   const navigate = useNavigate();
@@ -94,7 +96,7 @@ function PrivateChat({ chatId }) {
     return () => unsubscribeEvents();
   }, [chatId]);
 
-  // Watch chat document
+  // Watch chat document and handle join/leave events
   useEffect(() => {
     if (!chatId) return;
     const chatRef = doc(db, "privateChats", chatId);
@@ -105,37 +107,69 @@ function PrivateChat({ chatId }) {
       setChatData(data);
       setAiEnabled(data.aiActive || false);
       setChatLoaded(true);
+
+      const currentParticipants = data.participants || [];
+      const userId = auth.currentUser?.uid;
+
+      // Compare with prevParticipants to detect changes
+      const prevSet = new Set(prevParticipants);
+      const currentSet = new Set(currentParticipants);
+
+      // Detect therapist join (new participant who isn't the current user)
+      const therapistJoined = currentParticipants.some(
+        (uid) => uid !== userId && !prevSet.has(uid)
+      );
+
+      // Detect therapist leave (participant who was present but is now gone)
+      const therapistLeft = prevParticipants.some(
+        (uid) => uid !== userId && !currentSet.has(uid)
+      );
+
+      // Handle join
+      if (therapistJoined && !data.therapistJoinedOnce) {
+        updateDoc(chatRef, { therapistJoinedOnce: true });
+        addDoc(collection(chatRef, "events"), {
+          text: "A therapist has joined. You can now continue your conversation with them.",
+          role: "system",
+          type: "join",
+          timestamp: serverTimestamp(),
+        });
+
+        // Disable AI if active
+        if (data.aiActive) {
+          setAiEnabled(false);
+          updateDoc(chatRef, { aiActive: false });
+        }
+      }
+
+      // Handle leave
+      if (therapistLeft && data.therapistJoinedOnce && !data.aiOffered) {
+        addDoc(collection(chatRef, "events"), {
+          text: "Your therapist has left the chat. Would you like to continue chatting with our support assistant?",
+          role: "system",
+          type: "ai-offer",
+          timestamp: serverTimestamp(),
+        });
+        updateDoc(chatRef, { aiOffered: true, therapistJoinedOnce: false }); // Reset for rejoin
+      }
+
+      // Update prevParticipants for the next snapshot
+      setPrevParticipants(currentParticipants);
     });
 
     return () => unsubscribeChat();
-  }, [chatId]);
+  }, [chatId, prevParticipants]);
 
-  // Handle therapist join/leave and AI offer
+  // AI offer logic when no therapist is initially present (run once)
   useEffect(() => {
-    if (!chatLoaded || !therapistsLoaded || !chatData) return;
+    if (!chatLoaded || !therapistsLoaded || !chatData || hasInitializedOffer) return;
 
-    const { participants, aiOffered, therapistJoinedOnce, aiActive } = chatData;
+    const { participants, aiOffered, therapistJoinedOnce } = chatData;
     const therapistPresent = participants.some((uid) => uid !== auth.currentUser?.uid);
     const chatRef = doc(db, "privateChats", chatId);
 
-    // Therapist join logic
-    if (therapistPresent && !therapistJoinedOnce) {
-      updateDoc(chatRef, { therapistJoinedOnce: true });
-      addDoc(collection(chatRef, "events"), {
-        text: "A therapist has joined. You can now continue your conversation with them.",
-        role: "system",
-        timestamp: serverTimestamp(),
-      });
-
-      // Disable AI if active
-      if (aiActive) {
-        setAiEnabled(false);
-        updateDoc(chatRef, { aiActive: false });
-      }
-    }
-
-    // AI offer logic (only if no therapist present and not already offered/joined)
     if (!therapistPresent && !aiOffered && !therapistJoinedOnce) {
+      setHasInitializedOffer(true);
       if (!isTherapistAvailable) {
         updateDoc(chatRef, { aiOffered: true });
         addDoc(collection(chatRef, "events"), {
@@ -145,7 +179,6 @@ function PrivateChat({ chatId }) {
           timestamp: serverTimestamp(),
         });
       } else {
-        if (aiOfferTimerRef.current) clearTimeout(aiOfferTimerRef.current);
         aiOfferTimerRef.current = setTimeout(async () => {
           const latestSnap = await getDoc(chatRef);
           if (!latestSnap.exists()) return;
@@ -167,7 +200,7 @@ function PrivateChat({ chatId }) {
         }, 30000);
       }
     }
-  }, [chatData, isTherapistAvailable, chatLoaded, therapistsLoaded, chatId]);
+  }, [chatLoaded, therapistsLoaded, chatData, hasInitializedOffer, chatId, isTherapistAvailable]);
 
   // Combine messages + events for rendering
   const combinedChat = [...messages, ...events].sort((a, b) => {
@@ -229,7 +262,7 @@ function PrivateChat({ chatId }) {
       await updateDoc(chatRef, {
         aiOffered: false,
         aiActive: false,
-        therapistJoinedOnce: false, // Reset for new session
+        therapistJoinedOnce: false,
       });
       await updateDoc(chatRef, {
         participants: arrayRemove(auth.currentUser.uid),
@@ -266,7 +299,7 @@ function PrivateChat({ chatId }) {
         await updateDoc(privateChatRef, {
           participants: arrayRemove(uid),
           aiOffered: false,
-          therapistJoinedOnce: false, // Reset for new session
+          therapistJoinedOnce: false,
         });
 
         await addDoc(collection(privateChatRef, "events"), {

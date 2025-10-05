@@ -162,7 +162,6 @@ function TherapistDashboard() {
           await updateDoc(privateChatRef, {
             participants: arrayRemove(uid),
             aiOffered: false, // allow re-offer AI when therapist leaves
-            therapistJoinedOnce: false, // Reset for rejoin message
           });
 
           // Event log
@@ -232,7 +231,6 @@ function TherapistDashboard() {
         await updateDoc(chatRef, {
           participants: arrayRemove(uid),
           aiOffered: false,
-          therapistJoinedOnce: false, // Reset for rejoin
         });
       }
 
@@ -616,7 +614,6 @@ function TherapistDashboard() {
               await updateDoc(chatRef, {
                 participants: arrayRemove(auth.currentUser.uid),
                 aiOffered: false,
-                therapistJoinedOnce: false, // Reset for rejoin message
               });
 
               // Close chat locally
