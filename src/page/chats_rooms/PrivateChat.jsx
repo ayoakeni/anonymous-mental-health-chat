@@ -134,15 +134,22 @@ function PrivateChat({ chatId }) {
 
       // Handle join (rely on TherapistDashboard to log join event)
       if (therapistJoined && (!lastJoinEvent || now - lastJoinEvent > 2000) && now > lastJoinEventTime) {
-        setLastJoinEvent(now);
-        setHasOfferedNoTherapist(false); // Reset AI offer
-        setHasOfferedNoJoin(false); // Reset AI offer
         updateDoc(chatRef, {
           therapistJoinedOnce: true,
           aiActive: false,
           aiOffered: false,
         }).catch((err) => console.error("Error updating on join:", err));
         console.log("Therapist join detected", { therapistJoined, lastJoinEvent, lastJoinEventTime, now });
+        setLastJoinEvent(now);
+        setHasOfferedNoTherapist(false); // Reset AI offer
+        setHasOfferedNoJoin(false); // Reset AI offer
+        if (data.aiActive) {
+          addDoc(collection(chatRef, "events"), {
+            text: "A therapist has joined. You can now continue your conversation with them.",
+            role: "system",
+            timestamp: serverTimestamp(),
+          }).catch((err) => console.error("Error adding join message:", err));
+        }
       }
 
       // Handle leave
