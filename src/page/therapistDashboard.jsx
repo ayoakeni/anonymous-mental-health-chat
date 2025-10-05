@@ -381,7 +381,7 @@ function TherapistDashboard() {
       role: "system",
       timestamp: serverTimestamp(),
     });
-    console.log("Joining private chat", { chatId, uid, displayName });
+
     setActiveChatId(chatId);
   };
 

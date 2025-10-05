@@ -142,7 +142,7 @@ function PrivateChat({ chatId }) {
           aiActive: false,
           aiOffered: false,
         }).catch((err) => console.error("Error updating on join:", err));
-        console.log("Therapist join detected", { therapistJoined, lastJoinEvent, lastJoinEventTime: chatData?.lastJoinEvent, now });
+        console.log("Therapist join detected", { therapistJoined, lastJoinEvent, lastJoinEventTime, now });
       }
 
       // Handle leave
@@ -160,12 +160,14 @@ function PrivateChat({ chatId }) {
           }).catch((err) => console.error("Error updating on leave:", err));
         }).catch((err) => console.error("Error adding leave event:", err));
         setLastLeaveEvent(now);
-        console.log("Therapist leave detected", { therapistLeft, lastLeaveEvent, lastLeaveEventTime: chatData?.lastLeaveEvent, now });
+        console.log("Therapist leave detected", { therapistLeft, lastLeaveEvent, lastLeaveEventTime, now });
       }
 
       setPrevParticipants(currentParticipants);
     });
+
     return () => unsubscribeChat();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, prevParticipants, lastJoinEvent, lastLeaveEvent]);
 
   // Initial AI offer if no therapists online (only after user sends a message)
@@ -230,6 +232,7 @@ function PrivateChat({ chatId }) {
 
     // Start 7s timer for no join if therapists online and no therapist joined
     if (isTherapistAvailable && !therapistInChat && !hasOfferedNoJoin && !data.aiOffered && !data.therapistJoinedOnce) {
+      console.log("Starting 7s timer", { isTherapistAvailable, therapistInChat, hasOfferedNoJoin, aiOffered: data.aiOffered, therapistJoinedOnce: data.therapistJoinedOnce });
       setHasOfferedNoJoin(true);
       noJoinTimerRef.current = setTimeout(async () => {
         const latestSnap = await getDoc(chatRef);
@@ -246,7 +249,6 @@ function PrivateChat({ chatId }) {
           });
         }
       }, 7000);
-      console.log("Starting 7s timer", { isTherapistAvailable, therapistInChat, hasOfferedNoJoin, aiOffered: data.aiOffered, therapistJoinedOnce: data.therapistJoinedOnce });
     }
 
     // AI response
