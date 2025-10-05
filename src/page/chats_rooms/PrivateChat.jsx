@@ -35,6 +35,8 @@ function PrivateChat({ chatId }) {
   const [prevParticipants, setPrevParticipants] = useState([]);
   const [hasOfferedNoTherapist, setHasOfferedNoTherapist] = useState(false);
   const [hasOfferedNoJoin, setHasOfferedNoJoin] = useState(false);
+  const [lastJoinEvent, setLastJoinEvent] = useState(null);
+  const [lastLeaveEvent, setLastLeaveEvent] = useState(null);
   const messagesEndRef = useRef(null);
   const noJoinTimerRef = useRef(null);
   const navigate = useNavigate();
@@ -126,8 +128,10 @@ function PrivateChat({ chatId }) {
         (uid) => uid !== userId && !currentSet.has(uid)
       );
 
+      const now = Date.now();
+
       // Handle join
-      if (therapistJoined) {
+      if (therapistJoined && (!lastJoinEvent || now - lastJoinEvent > 1000)) {
         await updateDoc(chatRef, { therapistJoinedOnce: true });
         await addDoc(collection(chatRef, "events"), {
           text: "A therapist has joined. You can now continue your conversation with them.",
@@ -135,6 +139,7 @@ function PrivateChat({ chatId }) {
           type: "join",
           timestamp: serverTimestamp(),
         });
+        setLastJoinEvent(now);
 
         if (data.aiActive) {
           setAiEnabled(false);
@@ -143,7 +148,7 @@ function PrivateChat({ chatId }) {
       }
 
       // Handle leave
-      if (therapistLeft && data.therapistJoinedOnce && !data.aiOffered) {
+      if (therapistLeft && data.therapistJoinedOnce && !data.aiOffered && (!lastLeaveEvent || now - lastLeaveEvent > 1000)) {
         await addDoc(collection(chatRef, "events"), {
           text: "Your therapist has left the chat. Would you like to continue chatting with our support assistant?",
           role: "system",
@@ -151,13 +156,14 @@ function PrivateChat({ chatId }) {
           timestamp: serverTimestamp(),
         });
         await updateDoc(chatRef, { aiOffered: true, therapistJoinedOnce: false });
+        setLastLeaveEvent(now);
       }
 
       setPrevParticipants(currentParticipants);
     });
 
     return () => unsubscribeChat();
-  }, [chatId, prevParticipants]);
+  }, [chatId, prevParticipants, lastJoinEvent, lastLeaveEvent]);
 
   // Initial AI offer if no therapists online (only after user sends a message)
   useEffect(() => {
@@ -273,7 +279,7 @@ function PrivateChat({ chatId }) {
     const chatRef = doc(db, "privateChats", chatId);
     if (choice === "yes") {
       setAiEnabled(true);
-      await updateDoc(chatRef, { aiActive: true });
+      await updateDoc(chatRef, { aiActive: true, aiOffered: false });
 
       await addDoc(collection(chatRef, "messages"), {
         text: "You are now chatting with our support assistant until a therapist joins.",
@@ -304,7 +310,7 @@ function PrivateChat({ chatId }) {
       }
     } else {
       setAiEnabled(false);
-      await updateDoc(chatRef, { aiActive: false });
+      await updateDoc(chatRef, { aiActive: false, aiOffered: false });
       await addDoc(collection(chatRef, "messages"), {
         text: "Okay, please hold on while we connect you to a therapist.",
         role: "system",
@@ -333,6 +339,8 @@ function PrivateChat({ chatId }) {
         timestamp: serverTimestamp(),
       });
 
+      setHasOfferedNoJoin(false);
+      setHasOfferedNoTherapist(false);
       navigate("/chat_room");
     } catch (err) {
       console.error("Error leaving chat:", err);

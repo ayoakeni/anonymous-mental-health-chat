@@ -356,13 +356,21 @@ function TherapistDashboard() {
     if (!auth.currentUser) return;
     const chatRef = doc(db, "privateChats", chatId);
     const uid = auth.currentUser.uid;
+
+    // Check if therapist is already in the chat
+    const chatSnap = await getDoc(chatRef);
+    if (chatSnap.exists() && chatSnap.data().participants.includes(uid)) {
+      setActiveChatId(chatId);
+      return;
+    }
+
     await updateDoc(chatRef, {
       participants: arrayUnion(uid),
       therapistJoinedOnce: true,
       aiOffered: false,
       unreadCountForTherapist: 0,
     });
-    
+
     await addDoc(collection(chatRef, "events"), {
       type: "join",
       user: displayName,
