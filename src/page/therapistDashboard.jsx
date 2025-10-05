@@ -219,7 +219,7 @@ function TherapistDashboard() {
       // If therapist is inside a private chat, log an event before leaving
       if (activeChatId) {
         const chatRef = doc(db, "privateChats", activeChatId);
-
+        const now = Date.now();
         await addDoc(collection(chatRef, "events"), {
           type: "leave",
           user: displayName,
@@ -227,10 +227,12 @@ function TherapistDashboard() {
           role: "system",
           timestamp: serverTimestamp(),
         });
-
         await updateDoc(chatRef, {
           participants: arrayRemove(uid),
           aiOffered: false,
+          aiActive: false,
+          therapistJoinedOnce: false,
+          lastLeaveEvent: now,
         });
       }
 
