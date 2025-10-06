@@ -209,6 +209,7 @@ function TherapistDashboard() {
     };
   }, [activeChatId, displayName]);
 
+  // logOut
   const handleLogout = async () => {
     try {
       if (!auth.currentUser) return;
@@ -216,7 +217,6 @@ function TherapistDashboard() {
       const uid = auth.currentUser.uid;
       const therapistRef = doc(db, "therapistsOnline", uid);
 
-      // If therapist is inside a private chat, log an event before leaving
       if (activeChatId) {
         const chatRef = doc(db, "privateChats", activeChatId);
         const now = Date.now();
@@ -227,26 +227,29 @@ function TherapistDashboard() {
           role: "system",
           timestamp: serverTimestamp(),
         });
+        await addDoc(collection(chatRef, "messages"), { // Add AI offer
+          text: "Your therapist has left the chat. Would you like to continue chatting with our support assistant?",
+          role: "system",
+          type: "ai-offer",
+          timestamp: serverTimestamp(),
+        });
         await updateDoc(chatRef, {
           participants: arrayRemove(uid),
-          aiOffered: false,
+          aiOffered: true,
           aiActive: false,
           therapistJoinedOnce: false,
           lastLeaveEvent: now,
         });
       }
 
-      // Mark therapist as offline before signing out
       await setDoc(therapistRef, {
         name: displayName || auth.currentUser.email,
         online: false,
         lastSeen: serverTimestamp(),
       });
 
-      // Firebase sign out
       await signOut(auth);
 
-      // Reset local state
       setTherapistInfo({
         name: "",
         gender: "",
@@ -379,12 +382,42 @@ function TherapistDashboard() {
     await addDoc(collection(chatRef, "events"), {
       type: "join",
       user: displayName,
-      text: `${displayName} joined the chat.`,
+      text: "A therapist has joined. You can now continue your conversation with them.", // Updated text
       role: "system",
       timestamp: serverTimestamp(),
     });
 
     setActiveChatId(chatId);
+  };
+
+  // Leave private chat
+  const leavePrivateChat = async () => {
+    if (!activeChatId || !auth.currentUser) return;
+
+    const chatRef = doc(db, "privateChats", activeChatId);
+    const now = Date.now();
+    await addDoc(collection(chatRef, "events"), {
+      type: "leave",
+      user: displayName,
+      text: `${displayName} left the chat.`,
+      role: "system",
+      timestamp: serverTimestamp(),
+    });
+    await addDoc(collection(chatRef, "messages"), { // Add AI offer to messages
+      text: "Your therapist has left the chat. Would you like to continue chatting with our support assistant?",
+      role: "system",
+      type: "ai-offer",
+      timestamp: serverTimestamp(),
+    });
+    await updateDoc(chatRef, {
+      participants: arrayRemove(auth.currentUser.uid),
+      aiOffered: true,
+      aiActive: false,
+      therapistJoinedOnce: false,
+      lastLeaveEvent: now,
+    });
+
+    setActiveChatId(null);
   };
 
   return (
@@ -615,28 +648,7 @@ function TherapistDashboard() {
       {activeChatId && (
         <div>
           <LeaveChatButton
-            onLeave={async () => {
-              if (!activeChatId || !auth.currentUser) return;
-
-              const chatRef = doc(db, "privateChats", activeChatId);
-              const now = Date.now();
-              await addDoc(collection(chatRef, "events"), {
-                type: "leave",
-                user: therapistInfo.name,
-                text: `${therapistInfo.name} left the chat.`,
-                role: "system",
-                timestamp: serverTimestamp(),
-              });
-              await updateDoc(chatRef, {
-                participants: arrayRemove(auth.currentUser.uid),
-                aiOffered: false,
-                aiActive: false,
-                therapistJoinedOnce: false,
-                lastLeaveEvent: now,
-              });
-
-              setActiveChatId(null);
-            }}
+            onLeave={leavePrivateChat}
           />
           <PrivateChat chatId={activeChatId} />
         </div>
