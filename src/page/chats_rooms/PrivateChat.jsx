@@ -26,6 +26,7 @@ function PrivateChat({ chatId }) {
   const [aiEnabled, setAiEnabled] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
   const [newMessage, setNewMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const [activeTherapists, setActiveTherapists] = useState([]);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const [therapistName, setTherapistName] = useState("Therapist");
@@ -79,6 +80,7 @@ function PrivateChat({ chatId }) {
 
     const unsubscribeMessages = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      console.log("Messages updated:", msgs);
       setMessages(msgs);
     });
 
@@ -104,8 +106,16 @@ function PrivateChat({ chatId }) {
     if (!chatId) return;
     const chatRef = doc(db, "privateChats", chatId);
 
-    const unsubscribeChat = onSnapshot(chatRef, (snap) => {
-      if (!snap.exists()) return;
+    const unsubscribeChat = onSnapshot(chatRef, (snap, error) => {
+      if (error) {
+        console.error("Error in chat snapshot:", error);
+        return;
+      }
+      if (!snap.exists()) {
+        console.log("Chat document deleted or not found, navigating to chat room");
+        navigate("/chat_room");
+        return;
+      }
       const data = snap.data();
       setChatData(data);
       setAiEnabled(data.aiActive || false);
@@ -116,6 +126,7 @@ function PrivateChat({ chatId }) {
         aiActive: data.aiActive,
         therapistJoinedOnce: data.therapistJoinedOnce,
         participants: data.participants,
+        lastLeaveEvent: data.lastLeaveEvent,
       });
 
       const currentParticipants = data.participants || [];
@@ -160,7 +171,13 @@ function PrivateChat({ chatId }) {
       }
 
       // Handle leave
-      if (therapistLeft && data.therapistJoinedOnce && (!lastLeaveEvent || now - lastLeaveEvent > 2000) && now > lastLeaveEventTime) {
+      if (
+        therapistLeft &&
+        data.therapistJoinedOnce &&
+        (!lastLeaveEvent || now - lastLeaveEvent > 2000) &&
+        now > lastLeaveEventTime &&
+        !data.lastLeaveAiOffered
+      ) {
         addDoc(collection(chatRef, "messages"), {
           text: "Your therapist has left the chat. Would you like to continue chatting with our support assistant?",
           role: "system",
@@ -171,6 +188,7 @@ function PrivateChat({ chatId }) {
             aiOffered: true,
             therapistJoinedOnce: false,
             lastLeaveEvent: now,
+            lastLeaveAiOffered: now,
           }).catch((err) => console.error("Error updating on leave:", err));
           console.log("AI offer message added, aiOffered set to true");
         }).catch((err) => console.error("Error adding leave message:", err));
@@ -182,7 +200,7 @@ function PrivateChat({ chatId }) {
     });
 
     return () => unsubscribeChat;
-  }, [chatId, prevParticipants, lastJoinEvent, lastLeaveEvent]);
+  }, [chatId, prevParticipants, lastJoinEvent, lastLeaveEvent, navigate]);
 
   // Initial AI offer if no therapists online (only after user sends a message)
   useEffect(() => {
@@ -220,29 +238,52 @@ function PrivateChat({ chatId }) {
   // Send message
   const sendMessage = async () => {
     if (!newMessage.trim() || !auth.currentUser || !chatId) return;
-
+    setIsSending(true);
     const role = auth.currentUser.email ? "therapist" : "user";
     const nameToUse = role === "therapist" ? therapistName : getAnonName();
-
     const chatRef = doc(db, "privateChats", chatId);
 
-    // Save message
-    await addDoc(collection(chatRef, "messages"), {
-      text: newMessage,
-      userId: auth.currentUser.uid,
-      displayName: nameToUse,
-      role,
-      timestamp: serverTimestamp(),
-    });
+    // Save message with retry logic
+    let messageSent = false;
+    let retries = 3;
+    while (retries > 0 && !messageSent) {
+      try {
+        await addDoc(collection(chatRef, "messages"), {
+          text: newMessage,
+          userId: auth.currentUser.uid,
+          displayName: nameToUse,
+          role,
+          timestamp: serverTimestamp(),
+        });
+        messageSent = true;
+      } catch (err) {
+        console.error("Error sending message, retrying...", err);
+        retries--;
+        if (retries === 0) {
+          alert("Failed to send message. Please check your connection and try again.");
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1s before retry
+      }
+    }
 
     const userMessage = newMessage;
     setNewMessage("");
 
     // Fetch latest state
     const chatSnap = await getDoc(chatRef);
-    if (!chatSnap.exists()) return;
+    if (!chatSnap.exists()) {
+      console.error("Chat document does not exist");
+      return;
+    }
     const data = chatSnap.data();
     const therapistInChat = data.participants.some((uid) => uid !== auth.currentUser?.uid);
+
+    console.log("Sending message, chat state:", {
+      therapistInChat,
+      aiActive: data.aiActive,
+      aiOffered: data.aiOffered,
+    });
 
     // Start 7s timer for no join if therapists online and no therapist joined
     if (isTherapistAvailable && !therapistInChat && !hasOfferedNoJoin && !data.aiOffered && !data.therapistJoinedOnce) {
@@ -290,11 +331,16 @@ function PrivateChat({ chatId }) {
     }
 
     // Update metadata
-    await updateDoc(chatRef, {
-      lastMessage: userMessage,
-      lastUpdated: serverTimestamp(),
-      unreadCountForTherapist: role === "therapist" ? 0 : increment(1),
-    });
+    try {
+      await updateDoc(chatRef, {
+        lastMessage: userMessage,
+        lastUpdated: serverTimestamp(),
+        unreadCountForTherapist: role === "therapist" ? 0 : increment(1),
+      });
+    } catch (err) {
+      console.error("Error updating chat metadata:", err);
+    }
+    setIsSending(false);
   };
 
   // Handle AI choice
@@ -302,7 +348,6 @@ function PrivateChat({ chatId }) {
     const chatRef = doc(db, "privateChats", chatId);
     const userDisplayName = getAnonName();
 
-    // Log user's choice as a message
     await addDoc(collection(chatRef, "messages"), {
       text: choice === "yes" ? "Yes" : "No",
       userId: auth.currentUser.uid,
@@ -314,6 +359,7 @@ function PrivateChat({ chatId }) {
     if (choice === "yes") {
       setAiEnabled(true);
       await updateDoc(chatRef, { aiActive: true, aiOffered: false });
+      console.log("AI enabled, aiActive set to true");
 
       await addDoc(collection(chatRef, "messages"), {
         text: "You are now chatting with our support assistant until a therapist joins.",
@@ -325,7 +371,6 @@ function PrivateChat({ chatId }) {
         setAiTyping(true);
         const aiInputMessages = mapMessagesForAI(messages);
         const aiResponse = await getAIResponse("Start conversation", aiInputMessages);
-
         await addDoc(collection(chatRef, "messages"), {
           text: aiResponse,
           role: "ai",
@@ -345,6 +390,7 @@ function PrivateChat({ chatId }) {
     } else {
       setAiEnabled(false);
       await updateDoc(chatRef, { aiActive: false, aiOffered: false });
+      console.log("AI disabled, aiActive set to false");
       await addDoc(collection(chatRef, "messages"), {
         text: "Okay, please hold on while we connect you to a therapist.",
         role: "system",
@@ -551,7 +597,9 @@ function PrivateChat({ chatId }) {
         placeholder="Type a message..."
         style={{ width: "70%", marginRight: "5px" }}
       />
-      <button onClick={sendMessage}>Send</button>
+      <button onClick={sendMessage} disabled={isSending}>
+        {isSending ? "Sending..." : "Send"}
+      </button>
     </div>
   );
 }

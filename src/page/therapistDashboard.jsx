@@ -2,10 +2,20 @@ import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { db, auth } from "../utils/firebase";
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc, } from "firebase/firestore";
+import { debounce } from 'lodash';
 import PrivateChat from "./chats_rooms/PrivateChat";
 import { useTypingStatus } from "../components/useTypingStatus";
 import { signOut } from "firebase/auth";
 import LeaveChatButton from "../components/LeaveChatButton";
+
+const debouncedUpdateDoc = debounce(async (ref, data) => {
+  try {
+    await updateDoc(ref, data);
+    console.log("Debounced updateDoc successful:", data);
+  } catch (err) {
+    console.error("Error in debounced update:", err);
+  }
+}, 500);
 
 function TherapistDashboard() {
   const [messages, setMessages] = useState([]);
@@ -376,7 +386,7 @@ function TherapistDashboard() {
     await addDoc(collection(chatRef, "events"), {
       type: "join",
       user: displayName,
-      text: "A therapist has joined. You can now continue your conversation with them.", // Updated text
+      text: `A therapist "${displayName}" has joined. You can now continue your conversation with them.`,
       role: "system",
       timestamp: serverTimestamp(),
     });
@@ -384,28 +394,36 @@ function TherapistDashboard() {
     setActiveChatId(chatId);
   };
 
-  // Leave private chat
   const leavePrivateChat = async () => {
     if (!activeChatId || !auth.currentUser) return;
 
+    // Provide immediate UI feedback
+    setActiveChatId(null);
+
     const chatRef = doc(db, "privateChats", activeChatId);
     const now = Date.now();
-    await addDoc(collection(chatRef, "events"), {
-      type: "leave",
-      user: displayName,
-      text: `${displayName} left the chat.`,
-      role: "system",
-      timestamp: serverTimestamp(),
-    });
-    await updateDoc(chatRef, {
-      participants: arrayRemove(auth.currentUser.uid),
-      aiOffered: true,
-      aiActive: false,
-      therapistJoinedOnce: false,
-      lastLeaveEvent: now,
-    });
-
-    setActiveChatId(null);
+    try {
+      await addDoc(collection(chatRef, "events"), {
+        type: "leave",
+        user: displayName,
+        text: `${displayName} left the chat.`,
+        role: "system",
+        timestamp: serverTimestamp(),
+      });
+      debouncedUpdateDoc(chatRef, {
+        participants: arrayRemove(auth.currentUser.uid),
+        aiOffered: true,
+        aiActive: false,
+        therapistJoinedOnce: false,
+        lastLeaveEvent: now,
+        lastLeaveAiOffered: now, // Prevent duplicate AI offers
+      });
+      console.log("Therapist left chat, debounced update queued");
+    } catch (err) {
+      console.error("Error leaving private chat:", err);
+      alert("Failed to leave chat. Please try again.");
+      setActiveChatId(activeChatId); // Revert state if error occurs
+    }
   };
 
   return (
