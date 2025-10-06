@@ -227,12 +227,6 @@ function TherapistDashboard() {
           role: "system",
           timestamp: serverTimestamp(),
         });
-        await addDoc(collection(chatRef, "messages"), { // Add AI offer
-          text: "Your therapist has left the chat. Would you like to continue chatting with our support assistant?",
-          role: "system",
-          type: "ai-offer",
-          timestamp: serverTimestamp(),
-        });
         await updateDoc(chatRef, {
           participants: arrayRemove(uid),
           aiOffered: true,
@@ -401,12 +395,6 @@ function TherapistDashboard() {
       user: displayName,
       text: `${displayName} left the chat.`,
       role: "system",
-      timestamp: serverTimestamp(),
-    });
-    await addDoc(collection(chatRef, "messages"), { // Add AI offer to messages
-      text: "Your therapist has left the chat. Would you like to continue chatting with our support assistant?",
-      role: "system",
-      type: "ai-offer",
       timestamp: serverTimestamp(),
     });
     await updateDoc(chatRef, {

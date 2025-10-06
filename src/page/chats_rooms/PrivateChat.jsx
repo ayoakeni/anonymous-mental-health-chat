@@ -111,6 +111,13 @@ function PrivateChat({ chatId }) {
       setAiEnabled(data.aiActive || false);
       setChatLoaded(true);
 
+      console.log("Chat data updated:", {
+        aiOffered: data.aiOffered,
+        aiActive: data.aiActive,
+        therapistJoinedOnce: data.therapistJoinedOnce,
+        participants: data.participants,
+      });
+
       const currentParticipants = data.participants || [];
       const userId = auth.currentUser?.uid;
 
@@ -132,7 +139,7 @@ function PrivateChat({ chatId }) {
       const lastJoinEventTime = data.lastJoinEvent || 0;
       const lastLeaveEventTime = data.lastLeaveEvent || 0;
 
-      // Handle join (rely on TherapistDashboard to log join event)
+      // Handle join
       if (therapistJoined && (!lastJoinEvent || now - lastJoinEvent > 2000) && now > lastJoinEventTime) {
         updateDoc(chatRef, {
           therapistJoinedOnce: true,
@@ -141,8 +148,8 @@ function PrivateChat({ chatId }) {
         }).catch((err) => console.error("Error updating on join:", err));
         console.log("Therapist join detected", { therapistJoined, lastJoinEvent, lastJoinEventTime, now });
         setLastJoinEvent(now);
-        setHasOfferedNoTherapist(false); // Reset AI offer
-        setHasOfferedNoJoin(false); // Reset AI offer
+        setHasOfferedNoTherapist(false);
+        setHasOfferedNoJoin(false);
         if (data.aiActive) {
           addDoc(collection(chatRef, "events"), {
             text: "A therapist has joined. You can now continue your conversation with them.",
@@ -165,6 +172,7 @@ function PrivateChat({ chatId }) {
             therapistJoinedOnce: false,
             lastLeaveEvent: now,
           }).catch((err) => console.error("Error updating on leave:", err));
+          console.log("AI offer message added, aiOffered set to true");
         }).catch((err) => console.error("Error adding leave message:", err));
         setLastLeaveEvent(now);
         console.log("Therapist leave detected", { therapistLeft, lastLeaveEvent, lastLeaveEventTime, now });
@@ -173,8 +181,7 @@ function PrivateChat({ chatId }) {
       setPrevParticipants(currentParticipants);
     });
 
-    return () => unsubscribeChat();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => unsubscribeChat;
   }, [chatId, prevParticipants, lastJoinEvent, lastLeaveEvent]);
 
   // Initial AI offer if no therapists online (only after user sends a message)
@@ -479,41 +486,45 @@ function PrivateChat({ chatId }) {
       <div style={{ border: "1px solid #ccc", padding: "10px", height: "250px", overflowY: "scroll", marginBottom: "10px" }}>
         {combinedChat.map((msg) => (
           <div key={msg.id}>
-            {msg.type === "ai-offer" && chatData?.aiOffered && !aiEnabled && msg.role === "system" ? (
-              <div style={{ marginBottom: "10px" }}>
-                <p style={{ color: "gray", fontStyle: "italic" }}>
-                  <em>{msg.text}</em>
+            {msg.type === "ai-offer" && 
+              (chatData?.aiOffered || msg.text.includes("Would you like to continue chatting with our support assistant?")) && 
+              !aiEnabled && 
+              msg.role === "system" ? (
+                <div style={{ marginBottom: "10px" }}>
+                  <p style={{ color: "gray", fontStyle: "italic" }}>
+                    <em>{msg.text}</em>
+                  </p>
+                  <button onClick={() => handleAiChoice("yes")}>Yes</button>
+                  <button onClick={() => handleAiChoice("no")}>No</button>
+                </div>
+              ) : 
+              (
+                <p
+                  style={{
+                    color:
+                      msg.role === "therapist"
+                        ? "blue"
+                        : msg.role === "system"
+                        ? "gray"
+                        : msg.role === "ai"
+                        ? "green"
+                        : "black",
+                    fontWeight: msg.role === "therapist" ? "bold" : "normal",
+                    fontStyle: msg.role === "system" ? "italic" : "normal",
+                    cursor: msg.role === "therapist" ? "pointer" : "default",
+                    textDecoration: msg.role === "therapist" ? "underline" : "none",
+                  }}
+                  onClick={() => (msg.role === "therapist" ? handleTherapistClick(msg) : null)}
+                >
+                  {msg.role === "system" ? (
+                    <em>{msg.text}</em>
+                  ) : (
+                    <>
+                      <strong>{msg.displayName || msg.role}:</strong> {msg.text}
+                    </>
+                  )}
                 </p>
-                <button onClick={() => handleAiChoice("yes")}>Yes</button>
-                <button onClick={() => handleAiChoice("no")}>No</button>
-              </div>
-            ) : (
-              <p
-                style={{
-                  color:
-                    msg.role === "therapist"
-                      ? "blue"
-                      : msg.role === "system"
-                      ? "gray"
-                      : msg.role === "ai"
-                      ? "green"
-                      : "black",
-                  fontWeight: msg.role === "therapist" ? "bold" : "normal",
-                  fontStyle: msg.role === "system" ? "italic" : "normal",
-                  cursor: msg.role === "therapist" ? "pointer" : "default",
-                  textDecoration: msg.role === "therapist" ? "underline" : "none",
-                }}
-                onClick={() => (msg.role === "therapist" ? handleTherapistClick(msg) : null)}
-              >
-                {msg.role === "system" ? (
-                  <em>{msg.text}</em>
-                ) : (
-                  <>
-                    <strong>{msg.displayName || msg.role}:</strong> {msg.text}
-                  </>
-                )}
-              </p>
-            )}
+              )}
           </div>
         ))}
 
