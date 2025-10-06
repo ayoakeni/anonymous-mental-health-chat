@@ -16,6 +16,7 @@ import {
   updateDoc,
   increment,
   getDoc,
+  arrayUnion,
   arrayRemove,
 } from "firebase/firestore";
 
@@ -37,6 +38,7 @@ function PrivateChat({ chatId }) {
   const [hasOfferedNoJoin, setHasOfferedNoJoin] = useState(false);
   const [lastJoinEvent, setLastJoinEvent] = useState(null);
   const [lastLeaveEvent, setLastLeaveEvent] = useState(null);
+  const [aiOfferButtonsVisible, setAiOfferButtonsVisible] = useState({}); // New state to track button visibility per ai-offer event
   const messagesEndRef = useRef(null);
   const noJoinTimerRef = useRef(null);
   const navigate = useNavigate();
@@ -94,6 +96,14 @@ function PrivateChat({ chatId }) {
     const unsubscribeEvents = onSnapshot(q, (snapshot) => {
       const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setEvents(evts);
+      // Initialize button visibility for new ai-offer events
+      const newAiOfferButtons = {};
+      evts.forEach((evt) => {
+        if (evt.type === "ai-offer") {
+          newAiOfferButtons[evt.id] = true; // Show buttons by default for new ai-offer events
+        }
+      });
+      setAiOfferButtonsVisible((prev) => ({ ...prev, ...newAiOfferButtons }));
     });
 
     return () => unsubscribeEvents();
@@ -132,7 +142,7 @@ function PrivateChat({ chatId }) {
       const lastJoinEventTime = data.lastJoinEvent || 0;
       const lastLeaveEventTime = data.lastLeaveEvent || 0;
 
-      // Handle join (rely on TherapistDashboard to log join event)
+      // Handle join
       if (therapistJoined && (!lastJoinEvent || now - lastJoinEvent > 2000) && now > lastJoinEventTime) {
         updateDoc(chatRef, {
           therapistJoinedOnce: true,
@@ -173,8 +183,7 @@ function PrivateChat({ chatId }) {
       setPrevParticipants(currentParticipants);
     });
 
-    return () => unsubscribeChat();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => unsubscribeChat;
   }, [chatId, prevParticipants, lastJoinEvent, lastLeaveEvent]);
 
   // Initial AI offer if no therapists online (only after user sends a message)
@@ -199,6 +208,32 @@ function PrivateChat({ chatId }) {
       offerAI().catch((err) => console.error("Error offering AI:", err));
     }
   }, [chatLoaded, therapistsLoaded, chatData, hasOfferedNoTherapist, isTherapistAvailable, chatId, messages]);
+
+  // Handle user rejoining chat
+  useEffect(() => {
+    if (!chatId || !auth.currentUser) return;
+
+    const handleUserRejoin = async () => {
+      const chatRef = doc(db, "privateChats", chatId);
+      const chatSnap = await getDoc(chatRef);
+      if (chatSnap.exists()) {
+        const data = chatSnap.data();
+        const userId = auth.currentUser.uid;
+        if (!data.participants.includes(userId)) {
+          // User has rejoined, reset AI offer flags
+          await updateDoc(chatRef, {
+            participants: arrayUnion(userId),
+            hasOfferedNoTherapist: false,
+            hasOfferedNoJoin: false,
+          });
+          setHasOfferedNoTherapist(false);
+          setHasOfferedNoJoin(false);
+        }
+      }
+    };
+
+    handleUserRejoin().catch((err) => console.error("Error handling user rejoin:", err));
+  }, [chatId]);
 
   // Combine messages and events for rendering
   const combinedChat = [...messages, ...events].sort((a, b) => {
@@ -291,7 +326,7 @@ function PrivateChat({ chatId }) {
   };
 
   // Handle AI choice
-  const handleAiChoice = async (choice) => {
+  const handleAiChoice = async (choice, eventId) => {
     const chatRef = doc(db, "privateChats", chatId);
     if (choice === "yes") {
       setAiEnabled(true);
@@ -333,6 +368,8 @@ function PrivateChat({ chatId }) {
         timestamp: serverTimestamp(),
       });
     }
+    // Hide buttons for this specific ai-offer event
+    setAiOfferButtonsVisible((prev) => ({ ...prev, [eventId]: false }));
   };
 
   // Anonymous exit button
@@ -468,13 +505,17 @@ function PrivateChat({ chatId }) {
       <div style={{ border: "1px solid #ccc", padding: "10px", height: "250px", overflowY: "scroll", marginBottom: "10px" }}>
         {combinedChat.map((msg) => (
           <div key={msg.id}>
-            {msg.type === "ai-offer" && chatData?.aiOffered && !aiEnabled ? (
+            {msg.type === "ai-offer" ? (
               <div style={{ marginBottom: "10px" }}>
-                <p style={{ color: "gray" }}>{msg.text}</p>
-                <button onClick={() => handleAiChoice("yes")}>Yes</button>
-                <button onClick={() => handleAiChoice("no")}>No</button>
+                <p style={{ color: "gray" }}><em>{msg.text}</em></p>
+                {aiOfferButtonsVisible[msg.id] && (
+                  <div>
+                    <button onClick={() => handleAiChoice("yes", msg.id)}>Yes</button>
+                    <button onClick={() => handleAiChoice("no", msg.id)}>No</button>
+                  </div>
+                )}
               </div>
-            ) : msg.type !== "ai-offer" ? (
+            ) : (
               <p
                 style={{
                   color:
@@ -500,7 +541,7 @@ function PrivateChat({ chatId }) {
                   </>
                 )}
               </p>
-            ) : null}
+            )}
           </div>
         ))}
 
