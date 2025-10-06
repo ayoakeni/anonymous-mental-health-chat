@@ -1,0 +1,227 @@
+.displayNameLogout {
+  display: flex;
+  justify-content: space-between;
+}
+.therapist-dashboard {
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+  font-family: Arial, sans-serif;
+}
+
+.therapist-dashboard h2 {
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+.logout-button {
+  background-color: #ff0000;
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+
+.logout-button:hover {
+  background-color: #cc0000;
+}
+
+.therapist-profile {
+  border: 1px solid #ddd;
+  padding: 15px;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  margin-bottom: 20px;
+}
+
+.therapist-profile h3 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.profile-edit input,
+.profile-edit textarea {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.profile-edit textarea {
+  height: 100px;
+}
+
+.profile-edit button,
+.profile-view button {
+  padding: 8px 16px;
+  margin-right: 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background-color: #007bff;
+  color: white;
+}
+
+.profile-edit button:hover,
+.profile-view button:hover {
+  background-color: #0056b3;
+}
+
+.profile-view p {
+  margin: 5px 0;
+}
+
+.profile-view .rating {
+  color: gold;
+}
+
+.group-chat,
+.private-chat {
+  margin-bottom: 20px;
+}
+
+.private-chat h3 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.chat-container {
+  border: 1px solid #ccc;
+  padding: 10px;
+  height: 250px;
+  overflow-y: scroll;
+  background-color: #fff;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.chat-message {
+  margin: 5px 0;
+}
+
+.chat-message.therapist {
+  color: blue;
+  font-weight: bold;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.chat-message.system {
+  color: gray;
+  font-style: italic;
+}
+
+.chat-message.ai {
+  color: green;
+  font-style: italic;
+}
+
+.chat-message.user {
+  color: black;
+}
+
+.typing-indicator {
+  color: gray;
+  font-style: italic;
+  margin: 5px 0;
+}
+
+.chat-input {
+  display: flex;
+  gap: 5px;
+}
+
+.chat-input input {
+  width: 70%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.chat-input button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+}
+
+.chat-input button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.chat-input button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.chat-list {
+  margin-top: 20px;
+}
+
+.chat-list h3 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.chat-card {
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 4px;
+  background-color: #fff;
+}
+
+.chat-card:hover {
+  background-color: #f5f5f5;
+}
+
+.chat-card small {
+  color: #666;
+}
+
+.unread-badge {
+  background-color: red;
+  color: white;
+  border-radius: 50%;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.therapist-profile-card {
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+.therapist-profile-card button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+}
+
+.therapist-profile-card button:hover {
+  background-color: #0056b3;
+}
+
+.therapist-profile-card h4 {
+  font-size: 16px;
+  margin-bottom: 5px;
+}
+
+.therapist-profile-card p {
+  margin: 5px 0;
+}

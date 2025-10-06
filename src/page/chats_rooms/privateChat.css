@@ -1,0 +1,147 @@
+.private-chat {
+  max-width: 800px;
+  margin: 0 auto;
+  font-family: Arial, sans-serif;
+}
+
+.private-chat h3 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.exit-chat-button {
+  margin-left: 10px;
+  background-color: red;
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.exit-chat-button:hover {
+  background-color: #cc0000;
+}
+
+.therapist-profile-card {
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+.therapist-profile-card button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+}
+
+.therapist-profile-card button:hover {
+  background-color: #0056b3;
+}
+
+.therapist-profile-card h4 {
+  font-size: 16px;
+  margin-bottom: 5px;
+}
+
+.therapist-profile-card p {
+  margin: 5px 0;
+}
+
+.chat-container {
+  border: 1px solid #ccc;
+  padding: 10px;
+  height: 250px;
+  overflow-y: scroll;
+  background-color: #fff;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.chat-message {
+  margin: 5px 0;
+}
+
+.chat-message.therapist {
+  color: blue;
+  font-weight: bold;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.chat-message.system {
+  color: gray;
+  font-style: italic;
+}
+
+.chat-message.ai {
+  color: green;
+  font-style: italic;
+}
+
+.chat-message.user {
+  color: black;
+}
+
+.typing-indicator {
+  color: gray;
+  font-style: italic;
+  margin: 5px 0;
+}
+
+.typing-indicator.ai-typing {
+  color: green;
+}
+
+.chat-input {
+  display: flex;
+  gap: 5px;
+}
+
+.chat-input input {
+  width: 70%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.chat-input button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+}
+
+.chat-input button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.chat-input button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.ai-offer {
+  margin-bottom: 10px;
+}
+
+.ai-offer button {
+  padding: 8px 16px;
+  margin-right: 5px;
+  border: none;
+  border-radius: 4px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+}
+
+.ai-offer button:hover {
+  background-color: #0056b3;
+}

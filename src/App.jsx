@@ -3,7 +3,7 @@ import Chatroom from "./page/chats_rooms/chatRoom";
 import Home from "./page/home";
 import About from "./page/about";
 import TherapistLogin from "./login/therapist_login";
-import PrivateChatWrapper from "./components/PrivateChatWrapper";
+import PrivateChatWrapper from "./page/chats_rooms/PrivateChatWrapper";
 import TherapistDashboard from "./page/therapistDashboard";
 
 function App() {
