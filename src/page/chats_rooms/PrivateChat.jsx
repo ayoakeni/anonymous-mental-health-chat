@@ -16,7 +16,7 @@ import {
   arrayRemove,
   limit,
   runTransaction,
-  increment, // Added import to fix ESLint error
+  increment,
 } from "firebase/firestore";
 import { debounce } from "lodash";
 import "../../styles/privateChat.css";
@@ -78,6 +78,8 @@ function PrivateChat({ chatId }) {
       console.error("Error fetching therapists online:", err);
       if (err.code === "resource-exhausted") {
         alert("Firestore quota exceeded. Please try again later.");
+      } else {
+        alert("Failed to fetch therapist status. Please try again.");
       }
     });
     return () => unsub();
@@ -96,6 +98,8 @@ function PrivateChat({ chatId }) {
       console.error("Error fetching messages:", err);
       if (err.code === "resource-exhausted") {
         alert("Firestore quota exceeded. Please try again later.");
+      } else {
+        alert("Failed to load messages. Please try again.");
       }
     });
     return () => unsubscribeMessages();
@@ -114,6 +118,8 @@ function PrivateChat({ chatId }) {
       console.error("Error fetching events:", err);
       if (err.code === "resource-exhausted") {
         alert("Firestore quota exceeded. Please try again later.");
+      } else {
+        alert("Failed to load events. Please try again.");
       }
     });
     return () => unsubscribeEvents();
@@ -128,6 +134,11 @@ function PrivateChat({ chatId }) {
         console.error("Error in chat snapshot:", error);
         if (error.code === "resource-exhausted") {
           alert("Firestore quota exceeded. Please try again later.");
+        } else if (error.code === "permission-denied") {
+          alert("You do not have permission to access this chat.");
+          navigate("/chat-room");
+        } else {
+          alert("Failed to load chat data. Please try again.");
         }
         return;
       }
@@ -164,7 +175,7 @@ function PrivateChat({ chatId }) {
             aiOffered: false,
             lastJoinEvent: now,
           });
-          transaction.set(collection(chatRef, "events"), {
+          transaction.set(doc(collection(chatRef, "events")), {
             text: "A therapist has joined. You can now continue your conversation with them.",
             role: "system",
             timestamp: serverTimestamp(),
@@ -173,6 +184,10 @@ function PrivateChat({ chatId }) {
           console.error("Error updating on join:", err);
           if (err.code === "resource-exhausted") {
             alert("Firestore quota exceeded. Please try again later.");
+          } else if (err.code === "permission-denied") {
+            alert("You do not have permission to update this chat.");
+          } else {
+            alert("Failed to process therapist join event. Please try again.");
           }
         });
         setLastJoinEvent(now);
@@ -189,7 +204,7 @@ function PrivateChat({ chatId }) {
         runTransaction(db, async (transaction) => {
           const chatSnap = await transaction.get(chatRef);
           if (!chatSnap.exists()) throw new Error("Chat document does not exist");
-          transaction.set(collection(chatRef, "messages"), {
+          transaction.set(doc(collection(chatRef, "messages")), {
             text: "Your therapist has left the chat. Would you like to continue chatting with our support assistant?",
             role: "system",
             type: "ai-offer",
@@ -205,6 +220,10 @@ function PrivateChat({ chatId }) {
           console.error("Error updating on leave:", err);
           if (err.code === "resource-exhausted") {
             alert("Firestore quota exceeded. Please try again later.");
+          } else if (err.code === "permission-denied") {
+            alert("You do not have permission to update this chat.");
+          } else {
+            alert("Failed to process therapist leave event. Please try again.");
           }
         });
         setLastLeaveEvent(now);
@@ -214,6 +233,11 @@ function PrivateChat({ chatId }) {
       console.error("Error fetching chat data:", err);
       if (err.code === "resource-exhausted") {
         alert("Firestore quota exceeded. Please try again later.");
+      } else if (err.code === "permission-denied") {
+        alert("You do not have permission to access this chat.");
+        navigate("/chat-room");
+      } else {
+        alert("Failed to load chat data. Please try again.");
       }
     });
     return () => unsubscribeChat();
@@ -233,7 +257,7 @@ function PrivateChat({ chatId }) {
             const chatSnap = await transaction.get(chatRef);
             if (!chatSnap.exists()) throw new Error("Chat document does not exist");
             transaction.update(chatRef, { aiOffered: true });
-            transaction.set(collection(chatRef, "messages"), {
+            transaction.set(doc(collection(chatRef, "messages")), {
               text: "No therapist is online right now. Would you like to chat with our support assistant while you wait?",
               role: "system",
               type: "ai-offer",
@@ -245,6 +269,10 @@ function PrivateChat({ chatId }) {
           console.error("Error offering AI:", err);
           if (err.code === "resource-exhausted") {
             alert("Firestore quota exceeded. Please try again later.");
+          } else if (err.code === "permission-denied") {
+            alert("You do not have permission to update this chat.");
+          } else {
+            alert("Failed to offer AI assistant. Please try again.");
           }
         }
       };
@@ -274,7 +302,7 @@ function PrivateChat({ chatId }) {
       await runTransaction(db, async (transaction) => {
         const chatSnap = await transaction.get(chatRef);
         if (!chatSnap.exists()) throw new Error("Chat document does not exist");
-        transaction.set(collection(chatRef, "messages"), {
+        transaction.set(doc(collection(chatRef, "messages")), {
           text: newMessage,
           userId: auth.currentUser.uid,
           displayName: nameToUse,
@@ -292,8 +320,14 @@ function PrivateChat({ chatId }) {
       console.error("Error sending message:", err);
       if (err.code === "resource-exhausted") {
         alert("Firestore quota exceeded. Please try again later.");
-      } else if (err.message === "Chat document does not exist") {
+      } else if (err.code === "permission-denied") {
+        alert("You do not have permission to send messages in this chat.");
         navigate("/chat-room");
+      } else if (err.message === "Chat document does not exist") {
+        alert("This chat no longer exists.");
+        navigate("/chat-room");
+      } else {
+        alert("Failed to send message. Please try again.");
       }
       setIsSending(false);
       return;
@@ -301,31 +335,37 @@ function PrivateChat({ chatId }) {
 
     const userMessage = newMessage;
     setNewMessage("");
+    setIsSending(false); // Moved before async operations to prevent UI freeze
+
     const chatSnap = await getDoc(chatRef);
     logFirestoreOperation("read", 1, { collection: "privateChats", doc: chatId });
     if (!chatSnap.exists()) {
-      console.error("Chat document does not exist");
-      setIsSending(false);
+      console.error("Chat document does not exist after sending message");
+      alert("This chat no longer exists.");
       navigate("/chat-room");
       return;
     }
     const data = chatSnap.data();
-    const therapistInChat = data.participants.some((uid) => uid !== auth.currentUser?.uid);
+    const therapistInChat = data.participants?.some((uid) => uid !== auth.currentUser?.uid) || false;
     if (isTherapistAvailable && !therapistInChat && !hasOfferedNoJoin && !data.aiOffered && !data.therapistJoinedOnce) {
       setHasOfferedNoJoin(true);
       noJoinTimerRef.current = setTimeout(async () => {
         const latestSnap = await getDoc(chatRef);
         logFirestoreOperation("read", 1, { collection: "privateChats", doc: chatId });
-        if (!latestSnap.exists()) return;
+        if (!latestSnap.exists()) {
+          console.error("Chat document does not exist for AI offer");
+          navigate("/chat-room");
+          return;
+        }
         const latestData = latestSnap.data();
-        const latestTherapistInChat = latestData.participants.some((uid) => uid !== auth.currentUser?.uid);
+        const latestTherapistInChat = latestData.participants?.some((uid) => uid !== auth.currentUser?.uid) || false;
         if (!latestTherapistInChat && !latestData.aiOffered && !latestData.therapistJoinedOnce) {
           try {
             await runTransaction(db, async (transaction) => {
               const chatSnap = await transaction.get(chatRef);
               if (!chatSnap.exists()) throw new Error("Chat document does not exist");
               transaction.update(chatRef, { aiOffered: true });
-              transaction.set(collection(chatRef, "messages"), {
+              transaction.set(doc(collection(chatRef, "messages")), {
                 text: "No therapist has joined yet. Would you like to chat with our support assistant while you wait?",
                 role: "system",
                 type: "ai-offer",
@@ -337,6 +377,10 @@ function PrivateChat({ chatId }) {
             console.error("Error offering AI:", err);
             if (err.code === "resource-exhausted") {
               alert("Firestore quota exceeded. Please try again later.");
+            } else if (err.code === "permission-denied") {
+              alert("You do not have permission to update this chat.");
+            } else {
+              alert("Failed to offer AI assistant. Please try again.");
             }
           }
         }
@@ -350,7 +394,7 @@ function PrivateChat({ chatId }) {
         await runTransaction(db, async (transaction) => {
           const chatSnap = await transaction.get(chatRef);
           if (!chatSnap.exists()) throw new Error("Chat document does not exist");
-          transaction.set(collection(chatRef, "messages"), {
+          transaction.set(doc(collection(chatRef, "messages")), {
             text: aiResponse,
             role: "ai",
             displayName: "Support Assistant",
@@ -360,21 +404,31 @@ function PrivateChat({ chatId }) {
         logFirestoreOperation("write", 1, { collection: "privateChats", subcollection: "messages" });
       } catch (err) {
         console.error("AI response error:", err);
-        await runTransaction(db, async (transaction) => {
-          const chatSnap = await transaction.get(chatRef);
-          if (!chatSnap.exists()) throw new Error("Chat document does not exist");
-          transaction.set(collection(chatRef, "messages"), {
-            text: "Sorry, I couldn’t respond right now. Please wait for a therapist.",
-            role: "system",
-            timestamp: serverTimestamp(),
+        try {
+          await runTransaction(db, async (transaction) => {
+            const chatSnap = await transaction.get(chatRef);
+            if (!chatSnap.exists()) throw new Error("Chat document does not exist");
+            transaction.set(doc(collection(chatRef, "messages")), {
+              text: "Sorry, I couldn’t respond right now. Please wait for a therapist.",
+              role: "system",
+              timestamp: serverTimestamp(),
+            });
           });
-        });
-        logFirestoreOperation("write", 1, { collection: "privateChats", subcollection: "messages" });
+          logFirestoreOperation("write", 1, { collection: "privateChats", subcollection: "messages" });
+        } catch (error) {
+          console.error("Error sending AI fallback message:", error);
+          if (error.code === "resource-exhausted") {
+            alert("Firestore quota exceeded. Please try again later.");
+          } else if (error.code === "permission-denied") {
+            alert("You do not have permission to update this chat.");
+          } else {
+            alert("Failed to send AI fallback message. Please try again.");
+          }
+        }
       } finally {
         setAiTyping(false);
       }
     }
-    setIsSending(false);
   };
 
   // Handle AI choice
@@ -385,7 +439,7 @@ function PrivateChat({ chatId }) {
       await runTransaction(db, async (transaction) => {
         const chatSnap = await transaction.get(chatRef);
         if (!chatSnap.exists()) throw new Error("Chat document does not exist");
-        transaction.set(collection(chatRef, "messages"), {
+        transaction.set(doc(collection(chatRef, "messages")), {
           text: choice === "yes" ? "Yes" : "No",
           userId: auth.currentUser.uid,
           displayName: userDisplayName,
@@ -394,7 +448,7 @@ function PrivateChat({ chatId }) {
         });
         if (choice === "yes") {
           transaction.update(chatRef, { aiActive: true, aiOffered: false });
-          transaction.set(collection(chatRef, "messages"), {
+          transaction.set(doc(collection(chatRef, "messages")), {
             text: "You are now chatting with our support assistant until a therapist joins.",
             role: "system",
             timestamp: serverTimestamp(),
@@ -403,7 +457,7 @@ function PrivateChat({ chatId }) {
             setAiTyping(true);
             const aiInputMessages = mapMessagesForAI(messages);
             const aiResponse = await getAIResponse("Start conversation", aiInputMessages);
-            transaction.set(collection(chatRef, "messages"), {
+            transaction.set(doc(collection(chatRef, "messages")), {
               text: aiResponse,
               role: "ai",
               displayName: "Support Assistant",
@@ -411,7 +465,7 @@ function PrivateChat({ chatId }) {
             });
           } catch (err) {
             console.error("AI response error:", err);
-            transaction.set(collection(chatRef, "messages"), {
+            transaction.set(doc(collection(chatRef, "messages")), {
               text: "Sorry, I couldn’t respond right now. Please wait for a therapist.",
               role: "system",
               timestamp: serverTimestamp(),
@@ -419,7 +473,7 @@ function PrivateChat({ chatId }) {
           }
         } else {
           transaction.update(chatRef, { aiActive: false, aiOffered: false });
-          transaction.set(collection(chatRef, "messages"), {
+          transaction.set(doc(collection(chatRef, "messages")), {
             text: "Okay, please hold on while we connect you to a therapist.",
             role: "system",
             timestamp: serverTimestamp(),
@@ -432,6 +486,13 @@ function PrivateChat({ chatId }) {
       console.error("Error handling AI choice:", err);
       if (err.code === "resource-exhausted") {
         alert("Firestore quota exceeded. Please try again later.");
+      } else if (err.code === "permission-denied") {
+        alert("You do not have permission to update this chat.");
+      } else if (err.message === "Chat document does not exist") {
+        alert("This chat no longer exists.");
+        navigate("/chat-room");
+      } else {
+        alert("Failed to process AI choice. Please try again.");
       }
     } finally {
       setAiTyping(false);
@@ -452,7 +513,7 @@ function PrivateChat({ chatId }) {
           therapistJoinedOnce: false,
           participants: arrayRemove(auth.currentUser.uid),
         });
-        transaction.set(collection(chatRef, "events"), {
+        transaction.set(doc(collection(chatRef, "events")), {
           type: "leave",
           user: getAnonName(),
           text: `${getAnonName()} has left the chat.`,
@@ -463,13 +524,23 @@ function PrivateChat({ chatId }) {
       logFirestoreOperation("write", 2, { collection: "privateChats", subcollection: "events" });
       setHasOfferedNoJoin(false);
       setHasOfferedNoTherapist(false);
+      setMessages([]);
+      setEvents([]);
+      setChatData(null);
+      setAiEnabled(false);
       navigate("/chat-room");
     } catch (err) {
       console.error("Error leaving chat:", err);
       if (err.code === "resource-exhausted") {
         alert("Firestore quota exceeded. Please try again later.");
-      } else if (err.message === "Chat document does not exist") {
+      } else if (err.code === "permission-denied") {
+        alert("You do not have permission to leave this chat.");
         navigate("/chat-room");
+      } else if (err.message === "Chat document does not exist") {
+        alert("This chat no longer exists.");
+        navigate("/chat-room");
+      } else {
+        alert("Failed to leave chat. Please try again.");
       }
     }
   };
@@ -486,35 +557,43 @@ function PrivateChat({ chatId }) {
       try {
         await runTransaction(db, async (transaction) => {
           const privateChatSnap = await transaction.get(privateChatRef);
-          if (!privateChatSnap.exists()) return;
-          transaction.update(privateChatRef, {
-            participants: arrayRemove(uid),
-            aiOffered: false,
-            therapistJoinedOnce: false,
-          });
-          transaction.set(collection(privateChatRef, "events"), {
-            type: "leave",
-            user: getAnonName(),
-            text: `${getAnonName()} has left the chat.`,
-            role: "system",
-            timestamp: serverTimestamp(),
-          });
-          transaction.update(groupChatRef, {
-            participants: arrayRemove(uid),
-          });
-          transaction.set(collection(groupChatRef, "events"), {
-            type: "leave",
-            user: getAnonName(),
-            text: `${getAnonName()} has left the chat.`,
-            role: "system",
-            timestamp: serverTimestamp(),
-          });
+          if (privateChatSnap.exists()) {
+            transaction.update(privateChatRef, {
+              participants: arrayRemove(uid),
+              aiOffered: false,
+              therapistJoinedOnce: false,
+            });
+            transaction.set(doc(collection(privateChatRef, "events")), {
+              type: "leave",
+              user: getAnonName(),
+              text: `${getAnonName()} has left the chat.`,
+              role: "system",
+              timestamp: serverTimestamp(),
+            });
+          }
+          const groupChatSnap = await transaction.get(groupChatRef);
+          if (groupChatSnap.exists()) {
+            transaction.update(groupChatRef, {
+              participants: arrayRemove(uid),
+            });
+            transaction.set(doc(collection(groupChatRef, "events")), {
+              type: "leave",
+              user: getAnonName(),
+              text: `${getAnonName()} has left the chat.`,
+              role: "system",
+              timestamp: serverTimestamp(),
+            });
+          }
         });
         logFirestoreOperation("write", 4, { collections: ["privateChats", "groupChats"], subcollections: ["events"] });
       } catch (err) {
         console.error("Error auto-leaving chats:", err);
         if (err.code === "resource-exhausted") {
           alert("Firestore quota exceeded. Please try again later.");
+        } else if (err.code === "permission-denied") {
+          alert("You do not have permission to leave chats.");
+        } else {
+          alert("Failed to auto-leave chats. Please try again.");
         }
       }
     }, 1000);
@@ -551,6 +630,10 @@ function PrivateChat({ chatId }) {
       console.error("Error fetching therapist profile:", err);
       if (err.code === "resource-exhausted") {
         alert("Firestore quota exceeded. Please try again later.");
+      } else if (err.code === "permission-denied") {
+        alert("You do not have permission to access therapist profile.");
+      } else {
+        alert("Failed to fetch therapist profile. Please try again.");
       }
     });
     return () => unsubscribe();
@@ -567,6 +650,10 @@ function PrivateChat({ chatId }) {
       console.error("Error fetching therapist profile:", err);
       if (err.code === "resource-exhausted") {
         alert("Firestore quota exceeded. Please try again later.");
+      } else if (err.code === "permission-denied") {
+        alert("You do not have permission to view this therapist's profile.");
+      } else {
+        alert("Failed to fetch therapist profile. Please try again.");
       }
     }
   };
