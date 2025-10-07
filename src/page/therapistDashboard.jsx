@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation, Routes, Route } from "react-router-dom";
-import { db, auth } from "../utils/firebase";
+import { db, auth, Timestamp } from "../utils/firebase";
 import {
   collection,
   query,
@@ -229,7 +229,15 @@ function TherapistDashboard() {
       const snap = await getDoc(docRef);
       logFirestoreOperation("read", 1, { collection: "therapists", doc: therapistId });
       if (snap.exists()) {
-        const lastSeen = snap.data().lastSeenGroupChat?.toMillis() || Date.now();
+        const lastSeenGroupChat = snap.data().lastSeenGroupChat;
+        let lastSeen;
+        if (lastSeenGroupChat instanceof Timestamp) {
+          lastSeen = lastSeenGroupChat.toMillis();
+        } else if (typeof lastSeenGroupChat === 'number') {
+          lastSeen = lastSeenGroupChat;
+        } else {
+          lastSeen = Date.now();
+        }
         setLastSeenTimestamp(lastSeen);
       } else {
         setLastSeenTimestamp(Date.now());
@@ -443,7 +451,7 @@ function TherapistDashboard() {
         transaction.set(doc(db, "therapists", therapistId), { lastSeenGroupChat: serverTimestamp() }, { merge: true });
       });
       logFirestoreOperation("write", 2, { collections: ["groupChats", "therapists"] });
-      setLastSeenTimestamp(lastMsgTime); // Moved after declaration
+      setLastSeenTimestamp(lastMsgTime);
       setIsGroupChatOpen(true);
       setInGroupChat(true);
       setGroupUnreadCount(0);
