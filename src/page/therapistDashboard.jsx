@@ -14,7 +14,7 @@ import {
   setDoc,
   where,
   limit,
-  writeBatch,
+  runTransaction,
 } from "firebase/firestore";
 import { debounce } from "lodash";
 import { useTypingStatus } from "../components/useTypingStatus";
@@ -53,7 +53,7 @@ function TherapistDashboard() {
   const [isSendingPrivate, setIsSendingPrivate] = useState(false);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const [therapistName, setTherapistName] = useState("Therapist");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Track sidebar state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const therapistId = auth.currentUser?.uid;
   const displayName = therapistInfo.name || "Unknown Therapist";
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
@@ -62,7 +62,7 @@ function TherapistDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Toggle sidebar and notify parent
+  // Toggle sidebar
   const handleToggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
@@ -243,45 +243,34 @@ function TherapistDashboard() {
     });
   }, [therapistId]);
 
-  // Fetch and cache therapist profile
+  // Fetch therapist profile
   useEffect(() => {
     if (!therapistId) return;
-    const fetchProfile = async () => {
-      try {
-        const snap = await getDoc(doc(db, "therapists", therapistId));
+    const therapistRef = doc(db, "therapists", therapistId);
+    const unsubscribe = onSnapshot(therapistRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setTherapistInfo(data);
+        setTherapistName(data.name || "Therapist");
         logFirestoreOperation("read", 1, { collection: "therapists", doc: therapistId });
-        if (snap.exists()) {
-          const data = snap.data();
-          setTherapistInfo(data);
-          setTherapistName(data.name || "Therapist");
-          localStorage.setItem(`therapist_${therapistId}`, JSON.stringify(data));
-        } else {
-          const defaultInfo = {
-            name: "New Therapist",
-            gender: "",
-            position: "",
-            profile: "",
-            rating: 0,
-          };
-          setTherapistInfo(defaultInfo);
-          setTherapistName("Therapist");
-          localStorage.setItem(`therapist_${therapistId}`, JSON.stringify(defaultInfo));
-        }
-      } catch (err) {
-        console.error("Error fetching therapist profile:", err);
-        if (err.code === "resource-exhausted") {
-          alert("Firestore quota exceeded. Please try again later.");
-        }
+      } else {
+        const defaultInfo = {
+          name: "New Therapist",
+          gender: "",
+          position: "",
+          profile: "",
+          rating: 0,
+        };
+        setTherapistInfo(defaultInfo);
+        setTherapistName("Therapist");
       }
-    };
-    const cached = localStorage.getItem(`therapist_${therapistId}`);
-    if (cached) {
-      const data = JSON.parse(cached);
-      setTherapistInfo(data);
-      setTherapistName(data.name || "Therapist");
-    } else {
-      fetchProfile();
-    }
+    }, (err) => {
+      console.error("Error fetching therapist profile:", err);
+      if (err.code === "resource-exhausted") {
+        alert("Firestore quota exceeded. Please try again later.");
+      }
+    });
+    return () => unsubscribe();
   }, [therapistId]);
 
   // Tab close vs refresh detection
@@ -291,32 +280,36 @@ function TherapistDashboard() {
     const debouncedLeave = debounce(async () => {
       if (isReloading) return;
       const uid = auth.currentUser.uid;
-      const batch = writeBatch(db);
-      if (activeChatId) {
-        const privateChatRef = doc(db, "privateChats", activeChatId);
-        batch.update(privateChatRef, {
-          participants: arrayRemove(uid),
-          aiOffered: false,
-        });
-        batch.set(collection(privateChatRef, "events"), {
-          type: "leave",
-          user: displayName,
-          text: `${displayName} left the chat.`,
-          role: "system",
-          timestamp: serverTimestamp(),
-        });
-      }
-      const groupChatRef = doc(db, "groupChats", "mainGroup");
-      batch.update(groupChatRef, {
-        participants: arrayRemove(uid),
-      });
-      batch.set(collection(groupChatRef, "events"), {
-        type: "leave",
-        user: displayName,
-        timestamp: serverTimestamp(),
-      });
       try {
-        await batch.commit();
+        await runTransaction(db, async (transaction) => {
+          if (activeChatId) {
+            const privateChatRef = await transaction.get(doc(db, "privateChats", activeChatId));
+            if (privateChatRef.exists()) {
+              transaction.update(privateChatRef, {
+                participants: arrayRemove(uid),
+                aiOffered: false,
+              });
+              transaction.set(doc(collection(privateChatRef, "events")), {
+                type: "leave",
+                user: displayName,
+                text: `${displayName} left the chat.`,
+                role: "system",
+                timestamp: serverTimestamp(),
+              });
+            }
+          }
+          const groupChatRef = await transaction.get(doc(db, "groupChats", "mainGroup"));
+          if (groupChatRef.exists()) {
+            transaction.update(groupChatRef, {
+              participants: arrayRemove(uid),
+            });
+            transaction.set(doc(collection(groupChatRef, "events")), {
+              type: "leave",
+              user: displayName,
+              timestamp: serverTimestamp(),
+            });
+          }
+        });
         logFirestoreOperation("write", 2, { collections: ["privateChats", "groupChats"] });
       } catch (err) {
         console.error("Error auto-leaving chats:", err);
@@ -345,19 +338,19 @@ function TherapistDashboard() {
   // Send message to group chat
   const sendReply = async () => {
     if (!reply.trim() || !auth.currentUser) return;
-    const batch = writeBatch(db);
-    const messagesRef = collection(db, "messages");
-    const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
-    batch.set(messagesRef, {
-      text: reply,
-      userId: auth.currentUser.uid,
-      displayName: therapistInfo.name,
-      role: "therapist",
-      timestamp: serverTimestamp(),
-    });
-    batch.set(typingDoc, { typing: false, name: therapistInfo.name || "Therapist", timestamp: serverTimestamp() });
     try {
-      await batch.commit();
+      await runTransaction(db, async (transaction) => {
+        const messagesRef = collection(db, "messages");
+        const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
+        transaction.set(doc(messagesRef), {
+          text: reply,
+          userId: auth.currentUser.uid,
+          displayName: therapistInfo.name,
+          role: "therapist",
+          timestamp: serverTimestamp(),
+        });
+        transaction.set(typingDoc, { typing: false, name: therapistInfo.name || "Therapist", timestamp: serverTimestamp() });
+      });
       logFirestoreOperation("write", 2, { collections: ["messages", "typingStatus"] });
       setReply("");
     } catch (err) {
@@ -373,33 +366,35 @@ function TherapistDashboard() {
     try {
       if (!auth.currentUser) return;
       const uid = auth.currentUser.uid;
-      const batch = writeBatch(db);
       const therapistRef = doc(db, "therapistsOnline", uid);
-      if (activeChatId) {
-        const chatRef = doc(db, "privateChats", activeChatId);
-        const now = Date.now();
-        batch.set(collection(chatRef, "events"), {
-          type: "leave",
-          user: displayName,
-          text: `${displayName} left the chat.`,
-          role: "system",
-          timestamp: serverTimestamp(),
+      await runTransaction(db, async (transaction) => {
+        if (activeChatId) {
+          const chatRef = await transaction.get(doc(db, "privateChats", activeChatId));
+          if (chatRef.exists()) {
+            const now = Date.now();
+            transaction.set(doc(collection(chatRef, "events")), {
+              type: "leave",
+              user: displayName,
+              text: `${displayName} left the chat.`,
+              role: "system",
+              timestamp: serverTimestamp(),
+            });
+            transaction.update(chatRef, {
+              participants: arrayRemove(uid),
+              aiOffered: true,
+              aiActive: false,
+              therapistJoinedOnce: false,
+              lastLeaveEvent: now,
+              lastLeaveAiOffered: now,
+            });
+          }
+        }
+        transaction.set(therapistRef, {
+          name: displayName || auth.currentUser.email,
+          online: false,
+          lastSeen: serverTimestamp(),
         });
-        batch.update(chatRef, {
-          participants: arrayRemove(uid),
-          aiOffered: true,
-          aiActive: false,
-          therapistJoinedOnce: false,
-          lastLeaveEvent: now,
-          lastLeaveAiOffered: now,
-        });
-      }
-      batch.set(therapistRef, {
-        name: displayName || auth.currentUser.email,
-        online: false,
-        lastSeen: serverTimestamp(),
       });
-      await batch.commit();
       logFirestoreOperation("write", activeChatId ? 3 : 1, { collections: ["therapistsOnline", activeChatId ? "privateChats" : null] });
       await signOut(auth);
       setTherapistInfo({
@@ -412,7 +407,6 @@ function TherapistDashboard() {
       setMessages([]);
       setPrivateChats([]);
       setActiveChatId(null);
-      localStorage.removeItem(`therapist_${uid}`);
       navigate("/therapist-login");
     } catch (err) {
       console.error("Logout error:", err);
@@ -428,10 +422,6 @@ function TherapistDashboard() {
     try {
       await setDoc(doc(db, "therapists", therapistId), therapistInfo, { merge: true });
       logFirestoreOperation("write", 1, { collection: "therapists", doc: therapistId });
-      localStorage.setItem(`therapist_${therapistId}`, JSON.stringify({
-        ...therapistInfo,
-        cacheTimestamp: Date.now()
-      }));
       alert("Profile saved successfully!");
       setEditing(false);
     } catch (err) {
@@ -445,18 +435,18 @@ function TherapistDashboard() {
   // Join group chat
   const joinGroupChat = async () => {
     if (!auth.currentUser) return;
-    const batch = writeBatch(db);
-    const groupRef = doc(db, "groupChats", "mainGroup");
-    batch.set(groupRef, { participants: arrayUnion(auth.currentUser.uid) }, { merge: true });
-    batch.set(doc(db, "therapists", therapistId), { lastSeenGroupChat: serverTimestamp() }, { merge: true });
     try {
-      await batch.commit();
+      const lastMsgTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
+      await runTransaction(db, async (transaction) => {
+        const groupRef = doc(db, "groupChats", "mainGroup");
+        transaction.set(groupRef, { participants: arrayUnion(auth.currentUser.uid) }, { merge: true });
+        transaction.set(doc(db, "therapists", therapistId), { lastSeenGroupChat: serverTimestamp() }, { merge: true });
+      });
       logFirestoreOperation("write", 2, { collections: ["groupChats", "therapists"] });
+      setLastSeenTimestamp(lastMsgTime); // Moved after declaration
       setIsGroupChatOpen(true);
       setInGroupChat(true);
       setGroupUnreadCount(0);
-      const lastMsgTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
-      setLastSeenTimestamp(lastMsgTime);
       navigate("/therapist-dashboard/group-chat");
     } catch (err) {
       console.error("Error joining group chat:", err);
@@ -469,13 +459,13 @@ function TherapistDashboard() {
   // Leave group chat
   const leaveGroupChat = async () => {
     if (!auth.currentUser) return;
-    const batch = writeBatch(db);
-    const groupRef = doc(db, "groupChats", "mainGroup");
-    const lastMsgTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
-    batch.set(doc(db, "therapists", therapistId), { lastSeenGroupChat: serverTimestamp() }, { merge: true });
-    batch.set(groupRef, { participants: arrayRemove(auth.currentUser.uid) }, { merge: true });
     try {
-      await batch.commit();
+      await runTransaction(db, async (transaction) => {
+        const groupRef = doc(db, "groupChats", "mainGroup");
+        const lastMsgTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
+        transaction.set(doc(db, "therapists", therapistId), { lastSeenGroupChat: serverTimestamp() }, { merge: true });
+        transaction.update(groupRef, { participants: arrayRemove(auth.currentUser.uid) });
+      });
       logFirestoreOperation("write", 2, { collections: ["therapists", "groupChats"] });
       setIsGroupChatOpen(false);
       setInGroupChat(false);
@@ -502,25 +492,27 @@ function TherapistDashboard() {
       navigate(`/therapist-dashboard/private-chat/${chatId}`);
       return;
     }
-    const batch = writeBatch(db);
-    const now = Date.now();
-    batch.update(chatRef, {
-      participants: arrayUnion(uid),
-      therapistJoinedOnce: true,
-      aiOffered: false,
-      aiActive: false,
-      unreadCountForTherapist: 0,
-      lastJoinEvent: now,
-    });
-    batch.set(collection(chatRef, "events"), {
-      type: "join",
-      user: displayName,
-      text: `A therapist "${displayName}" has joined. You can now continue your conversation with them.`,
-      role: "system",
-      timestamp: serverTimestamp(),
-    });
     try {
-      await batch.commit();
+      await runTransaction(db, async (transaction) => {
+        const chatSnap = await transaction.get(chatRef);
+        if (!chatSnap.exists()) throw new Error("Chat document does not exist");
+        const now = Date.now();
+        transaction.update(chatRef, {
+          participants: arrayUnion(uid),
+          therapistJoinedOnce: true,
+          aiOffered: false,
+          aiActive: false,
+          unreadCountForTherapist: 0,
+          lastJoinEvent: now,
+        });
+        transaction.set(doc(collection(chatRef, "events")), {
+          type: "join",
+          user: displayName,
+          text: `A therapist "${displayName}" has joined. You can now continue your conversation with them.`,
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
+      });
       logFirestoreOperation("write", 2, { collection: "privateChats", subcollection: "events" });
       setActiveChatId(chatId);
       navigate(`/therapist-dashboard/private-chat/${chatId}`);
@@ -535,33 +527,34 @@ function TherapistDashboard() {
   // Leave private chat
   const leavePrivateChat = async () => {
     if (!activeChatId || !auth.currentUser) return;
-    const batch = writeBatch(db);
-    const chatRef = doc(db, "privateChats", activeChatId);
-    const now = Date.now();
-    batch.set(collection(chatRef, "events"), {
-      type: "leave",
-      user: displayName,
-      text: `${displayName} left the chat.`,
-      role: "system",
-      timestamp: serverTimestamp(),
-    });
-    batch.update(chatRef, {
-      participants: arrayRemove(auth.currentUser.uid),
-      aiOffered: true,
-      aiActive: false,
-      therapistJoinedOnce: false,
-      lastLeaveEvent: now,
-      lastLeaveAiOffered: now,
-    });
     try {
-      await batch.commit();
+      const chatRef = doc(db, "privateChats", activeChatId);
+      await runTransaction(db, async (transaction) => {
+        const chatSnap = await transaction.get(chatRef);
+        if (!chatSnap.exists()) throw new Error("Chat document does not exist");
+        const now = Date.now();
+        transaction.set(doc(collection(chatRef, "events")), {
+          type: "leave",
+          user: displayName,
+          text: `${displayName} left the chat.`,
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
+        transaction.update(chatRef, {
+          participants: arrayRemove(auth.currentUser.uid),
+          aiOffered: true,
+          aiActive: false,
+          therapistJoinedOnce: false,
+          lastLeaveEvent: now,
+          lastLeaveAiOffered: now,
+        });
+      });
       logFirestoreOperation("write", 2, { collection: "privateChats", subcollection: "events" });
       setActiveChatId(null);
       navigate("/therapist-dashboard/private-chat");
     } catch (err) {
       console.error("Error leaving private chat:", err);
       alert("Failed to leave chat. Please try again.");
-      setActiveChatId(activeChatId);
       if (err.code === "resource-exhausted") {
         alert("Firestore quota exceeded. Please try again later.");
       }
@@ -573,27 +566,32 @@ function TherapistDashboard() {
     if (!newPrivateMessage.trim() || !auth.currentUser || !activeChatId) return;
     setIsSendingPrivate(true);
     const chatRef = doc(db, "privateChats", activeChatId);
-    const batch = writeBatch(db);
-    batch.set(collection(chatRef, "messages"), {
-      text: newPrivateMessage,
-      userId: auth.currentUser.uid,
-      displayName: therapistName,
-      role: "therapist",
-      timestamp: serverTimestamp(),
-    });
-    batch.update(chatRef, {
-      lastMessage: newPrivateMessage,
-      lastUpdated: serverTimestamp(),
-      unreadCountForTherapist: 0,
-    });
     try {
-      await batch.commit();
+      await runTransaction(db, async (transaction) => {
+        const chatSnap = await transaction.get(chatRef);
+        if (!chatSnap.exists()) throw new Error("Chat document does not exist");
+        transaction.set(doc(collection(chatRef, "messages")), {
+          text: newPrivateMessage,
+          userId: auth.currentUser.uid,
+          displayName: therapistName,
+          role: "therapist",
+          timestamp: serverTimestamp(),
+        });
+        transaction.update(chatRef, {
+          lastMessage: newPrivateMessage,
+          lastUpdated: serverTimestamp(),
+          unreadCountForTherapist: 0,
+        });
+      });
       logFirestoreOperation("write", 2, { collection: "privateChats", subcollection: "messages" });
     } catch (err) {
       console.error("Error sending private message:", err);
       if (err.code === "resource-exhausted") {
         alert("Firestore quota exceeded. Please try again later.");
+      } else if (err.message === "Chat document does not exist") {
+        navigate("/therapist-dashboard/private-chat");
       }
+      setIsSendingPrivate(false);
       return;
     }
     setNewPrivateMessage("");

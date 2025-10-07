@@ -2,15 +2,15 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   collection,
-  addDoc,
   onSnapshot,
   serverTimestamp,
   query,
   orderBy,
   doc,
   getDoc,
-  updateDoc,
   setDoc,
+  runTransaction,
+  limit, // Added import to fix ESLint error
 } from "firebase/firestore";
 import { db, auth } from "../../utils/firebase";
 import { getAIResponse } from "../../utils/AiChatIntegration";
@@ -18,6 +18,10 @@ import { mapMessagesForAI } from "../../utils/aiMessageMapper";
 import { loginAnonymously, getAnonName } from "../../login/anonymous_login";
 import TherapistProfile from "../../components/TherapistProfile";
 import { useTypingStatus } from "../../components/useTypingStatus";
+
+const logFirestoreOperation = (operation, count, details) => {
+  console.log(`Firestore ${operation}: ${count} documents`, details);
+};
 
 function Chatroom() {
   const [messages, setMessages] = useState([]);
@@ -38,27 +42,31 @@ function Chatroom() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Fetch therapist name
+  // Initialize authentication and messages
   useEffect(() => {
-    const fetchName = async () => {
-      if (auth.currentUser?.email) {
-        const snap = await getDoc(doc(db, "therapists", auth.currentUser.uid));
-        if (snap.exists()) {
-          setTherapistName(snap.data().name || "Therapist");
+    const initializeAuth = async () => {
+      try {
+        await loginAnonymously();
+        setIsLoggedIn(!!auth.currentUser);
+      } catch (err) {
+        console.error("Error during anonymous login:", err);
+        if (err.code === "resource-exhausted") {
+          alert("Firestore quota exceeded. Please try again later.");
         }
       }
     };
-    fetchName();
-  }, []);
+    initializeAuth();
 
-  // Initialize chat & messages
-  useEffect(() => {
-    loginAnonymously();
-
-    const q = query(collection(db, "messages"), orderBy("timestamp"));
+    const q = query(collection(db, "messages"), orderBy("timestamp"), limit(50));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      logFirestoreOperation("read", snapshot.docs.length, { collection: "messages" });
       setMessages(msgs);
+    }, (err) => {
+      console.error("Error fetching messages:", err);
+      if (err.code === "resource-exhausted") {
+        alert("Firestore quota exceeded. Please try again later.");
+      }
     });
 
     return () => unsubscribe();
@@ -66,36 +74,64 @@ function Chatroom() {
 
   // Track therapists online
   useEffect(() => {
-    const q = collection(db, "therapistsOnline");
+    const q = query(collection(db, "therapistsOnline"), limit(50));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const onlineList = snapshot.docs.map((doc) => ({
         uid: doc.id,
         ...doc.data(),
       }));
+      logFirestoreOperation("read", snapshot.docs.length, { collection: "therapistsOnline" });
       setTherapistsOnline(onlineList);
+    }, (err) => {
+      console.error("Error fetching therapists online:", err);
+      if (err.code === "resource-exhausted") {
+        alert("Firestore quota exceeded. Please try again later.");
+      }
     });
     return () => unsubscribe();
   }, []);
+
+  // Fetch therapist name with real-time updates
+  useEffect(() => {
+    if (!auth.currentUser?.email) return;
+    const therapistRef = doc(db, "therapists", auth.currentUser.uid);
+    const unsubscribe = onSnapshot(therapistRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setTherapistName(data.name || "Therapist");
+        logFirestoreOperation("read", 1, { collection: "therapists", doc: auth.currentUser.uid });
+      } else {
+        setTherapistName("Therapist");
+      }
+    }, (err) => {
+      console.error("Error fetching therapist profile:", err);
+      if (err.code === "resource-exhausted") {
+        alert("Firestore quota exceeded. Please try again later.");
+      }
+    });
+    return () => unsubscribe();
+  }, [auth.currentUser?.uid]);
 
   // Track therapist login
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
       setIsLoggedIn(!!user);
-
       if (user?.email && !sessionStorage.getItem("therapistJoined")) {
         try {
           const snap = await getDoc(doc(db, "therapists", user.uid));
+          logFirestoreOperation("read", 1, { collection: "therapists", doc: user.uid });
           if (snap.exists()) {
             setTherapistName(snap.data().name || "Therapist");
           }
+          sessionStorage.setItem("therapistJoined", "true");
         } catch (err) {
           console.error("Error fetching therapist name:", err);
+          if (err.code === "resource-exhausted") {
+            alert("Firestore quota exceeded. Please try again later.");
+          }
         }
-
-        sessionStorage.setItem("therapistJoined", "true");
       }
     });
-
     return () => unsubscribeAuth();
   }, []);
 
@@ -104,52 +140,61 @@ function Chatroom() {
     if (msg.role !== "therapist") return;
     try {
       const snap = await getDoc(doc(db, "therapists", msg.userId));
+      logFirestoreOperation("read", 1, { collection: "therapists", doc: msg.userId });
       if (snap.exists()) {
         setSelectedTherapist({ ...snap.data(), uid: msg.userId });
       }
     } catch (err) {
       console.error("Error fetching therapist profile:", err);
+      if (err.code === "resource-exhausted") {
+        alert("Firestore quota exceeded. Please try again later.");
+      }
     }
   };
 
   // Start private chat
   const startPrivateChat = async (therapist) => {
-    if (!therapist || !therapist.uid) return;
-
+    if (!therapist || !therapist.uid || !auth.currentUser) return;
     const chatId = `chat_${auth.currentUser.uid}_${therapist.uid}`;
     const chatRef = doc(db, "privateChats", chatId);
-    const chatSnap = await getDoc(chatRef);
 
-    if (!chatSnap.exists()) {
-      // First participant starts the chat
-      await setDoc(chatRef, {
-        participants: [auth.currentUser.uid],
-        createdBy: auth.currentUser.uid,
-        lastMessage: "",
-        lastUpdated: serverTimestamp(),
-        unreadCountForTherapist: 0,
-        aiOffered: false,
-        chatStatus: "waiting",
+    try {
+      await runTransaction(db, async (transaction) => {
+        const chatSnap = await transaction.get(chatRef);
+        if (!chatSnap.exists()) {
+          transaction.set(chatRef, {
+            participants: [auth.currentUser.uid],
+            createdBy: auth.currentUser.uid,
+            lastMessage: "",
+            lastUpdated: serverTimestamp(),
+            unreadCountForTherapist: 0,
+            aiOffered: false,
+            chatStatus: "waiting",
+          });
+        } else {
+          const currentData = chatSnap.data();
+          const updatedParticipants = [
+            ...new Set([...(currentData.participants || []), auth.currentUser.uid]),
+          ];
+          transaction.update(chatRef, {
+            participants: updatedParticipants,
+            lastUpdated: serverTimestamp(),
+            chatStatus: updatedParticipants.length === 2 ? "active" : "waiting",
+          });
+        }
       });
-    } else {
-      // Chat exists, add second participant
-      const currentData = chatSnap.data();
-      const updatedParticipants = [
-        ...new Set([...(currentData.participants || []), auth.currentUser.uid]),
-      ];
-      await updateDoc(chatRef, {
-        participants: updatedParticipants,
-        lastUpdated: serverTimestamp(),
-        chatStatus: updatedParticipants.length === 2 ? "active" : "waiting",
-      });
+      logFirestoreOperation("write", 1, { collection: "privateChats", doc: chatId });
+      const isTherapist = auth.currentUser?.email;
+      const route = isTherapist
+        ? `/therapist-dashboard/private-chat/${chatId}`
+        : `/chat-room/${chatId}`;
+      navigate(route);
+    } catch (err) {
+      console.error("Error starting private chat:", err);
+      if (err.code === "resource-exhausted") {
+        alert("Firestore quota exceeded. Please try again later.");
+      }
     }
-
-    // Navigate based on user role
-    const isTherapist = auth.currentUser?.email;
-    const route = isTherapist
-      ? `/therapist-dashboard/private-chat/${chatId}`
-      : `/chat-room/${chatId}`;
-    navigate(route);
   };
 
   // Send message
@@ -157,61 +202,69 @@ function Chatroom() {
     if (!newMessage.trim() || !auth.currentUser) return;
 
     const role = auth.currentUser.email ? "therapist" : "user";
-    let displayName = role === "therapist" ? "Therapist" : getAnonName();
+    let displayName = role === "therapist" ? therapistName : getAnonName();
 
-    if (role === "therapist") {
-      try {
-        const snap = await getDoc(doc(db, "therapists", auth.currentUser.uid));
-        if (snap.exists()) displayName = snap.data().name;
-      } catch (err) {
-        console.error("Error fetching therapist name:", err);
-      }
-    }
-
-    await addDoc(collection(db, "messages"), {
-      text: newMessage,
-      userId: auth.currentUser.uid,
-      displayName,
-      role,
-      timestamp: serverTimestamp(),
-    });
-
-    setNewMessage("");
-
-    // Stop typing for this user
-    const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
-    await updateDoc(typingDoc, { typing: false }).catch(async () => {
-      await setDoc(typingDoc, {
-        typing: false,
-        name: displayName,
-        timestamp: serverTimestamp(),
+    try {
+      await runTransaction(db, async (transaction) => {
+        const messagesRef = collection(db, "messages");
+        const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
+        transaction.set(messagesRef, {
+          text: newMessage,
+          userId: auth.currentUser.uid,
+          displayName,
+          role,
+          timestamp: serverTimestamp(),
+        });
+        transaction.set(typingDoc, {
+          typing: false,
+          name: displayName,
+          timestamp: serverTimestamp(),
+        });
       });
-    });
+      logFirestoreOperation("write", 2, { collections: ["messages", "typingStatus"] });
 
-    // Trigger AI on @ai
-    if (role === "user" && newMessage.toLowerCase().includes("@ai")) {
-      const cleanMessage = newMessage.replace(/@ai/gi, "").trim();
-      const originalMessage = newMessage.trim();
-      setAiTyping(true);
+      if (role === "user" && newMessage.toLowerCase().includes("@ai")) {
+        const cleanMessage = newMessage.replace(/@ai/gi, "").trim();
+        const originalMessage = newMessage.trim();
+        setAiTyping(true);
 
-      setTimeout(async () => {
         try {
           const aiInputMessages = mapMessagesForAI(messages);
           const aiReply = await getAIResponse(cleanMessage, aiInputMessages);
-          await addDoc(collection(db, "messages"), {
-            text: `You said: "${originalMessage}"\n\n${aiReply}`,
-            userId: "AI_BOT",
-            displayName: "AI Support",
-            role: "ai",
-            timestamp: serverTimestamp(),
+          await runTransaction(db, async (transaction) => {
+            transaction.set(collection(db, "messages"), {
+              text: `You said: "${originalMessage}"\n\n${aiReply}`,
+              userId: "AI_BOT",
+              displayName: "AI Support",
+              role: "ai",
+              timestamp: serverTimestamp(),
+            });
           });
+          logFirestoreOperation("write", 1, { collection: "messages" });
         } catch (err) {
           console.error("AI error:", err);
+          await runTransaction(db, async (transaction) => {
+            transaction.set(collection(db, "messages"), {
+              text: "Sorry, I couldn’t respond right now. Please try again later.",
+              userId: "AI_BOT",
+              displayName: "AI Support",
+              role: "ai",
+              timestamp: serverTimestamp(),
+            });
+          });
+          logFirestoreOperation("write", 1, { collection: "messages" });
         } finally {
           setAiTyping(false);
         }
-      }, 2000);
+      }
+    } catch (err) {
+      console.error("Error sending message:", err);
+      if (err.code === "resource-exhausted") {
+        alert("Firestore quota exceeded. Please try again later.");
+      }
     }
+
+    setNewMessage("");
   };
 
   // Check therapist online by uid
@@ -219,99 +272,74 @@ function Chatroom() {
     therapistsOnline.some((t) => t.uid === uid && t.online);
 
   return (
-    <div className="chat-box" style={{ border: "1px solid #ccc", padding: "10px", height: "350px", overflowY: "scroll", marginBottom: "10px" }}>
+    <div className="chatroom">
       <h2>Anonymous Mental Health Chat</h2>
-
       <p>
         {therapistsOnline.length > 0
           ? `Therapists online: ${therapistsOnline.map((t) => t.name).join(", ")}`
           : "No therapist online currently"}
       </p>
-
       {selectedTherapist ? (
         <TherapistProfile
           therapist={selectedTherapist}
           isOnline={isTherapistOnline(selectedTherapist.uid)}
           onBack={() => setSelectedTherapist(null)}
           onStartChat={() => startPrivateChat(selectedTherapist)}
-          onBookAppointment={() => {}}
+          onBookAppointment={() => alert("Appointment booking coming soon!")}
         />
       ) : (
         <>
-          <div className="chat-box" style={{ marginBottom: "10px" }}>
+          <div
+            className="chat-box"
+            style={{
+              border: "1px solid #ccc",
+              padding: "10px",
+              height: "350px",
+              overflowY: "scroll",
+              marginBottom: "10px",
+            }}
+          >
             {messages.map((msg) => (
               <p
                 key={msg.id}
-                style={{
-                  backgroundColor:
-                    msg.role === "ai"
-                      ? "#f0fff0"
-                      : msg.role === "system"
-                      ? "#f9f9f9"
-                      : "transparent",
-                  padding: "8px",
-                  borderRadius: "6px",
-                  color:
-                    msg.role === "ai"
-                      ? "green"
-                      : msg.role === "therapist"
-                      ? "blue"
-                      : msg.role === "system"
-                      ? "gray"
-                      : "black",
-                  fontStyle:
-                    msg.role === "ai" || msg.role === "system"
-                      ? "italic"
-                      : "normal",
-                  fontWeight: msg.role === "therapist" ? "bold" : "normal",
-                }}
+                className={`chat-message ${
+                  msg.role === "therapist"
+                    ? "therapist"
+                    : msg.role === "ai"
+                    ? "ai"
+                    : "user"
+                }`}
+                onClick={() => handleTherapistClick(msg)}
               >
-                {msg.role === "system" ? (
-                  <em>{msg.text}</em>
-                ) : (
-                  <>
-                    <strong
-                      style={{
-                        cursor: msg.role === "therapist" ? "pointer" : "default",
-                        textDecoration:
-                          msg.role === "therapist" ? "underline" : "none",
-                      }}
-                      onClick={() => handleTherapistClick(msg)}
-                    >
-                      {msg.displayName || "Anonymous"}
-                    </strong>
-                    : {msg.text}
-                  </>
-                )}
+                <strong>{msg.displayName || "Anonymous"}:</strong> {msg.text}
               </p>
             ))}
             {typingUsers.length > 0 && (
-              <p style={{ fontStyle: "italic", color: "gray" }}>
-                {typingUsers.join(", ")}{" "}
-                {typingUsers.length === 1 ? "is" : "are"} typing...
+              <p className="typing-indicator">
+                {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
               </p>
             )}
             {aiTyping && (
-              <p style={{ fontStyle: "italic", color: "gray" }}>
+              <p className="typing-indicator ai-typing">
                 AI Support is typing...
               </p>
             )}
             <div ref={messagesEndRef} />
           </div>
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => {
-              setNewMessage(e.target.value);
-              handleTyping(e.target.value);
-            }}
-            disabled={!isLoggedIn}
-            style={{ width: "70%", marginRight: "5px" }}
-            placeholder="Type a message..."
-          />
-          <button onClick={sendMessage} disabled={!isLoggedIn}>
-            Send
-          </button>
+          {isLoggedIn && (
+            <div className="chat-input">
+              <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => {
+                  setNewMessage(e.target.value);
+                  handleTyping(e.target.value);
+                }}
+                placeholder="Type a message..."
+              />
+              <button onClick={sendMessage}>Send</button>
+            </div>
+          )}
         </>
       )}
     </div>
