@@ -55,6 +55,8 @@ function TherapistDashboard() {
   const [therapistName, setTherapistName] = useState("Therapist");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isLoadingChats, setIsLoadingChats] = useState(true);
+  const [isValidatingChat, setIsValidatingChat] = useState(false);
+  const [chatError, setChatError] = useState(null);
   const therapistId = auth.currentUser?.uid;
   const displayName = therapistInfo.name || "Unknown Therapist";
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
@@ -93,16 +95,88 @@ function TherapistDashboard() {
     privateMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [privateMessages, privateEvents]);
 
-  // Sync activeChatId with URL param
+  // Validate and sync activeChatId with URL param
   useEffect(() => {
-    if (location.pathname.startsWith("/therapist-dashboard/private-chat/") && chatId) {
-      setActiveChatId(chatId);
-    } else {
+    if (!chatId || !location.pathname.startsWith("/therapist-dashboard/private-chat/")) {
       setActiveChatId(null);
       setPrivateMessages([]);
       setPrivateEvents([]);
+      setChatError(null);
+      setIsValidatingChat(false);
+      return;
     }
-  }, [location.pathname, chatId]);
+
+    const validateChat = async () => {
+      setIsValidatingChat(true);
+      setChatError(null);
+      try {
+        const chatRef = doc(db, "privateChats", chatId);
+        const chatSnap = await getDoc(chatRef);
+        logFirestoreOperation("read", 1, { collection: "privateChats", doc: chatId });
+
+        if (!chatSnap.exists()) {
+          console.log("Chat document does not exist:", chatId);
+          setChatError("This chat no longer exists.");
+          setActiveChatId(null);
+          navigate("/therapist-dashboard/private-chat");
+          return;
+        }
+
+        const chatData = chatSnap.data();
+        console.log("Chat data:", JSON.stringify(chatData, null, 2));
+        const isParticipant = chatData.participants?.includes(therapistId);
+        const needsTherapist = chatData.needsTherapist === true;
+        console.log("isParticipant:", isParticipant, "needsTherapist:", needsTherapist, "therapistId:", therapistId);
+
+        if (!isParticipant && !needsTherapist) {
+          console.log("Initial validation failed: Therapist not in participants and needsTherapist is false");
+          // Check recent events to see if the therapist just joined
+          const eventsQuery = query(
+            collection(chatRef, "events"),
+            where("type", "==", "join"),
+            where("user", "==", displayName),
+            orderBy("timestamp", "desc"),
+            limit(1)
+          );
+          const eventsSnap = await getDocs(eventsQuery);
+          const recentJoin = eventsSnap.docs.length > 0;
+          const recentJoinTime = recentJoin ? eventsSnap.docs[0].data().timestamp?.toMillis() : 0;
+          const isRecentJoin = recentJoin && (Date.now() - recentJoinTime) < 10000; // Within 10 seconds
+          console.log("Recent join event:", recentJoin, "isRecentJoin:", isRecentJoin);
+
+          if (!isRecentJoin) {
+            // Retry fetching the chat document
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            const retrySnap = await getDoc(chatRef);
+            if (!retrySnap.exists()) {
+              setChatError("This chat no longer exists.");
+              setActiveChatId(null);
+              navigate("/therapist-dashboard/private-chat");
+              return;
+            }
+            const retryData = retrySnap.data();
+            if (!retryData.participants?.includes(therapistId) && !retryData.needsTherapist) {
+              setChatError("You do not have permission to access this chat.");
+              setActiveChatId(null);
+              navigate("/therapist-dashboard/private-chat");
+              return;
+            }
+          }
+        }
+
+        setActiveChatId(chatId);
+      } catch (err) {
+        console.error("Error validating chat:", err);
+        setChatError("Failed to load chat. Please try again.");
+        setActiveChatId(null);
+        navigate("/therapist-dashboard/private-chat");
+      } finally {
+        setIsValidatingChat(false);
+      }
+    };
+
+    validateChat();
+  }, [location.pathname, chatId, therapistId, navigate, displayName]);
 
   // Load private chats with retry
   useEffect(() => {
@@ -130,16 +204,14 @@ function TherapistDashboard() {
         logFirestoreOperation("read", snapshot.docs.length, { collection: "privateChats" });
         setPrivateChats((prev) => {
           const allChats = [...prev, ...chats];
-          const uniqueChats = [...new Set(allChats.map(c => c.id))].map(id => allChats.find(c => c.id === id));
+          const uniqueChats = [...new Set(allChats.map((c) => c.id))].map((id) =>
+            allChats.find((c) => c.id === id)
+          );
           return uniqueChats;
         });
       }, (err) => {
         console.error("Error fetching private chats (participant):", err);
-        if (err.code === "resource-exhausted") {
-          alert("Firestore quota exceeded. Please try again later.");
-        } else if (err.code === "permission-denied") {
-          alert("You do not have permission to access private chats.");
-        } else if (retryCount < maxRetries) {
+        if (retryCount < maxRetries) {
           retryCount++;
           console.log(`Retrying private chats subscription (${retryCount}/${maxRetries})...`);
           setTimeout(trySubscribe, 2000 * retryCount);
@@ -153,17 +225,14 @@ function TherapistDashboard() {
         logFirestoreOperation("read", snapshot.docs.length, { collection: "privateChats" });
         setPrivateChats((prev) => {
           const allChats = [...prev, ...chats];
-          const uniqueChats = [...new Set(allChats.map(c => c.id))].map(id => allChats.find(c => c.id === id));
+          const uniqueChats = [...new Set(allChats.map((c) => c.id))].map((id) =>
+            allChats.find((c) => c.id === id)
+          );
           return uniqueChats;
         });
         setIsLoadingChats(false);
       }, (err) => {
         console.error("Error fetching private chats (needsTherapist):", err);
-        if (err.code === "resource-exhausted") {
-          alert("Firestore quota exceeded. Please try again later.");
-        } else if (err.code === "permission-denied") {
-          alert("You do not have permission to access private chats.");
-        }
         setIsLoadingChats(false);
       });
       return () => {
@@ -187,11 +256,7 @@ function TherapistDashboard() {
       setActiveTherapists(onlineTherapists.map((t) => t.name || "Therapist"));
     }, (err) => {
       console.error("Error fetching therapists online:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      } else {
-        alert("Failed to fetch therapist status. Please try again.");
-      }
+      alert("Failed to fetch therapist status. Please try again.");
     });
     return () => unsub();
   }, []);
@@ -201,82 +266,76 @@ function TherapistDashboard() {
     if (!activeChatId) return;
     const chatRef = doc(db, "privateChats", activeChatId);
     const q = query(collection(chatRef, "messages"), orderBy("timestamp"), limit(50));
-    const unsubscribeMessages = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      logFirestoreOperation("read", snapshot.docs.length, { collection: `privateChats/${activeChatId}/messages` });
-      setPrivateMessages(msgs);
-      runTransaction(db, async (transaction) => {
-        const chatSnap = await transaction.get(chatRef);
-        if (chatSnap.exists()) {
-          transaction.update(chatRef, { unreadCountForTherapist: 0 });
-        }
-      }).catch((err) => {
-        console.error("Error resetting unread count:", err);
-        if (err.code === "resource-exhausted") {
-          alert("Firestore quota exceeded. Please try again later.");
-        } else if (err.code === "permission-denied") {
-          alert("You do not have permission to update this chat.");
-        }
-      });
-    }, (err) => {
-      console.error("Error fetching private messages:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      } else if (err.code === "permission-denied") {
-        alert("You do not have permission to view this chat's messages.");
-        navigate("/therapist-dashboard/private-chat");
-      } else {
-        alert("Failed to load private messages. Please try again.");
+    const unsubscribeMessages = onSnapshot(
+      q,
+      (snapshot) => {
+        const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        logFirestoreOperation("read", snapshot.docs.length, {
+          collection: `privateChats/${activeChatId}/messages`,
+        });
+        setPrivateMessages(msgs);
+        runTransaction(db, async (transaction) => {
+          const chatSnap = await transaction.get(chatRef);
+          if (chatSnap.exists()) {
+            transaction.update(chatRef, { unreadCountForTherapist: 0 });
+          }
+        }).catch((err) => {
+          console.error("Error resetting unread count:", err);
+          alert("Failed to reset unread count. Please try again.");
+        });
+      },
+      (err) => {
+        console.error("Error fetching private messages:", err);
+        setChatError("Failed to load private messages. Please try again.");
       }
-    });
+    );
     return () => unsubscribeMessages();
-  }, [activeChatId, navigate]);
+  }, [activeChatId]);
 
   // Watch private chat events
   useEffect(() => {
     if (!activeChatId) return;
     const chatRef = doc(db, "privateChats", activeChatId);
     const q = query(collection(chatRef, "events"), orderBy("timestamp"), limit(50));
-    const unsubscribeEvents = onSnapshot(q, (snapshot) => {
-      const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      logFirestoreOperation("read", snapshot.docs.length, { collection: `privateChats/${activeChatId}/events` });
-      setPrivateEvents(evts);
-    }, (err) => {
-      console.error("Error fetching private events:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      } else if (err.code === "permission-denied") {
-        alert("You do not have permission to view this chat's events.");
-        navigate("/therapist-dashboard/private-chat");
-      } else {
-        alert("Failed to load private events. Please try again.");
+    const unsubscribeEvents = onSnapshot(
+      q,
+      (snapshot) => {
+        const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        logFirestoreOperation("read", snapshot.docs.length, {
+          collection: `privateChats/${activeChatId}/events`,
+        });
+        setPrivateEvents(evts);
+      },
+      (err) => {
+        console.error("Error fetching private events:", err);
+        setChatError("Failed to load private events. Please try again.");
       }
-    });
+    );
     return () => unsubscribeEvents();
-  }, [activeChatId, navigate]);
+  }, [activeChatId]);
 
   // Group messages listener + unread count
   useEffect(() => {
     const q = query(collection(db, "messages"), orderBy("timestamp"), limit(50));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      logFirestoreOperation("read", snapshot.docs.length, { collection: "messages" });
-      setMessages(msgs);
-      if (!isGroupChatOpen) {
-        const unread = msgs.filter((msg) => {
-          const msgTime = msg.timestamp?.toMillis();
-          return msgTime && (!lastSeenTimestamp || msgTime > lastSeenTimestamp);
-        }).length;
-        setGroupUnreadCount(unread);
-      }
-    }, (err) => {
-      console.error("Error fetching group messages:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      } else {
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        logFirestoreOperation("read", snapshot.docs.length, { collection: "messages" });
+        setMessages(msgs);
+        if (!isGroupChatOpen) {
+          const unread = msgs.filter((msg) => {
+            const msgTime = msg.timestamp?.toMillis();
+            return msgTime && (!lastSeenTimestamp || msgTime > lastSeenTimestamp);
+          }).length;
+          setGroupUnreadCount(unread);
+        }
+      },
+      (err) => {
+        console.error("Error fetching group messages:", err);
         alert("Failed to load group messages. Please try again.");
       }
-    });
+    );
     return () => unsubscribe();
   }, [isGroupChatOpen, lastSeenTimestamp]);
 
@@ -284,18 +343,20 @@ function TherapistDashboard() {
   useEffect(() => {
     const groupRef = doc(db, "groupChats", "mainGroup");
     const q = query(collection(groupRef, "events"), orderBy("timestamp"), limit(50));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      logFirestoreOperation("read", snapshot.docs.length, { collection: "groupChats/mainGroup/events" });
-      setGroupEvents(evts);
-    }, (err) => {
-      console.error("Error fetching group events:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      } else {
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        logFirestoreOperation("read", snapshot.docs.length, {
+          collection: "groupChats/mainGroup/events",
+        });
+        setGroupEvents(evts);
+      },
+      (err) => {
+        console.error("Error fetching group events:", err);
         alert("Failed to load group events. Please try again.");
       }
-    });
+    );
     return () => unsubscribe();
   }, []);
 
@@ -303,21 +364,21 @@ function TherapistDashboard() {
   useEffect(() => {
     if (!auth.currentUser) return;
     const groupRef = doc(db, "groupChats", "mainGroup");
-    const unsub = onSnapshot(groupRef, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        const isParticipant = data.participants?.includes(auth.currentUser.uid) || false;
-        setInGroupChat(isParticipant);
-        setIsGroupChatOpen(isParticipant && isGroupChatOpen);
-      }
-    }, (err) => {
-      console.error("Error fetching group chat data:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      } else {
+    const unsub = onSnapshot(
+      groupRef,
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          const isParticipant = data.participants?.includes(auth.currentUser.uid) || false;
+          setInGroupChat(isParticipant);
+          setIsGroupChatOpen(isParticipant && isGroupChatOpen);
+        }
+      },
+      (err) => {
+        console.error("Error fetching group chat data:", err);
         alert("Failed to load group chat data. Please try again.");
       }
-    });
+    );
     return () => unsub();
   }, [isGroupChatOpen]);
 
@@ -333,7 +394,7 @@ function TherapistDashboard() {
         let lastSeen;
         if (lastSeenGroupChat instanceof Timestamp) {
           lastSeen = lastSeenGroupChat.toMillis();
-        } else if (typeof lastSeenGroupChat === 'number') {
+        } else if (typeof lastSeenGroupChat === "number") {
           lastSeen = lastSeenGroupChat;
         } else {
           lastSeen = Date.now();
@@ -345,11 +406,7 @@ function TherapistDashboard() {
     };
     fetchLastSeen().catch((err) => {
       console.error("Error fetching last seen:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      } else {
-        alert("Failed to fetch last seen timestamp. Please try again.");
-      }
+      alert("Failed to fetch last seen timestamp. Please try again.");
     });
   }, [therapistId]);
 
@@ -357,33 +414,31 @@ function TherapistDashboard() {
   useEffect(() => {
     if (!therapistId) return;
     const therapistRef = doc(db, "therapists", therapistId);
-    const unsubscribe = onSnapshot(therapistRef, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        setTherapistInfo(data);
-        setTherapistName(data.name || "Therapist");
-        logFirestoreOperation("read", 1, { collection: "therapists", doc: therapistId });
-      } else {
-        const defaultInfo = {
-          name: "New Therapist",
-          gender: "",
-          position: "",
-          profile: "",
-          rating: 0,
-        };
-        setTherapistInfo(defaultInfo);
-        setTherapistName("Therapist");
-      }
-    }, (err) => {
-      console.error("Error fetching therapist profile:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      } else if (err.code === "permission-denied") {
-        alert("You do not have permission to access therapist profile.");
-      } else {
+    const unsubscribe = onSnapshot(
+      therapistRef,
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          setTherapistInfo(data);
+          setTherapistName(data.name || "Therapist");
+          logFirestoreOperation("read", 1, { collection: "therapists", doc: therapistId });
+        } else {
+          const defaultInfo = {
+            name: "New Therapist",
+            gender: "",
+            position: "",
+            profile: "",
+            rating: 0,
+          };
+          setTherapistInfo(defaultInfo);
+          setTherapistName("Therapist");
+        }
+      },
+      (err) => {
+        console.error("Error fetching therapist profile:", err);
         alert("Failed to fetch therapist profile. Please try again.");
       }
-    });
+    );
     return () => unsubscribe();
   }, [therapistId]);
 
@@ -428,13 +483,7 @@ function TherapistDashboard() {
         logFirestoreOperation("write", 2, { collections: ["privateChats", "groupChats"] });
       } catch (err) {
         console.error("Error auto-leaving chats:", err);
-        if (err.code === "resource-exhausted") {
-          alert("Firestore quota exceeded. Please try again later.");
-        } else if (err.code === "permission-denied") {
-          alert("You do not have permission to leave chats.");
-        } else {
-          alert("Failed to auto-leave chats. Please try again.");
-        }
+        alert("Failed to auto-leave chats. Please try again.");
       }
     }, 1000);
     const handleBeforeUnload = () => {
@@ -468,19 +517,17 @@ function TherapistDashboard() {
           role: "therapist",
           timestamp: serverTimestamp(),
         });
-        transaction.set(typingDoc, { typing: false, name: therapistInfo.name || "Therapist", timestamp: serverTimestamp() });
+        transaction.set(typingDoc, {
+          typing: false,
+          name: therapistInfo.name || "Therapist",
+          timestamp: serverTimestamp(),
+        });
       });
       logFirestoreOperation("write", 2, { collections: ["messages", "typingStatus"] });
       setReply("");
     } catch (err) {
       console.error("Error sending group message:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      } else if (err.code === "permission-denied") {
-        alert("You do not have permission to send group messages.");
-      } else {
-        alert("Failed to send group message. Please try again.");
-      }
+      alert("Failed to send group message. Please try again.");
     }
   };
 
@@ -519,7 +566,9 @@ function TherapistDashboard() {
           lastSeen: serverTimestamp(),
         });
       });
-      logFirestoreOperation("write", activeChatId ? 3 : 1, { collections: ["therapistsOnline", activeChatId ? "privateChats" : null] });
+      logFirestoreOperation("write", activeChatId ? 3 : 1, {
+        collections: ["therapistsOnline", activeChatId ? "privateChats" : null],
+      });
       await signOut(auth);
       setTherapistInfo({
         name: "",
@@ -536,13 +585,7 @@ function TherapistDashboard() {
       navigate("/therapist-login");
     } catch (err) {
       console.error("Logout error:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      } else if (err.code === "permission-denied") {
-        alert("You do not have permission to perform this action.");
-      } else {
-        alert("Failed to logout. Please try again.");
-      }
+      alert("Failed to logout. Please try again.");
     }
   };
 
@@ -556,13 +599,7 @@ function TherapistDashboard() {
       setEditing(false);
     } catch (err) {
       console.error("Error saving profile:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      } else if (err.code === "permission-denied") {
-        alert("You do not have permission to save profile.");
-      } else {
-        alert("Failed to save profile. Please try again.");
-      }
+      alert("Failed to save profile. Please try again.");
     }
   };
 
@@ -574,7 +611,11 @@ function TherapistDashboard() {
       await runTransaction(db, async (transaction) => {
         const groupRef = doc(db, "groupChats", "mainGroup");
         transaction.set(groupRef, { participants: arrayUnion(auth.currentUser.uid) }, { merge: true });
-        transaction.set(doc(db, "therapists", therapistId), { lastSeenGroupChat: serverTimestamp() }, { merge: true });
+        transaction.set(
+          doc(db, "therapists", therapistId),
+          { lastSeenGroupChat: serverTimestamp() },
+          { merge: true }
+        );
       });
       logFirestoreOperation("write", 2, { collections: ["groupChats", "therapists"] });
       setLastSeenTimestamp(lastMsgTime);
@@ -584,13 +625,7 @@ function TherapistDashboard() {
       navigate("/therapist-dashboard/group-chat");
     } catch (err) {
       console.error("Error joining group chat:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      } else if (err.code === "permission-denied") {
-        alert("You do not have permission to join group chat.");
-      } else {
-        alert("Failed to join group chat. Please try again.");
-      }
+      alert("Failed to join group chat. Please try again.");
     }
   };
 
@@ -601,7 +636,11 @@ function TherapistDashboard() {
       const lastMsgTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
       await runTransaction(db, async (transaction) => {
         const groupRef = doc(db, "groupChats", "mainGroup");
-        transaction.set(doc(db, "therapists", therapistId), { lastSeenGroupChat: serverTimestamp() }, { merge: true });
+        transaction.set(
+          doc(db, "therapists", therapistId),
+          { lastSeenGroupChat: serverTimestamp() },
+          { merge: true }
+        );
         transaction.update(groupRef, { participants: arrayRemove(auth.currentUser.uid) });
       });
       logFirestoreOperation("write", 2, { collections: ["therapists", "groupChats"] });
@@ -612,13 +651,7 @@ function TherapistDashboard() {
       navigate("/therapist-dashboard");
     } catch (err) {
       console.error("Error leaving group chat:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      } else if (err.code === "permission-denied") {
-        alert("You do not have permission to leave group chat.");
-      } else {
-        alert("Failed to leave group chat. Please try again.");
-      }
+      alert("Failed to leave group chat. Please try again.");
     }
   };
 
@@ -627,14 +660,6 @@ function TherapistDashboard() {
     if (!auth.currentUser) return;
     const chatRef = doc(db, "privateChats", chatId);
     const uid = auth.currentUser.uid;
-    const chatSnap = await getDoc(chatRef);
-    logFirestoreOperation("read", 1, { collection: "privateChats", doc: chatId });
-    console.log("Chat document:", chatSnap.exists() ? chatSnap.data() : "Not found");
-    if (chatSnap.exists() && chatSnap.data().participants.includes(uid)) {
-      setActiveChatId(chatId);
-      navigate(`/therapist-dashboard/private-chat/${chatId}`);
-      return;
-    }
     try {
       await runTransaction(db, async (transaction) => {
         const chatSnap = await transaction.get(chatRef);
@@ -648,41 +673,46 @@ function TherapistDashboard() {
             aiOffered: false,
             therapistJoinedOnce: true,
             lastJoinEvent: Date.now(),
-            needsTherapist: false
+            needsTherapist: false,
           });
         } else {
-          transaction.update(chatRef, {
-            participants: arrayUnion(uid),
-            therapistJoinedOnce: true,
-            aiOffered: false,
-            aiActive: false,
-            unreadCountForTherapist: 0,
-            lastJoinEvent: Date.now(),
-            needsTherapist: false
+          const chatData = chatSnap.data();
+          if (!chatData.participants.includes(uid)) {
+            transaction.update(chatRef, {
+              participants: arrayUnion(uid),
+              therapistJoinedOnce: true,
+              aiOffered: false,
+              aiActive: false,
+              unreadCountForTherapist: 0,
+              lastJoinEvent: Date.now(),
+              needsTherapist: true, // Keep true until join is complete
+            });
+          } else {
+            transaction.update(chatRef, {
+              unreadCountForTherapist: 0,
+              needsTherapist: false,
+            });
+          }
+          transaction.set(doc(collection(chatRef, "events")), {
+            type: "join",
+            user: displayName,
+            text: `A therapist "${displayName}" has joined. You can now continue your conversation with them.`,
+            role: "system",
+            timestamp: serverTimestamp(),
           });
         }
-        transaction.set(doc(collection(chatRef, "events")), {
-          type: "join",
-          user: displayName,
-          text: `A therapist "${displayName}" has joined. You can now continue your conversation with them.`,
-          role: "system",
-          timestamp: serverTimestamp(),
-        });
       });
       logFirestoreOperation("write", 2, { collection: "privateChats", subcollection: "events" });
+      // Set needsTherapist to false after join is complete
+      await setDoc(doc(db, "privateChats", chatId), { needsTherapist: false }, { merge: true });
       setActiveChatId(chatId);
+      setChatError(null);
       navigate(`/therapist-dashboard/private-chat/${chatId}`);
     } catch (err) {
       console.error("Error joining private chat:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      } else if (err.code === "permission-denied") {
-        alert("You do not have permission to join this chat.");
-      } else if (err.message === "Chat document does not exist") {
-        alert("This chat no longer exists.");
-      } else {
-        alert("Failed to join private chat. Please try again.");
-      }
+      setChatError("Failed to join private chat. Please try again.");
+      setActiveChatId(null);
+      navigate("/therapist-dashboard/private-chat");
     }
   };
 
@@ -709,27 +739,24 @@ function TherapistDashboard() {
           therapistJoinedOnce: false,
           lastLeaveEvent: now,
           lastLeaveAiOffered: now,
-          needsTherapist: false
+          needsTherapist: false,
         });
       });
       logFirestoreOperation("write", 2, { collection: "privateChats", subcollection: "events" });
       setActiveChatId(null);
       setPrivateMessages([]);
       setPrivateEvents([]);
+      setChatError(null);
       navigate("/therapist-dashboard/private-chat");
     } catch (err) {
       console.error("Error leaving private chat:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      } else if (err.code === "permission-denied") {
-        alert("You do not have permission to leave this chat.");
-        navigate("/therapist-dashboard/private-chat");
-      } else if (err.message === "Chat document does not exist") {
-        alert("This chat no longer exists.");
-        navigate("/therapist-dashboard/private-chat");
+      if (err.message === "Chat document does not exist") {
+        setChatError("This chat no longer exists.");
       } else {
-        alert("Failed to leave chat. Please try again.");
+        setChatError("Failed to leave chat. Please try again.");
       }
+      setActiveChatId(null);
+      navigate("/therapist-dashboard/private-chat");
     }
   };
 
@@ -753,7 +780,7 @@ function TherapistDashboard() {
           lastMessage: newPrivateMessage,
           lastUpdated: serverTimestamp(),
           unreadCountForTherapist: 0,
-          needsTherapist: false
+          needsTherapist: false,
         });
       });
       logFirestoreOperation("write", 2, { collection: "privateChats", subcollection: "messages" });
@@ -761,17 +788,14 @@ function TherapistDashboard() {
       setIsSendingPrivate(false);
     } catch (err) {
       console.error("Error sending private message:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      } else if (err.code === "permission-denied") {
-        alert("You do not have permission to send messages in this chat.");
-        navigate("/therapist-dashboard/private-chat");
-      } else if (err.message === "Chat document does not exist") {
-        alert("This chat no longer exists.");
-        navigate("/therapist-dashboard/private-chat");
+      if (err.message === "Chat document does not exist") {
+        setChatError("This chat no longer exists.");
       } else {
-        alert("Failed to send private message. Please try again.");
+        setChatError("Failed to send private message. Please try again.");
       }
+      setActiveChatId(null);
+      navigate("/therapist-dashboard/private-chat");
+    } finally {
       setIsSendingPrivate(false);
     }
   };
@@ -785,13 +809,7 @@ function TherapistDashboard() {
       if (snap.exists()) setSelectedTherapist(snap.data());
     } catch (err) {
       console.error("Error fetching therapist profile:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      } else if (err.code === "permission-denied") {
-        alert("You do not have permission to view this therapist's profile.");
-      } else {
-        alert("Failed to fetch therapist profile. Please try again.");
-      }
+      alert("Failed to fetch therapist profile. Please try again.");
     }
   };
 
@@ -817,14 +835,16 @@ function TherapistDashboard() {
         onLogout={handleLogout}
         onToggle={handleToggleSidebar}
       />
-      <div className={`box ${isSidebarOpen ? 'open' : 'closed'}`}>
+      <div className={`box ${isSidebarOpen ? "open" : "closed"}`}>
         <Routes>
           <Route
             path="/"
             element={
               <>
                 <div className="welcome-header">
-                  <h2>Welcome, <span className="highlight">{therapistInfo.name || "Therapist"}</span>!</h2>
+                  <h2>
+                    Welcome, <span className="highlight">{therapistInfo.name || "Therapist"}</span>!
+                  </h2>
                 </div>
                 <div className="therapist-profile">
                   {editing ? (
@@ -868,11 +888,21 @@ function TherapistDashboard() {
                     </div>
                   ) : (
                     <div className="profile-view">
-                      <p><strong>Name:</strong> {therapistInfo.name}</p>
-                      <p><strong>Gender:</strong> {therapistInfo.gender}</p>
-                      <p><strong>Position:</strong> {therapistInfo.position}</p>
-                      <p><strong>About:</strong> {therapistInfo.profile}</p>
-                      <p><strong>Rating:</strong> <span className="rating">⭐ {therapistInfo.rating}</span></p>
+                      <p>
+                        <strong>Name:</strong> {therapistInfo.name}
+                      </p>
+                      <p>
+                        <strong>Gender:</strong> {therapistInfo.gender}
+                      </p>
+                      <p>
+                        <strong>Position:</strong> {therapistInfo.position}
+                      </p>
+                      <p>
+                        <strong>About:</strong> {therapistInfo.profile}
+                      </p>
+                      <p>
+                        <strong>Rating:</strong> <span className="rating">⭐ {therapistInfo.rating}</span>
+                      </p>
                       <button onClick={() => setEditing(true)}>Edit Profile</button>
                     </div>
                   )}
@@ -967,7 +997,20 @@ function TherapistDashboard() {
           <Route
             path="/private-chat/:chatId"
             element={
-              activeChatId ? (
+              isValidatingChat ? (
+                <div className="chat-list">
+                  <h3>Loading Private Chat...</h3>
+                  <p>Validating chat access, please wait...</p>
+                </div>
+              ) : chatError ? (
+                <div className="chat-list">
+                  <h3>Error Loading Private Chat</h3>
+                  <p>{chatError}</p>
+                  <button onClick={() => navigate("/therapist-dashboard/private-chat")}>
+                    Back to Private Chats
+                  </button>
+                </div>
+              ) : activeChatId ? (
                 <div className="private-chat">
                   <h3>
                     Private Chat {activeChatId}{" "}
@@ -1031,8 +1074,11 @@ function TherapistDashboard() {
                 </div>
               ) : (
                 <div className="chat-list">
-                  <h3>Loading Private Chat...</h3>
-                  <p>Please wait or select a chat from the private chats list.</p>
+                  <h3>Error Loading Private Chat</h3>
+                  <p>Chat not found or inaccessible. Please select a chat from the private chats list.</p>
+                  <button onClick={() => navigate("/therapist-dashboard/private-chat")}>
+                    Back to Private Chats
+                  </button>
                 </div>
               )
             }
@@ -1125,11 +1171,21 @@ function TherapistDashboard() {
                   </div>
                 ) : (
                   <div className="profile-view">
-                    <p><strong>Name:</strong> {therapistInfo.name}</p>
-                    <p><strong>Gender:</strong> {therapistInfo.gender}</p>
-                    <p><strong>Position:</strong> {therapistInfo.position}</p>
-                    <p><strong>About:</strong> {therapistInfo.profile}</p>
-                    <p><strong>Rating:</strong> <span className="rating">⭐ {therapistInfo.rating}</span></p>
+                    <p>
+                      <strong>Name:</strong> {therapistInfo.name}
+                    </p>
+                    <p>
+                      <strong>Gender:</strong> {therapistInfo.gender}
+                    </p>
+                    <p>
+                      <strong>Position:</strong> {therapistInfo.position}
+                    </p>
+                    <p>
+                      <strong>About:</strong> {therapistInfo.profile}
+                    </p>
+                    <p>
+                      <strong>Rating:</strong> <span className="rating">⭐ {therapistInfo.rating}</span>
+                    </p>
                     <button onClick={() => setEditing(true)}>Edit Profile</button>
                   </div>
                 )}
