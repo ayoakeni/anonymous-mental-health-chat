@@ -18,8 +18,8 @@ import {
   limit,
   writeBatch,
 } from "firebase/firestore";
-import { debounce } from "lodash"; // Added import for debounce
-import "./privateChat.css";
+import { debounce } from "lodash";
+import "../../styles/privateChat.css";
 
 const logFirestoreOperation = (operation, count, details) => {
   console.log(`Firestore ${operation}: ${count} documents`, details);
@@ -133,7 +133,7 @@ function PrivateChat({ chatId }) {
       }
       if (!snap.exists()) {
         console.log("Chat document deleted or not found, navigating to chat room");
-        navigate("/chat_room");
+        navigate("/chat-room");
         return;
       }
       const data = snap.data();
@@ -429,7 +429,7 @@ function PrivateChat({ chatId }) {
       setHasOfferedNoJoin(false);
       setHasOfferedNoTherapist(false);
       localStorage.removeItem(`therapist_${auth.currentUser.uid}`); // Clear cache on exit
-      navigate("/chat_room");
+      navigate("/chat-room");
     } catch (err) {
       console.error("Error leaving chat:", err);
       if (err.code === "resource-exhausted") {

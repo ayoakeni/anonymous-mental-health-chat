@@ -144,7 +144,12 @@ function Chatroom() {
       });
     }
 
-    navigate(`/private_chat/${chatId}`);
+    // Navigate based on user role
+    const isTherapist = auth.currentUser?.email;
+    const route = isTherapist
+      ? `/therapist-dashboard/private-chat/${chatId}`
+      : `/chat-room/${chatId}`;
+    navigate(route);
   };
 
   // Send message

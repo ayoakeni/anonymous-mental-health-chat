@@ -3,9 +3,9 @@ function Header() {
   return (
     <div style={{ padding: "20px" }}>
       <nav>
-        <Link to="/chat_room">Go to Chatroom</Link> |{" "}
+        <Link to="/chat-room">Go to Chatroom</Link> |{" "}
         <Link to="/about">About</Link> |{" "}
-        <Link to="/therapist_login">Login therapist</Link>
+        <Link to="/therapist-login">Login therapist</Link>
       </nav>
     </div>
   );

@@ -52,7 +52,7 @@ function TherapistLogin() {
       updatePresence(true);
 
       // Redirect therapist after successful login
-      navigate("/dashboard_therapist");
+      navigate("/therapist-dashboard/");
 
       // Mark offline when tab is closed
       const handleBeforeUnload = () => updatePresence(false);

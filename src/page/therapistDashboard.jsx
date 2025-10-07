@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, Routes, Route } from "react-router-dom";
 import { db, auth } from "../utils/firebase";
 import {
   collection,
@@ -20,7 +20,8 @@ import { debounce } from "lodash";
 import { useTypingStatus } from "../components/useTypingStatus";
 import { signOut } from "firebase/auth";
 import LeaveChatButton from "../components/LeaveChatButton";
-import "./therapistDashboard.css";
+import Sidebar from "../components/sidebar";
+import "../styles/therapistDashboard.css";
 
 const logFirestoreOperation = (operation, count, details) => {
   console.log(`Firestore ${operation}: ${count} documents`, details);
@@ -52,12 +53,25 @@ function TherapistDashboard() {
   const [isSendingPrivate, setIsSendingPrivate] = useState(false);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const [therapistName, setTherapistName] = useState("Therapist");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Track sidebar state
   const therapistId = auth.currentUser?.uid;
   const displayName = therapistInfo.name || "Unknown Therapist";
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
   const messagesEndRef = useRef(null);
   const privateMessagesEndRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Toggle sidebar and notify parent
+  const handleToggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  // Calculate total private unread count
+  const privateUnreadCount = privateChats.reduce(
+    (sum, chat) => sum + (chat.unreadCountForTherapist || 0),
+    0
+  );
 
   // Auto scroll group chat
   useEffect(() => {
@@ -69,7 +83,7 @@ function TherapistDashboard() {
     privateMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [privateMessages, privateEvents]);
 
-  // Load private chats (filtered by therapist participation)
+  // Load private chats
   useEffect(() => {
     if (!therapistId) return;
     const q = query(
@@ -92,7 +106,7 @@ function TherapistDashboard() {
     return () => unsubscribe();
   }, [therapistId]);
 
-  // Watch therapist presence globally
+  // Watch therapist presence
   useEffect(() => {
     const q = query(collection(db, "therapistsOnline"), limit(50));
     const unsub = onSnapshot(q, (snap) => {
@@ -328,6 +342,32 @@ function TherapistDashboard() {
     };
   }, [activeChatId, displayName]);
 
+  // Send message to group chat
+  const sendReply = async () => {
+    if (!reply.trim() || !auth.currentUser) return;
+    const batch = writeBatch(db);
+    const messagesRef = collection(db, "messages");
+    const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
+    batch.set(messagesRef, {
+      text: reply,
+      userId: auth.currentUser.uid,
+      displayName: therapistInfo.name,
+      role: "therapist",
+      timestamp: serverTimestamp(),
+    });
+    batch.set(typingDoc, { typing: false, name: therapistInfo.name || "Therapist", timestamp: serverTimestamp() });
+    try {
+      await batch.commit();
+      logFirestoreOperation("write", 2, { collections: ["messages", "typingStatus"] });
+      setReply("");
+    } catch (err) {
+      console.error("Error sending group message:", err);
+      if (err.code === "resource-exhausted") {
+        alert("Firestore quota exceeded. Please try again later.");
+      }
+    }
+  };
+
   // Logout
   const handleLogout = async () => {
     try {
@@ -372,8 +412,8 @@ function TherapistDashboard() {
       setMessages([]);
       setPrivateChats([]);
       setActiveChatId(null);
-      localStorage.removeItem(`therapist_${uid}`); // Clear cache on logout
-      navigate("/therapist_login");
+      localStorage.removeItem(`therapist_${uid}`);
+      navigate("/therapist-login");
     } catch (err) {
       console.error("Logout error:", err);
       if (err.code === "resource-exhausted") {
@@ -388,7 +428,6 @@ function TherapistDashboard() {
     try {
       await setDoc(doc(db, "therapists", therapistId), therapistInfo, { merge: true });
       logFirestoreOperation("write", 1, { collection: "therapists", doc: therapistId });
-      // Update localStorage cache
       localStorage.setItem(`therapist_${therapistId}`, JSON.stringify({
         ...therapistInfo,
         cacheTimestamp: Date.now()
@@ -418,6 +457,7 @@ function TherapistDashboard() {
       setGroupUnreadCount(0);
       const lastMsgTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
       setLastSeenTimestamp(lastMsgTime);
+      navigate("/therapist-dashboard/group-chat");
     } catch (err) {
       console.error("Error joining group chat:", err);
       if (err.code === "resource-exhausted") {
@@ -441,34 +481,9 @@ function TherapistDashboard() {
       setInGroupChat(false);
       setGroupUnreadCount(0);
       setLastSeenTimestamp(lastMsgTime);
+      navigate("/therapist-dashboard");
     } catch (err) {
       console.error("Error leaving group chat:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      }
-    }
-  };
-
-  // Send message to group chat
-  const sendReply = async () => {
-    if (!reply.trim() || !auth.currentUser) return;
-    const batch = writeBatch(db);
-    const messagesRef = collection(db, "messages");
-    const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
-    batch.set(messagesRef, {
-      text: reply,
-      userId: auth.currentUser.uid,
-      displayName: therapistInfo.name,
-      role: "therapist",
-      timestamp: serverTimestamp(),
-    });
-    batch.set(typingDoc, { typing: false, name: therapistInfo.name || "Therapist", timestamp: serverTimestamp() });
-    try {
-      await batch.commit();
-      logFirestoreOperation("write", 2, { collections: ["messages", "typingStatus"] });
-      setReply("");
-    } catch (err) {
-      console.error("Error sending group message:", err);
       if (err.code === "resource-exhausted") {
         alert("Firestore quota exceeded. Please try again later.");
       }
@@ -484,6 +499,7 @@ function TherapistDashboard() {
     logFirestoreOperation("read", 1, { collection: "privateChats", doc: chatId });
     if (chatSnap.exists() && chatSnap.data().participants.includes(uid)) {
       setActiveChatId(chatId);
+      navigate(`/therapist-dashboard/private-chat/${chatId}`);
       return;
     }
     const batch = writeBatch(db);
@@ -507,6 +523,7 @@ function TherapistDashboard() {
       await batch.commit();
       logFirestoreOperation("write", 2, { collection: "privateChats", subcollection: "events" });
       setActiveChatId(chatId);
+      navigate(`/therapist-dashboard/private-chat/${chatId}`);
     } catch (err) {
       console.error("Error joining private chat:", err);
       if (err.code === "resource-exhausted") {
@@ -540,6 +557,7 @@ function TherapistDashboard() {
       await batch.commit();
       logFirestoreOperation("write", 2, { collection: "privateChats", subcollection: "events" });
       setActiveChatId(null);
+      navigate("/therapist-dashboard/private-chat");
     } catch (err) {
       console.error("Error leaving private chat:", err);
       alert("Failed to leave chat. Please try again.");
@@ -597,14 +615,14 @@ function TherapistDashboard() {
     }
   };
 
-  // Combine private messages and events for rendering
+  // Combine private messages and events
   const combinedPrivateChat = [...privateMessages, ...privateEvents].sort((a, b) => {
     const t1 = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
     const t2 = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
     return t1 - t2;
   });
 
-  // Combine group messages and events for rendering
+  // Combine group messages and events
   const combinedGroupChat = [...messages, ...groupEvents].sort((a, b) => {
     const t1 = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
     const t2 = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
@@ -613,202 +631,335 @@ function TherapistDashboard() {
 
   return (
     <div className="therapist-dashboard">
-      <div className="displayNameLogout">
-        <h2>Therapist Dashboard</h2>
-        <button onClick={handleLogout} className="logout-button">
-          Logout
-        </button>
-      </div>
-      <div className="therapist-profile">
-        <h3>Therapist Profile</h3>
-        {editing ? (
-          <div className="profile-edit">
-            <input
-              type="text"
-              placeholder="Name"
-              value={therapistInfo.name}
-              onChange={(e) => setTherapistInfo((prev) => ({ ...prev, name: e.target.value }))}
-            />
-            <input
-              type="text"
-              placeholder="Gender"
-              value={therapistInfo.gender}
-              onChange={(e) => setTherapistInfo((prev) => ({ ...prev, gender: e.target.value }))}
-            />
-            <input
-              type="text"
-              placeholder="Position"
-              value={therapistInfo.position}
-              onChange={(e) => setTherapistInfo((prev) => ({ ...prev, position: e.target.value }))}
-            />
-            <textarea
-              placeholder="Profile description"
-              value={therapistInfo.profile}
-              onChange={(e) => setTherapistInfo((prev) => ({ ...prev, profile: e.target.value }))}
-            />
-            <input
-              type="number"
-              placeholder="Rating"
-              value={therapistInfo.rating}
-              onChange={(e) =>
-                setTherapistInfo((prev) => ({ ...prev, rating: parseFloat(e.target.value) || 0 }))
-              }
-              min={0}
-              max={5}
-              step={0.1}
-            />
-            <button onClick={saveProfile}>Save</button>
-            <button onClick={() => setEditing(false)}>Cancel</button>
-          </div>
-        ) : (
-          <div className="profile-view">
-            <p><strong>Name:</strong> {therapistInfo.name}</p>
-            <p><strong>Gender:</strong> {therapistInfo.gender}</p>
-            <p><strong>Position:</strong> {therapistInfo.position}</p>
-            <p><strong>About:</strong> {therapistInfo.profile}</p>
-            <p><strong>Rating:</strong> <span className="rating">⭐ {therapistInfo.rating}</span></p>
-            <button onClick={() => setEditing(true)}>Edit Profile</button>
-          </div>
-        )}
-      </div>
-
-      {isGroupChatOpen && inGroupChat && !activeChatId && (
-        <div className="group-chat">
-          <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
-          <div className="chat-container">
-            {combinedGroupChat.map((msg) => (
-              <p
-                key={msg.id}
-                className={`chat-message ${
-                  msg.role === "therapist" ? "therapist" : msg.role === "ai" ? "ai" : "user"
-                }`}
-              >
-                <strong>{msg.displayName || msg.user || "Anonymous"}:</strong> {msg.text || msg.message}
-              </p>
-            ))}
-            {typingUsers.length > 0 && (
-              <p className="typing-indicator">
-                {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
-              </p>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-          <div className="chat-input">
-            <input
-              type="text"
-              value={reply}
-              onChange={(e) => {
-                setReply(e.target.value);
-                handleTyping(e.target.value);
-              }}
-              placeholder="Reply to group chat..."
-            />
-            <button onClick={sendReply}>Send</button>
-          </div>
-        </div>
-      )}
-
-      {!activeChatId && !isGroupChatOpen && (
-        <div className="chat-list">
-          <h3>Chats</h3>
-          <div className="chat-card" onClick={joinGroupChat}>
-            <div>
-              <strong>Group Chat</strong>
-              <br />
-              <small>
-                {messages.length > 0
-                  ? `${messages[messages.length - 1].displayName || "Anonymous"}: ${
-                      messages[messages.length - 1].text
-                    }`
-                  : "No messages yet"}
-              </small>
-            </div>
-            {groupUnreadCount > 0 && <span className="unread-badge">{groupUnreadCount}</span>}
-          </div>
-
-          <h3>Private Chats</h3>
-          {privateChats.length === 0 ? (
-            <p>No private chats yet</p>
-          ) : (
-            privateChats.map((chat) => (
-              <div key={chat.id} className="chat-card" onClick={() => joinPrivateChat(chat.id)}>
-                <div>
-                  <strong>Chat ID:</strong> {chat.id}
-                  <br />
-                  <small>{chat.lastMessage || "No messages yet"}</small>
+      <Sidebar
+        groupUnreadCount={groupUnreadCount}
+        privateUnreadCount={privateUnreadCount}
+        onLogout={handleLogout}
+        onToggle={handleToggleSidebar}
+      />
+      <div className={`box ${isSidebarOpen ? 'open' : 'closed'}`}>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <>
+                <div className="welcome-header">
+                  <h2>Welcome, <span className="highlight">{therapistInfo.name || "Therapist"}</span>!</h2>
                 </div>
-                {chat.unreadCountForTherapist > 0 && (
-                  <span className="unread-badge">{chat.unreadCountForTherapist}</span>
+                <div className="therapist-profile">
+                  {editing ? (
+                    <div className="profile-edit">
+                      <input
+                        type="text"
+                        placeholder="Name"
+                        value={therapistInfo.name}
+                        onChange={(e) => setTherapistInfo((prev) => ({ ...prev, name: e.target.value }))}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Gender"
+                        value={therapistInfo.gender}
+                        onChange={(e) => setTherapistInfo((prev) => ({ ...prev, gender: e.target.value }))}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Position"
+                        value={therapistInfo.position}
+                        onChange={(e) => setTherapistInfo((prev) => ({ ...prev, position: e.target.value }))}
+                      />
+                      <textarea
+                        placeholder="Profile description"
+                        value={therapistInfo.profile}
+                        onChange={(e) => setTherapistInfo((prev) => ({ ...prev, profile: e.target.value }))}
+                      />
+                      <input
+                        type="number"
+                        placeholder="Rating"
+                        value={therapistInfo.rating}
+                        onChange={(e) =>
+                          setTherapistInfo((prev) => ({ ...prev, rating: parseFloat(e.target.value) || 0 }))
+                        }
+                        min={0}
+                        max={5}
+                        step={0.1}
+                      />
+                      <button onClick={saveProfile}>Save</button>
+                      <button onClick={() => setEditing(false)}>Cancel</button>
+                    </div>
+                  ) : (
+                    <div className="profile-view">
+                      <p><strong>Name:</strong> {therapistInfo.name}</p>
+                      <p><strong>Gender:</strong> {therapistInfo.gender}</p>
+                      <p><strong>Position:</strong> {therapistInfo.position}</p>
+                      <p><strong>About:</strong> {therapistInfo.profile}</p>
+                      <p><strong>Rating:</strong> <span className="rating">⭐ {therapistInfo.rating}</span></p>
+                      <button onClick={() => setEditing(true)}>Edit Profile</button>
+                    </div>
+                  )}
+                </div>
+              </>
+            }
+          />
+          <Route
+            path="/group-chat"
+            element={
+              isGroupChatOpen && inGroupChat ? (
+                <div className="group-chat">
+                  <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
+                  <div className="chat-container">
+                    {combinedGroupChat.map((msg) => (
+                      <p
+                        key={msg.id}
+                        className={`chat-message ${
+                          msg.role === "therapist" ? "therapist" : msg.role === "ai" ? "ai" : "user"
+                        }`}
+                      >
+                        <strong>{msg.displayName || msg.user || "Anonymous"}:</strong> {msg.text || msg.message}
+                      </p>
+                    ))}
+                    {typingUsers.length > 0 && (
+                      <p className="typing-indicator">
+                        {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+                      </p>
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+                  <div className="chat-input">
+                    <input
+                      type="text"
+                      value={reply}
+                      onChange={(e) => {
+                        setReply(e.target.value);
+                        handleTyping(e.target.value);
+                      }}
+                      placeholder="Reply to group chat..."
+                    />
+                    <button onClick={sendReply}>Send</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="chat-list">
+                  <h3>Group Chat</h3>
+                  <div className="chat-card" onClick={joinGroupChat}>
+                    <div>
+                      <strong>Group Chat</strong>
+                      <br />
+                      <small>
+                        {messages.length > 0
+                          ? `${messages[messages.length - 1].displayName || "Anonymous"}: ${
+                              messages[messages.length - 1].text
+                            }`
+                          : "No messages yet"}
+                      </small>
+                    </div>
+                    {groupUnreadCount > 0 && <span className="unread-badge">{groupUnreadCount}</span>}
+                  </div>
+                </div>
+              )
+            }
+          />
+          <Route
+            path="/private-chat"
+            element={
+              <div className="chat-list">
+                <h3>Private Chats</h3>
+                {privateChats.length === 0 ? (
+                  <p>No private chats yet</p>
+                ) : (
+                  privateChats.map((chat) => (
+                    <div key={chat.id} className="chat-card" onClick={() => joinPrivateChat(chat.id)}>
+                      <div>
+                        <strong>Chat ID:</strong> {chat.id}
+                        <br />
+                        <small>{chat.lastMessage || "No messages yet"}</small>
+                      </div>
+                      {chat.unreadCountForTherapist > 0 && (
+                        <span className="unread-badge">{chat.unreadCountForTherapist}</span>
+                      )}
+                    </div>
+                  ))
                 )}
               </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {activeChatId && (
-        <div className="private-chat">
-          <h3>
-            Private Chat {activeChatId}{" "}
-            {isTherapistAvailable
-              ? `(Therapist Online: ${activeTherapists.join(", ")})`
-              : "(Waiting for Therapist)"}
-          </h3>
-          <LeaveChatButton onLeave={leavePrivateChat} />
-          {selectedTherapist && (
-            <div className="therapist-profile-card">
-              <button onClick={() => setSelectedTherapist(null)}>⬅ Back</button>
-              <h4>{selectedTherapist.name}</h4>
-              <p>{selectedTherapist.profile}</p>
-            </div>
-          )}
-          <div className="chat-container">
-            {combinedPrivateChat.map((msg) => (
-              <p
-                key={msg.id}
-                className={`chat-message ${
-                  msg.role === "therapist"
-                    ? "therapist"
-                    : msg.role === "system"
-                    ? "system"
-                    : msg.role === "ai"
-                    ? "ai"
-                    : "user"
-                }`}
-                onClick={() => (msg.role === "therapist" ? handleTherapistClick(msg) : null)}
-              >
-                {msg.role === "system" ? (
-                  <em>{msg.text}</em>
+            }
+          />
+          <Route
+            path="/private-chat/:chatId"
+            element={
+              activeChatId && (
+                <div className="private-chat">
+                  <h3>
+                    Private Chat {activeChatId}{" "}
+                    {isTherapistAvailable
+                      ? `(Therapist Online: ${activeTherapists.join(", ")})`
+                      : "(Waiting for Therapist)"}
+                  </h3>
+                  <LeaveChatButton onLeave={leavePrivateChat} />
+                  {selectedTherapist && (
+                    <div className="therapist-profile-card">
+                      <button onClick={() => setSelectedTherapist(null)}>⬅ Back</button>
+                      <h4>{selectedTherapist.name}</h4>
+                      <p>{selectedTherapist.profile}</p>
+                    </div>
+                  )}
+                  <div className="chat-container">
+                    {combinedPrivateChat.map((msg) => (
+                      <p
+                        key={msg.id}
+                        className={`chat-message ${
+                          msg.role === "therapist"
+                            ? "therapist"
+                            : msg.role === "system"
+                            ? "system"
+                            : msg.role === "ai"
+                            ? "ai"
+                            : "user"
+                        }`}
+                        onClick={() => (msg.role === "therapist" ? handleTherapistClick(msg) : null)}
+                      >
+                        {msg.role === "system" ? (
+                          <em>{msg.text}</em>
+                        ) : (
+                          <>
+                            <strong>{msg.displayName || msg.role}:</strong> {msg.text}
+                          </>
+                        )}
+                      </p>
+                    ))}
+                    {typingUsers.length > 0 && (
+                      <p className="typing-indicator">
+                        {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+                      </p>
+                    )}
+                    <div ref={privateMessagesEndRef} />
+                  </div>
+                  <div className="chat-input">
+                    <input
+                      type="text"
+                      value={newPrivateMessage}
+                      onChange={(e) => {
+                        setNewPrivateMessage(e.target.value);
+                        handleTyping(e.target.value);
+                      }}
+                      placeholder="Type a message..."
+                    />
+                    <button onClick={sendPrivateMessage} disabled={isSendingPrivate}>
+                      {isSendingPrivate ? "Sending..." : "Send"}
+                    </button>
+                  </div>
+                </div>
+              )
+            }
+          />
+          <Route
+            path="/appointments"
+            element={
+              <div>
+                <h3>Appointments</h3>
+                <p>View and manage your appointments here. (Feature coming soon)</p>
+              </div>
+            }
+          />
+          <Route
+            path="/clients"
+            element={
+              <div>
+                <h3>Clients</h3>
+                <p>Manage your client list and view client details. (Feature coming soon)</p>
+              </div>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <div>
+                <h3>Notifications</h3>
+                <ul>
+                  {privateChats
+                    .filter((chat) => chat.unreadCountForTherapist > 0)
+                    .map((chat) => (
+                      <li key={chat.id} className="notification-item" onClick={() => joinPrivateChat(chat.id)}>
+                        New messages in Private Chat {chat.id} ({chat.unreadCountForTherapist})
+                      </li>
+                    ))}
+                  {groupUnreadCount > 0 && (
+                    <li className="notification-item" onClick={joinGroupChat}>
+                      {groupUnreadCount} new messages in Group Chat
+                    </li>
+                  )}
+                  {privateChats.every((chat) => chat.unreadCountForTherapist === 0) && groupUnreadCount === 0 && (
+                    <li>No new notifications</li>
+                  )}
+                </ul>
+              </div>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <div className="therapist-profile">
+                {editing ? (
+                  <div className="profile-edit">
+                    <input
+                      type="text"
+                      placeholder="Name"
+                      value={therapistInfo.name}
+                      onChange={(e) => setTherapistInfo((prev) => ({ ...prev, name: e.target.value }))}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Gender"
+                      value={therapistInfo.gender}
+                      onChange={(e) => setTherapistInfo((prev) => ({ ...prev, gender: e.target.value }))}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Position"
+                      value={therapistInfo.position}
+                      onChange={(e) => setTherapistInfo((prev) => ({ ...prev, position: e.target.value }))}
+                    />
+                    <textarea
+                      placeholder="Profile description"
+                      value={therapistInfo.profile}
+                      onChange={(e) => setTherapistInfo((prev) => ({ ...prev, profile: e.target.value }))}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Rating"
+                      value={therapistInfo.rating}
+                      onChange={(e) =>
+                        setTherapistInfo((prev) => ({ ...prev, rating: parseFloat(e.target.value) || 0 }))
+                      }
+                      min={0}
+                      max={5}
+                      step={0.1}
+                    />
+                    <button onClick={saveProfile}>Save</button>
+                    <button onClick={() => setEditing(false)}>Cancel</button>
+                  </div>
                 ) : (
-                  <>
-                    <strong>{msg.displayName || msg.role}:</strong> {msg.text}
-                  </>
+                  <div className="profile-view">
+                    <p><strong>Name:</strong> {therapistInfo.name}</p>
+                    <p><strong>Gender:</strong> {therapistInfo.gender}</p>
+                    <p><strong>Position:</strong> {therapistInfo.position}</p>
+                    <p><strong>About:</strong> {therapistInfo.profile}</p>
+                    <p><strong>Rating:</strong> <span className="rating">⭐ {therapistInfo.rating}</span></p>
+                    <button onClick={() => setEditing(true)}>Edit Profile</button>
+                  </div>
                 )}
-              </p>
-            ))}
-            {typingUsers.length > 0 && (
-              <p className="typing-indicator">
-                {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
-              </p>
-            )}
-            <div ref={privateMessagesEndRef} />
-          </div>
-          <div className="chat-input">
-            <input
-              type="text"
-              value={newPrivateMessage}
-              onChange={(e) => {
-                setNewPrivateMessage(e.target.value);
-                handleTyping(e.target.value);
-              }}
-              placeholder="Type a message..."
-            />
-            <button onClick={sendPrivateMessage} disabled={isSendingPrivate}>
-              {isSendingPrivate ? "Sending..." : "Send"}
-            </button>
-          </div>
-        </div>
-      )}
+              </div>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <div>
+                <h3>Settings</h3>
+                <p>Adjust notification preferences and chat settings. (Feature coming soon)</p>
+              </div>
+            }
+          />
+        </Routes>
+      </div>
     </div>
   );
 }

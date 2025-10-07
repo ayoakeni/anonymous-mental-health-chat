@@ -1,12 +1,27 @@
-.displayNameLogout {
+.therapist-dashboard {
+  display: flex;
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+}
+
+.therapist-dashboard .box {
+  flex: 1;
+  padding: 20px;
+  background-color: #f4f4f9;
+  transition: margin-left 0.3s ease-in-out; /* Smooth transition for margin */
+}
+
+@media (max-width: 768px) {
+  .therapist-dashboard .box {
+    
+  }
+}
+
+.welcome-header {
   display: flex;
   justify-content: space-between;
-}
-.therapist-dashboard {
-  padding: 20px;
-  max-width: 800px;
-  margin: 0 auto;
-  font-family: Arial, sans-serif;
+  align-items: center;
+  margin-bottom: 20px;
 }
 
 .therapist-dashboard h2 {
@@ -21,7 +36,6 @@
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  margin-bottom: 20px;
 }
 
 .logout-button:hover {
@@ -34,11 +48,6 @@
   border-radius: 8px;
   background-color: #f9f9f9;
   margin-bottom: 20px;
-}
-
-.therapist-profile h3 {
-  font-size: 18px;
-  margin-bottom: 10px;
 }
 
 .profile-edit input,
@@ -224,4 +233,14 @@
 
 .therapist-profile-card p {
   margin: 5px 0;
+}
+
+.notification-item {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+  cursor: pointer;
+}
+
+.notification-item:hover {
+  background-color: #f5f5f5;
 }
