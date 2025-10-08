@@ -1,17 +1,38 @@
+:root {
+  --primary-color: #4a90e2; /* Primary blue for buttons and accents */
+  --background-color: #f5f7fa; /* Light background */
+  --sidebar-bg: #1a1a2e; /* Sidebar background */
+  --text-color: #ffffff; /* Sidebar text color */
+  --active-bg: #3b82f6; /* Active/hover background */
+  --border-radius: 8px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --badge-bg: #ef4444; /* Badge background */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-color: #1e1e2f;
+    --sidebar-bg: #2a2a3b;
+    --text-color: #e0e0e0;
+  }
+}
+
 .sidebar {
-  background-color: #1a1a2e;
-  color: #ffffff;
+  background-color: var(--sidebar-bg);
+  color: var(--text-color);
   width: 250px;
   height: 100vh;
   position: sticky;
-  padding: 20px;
-  padding-right: 0;
   top: 0;
   left: 0;
-  transition: width 0.3s ease-in-out;
+  bottom: 0;
+  padding: 20px;
+  padding-right: 0;
+  transition: width 0.3s ease-in-out, padding 0.3s ease-in-out;
   z-index: 1000;
   display: flex;
   flex-direction: column;
+  font-family: 'Inter', sans-serif;
 }
 
 .sidebar.closed {
@@ -22,12 +43,17 @@
 .toggle-btn {
   background: none;
   border: none;
-  color: #ffffff;
+  color: var(--text-color);
   font-size: 24px;
   cursor: pointer;
   padding: 10px;
   margin-bottom: 20px;
   align-self: flex-start;
+  transition: color 0.2s;
+}
+
+.toggle-btn:hover {
+  color: var(--primary-color);
 }
 
 .list {
@@ -45,19 +71,19 @@
 
 .sidebar.closed .list {
   padding-right: 0;
+  align-items: center;
 }
 
-/* Scrollbar styling */
 .sidebar .list::-webkit-scrollbar {
   width: 8px;
 }
 
 .sidebar .list::-webkit-scrollbar-track {
-  background: #1a1a2e;
+  background: var(--sidebar-bg);
 }
 
 .sidebar .list::-webkit-scrollbar-thumb {
-  background: #4a90e2;
+  background: var(--primary-color);
   border-radius: 4px;
 }
 
@@ -74,38 +100,63 @@
   display: flex;
   align-items: center;
   padding: 10px;
-  border-radius: 5px;
+  border-radius: var(--border-radius);
   cursor: pointer;
   transition: background-color 0.2s;
   font-size: 16px;
   position: relative;
 }
 
+.sidebar.closed .list span {
+  justify-content: center;
+}
+
 .sidebar.closed .list span .link-text {
   display: none;
 }
 
-.sidebar.closed .list span .badge {
+/* Tooltip for closed state */
+.sidebar.closed .list span:hover::after {
+  content: attr(data-tooltip);
   position: absolute;
-  top: 0px;
-  left: 20px;
+  left: 60px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--sidebar-bg);
+  color: var(--text-color);
+  padding: 5px 10px;
+  border-radius: var(--border-radius);
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 100;
+  box-shadow: var(--shadow);
 }
 
 .list span:hover,
 .list span:focus {
-  background-color: #3b82f6;
+  background-color: var(--active-bg);
   outline: none;
 }
 
 .list span.active {
-  background-color: #3b82f6;
-  font-weight: bold;
+  background-color: var(--active-bg);
+  font-weight: 600;
 }
 
 .list span i {
   margin-right: 10px;
   font-size: 18px;
   min-width: 18px;
+  text-align: center;
+  transition: transform 0.2s;
+}
+
+.sidebar.closed .list span i {
+  margin-right: 0;
+}
+
+.list span:hover i {
+  transform: scale(1.2);
 }
 
 .link-text {
@@ -113,7 +164,7 @@
 }
 
 .list span .badge {
-  background-color: #ef4444;
+  background-color: var(--badge-bg);
   color: #ffffff;
   border-radius: 12px;
   padding: 2px 8px;
@@ -121,16 +172,23 @@
   margin-left: auto;
 }
 
-.status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background-color: #6b7280;
-  margin-left: 10px;
+.sidebar.closed .list span .badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  font-size: 10px;
+  padding: 2px 6px;
+  min-width: 16px;
+  text-align: center;
 }
 
-.status-dot.active {
-  background-color: #22c55e;
+.divider {
+  border-top: 1px solid #333;
+  margin: 10px 0;
+}
+
+.sidebar.closed .divider {
+  display: none;
 }
 
 @media (max-width: 768px) {
@@ -150,5 +208,10 @@
 
   .toggle-btn {
     display: block;
+  }
+
+  .sidebar.closed .list span .badge {
+    top: -5px;
+    right: -5px;
   }
 }

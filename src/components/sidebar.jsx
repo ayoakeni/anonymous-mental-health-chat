@@ -41,7 +41,6 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
               <>
                 <span className="link-text">Group Chat</span>
                 {groupUnreadCount > 0 && <span className="badge">{groupUnreadCount}</span>}
-                <span className={`status-dot ${groupUnreadCount > 0 ? 'active' : ''}`}></span>
               </>
             )}
           </span>
@@ -59,7 +58,6 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
               <>
                 <span className="link-text">Private Chat</span>
                 {privateUnreadCount > 0 && <span className="badge">{privateUnreadCount}</span>}
-                <span className={`status-dot ${privateUnreadCount > 0 ? 'active' : ''}`}></span>
               </>
             )}
           </span>
@@ -103,9 +101,6 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
                 {privateUnreadCount + groupUnreadCount > 0 && (
                   <span className="badge">{privateUnreadCount + groupUnreadCount}</span>
                 )}
-                <span
-                  className={`status-dot ${privateUnreadCount + groupUnreadCount > 0 ? 'active' : ''}`}
-                ></span>
               </>
             )}
           </span>
