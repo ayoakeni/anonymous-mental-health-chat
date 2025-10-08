@@ -1,0 +1,292 @@
+/* chatroom.css */
+:root {
+  --primary-color: #4a90e2; /* Primary blue for buttons and accents */
+  --background-color: #f5f7fa; /* Light background */
+  --chat-bg: #ffffff; /* Chat box background */
+  --text-color: #333333; /* Default text color */
+  --therapist-bg: #e6f0fa; /* Therapist message background */
+  --user-bg: #d9e8ff; /* User message background */
+  --ai-bg: #f0f0f0; /* AI message background */
+  --border-radius: 8px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --input-bg: #ffffff;
+  --input-border: #ccc;
+}
+
+/* Dark theme */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-color: #1e1e2f;
+    --chat-bg: #2a2a3b;
+    --text-color: #e0e0e0;
+    --therapist-bg: #3a4a6b;
+    --user-bg: #4a6b9b;
+    --ai-bg: #3b3b4b;
+    --input-bg: #2a2a3b;
+    --input-border: #555;
+  }
+}
+
+.chatroom {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 20px;
+  background: var(--background-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  font-family: 'Inter', sans-serif;
+}
+
+.chatroom h2 {
+  font-size: 1.8rem;
+  color: var(--text-color);
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.chatroom p {
+  font-size: 1rem;
+  color: var(--text-color);
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.chat-box {
+  background: var(--chat-bg);
+  border-radius: var(--border-radius);
+  padding: 15px;
+  height: 400px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  border: 1px solid var(--input-border);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.chat-message {
+  margin: 10px 0;
+  padding: 10px 15px;
+  border-radius: var(--border-radius);
+  max-width: 80%;
+  word-wrap: break-word;
+  position: relative;
+}
+
+.chat-message.therapist {
+  background: var(--therapist-bg);
+  margin-left: auto;
+  text-align: right;
+}
+
+.chat-message.user {
+  background: var(--user-bg);
+  margin-right: auto;
+}
+
+.chat-message.ai {
+  background: var(--ai-bg);
+  margin-right: auto;
+  border-left: 4px solid var(--primary-color);
+}
+
+.chat-message strong {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.typing-indicator {
+  font-style: italic;
+  color: var(--text-color);
+  opacity: 0.7;
+  font-size: 0.9rem;
+  margin: 5px 0;
+}
+
+.typing-indicator.ai-typing {
+  color: var(--primary-color);
+}
+
+.chat-input {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  background: var(--input-bg);
+  color: var(--text-color);
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.chat-input input:focus {
+  border-color: var(--primary-color);
+}
+
+.chat-input button {
+  padding: 12px 20px;
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.chat-input button:hover {
+  background: #357abd;
+}
+
+.chat-input button:disabled {
+  background: #a0a0a0;
+  cursor: not-allowed;
+}
+
+/* Therapist list styling */
+.therapist-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.therapist-item {
+  padding: 8px 15px;
+  background: var(--therapist-bg);
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+  color: var(--text-color);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.therapist-item:hover {
+  background: #d0e0ff;
+}
+
+.therapist-item.online::after {
+  content: "●";
+  color: #28a745;
+  margin-left: 5px;
+  font-size: 0.8rem;
+}
+
+/* Message timestamp */
+.message-timestamp {
+  font-size: 0.8rem;
+  color: var(--text-color);
+  opacity: 0.6;
+  margin-top: 5px;
+  display: block;
+}
+
+/* Responsive design */
+@media (max-width: 600px) {
+  .chatroom {
+    padding: 10px;
+    margin: 10px;
+  }
+
+  .chat-box {
+    height: 300px;
+  }
+
+  .chat-input {
+    flex-direction: column;
+  }
+
+  .chat-input input,
+  .chat-input button {
+    width: 100%;
+  }
+}
+
+/* Scrollbar styling */
+.chat-box::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat-box::-webkit-scrollbar-track {
+  background: var(--background-color);
+}
+
+.chat-box::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
+}
+.theme-toggle {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  padding: 8px 15px;
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+}
+.theme-toggle:hover {
+  background: #357abd;
+}
+.therapist-avatar {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: #fff;
+  text-align: center;
+  line-height: 30px;
+  margin-right: 8px;
+  font-size: 0.9rem;
+}
+.message-reactions {
+  display: none;
+  position: absolute;
+  top: -20px;
+  right: 10px;
+  background: var(--chat-bg);
+  padding: 5px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+.chat-message:hover .message-reactions {
+  display: flex;
+  gap: 5px;
+}
+.reaction {
+  cursor: pointer;
+  font-size: 1rem;
+}
+.reaction:hover {
+  transform: scale(1.2);
+}
+.pinned-message {
+  background: var(--primary-color);
+  color: #fff;
+  padding: 10px;
+  border-radius: var(--border-radius);
+  margin-bottom: 15px;
+  font-size: 0.95rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.emoji-btn,
+.attach-btn {
+  padding: 12px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 1rem;
+}
+.emoji-btn:hover,
+.attach-btn:hover {
+  background: var(--therapist-bg);
+}

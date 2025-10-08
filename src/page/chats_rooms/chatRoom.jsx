@@ -17,6 +17,7 @@ import { mapMessagesForAI } from "../../utils/aiMessageMapper";
 import { loginAnonymously, getAnonName } from "../../login/anonymous_login";
 import TherapistProfile from "../../components/TherapistProfile";
 import { useTypingStatus } from "../../components/useTypingStatus";
+import "../../styles/chatroom.css";
 
 function Chatroom() {
   const [messages, setMessages] = useState([]);
@@ -256,16 +257,31 @@ function Chatroom() {
 
   // Check therapist online by uid
   const isTherapistOnline = (uid) =>
-    therapistsOnline.some((t) => t.uid === uid && t.online);
+  therapistsOnline.some((t) => t.uid === uid && t.online);
 
   return (
     <div className="chatroom">
+      <button className="theme-toggle" onClick={() => alert("Theme toggle coming soon!")}>
+        Toggle Theme
+      </button>
       <h2>Anonymous Mental Health Chat</h2>
       <p>
         {therapistsOnline.length > 0
           ? `Therapists online: ${therapistsOnline.map((t) => t.name).join(", ")}`
           : "No therapist online currently"}
       </p>
+      <div className="therapist-list">
+        {therapistsOnline.map((therapist) => (
+          <div
+            key={therapist.uid}
+            className={`therapist-item ${therapist.online ? "online" : ""}`}
+            onClick={() => handleTherapistClick({ userId: therapist.uid, role: "therapist" })}
+          >
+            <span className="therapist-avatar">{therapist.name?.[0] || "T"}</span>
+            {therapist.name}
+          </div>
+        ))}
+      </div>
       {selectedTherapist ? (
         <TherapistProfile
           therapist={selectedTherapist}
@@ -276,29 +292,27 @@ function Chatroom() {
         />
       ) : (
         <>
-          <div
-            className="chat-box"
-            style={{
-              border: "1px solid #ccc",
-              padding: "10px",
-              height: "350px",
-              overflowY: "scroll",
-              marginBottom: "10px",
-            }}
-          >
+          {messages.some((msg) => msg.pinned) && (
+            <div className="pinned-message">
+              <strong>Pinned:</strong>{" "}
+              {messages.find((msg) => msg.pinned)?.text || "Welcome to the chatroom!"}
+            </div>
+          )}
+          <div className="chat-box">
             {messages.map((msg) => (
               <p
                 key={msg.id}
-                className={`chat-message ${
-                  msg.role === "therapist"
-                    ? "therapist"
-                    : msg.role === "ai"
-                    ? "ai"
-                    : "user"
-                }`}
+                className={`chat-message ${msg.role === "therapist" ? "therapist" : msg.role === "ai" ? "ai" : "user"}`}
                 onClick={() => handleTherapistClick(msg)}
               >
                 <strong>{msg.displayName || "Anonymous"}:</strong> {msg.text}
+                <span className="message-timestamp">
+                  {msg.timestamp?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+                <span className="message-reactions">
+                  <span className="reaction">👍</span>
+                  <span className="reaction">❤️</span>
+                </span>
               </p>
             ))}
             {typingUsers.length > 0 && (
@@ -324,6 +338,8 @@ function Chatroom() {
                 }}
                 placeholder="Type a message..."
               />
+              <button className="emoji-btn">😊</button>
+              <button className="attach-btn">📎</button>
               <button onClick={sendMessage}>Send</button>
             </div>
           )}
