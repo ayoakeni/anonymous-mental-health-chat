@@ -32,6 +32,7 @@
   background: var(--background-color);
   box-shadow: var(--shadow);
   font-family: 'Inter', sans-serif;
+  height: 100vh;
 }
 
 .chatroom h2 {
@@ -51,7 +52,7 @@
   background: var(--chat-bg);
   border-radius: var(--border-radius);
   padding: 15px;
-  height: 340px;
+  height: 400px;
   overflow-y: auto;
   margin-bottom: 20px;
   border: 1px solid var(--input-border);
