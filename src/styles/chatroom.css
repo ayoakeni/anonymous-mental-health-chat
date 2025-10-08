@@ -28,11 +28,8 @@
 }
 
 .chatroom {
-  max-width: 800px;
-  margin: 20px auto;
   padding: 20px;
   background: var(--background-color);
-  border-radius: var(--border-radius);
   box-shadow: var(--shadow);
   font-family: 'Inter', sans-serif;
 }
@@ -47,7 +44,6 @@
 .chatroom p {
   font-size: 1rem;
   color: var(--text-color);
-  text-align: center;
   margin-bottom: 20px;
 }
 
@@ -55,7 +51,7 @@
   background: var(--chat-bg);
   border-radius: var(--border-radius);
   padding: 15px;
-  height: 400px;
+  height: 340px;
   overflow-y: auto;
   margin-bottom: 20px;
   border: 1px solid var(--input-border);
@@ -66,20 +62,20 @@
   margin: 10px 0;
   padding: 10px 15px;
   border-radius: var(--border-radius);
-  max-width: 80%;
+  max-width: 50%;
   word-wrap: break-word;
   position: relative;
 }
 
 .chat-message.therapist {
   background: var(--therapist-bg);
-  margin-left: auto;
-  text-align: right;
+  margin-right: auto;
 }
 
 .chat-message.user {
   background: var(--user-bg);
-  margin-right: auto;
+  margin-left: auto;
+  color: var(--text-color);
 }
 
 .chat-message.ai {
@@ -91,6 +87,13 @@
 .chat-message strong {
   font-weight: 600;
   color: var(--text-color);
+}
+
+.chat-message .message-content-time {
+  margin-top: 5px;
+  font-size: 0.9rem;
+  color: var(--text-color);
+  opacity: 0.8;
 }
 
 .typing-indicator {
@@ -179,9 +182,10 @@
 /* Message timestamp */
 .message-timestamp {
   font-size: 0.8rem;
+  font-weight: 600;
   color: var(--text-color);
-  opacity: 0.6;
-  margin-top: 5px;
+  opacity: 0.5;
+  text-align: right;
   display: block;
 }
 

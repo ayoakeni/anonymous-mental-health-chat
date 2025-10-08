@@ -305,14 +305,17 @@ function Chatroom() {
                 className={`chat-message ${msg.role === "therapist" ? "therapist" : msg.role === "ai" ? "ai" : "user"}`}
                 onClick={() => handleTherapistClick(msg)}
               >
-                <strong>{msg.displayName || "Anonymous"}:</strong> {msg.text}
-                <span className="message-timestamp">
-                  {msg.timestamp?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </span>
-                <span className="message-reactions">
-                  <span className="reaction">👍</span>
-                  <span className="reaction">❤️</span>
-                </span>
+                <strong>{msg.displayName || "Anonymous"}</strong>
+                <div className="message-content-time">
+                  <span>{msg.text}</span>
+                  <span className="message-timestamp">
+                    {msg.timestamp?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  <span className="message-reactions">
+                    <i class="fa-solid fa-heart reaction"></i>
+                    <i class="fa-solid fa-thumbs-up reaction"></i>
+                  </span>
+                </div>
               </p>
             ))}
             {typingUsers.length > 0 && (
