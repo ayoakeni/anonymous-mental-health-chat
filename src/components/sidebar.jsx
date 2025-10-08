@@ -126,7 +126,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
           aria-label="Logout"
           tabIndex="0"
           onClick={onLogout}
-          className={location.pathname === '/therapist-dashboard/logout' ? 'active' : ''}
+          className="logout-button"
         >
           <i className="fas fa-sign-out-alt"></i>
           {isOpen && <span className="link-text">Logout</span>}
