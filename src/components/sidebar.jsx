@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import '../styles/sidebar.css';
 
 const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
-  const [isOpen, setIsOpen] = useState(true); // Default to open
+  const [isOpen, setIsOpen] = useState(true);
   const location = useLocation();
 
   const toggleSidebar = () => {
@@ -22,6 +22,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
             aria-label="Dashboard"
             tabIndex="0"
             className={location.pathname === '/therapist-dashboard' ? 'active' : ''}
+            data-tooltip="Dashboard"
           >
             <i className="fas fa-home"></i>
             {isOpen && <span className="link-text">Dashboard</span>}
@@ -33,12 +34,14 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
             aria-label="Group Chat"
             tabIndex="0"
             className={location.pathname === '/therapist-dashboard/group-chat' ? 'active' : ''}
+            data-tooltip="Group Chat"
           >
             <i className="fas fa-users"></i>
             {isOpen && (
               <>
                 <span className="link-text">Group Chat</span>
                 {groupUnreadCount > 0 && <span className="badge">{groupUnreadCount}</span>}
+                <span className={`status-dot ${groupUnreadCount > 0 ? 'active' : ''}`}></span>
               </>
             )}
           </span>
@@ -49,12 +52,14 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
             aria-label="Private Chat"
             tabIndex="0"
             className={location.pathname === '/therapist-dashboard/private-chat' ? 'active' : ''}
+            data-tooltip="Private Chat"
           >
             <i className="fas fa-comment"></i>
             {isOpen && (
               <>
                 <span className="link-text">Private Chat</span>
                 {privateUnreadCount > 0 && <span className="badge">{privateUnreadCount}</span>}
+                <span className={`status-dot ${privateUnreadCount > 0 ? 'active' : ''}`}></span>
               </>
             )}
           </span>
@@ -65,6 +70,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
             aria-label="Appointments"
             tabIndex="0"
             className={location.pathname === '/therapist-dashboard/appointments' ? 'active' : ''}
+            data-tooltip="Appointments"
           >
             <i className="fas fa-calendar"></i>
             {isOpen && <span className="link-text">Appointments</span>}
@@ -76,6 +82,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
             aria-label="Clients"
             tabIndex="0"
             className={location.pathname === '/therapist-dashboard/clients' ? 'active' : ''}
+            data-tooltip="Clients"
           >
             <i className="fas fa-user-friends"></i>
             {isOpen && <span className="link-text">Clients</span>}
@@ -87,6 +94,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
             aria-label="Notification"
             tabIndex="0"
             className={location.pathname === '/therapist-dashboard/notifications' ? 'active' : ''}
+            data-tooltip="Notification"
           >
             <i className="fas fa-bell"></i>
             {isOpen && (
@@ -95,6 +103,9 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
                 {privateUnreadCount + groupUnreadCount > 0 && (
                   <span className="badge">{privateUnreadCount + groupUnreadCount}</span>
                 )}
+                <span
+                  className={`status-dot ${privateUnreadCount + groupUnreadCount > 0 ? 'active' : ''}`}
+                ></span>
               </>
             )}
           </span>
@@ -105,6 +116,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
             aria-label="Profile"
             tabIndex="0"
             className={location.pathname === '/therapist-dashboard/profile' ? 'active' : ''}
+            data-tooltip="Profile"
           >
             <i className="fas fa-user"></i>
             {isOpen && <span className="link-text">Profile</span>}
@@ -116,17 +128,20 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
             aria-label="Settings"
             tabIndex="0"
             className={location.pathname === '/therapist-dashboard/settings' ? 'active' : ''}
+            data-tooltip="Settings"
           >
             <i className="fas fa-cog"></i>
             {isOpen && <span className="link-text">Settings</span>}
           </span>
         </Link>
+        <div className="divider"></div>
         <span
           role="button"
           aria-label="Logout"
           tabIndex="0"
           onClick={onLogout}
           className={location.pathname === '/therapist-dashboard/logout' ? 'active' : ''}
+          data-tooltip="Logout"
         >
           <i className="fas fa-sign-out-alt"></i>
           {isOpen && <span className="link-text">Logout</span>}

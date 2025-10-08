@@ -3,6 +3,7 @@
   color: #ffffff;
   width: 250px;
   height: 100vh;
+  position: sticky;
   padding: 20px;
   padding-right: 0;
   top: 0;
@@ -85,7 +86,9 @@
 }
 
 .sidebar.closed .list span .badge {
-  display: none;
+  position: absolute;
+  top: 0px;
+  left: 20px;
 }
 
 .list span:hover,
@@ -109,7 +112,7 @@
   display: inline-block;
 }
 
-.badge {
+.list span .badge {
   background-color: #ef4444;
   color: #ffffff;
   border-radius: 12px;
@@ -141,8 +144,7 @@
     padding-right: 0;
   }
 
-  .sidebar.open .list span .link-text,
-  .sidebar.open .list span .badge {
+  .sidebar.open .list span .link-text {
     display: inline-block;
   }
 
