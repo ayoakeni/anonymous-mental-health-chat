@@ -15,6 +15,7 @@ import {
   where,
   limit,
   runTransaction,
+  getDocs, // Added for recent join check
 } from "firebase/firestore";
 import { debounce } from "lodash";
 import { useTypingStatus } from "../components/useTypingStatus";
@@ -95,7 +96,7 @@ function TherapistDashboard() {
     privateMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [privateMessages, privateEvents]);
 
-  // Validate and sync activeChatId with URL param
+  // Validate and sync activeChatId with URL param (added extra retry delay for propagation)
   useEffect(() => {
     if (!chatId || !location.pathname.startsWith("/therapist-dashboard/private-chat/")) {
       setActiveChatId(null);
@@ -111,7 +112,7 @@ function TherapistDashboard() {
       setChatError(null);
       try {
         const chatRef = doc(db, "privateChats", chatId);
-        const chatSnap = await getDoc(chatRef);
+        let chatSnap = await getDoc(chatRef);
         logFirestoreOperation("read", 1, { collection: "privateChats", doc: chatId });
 
         if (!chatSnap.exists()) {
@@ -122,10 +123,10 @@ function TherapistDashboard() {
           return;
         }
 
-        const chatData = chatSnap.data();
+        let chatData = chatSnap.data();
         console.log("Chat data:", JSON.stringify(chatData, null, 2));
-        const isParticipant = chatData.participants?.includes(therapistId);
-        const needsTherapist = chatData.needsTherapist === true;
+        let isParticipant = chatData.participants?.includes(therapistId);
+        let needsTherapist = chatData.needsTherapist === true;
         console.log("isParticipant:", isParticipant, "needsTherapist:", needsTherapist, "therapistId:", therapistId);
 
         if (!isParticipant && !needsTherapist) {
@@ -145,17 +146,19 @@ function TherapistDashboard() {
           console.log("Recent join event:", recentJoin, "isRecentJoin:", isRecentJoin);
 
           if (!isRecentJoin) {
-            // Retry fetching the chat document
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            const retrySnap = await getDoc(chatRef);
-            if (!retrySnap.exists()) {
+            // Retry fetching the chat document with a small delay for propagation
+            await new Promise((resolve) => setTimeout(resolve, 3000)); // Increased delay
+            chatSnap = await getDoc(chatRef);
+            if (!chatSnap.exists()) {
               setChatError("This chat no longer exists.");
               setActiveChatId(null);
               navigate("/therapist-dashboard/private-chat");
               return;
             }
-            const retryData = retrySnap.data();
-            if (!retryData.participants?.includes(therapistId) && !retryData.needsTherapist) {
+            chatData = chatSnap.data();
+            isParticipant = chatData.participants?.includes(therapistId);
+            needsTherapist = chatData.needsTherapist;
+            if (!isParticipant && !needsTherapist) {
               setChatError("You do not have permission to access this chat.");
               setActiveChatId(null);
               navigate("/therapist-dashboard/private-chat");
@@ -203,7 +206,7 @@ function TherapistDashboard() {
         const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
         logFirestoreOperation("read", snapshot.docs.length, { collection: "privateChats" });
         setPrivateChats((prev) => {
-          const allChats = [...prev, ...chats];
+          const allChats = [...chats, ...prev]; // Prioritize new chats data first for merges
           const uniqueChats = [...new Set(allChats.map((c) => c.id))].map((id) =>
             allChats.find((c) => c.id === id)
           );
@@ -224,7 +227,7 @@ function TherapistDashboard() {
         const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
         logFirestoreOperation("read", snapshot.docs.length, { collection: "privateChats" });
         setPrivateChats((prev) => {
-          const allChats = [...prev, ...chats];
+          const allChats = [...chats, ...prev]; // Prioritize new chats data first for merges
           const uniqueChats = [...new Set(allChats.map((c) => c.id))].map((id) =>
             allChats.find((c) => c.id === id)
           );
@@ -655,7 +658,7 @@ function TherapistDashboard() {
     }
   };
 
-  // Join private chat
+// Join private chat (moved event addition inside !includes block to avoid duplicates on re-entry)
   const joinPrivateChat = async (chatId) => {
     if (!auth.currentUser) return;
     const chatRef = doc(db, "privateChats", chatId);
@@ -675,6 +678,13 @@ function TherapistDashboard() {
             lastJoinEvent: Date.now(),
             needsTherapist: false,
           });
+          transaction.set(doc(collection(chatRef, "events")), {
+            type: "join",
+            user: displayName,
+            text: `A therapist "${displayName}" has joined. You can now continue your conversation with them.`,
+            role: "system",
+            timestamp: serverTimestamp(),
+          });
         } else {
           const chatData = chatSnap.data();
           if (!chatData.participants.includes(uid)) {
@@ -685,26 +695,25 @@ function TherapistDashboard() {
               aiActive: false,
               unreadCountForTherapist: 0,
               lastJoinEvent: Date.now(),
-              needsTherapist: true, // Keep true until join is complete
+              needsTherapist: false, // Set to false here in transaction
+            });
+            transaction.set(doc(collection(chatRef, "events")), {
+              type: "join",
+              user: displayName,
+              text: `A therapist "${displayName}" has joined. You can now continue your conversation with them.`,
+              role: "system",
+              timestamp: serverTimestamp(),
             });
           } else {
             transaction.update(chatRef, {
               unreadCountForTherapist: 0,
               needsTherapist: false,
             });
+            // No event added on re-entry
           }
-          transaction.set(doc(collection(chatRef, "events")), {
-            type: "join",
-            user: displayName,
-            text: `A therapist "${displayName}" has joined. You can now continue your conversation with them.`,
-            role: "system",
-            timestamp: serverTimestamp(),
-          });
         }
       });
       logFirestoreOperation("write", 2, { collection: "privateChats", subcollection: "events" });
-      // Set needsTherapist to false after join is complete
-      await setDoc(doc(db, "privateChats", chatId), { needsTherapist: false }, { merge: true });
       setActiveChatId(chatId);
       setChatError(null);
       navigate(`/therapist-dashboard/private-chat/${chatId}`);

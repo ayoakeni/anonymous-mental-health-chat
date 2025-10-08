@@ -8,9 +8,8 @@ import {
   orderBy,
   doc,
   getDoc,
-  setDoc,
   runTransaction,
-  limit, // Added import to fix ESLint error
+  limit,
 } from "firebase/firestore";
 import { db, auth } from "../../utils/firebase";
 import { getAIResponse } from "../../utils/AiChatIntegration";
@@ -18,10 +17,6 @@ import { mapMessagesForAI } from "../../utils/aiMessageMapper";
 import { loginAnonymously, getAnonName } from "../../login/anonymous_login";
 import TherapistProfile from "../../components/TherapistProfile";
 import { useTypingStatus } from "../../components/useTypingStatus";
-
-const logFirestoreOperation = (operation, count, details) => {
-  console.log(`Firestore ${operation}: ${count} documents`, details);
-};
 
 function Chatroom() {
   const [messages, setMessages] = useState([]);
@@ -60,7 +55,6 @@ function Chatroom() {
     const q = query(collection(db, "messages"), orderBy("timestamp"), limit(50));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      logFirestoreOperation("read", snapshot.docs.length, { collection: "messages" });
       setMessages(msgs);
     }, (err) => {
       console.error("Error fetching messages:", err);
@@ -80,7 +74,6 @@ function Chatroom() {
         uid: doc.id,
         ...doc.data(),
       }));
-      logFirestoreOperation("read", snapshot.docs.length, { collection: "therapistsOnline" });
       setTherapistsOnline(onlineList);
     }, (err) => {
       console.error("Error fetching therapists online:", err);
@@ -99,7 +92,6 @@ function Chatroom() {
       if (snap.exists()) {
         const data = snap.data();
         setTherapistName(data.name || "Therapist");
-        logFirestoreOperation("read", 1, { collection: "therapists", doc: auth.currentUser.uid });
       } else {
         setTherapistName("Therapist");
       }
@@ -119,7 +111,6 @@ function Chatroom() {
       if (user?.email && !sessionStorage.getItem("therapistJoined")) {
         try {
           const snap = await getDoc(doc(db, "therapists", user.uid));
-          logFirestoreOperation("read", 1, { collection: "therapists", doc: user.uid });
           if (snap.exists()) {
             setTherapistName(snap.data().name || "Therapist");
           }
@@ -140,7 +131,6 @@ function Chatroom() {
     if (msg.role !== "therapist") return;
     try {
       const snap = await getDoc(doc(db, "therapists", msg.userId));
-      logFirestoreOperation("read", 1, { collection: "therapists", doc: msg.userId });
       if (snap.exists()) {
         setSelectedTherapist({ ...snap.data(), uid: msg.userId });
       }
@@ -155,7 +145,8 @@ function Chatroom() {
   // Start private chat
   const startPrivateChat = async (therapist) => {
     if (!therapist || !therapist.uid || !auth.currentUser) return;
-    const chatId = `chat_${auth.currentUser.uid}_${therapist.uid}`;
+    const uids = [auth.currentUser.uid, therapist.uid].sort();
+    const chatId = `chat_${uids[0]}_${uids[1]}`;
     const chatRef = doc(db, "privateChats", chatId);
 
     try {
@@ -183,7 +174,6 @@ function Chatroom() {
           });
         }
       });
-      logFirestoreOperation("write", 1, { collection: "privateChats", doc: chatId });
       const isTherapist = auth.currentUser?.email;
       const route = isTherapist
         ? `/therapist-dashboard/private-chat/${chatId}`
@@ -208,7 +198,7 @@ function Chatroom() {
       await runTransaction(db, async (transaction) => {
         const messagesRef = collection(db, "messages");
         const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
-        transaction.set(messagesRef, {
+        transaction.set(doc(messagesRef), {
           text: newMessage,
           userId: auth.currentUser.uid,
           displayName,
@@ -221,7 +211,6 @@ function Chatroom() {
           timestamp: serverTimestamp(),
         });
       });
-      logFirestoreOperation("write", 2, { collections: ["messages", "typingStatus"] });
 
       if (role === "user" && newMessage.toLowerCase().includes("@ai")) {
         const cleanMessage = newMessage.replace(/@ai/gi, "").trim();
@@ -232,7 +221,7 @@ function Chatroom() {
           const aiInputMessages = mapMessagesForAI(messages);
           const aiReply = await getAIResponse(cleanMessage, aiInputMessages);
           await runTransaction(db, async (transaction) => {
-            transaction.set(collection(db, "messages"), {
+            transaction.set(doc(collection(db, "messages")), {
               text: `You said: "${originalMessage}"\n\n${aiReply}`,
               userId: "AI_BOT",
               displayName: "AI Support",
@@ -240,11 +229,10 @@ function Chatroom() {
               timestamp: serverTimestamp(),
             });
           });
-          logFirestoreOperation("write", 1, { collection: "messages" });
         } catch (err) {
           console.error("AI error:", err);
           await runTransaction(db, async (transaction) => {
-            transaction.set(collection(db, "messages"), {
+            transaction.set(doc(collection(db, "messages")), {
               text: "Sorry, I couldn’t respond right now. Please try again later.",
               userId: "AI_BOT",
               displayName: "AI Support",
@@ -252,7 +240,6 @@ function Chatroom() {
               timestamp: serverTimestamp(),
             });
           });
-          logFirestoreOperation("write", 1, { collection: "messages" });
         } finally {
           setAiTyping(false);
         }
