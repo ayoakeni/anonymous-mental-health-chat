@@ -855,67 +855,6 @@ function TherapistDashboard() {
                     Welcome, <span className="highlight">{therapistInfo.name || "Therapist"}</span>!
                   </h2>
                 </div>
-                <div className="therapist-profile">
-                  {editing ? (
-                    <div className="profile-edit">
-                      <input
-                        type="text"
-                        placeholder="Name"
-                        value={therapistInfo.name}
-                        onChange={(e) => setTherapistInfo((prev) => ({ ...prev, name: e.target.value }))}
-                      />
-                      <input
-                        type="text"
-                        placeholder="Gender"
-                        value={therapistInfo.gender}
-                        onChange={(e) => setTherapistInfo((prev) => ({ ...prev, gender: e.target.value }))}
-                      />
-                      <input
-                        type="text"
-                        placeholder="Position"
-                        value={therapistInfo.position}
-                        onChange={(e) => setTherapistInfo((prev) => ({ ...prev, position: e.target.value }))}
-                      />
-                      <textarea
-                        placeholder="Profile description"
-                        value={therapistInfo.profile}
-                        onChange={(e) => setTherapistInfo((prev) => ({ ...prev, profile: e.target.value }))}
-                      />
-                      <input
-                        type="number"
-                        placeholder="Rating"
-                        value={therapistInfo.rating}
-                        onChange={(e) =>
-                          setTherapistInfo((prev) => ({ ...prev, rating: parseFloat(e.target.value) || 0 }))
-                        }
-                        min={0}
-                        max={5}
-                        step={0.1}
-                      />
-                      <button onClick={saveProfile}>Save</button>
-                      <button onClick={() => setEditing(false)}>Cancel</button>
-                    </div>
-                  ) : (
-                    <div className="profile-view">
-                      <p>
-                        <strong>Name:</strong> {therapistInfo.name}
-                      </p>
-                      <p>
-                        <strong>Gender:</strong> {therapistInfo.gender}
-                      </p>
-                      <p>
-                        <strong>Position:</strong> {therapistInfo.position}
-                      </p>
-                      <p>
-                        <strong>About:</strong> {therapistInfo.profile}
-                      </p>
-                      <p>
-                        <strong>Rating:</strong> <span className="rating">⭐ {therapistInfo.rating}</span>
-                      </p>
-                      <button onClick={() => setEditing(true)}>Edit Profile</button>
-                    </div>
-                  )}
-                </div>
               </>
             }
           />

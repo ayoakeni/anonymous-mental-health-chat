@@ -1,5 +1,5 @@
 :root {
-  --primary-color: #4a90e2; /* Primary blue for buttons and accents */
+  --primary-color: #3b82f6; /* Primary blue for buttons and accents */
   --background-color: #f5f7fa; /* Light background */
   --sidebar-bg: #1a1a2e; /* Sidebar background */
   --text-color: #ffffff; /* Sidebar text color */
@@ -104,7 +104,6 @@
   cursor: pointer;
   transition: background-color 0.2s;
   font-size: 16px;
-  position: relative;
 }
 
 .sidebar.closed .list span {
@@ -120,7 +119,6 @@
   content: attr(data-tooltip);
   position: absolute;
   left: 60px;
-  top: 50%;
   transform: translateY(-50%);
   background: var(--sidebar-bg);
   color: var(--text-color);
