@@ -21,7 +21,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
             role="button"
             aria-label="Dashboard"
             tabIndex="0"
-            className={location.pathname === '/therapist-dashboard' ? 'active' : ''}
+            className={`iconBadge ${location.pathname === '/therapist-dashboard' ? 'active' : ''}`}
             data-tooltip="Dashboard"
           >
             <i className="fas fa-home"></i>
@@ -33,16 +33,12 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
             role="button"
             aria-label="Group Chat"
             tabIndex="0"
-            className={location.pathname === '/therapist-dashboard/group-chat' ? 'active' : ''}
+            className={`iconBadge ${location.pathname === '/therapist-dashboard/group-chat' ? 'active' : ''}`}
             data-tooltip="Group Chat"
           >
             <i className="fas fa-users"></i>
-            {isOpen && (
-              <>
-                <span className="link-text">Group Chat</span>
-                {groupUnreadCount > 0 && <span className="badge">{groupUnreadCount}</span>}
-              </>
-            )}
+            {isOpen && <span className="link-text">Group Chat</span>}
+            {groupUnreadCount > 0 && <span className="badge">{groupUnreadCount}</span>}
           </span>
         </Link>
         <Link to="/therapist-dashboard/private-chat">
@@ -50,16 +46,12 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
             role="button"
             aria-label="Private Chat"
             tabIndex="0"
-            className={location.pathname === '/therapist-dashboard/private-chat' ? 'active' : ''}
+            className={`iconBadge ${location.pathname === '/therapist-dashboard/private-chat' ? 'active' : ''}`}
             data-tooltip="Private Chat"
           >
             <i className="fas fa-comment"></i>
-            {isOpen && (
-              <>
-                <span className="link-text">Private Chat</span>
-                {privateUnreadCount > 0 && <span className="badge">{privateUnreadCount}</span>}
-              </>
-            )}
+            {isOpen && <span className="link-text">Private Chat</span>}
+            {privateUnreadCount > 0 && <span className="badge">{privateUnreadCount}</span>}
           </span>
         </Link>
         <Link to="/therapist-dashboard/appointments">
@@ -67,7 +59,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
             role="button"
             aria-label="Appointments"
             tabIndex="0"
-            className={location.pathname === '/therapist-dashboard/appointments' ? 'active' : ''}
+            className={`iconBadge ${location.pathname === '/therapist-dashboard/appointments' ? 'active' : ''}`}
             data-tooltip="Appointments"
           >
             <i className="fas fa-calendar"></i>
@@ -79,7 +71,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
             role="button"
             aria-label="Clients"
             tabIndex="0"
-            className={location.pathname === '/therapist-dashboard/clients' ? 'active' : ''}
+            className={`iconBadge ${location.pathname === '/therapist-dashboard/clients' ? 'active' : ''}`}
             data-tooltip="Clients"
           >
             <i className="fas fa-user-friends"></i>
@@ -91,17 +83,13 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
             role="button"
             aria-label="Notification"
             tabIndex="0"
-            className={location.pathname === '/therapist-dashboard/notifications' ? 'active' : ''}
+            className={`iconBadge ${location.pathname === '/therapist-dashboard/notifications' ? 'active' : ''}`}
             data-tooltip="Notification"
           >
             <i className="fas fa-bell"></i>
-            {isOpen && (
-              <>
-                <span className="link-text">Notification</span>
-                {privateUnreadCount + groupUnreadCount > 0 && (
-                  <span className="badge">{privateUnreadCount + groupUnreadCount}</span>
-                )}
-              </>
+            {isOpen && <span className="link-text">Notification</span>}
+            {privateUnreadCount + groupUnreadCount > 0 && (
+              <span className="badge">{privateUnreadCount + groupUnreadCount}</span>
             )}
           </span>
         </Link>
@@ -110,7 +98,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
             role="button"
             aria-label="Profile"
             tabIndex="0"
-            className={location.pathname === '/therapist-dashboard/profile' ? 'active' : ''}
+            className={`iconBadge ${location.pathname === '/therapist-dashboard/profile' ? 'active' : ''}`}
             data-tooltip="Profile"
           >
             <i className="fas fa-user"></i>
@@ -122,7 +110,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
             role="button"
             aria-label="Settings"
             tabIndex="0"
-            className={location.pathname === '/therapist-dashboard/settings' ? 'active' : ''}
+            className={`iconBadge ${location.pathname === '/therapist-dashboard/settings' ? 'active' : ''}`}
             data-tooltip="Settings"
           >
             <i className="fas fa-cog"></i>
@@ -135,7 +123,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
           aria-label="Logout"
           tabIndex="0"
           onClick={onLogout}
-          className={location.pathname === '/therapist-dashboard/logout' ? 'active' : ''}
+          className={`iconBadge ${location.pathname === '/therapist-dashboard/logout' ? 'active' : ''}`}
           data-tooltip="Logout"
         >
           <i className="fas fa-sign-out-alt"></i>
