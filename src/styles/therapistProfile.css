@@ -1,0 +1,184 @@
+:root {
+  --primary-color: #4a90e2; /* Primary blue for buttons and accents */
+  --background-color: #f5f7fa; /* Light background */
+  --profile-bg: #ffffff; /* Profile card background */
+  --text-color: #333333; /* Default text color */
+  --border-radius: 8px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --input-border: #ccc;
+  --online-color: #28a745; /* Green for online status */
+  --offline-color: #dc3545; /* Red for offline status */
+  --rating-color: #ffd700; /* Gold for rating stars */
+}
+
+/* Dark theme */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-color: #1e1e2f;
+    --profile-bg: #2a2a3b;
+    --text-color: #e0e0e0;
+    --input-border: #555;
+  }
+}
+
+.therapist-profile {
+  max-width: 500px;
+  margin: 20px auto;
+  padding: 20px;
+  background: var(--profile-bg);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  font-family: 'Inter', sans-serif;
+  position: relative;
+}
+
+.therapist-profile .back-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 15px;
+  background: none;
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  color: var(--text-color);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-bottom: 15px;
+}
+
+.therapist-profile .back-button:hover {
+  background: var(--background-color);
+}
+
+.therapist-profile h3 {
+  font-size: 1.6rem;
+  color: var(--text-color);
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.therapist-profile h3 .badges {
+  display: inline;
+  width: fit-content;
+  margin-left: 5px;
+}
+
+.therapist-profile .avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  margin: 0 auto 15px;
+}
+
+.therapist-profile p {
+  font-size: 1rem;
+  color: var(--text-color);
+  margin: 10px 0;
+  line-height: 1.5;
+}
+
+.therapist-profile p strong {
+  font-weight: 600;
+}
+
+.therapist-profile .status {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.therapist-profile .status.online {
+  color: var(--online-color);
+}
+
+.therapist-profile .status.offline {
+  color: var(--offline-color);
+}
+
+.therapist-profile .rating {
+  color: var(--rating-color);
+  font-size: 1.1rem;
+}
+
+.therapist-profile .action-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.therapist-profile .action-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.therapist-profile .chat-button {
+  background: var(--primary-color);
+  color: #fff;
+}
+
+.therapist-profile .chat-button:hover {
+  background: #357abd;
+}
+
+.therapist-profile .chat-button:disabled {
+  background: #a0a0a0;
+  cursor: not-allowed;
+}
+
+.therapist-profile .appointment-button {
+  background: #28a745;
+  color: #fff;
+}
+
+.therapist-profile .appointment-button:hover {
+  background: #218838;
+}
+
+.therapist-profile .specialties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.therapist-profile .specialty-tag {
+  padding: 5px 10px;
+  background: var(--primary-color);
+  color: #fff;
+  font-weight: 600;
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+
+.profile-completion {
+  font-size: 1rem;
+  color: #28a745;
+  font-weight: 600;
+}
+
+/* Responsive design */
+@media (max-width: 600px) {
+  .therapist-profile {
+    margin: 10px;
+    padding: 15px;
+  }
+
+  .therapist-profile .action-buttons {
+    flex-direction: column;
+  }
+
+  .therapist-profile .action-button {
+    width: 100%;
+  }
+}

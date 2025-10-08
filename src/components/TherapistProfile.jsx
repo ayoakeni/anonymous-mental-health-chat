@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { db } from "../utils/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
+import "../styles/therapistProfile.css";
 
 function TherapistProfile({ therapist, onBack, onStartChat, onBookAppointment, isOnline }) {
   const [realTimeOnline, setRealTimeOnline] = useState(isOnline);
@@ -24,34 +25,51 @@ function TherapistProfile({ therapist, onBack, onStartChat, onBookAppointment, i
   if (!therapist) return null;
 
   return (
-    <div
-      style={{
-        border: "1px solid #ccc",
-        padding: "15px",
-        borderRadius: "8px",
-        background: "#f9f9f9",
-      }}
-    >
-      <button onClick={onBack} style={{ marginBottom: "10px" }}>
+    <div className="therapist-profile">
+      <button className="back-button" onClick={onBack}>
         ⬅ Back
       </button>
-      <h3>Therapist Profile</h3>
-      <p>
-        <strong>Name:</strong> {therapist.name}{" "}
-        {realTimeOnline ? (
-          <span style={{ color: "green" }}>● Online</span>
-        ) : (
-          <span style={{ color: "red" }}>● Offline</span>
-        )}
-      </p>
+      <div className="avatar">{therapist.name?.[0] || "T"}</div>
+      <h3>{therapist.name}{" "}
+        <span className={`status ${realTimeOnline ? "online" : "offline"}`}>
+          ● {realTimeOnline ? "Online" : "Offline"}
+        </span>
+        <div className="badges">
+          {therapist.rating >= 4 && (
+            <span className="badge top-rated">Top Rated</span>
+          )}
+          {therapist.verified && (
+            <span className="badge verified">Verified Therapist</span>
+          )}
+        </div>
+      </h3>
       <p><strong>Gender:</strong> {therapist.gender || "Not specified"}</p>
       <p><strong>Position:</strong> {therapist.position || "Not specified"}</p>
       <p><strong>About:</strong> {therapist.profile || "No description available"}</p>
-      <p><strong>Rating:</strong> <span style={{ color: "#FFD700" }}>⭐ {therapist.rating || 0}</span></p>
-      <button onClick={onStartChat} disabled={!realTimeOnline}>
-        Start Private Chat
-      </button>
-      <button onClick={onBookAppointment}>Book Appointment</button>
+      <p>
+        <strong>Rating:</strong>{" "}
+        <span className="rating"><i class="fa-solid fa-star"></i> {therapist.rating || 0}</span>
+      </p>
+      <div className="specialties">
+        {(therapist.specialties || ["Not specified"]).map((specialty, index) => (
+          <span key={index} className="specialty-tag">{specialty}</span>
+        ))}
+      </div>
+      <div className="profile-completion">
+        Profile Completion: {therapist.profile && therapist.gender && therapist.position ? 90 : 60}%
+      </div>
+      <div className="action-buttons">
+        <button
+          className="action-button chat-button"
+          onClick={onStartChat}
+          disabled={!realTimeOnline}
+        >
+          Start Private Chat
+        </button>
+        <button className="action-button appointment-button" onClick={onBookAppointment}>
+          Book Appointment
+        </button>
+      </div>
     </div>
   );
 }

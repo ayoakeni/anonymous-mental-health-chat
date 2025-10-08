@@ -262,7 +262,7 @@ function Chatroom() {
   return (
     <div className="chatroom">
       <button className="theme-toggle" onClick={() => alert("Theme toggle coming soon!")}>
-        Toggle Theme
+        <i class="fa-solid fa-moon"></i>
       </button>
       <h2>Anonymous Mental Health Chat</h2>
       <p>
