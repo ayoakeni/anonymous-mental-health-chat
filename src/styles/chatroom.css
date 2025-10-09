@@ -1,4 +1,3 @@
-/* chatroom.css */
 :root {
   --primary-color: #4a90e2; /* Primary blue for buttons and accents */
   --background-color: #f5f7fa; /* Light background */
@@ -48,7 +47,7 @@
   margin-bottom: 20px;
 }
 
-.chat-box {
+.chatroom .chat-box {
   background: var(--chat-bg);
   border-radius: var(--border-radius);
   padding: 15px;
@@ -59,45 +58,55 @@
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.chat-message {
+.chatroom .chat-message {
   margin: 10px 0;
   padding: 10px 15px;
   border-radius: var(--border-radius);
-  max-width: 50%;
+  max-width: 60%;
+  width: fit-content;
   word-wrap: break-word;
   position: relative;
 }
 
-.chat-message.therapist {
+.chatroom .chat-message.therapist {
   background: var(--therapist-bg);
   margin-right: auto;
 }
 
-.chat-message.user {
+.chatroom .chat-message.user {
   background: var(--user-bg);
   margin-left: auto;
   color: var(--text-color);
 }
 
-.chat-message.ai {
+.chatroom .chat-message.ai {
   background: var(--ai-bg);
   margin-right: auto;
   border-left: 4px solid var(--primary-color);
 }
 
-.chat-message strong {
+.chatroom .chat-message strong {
   font-weight: 600;
   color: var(--text-color);
 }
 
-.chat-message .message-content-time {
+.chatroom .chat-message .message-content-time {
   margin-top: 5px;
   font-size: 0.9rem;
   color: var(--text-color);
   opacity: 0.8;
 }
 
-.typing-indicator {
+.chatroom .message-timestamp {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-color);
+  opacity: 0.5;
+  text-align: right;
+  display: block;
+}
+
+.chatroom .typing-indicator {
   font-style: italic;
   color: var(--text-color);
   opacity: 0.7;
@@ -105,17 +114,17 @@
   margin: 5px 0;
 }
 
-.typing-indicator.ai-typing {
+.chatroom .typing-indicator.ai-typing {
   color: var(--primary-color);
 }
 
-.chat-input {
+.chatroom .chat-input {
   display: flex;
   gap: 10px;
   align-items: center;
 }
 
-.chat-input input {
+.chatroom .chat-input input {
   flex: 1;
   padding: 12px;
   border: 1px solid var(--input-border);
@@ -127,11 +136,16 @@
   transition: border-color 0.2s;
 }
 
-.chat-input input:focus {
+.chatroom .chat-input aside {
+  position: absolute;
+  bottom: 90px;
+}
+
+.chatroom .chat-input input:focus {
   border-color: var(--primary-color);
 }
 
-.chat-input button {
+.chatroom .chat-input button {
   padding: 12px 20px;
   background: var(--primary-color);
   color: #fff;
@@ -142,24 +156,24 @@
   transition: background 0.2s;
 }
 
-.chat-input button:hover {
+.chatroom .chat-input button:hover {
   background: #357abd;
 }
 
-.chat-input button:disabled {
+.chatroom .chat-input button:disabled {
   background: #a0a0a0;
   cursor: not-allowed;
 }
 
 /* Therapist list styling */
-.therapist-list {
+.chatroom .therapist-list {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 20px;
 }
 
-.therapist-item {
+.chatroom .therapist-item {
   padding: 8px 15px;
   background: var(--therapist-bg);
   border-radius: var(--border-radius);
@@ -169,26 +183,17 @@
   transition: background 0.2s;
 }
 
-.therapist-item:hover {
+.chatroom .therapist-item:hover {
   background: #d0e0ff;
 }
 
-.therapist-item.online::after {
+.chatroom .therapist-item.online::after {
   content: "●";
   color: #28a745;
   margin-left: 5px;
   font-size: 0.8rem;
 }
 
-/* Message timestamp */
-.message-timestamp {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-color);
-  opacity: 0.5;
-  text-align: right;
-  display: block;
-}
 
 /* Responsive design */
 @media (max-width: 600px) {
@@ -197,30 +202,30 @@
     margin: 10px;
   }
 
-  .chat-box {
+  .chatroom .chat-box {
     height: 300px;
   }
 
-  .chat-input {
+  .chatroom .chat-input {
     flex-direction: column;
   }
 
-  .chat-input input,
-  .chat-input button {
+  .chatroom .chat-input input,
+  .chatroom .chat-input button {
     width: 100%;
   }
 }
 
 /* Scrollbar styling */
-.chat-box::-webkit-scrollbar {
+.chatroom .chat-box::-webkit-scrollbar {
   width: 8px;
 }
 
-.chat-box::-webkit-scrollbar-track {
+.chatroom .chat-box::-webkit-scrollbar-track {
   background: var(--background-color);
 }
 
-.chat-box::-webkit-scrollbar-thumb {
+.chatroom .chat-box::-webkit-scrollbar-thumb {
   background: var(--primary-color);
   border-radius: 4px;
 }
@@ -238,7 +243,7 @@
 .theme-toggle:hover {
   background: #357abd;
 }
-.therapist-avatar {
+.chatroom .therapist-avatar {
   display: inline-block;
   width: 30px;
   height: 30px;
@@ -250,7 +255,7 @@
   margin-right: 8px;
   font-size: 0.9rem;
 }
-.message-reactions {
+.chatroom .message-reactions {
   display: none;
   position: absolute;
   top: -20px;
@@ -260,18 +265,18 @@
   border-radius: var(--border-radius);
   box-shadow: var(--shadow);
 }
-.chat-message:hover .message-reactions {
+.chatroom .chat-message:hover .message-reactions {
   display: flex;
   gap: 5px;
 }
-.reaction {
+.chatroom .reaction {
   cursor: pointer;
   font-size: 1rem;
 }
-.reaction:hover {
+.chatroom .reaction:hover {
   transform: scale(1.2);
 }
-.pinned-message {
+.chatroom .pinned-message {
   background: var(--primary-color);
   color: #fff;
   padding: 10px;
@@ -282,8 +287,8 @@
   top: 0;
   z-index: 10;
 }
-.emoji-btn,
-.attach-btn {
+.chatroom .emoji-btn,
+.chatroom .attach-btn {
   padding: 12px;
   background: var(--input-bg);
   border: 1px solid var(--input-border);
@@ -291,7 +296,7 @@
   cursor: pointer;
   font-size: 1rem;
 }
-.emoji-btn:hover,
-.attach-btn:hover {
+.chatroom .emoji-btn:hover,
+.chatroom .attach-btn:hover {
   background: var(--therapist-bg);
 }

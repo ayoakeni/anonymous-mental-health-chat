@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation, Routes, Route, useParams } from "react-router-dom";
-import { db, auth, Timestamp } from "../utils/firebase";
+import { db, auth, Timestamp, storage, ref, uploadBytes, getDownloadURL } from "../utils/firebase";
 import {
   collection,
   query,
@@ -15,18 +15,17 @@ import {
   where,
   limit,
   runTransaction,
-  getDocs, // Added for recent join check
+  getDocs,
+  updateDoc,
+  deleteDoc,
 } from "firebase/firestore";
 import { debounce } from "lodash";
 import { useTypingStatus } from "../components/useTypingStatus";
 import { signOut } from "firebase/auth";
 import LeaveChatButton from "../components/LeaveChatButton";
 import Sidebar from "../components/sidebar";
+import EmojiPicker from 'emoji-picker-react';
 import "../styles/therapistDashboard.css";
-
-const logFirestoreOperation = (operation, count, details) => {
-  console.log(`Firestore ${operation}: ${count} documents`, details);
-};
 
 function TherapistDashboard() {
   const [messages, setMessages] = useState([]);
@@ -58,6 +57,9 @@ function TherapistDashboard() {
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [isValidatingChat, setIsValidatingChat] = useState(false);
   const [chatError, setChatError] = useState(null);
+  const [participants, setParticipants] = useState([]); // For group chat participants
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false); // For emoji picker
+  const [therapistsOnline, setTherapistsOnline] = useState([]); // For availability indicator
   const therapistId = auth.currentUser?.uid;
   const displayName = therapistInfo.name || "Unknown Therapist";
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
@@ -96,7 +98,35 @@ function TherapistDashboard() {
     privateMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [privateMessages, privateEvents]);
 
-  // Validate and sync activeChatId with URL param (added extra retry delay for propagation)
+  // Watch therapists online for availability indicator
+  useEffect(() => {
+    const q = query(collection(db, "therapistsOnline"), limit(50));
+    const unsub = onSnapshot(q, (snap) => {
+      const onlineTherapists = snap.docs
+        .map((d) => ({ uid: d.id, ...d.data() }))
+        .filter((t) => t.online);
+      setTherapistsOnline(onlineTherapists);
+      setIsTherapistAvailable(onlineTherapists.length > 0);
+      setActiveTherapists(onlineTherapists.map((t) => t.name || "Therapist"));
+    }, (err) => {
+      console.error("Error fetching therapists online:", err);
+      alert("Failed to fetch therapist status. Please try again.");
+    });
+    return () => unsub();
+  }, []);
+
+  // Watch group chat participants
+  useEffect(() => {
+    const groupRef = doc(db, "groupChats", "mainGroup");
+    const unsub = onSnapshot(groupRef, (snap) => {
+      if (snap.exists()) {
+        setParticipants(snap.data().participants || []);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // Validate and sync activeChatId with URL param
   useEffect(() => {
     if (!chatId || !location.pathname.startsWith("/therapist-dashboard/private-chat/")) {
       setActiveChatId(null);
@@ -113,7 +143,6 @@ function TherapistDashboard() {
       try {
         const chatRef = doc(db, "privateChats", chatId);
         let chatSnap = await getDoc(chatRef);
-        logFirestoreOperation("read", 1, { collection: "privateChats", doc: chatId });
 
         if (!chatSnap.exists()) {
           console.log("Chat document does not exist:", chatId);
@@ -131,7 +160,6 @@ function TherapistDashboard() {
 
         if (!isParticipant && !needsTherapist) {
           console.log("Initial validation failed: Therapist not in participants and needsTherapist is false");
-          // Check recent events to see if the therapist just joined
           const eventsQuery = query(
             collection(chatRef, "events"),
             where("type", "==", "join"),
@@ -142,12 +170,11 @@ function TherapistDashboard() {
           const eventsSnap = await getDocs(eventsQuery);
           const recentJoin = eventsSnap.docs.length > 0;
           const recentJoinTime = recentJoin ? eventsSnap.docs[0].data().timestamp?.toMillis() : 0;
-          const isRecentJoin = recentJoin && (Date.now() - recentJoinTime) < 10000; // Within 10 seconds
+          const isRecentJoin = recentJoin && (Date.now() - recentJoinTime) < 10000;
           console.log("Recent join event:", recentJoin, "isRecentJoin:", isRecentJoin);
 
           if (!isRecentJoin) {
-            // Retry fetching the chat document with a small delay for propagation
-            await new Promise((resolve) => setTimeout(resolve, 3000)); // Increased delay
+            await new Promise((resolve) => setTimeout(resolve, 3000));
             chatSnap = await getDoc(chatRef);
             if (!chatSnap.exists()) {
               setChatError("This chat no longer exists.");
@@ -204,9 +231,8 @@ function TherapistDashboard() {
       const unsubscribe1 = onSnapshot(q1, (snapshot) => {
         console.log("Private chats (participant) snapshot received:", snapshot.docs.length);
         const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        logFirestoreOperation("read", snapshot.docs.length, { collection: "privateChats" });
         setPrivateChats((prev) => {
-          const allChats = [...chats, ...prev]; // Prioritize new chats data first for merges
+          const allChats = [...chats, ...prev];
           const uniqueChats = [...new Set(allChats.map((c) => c.id))].map((id) =>
             allChats.find((c) => c.id === id)
           );
@@ -225,9 +251,8 @@ function TherapistDashboard() {
       const unsubscribe2 = onSnapshot(q2, (snapshot) => {
         console.log("Private chats (needsTherapist) snapshot received:", snapshot.docs.length);
         const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        logFirestoreOperation("read", snapshot.docs.length, { collection: "privateChats" });
         setPrivateChats((prev) => {
-          const allChats = [...chats, ...prev]; // Prioritize new chats data first for merges
+          const allChats = [...chats, ...prev];
           const uniqueChats = [...new Set(allChats.map((c) => c.id))].map((id) =>
             allChats.find((c) => c.id === id)
           );
@@ -247,23 +272,6 @@ function TherapistDashboard() {
     return () => unsubscribe();
   }, [therapistId]);
 
-  // Watch therapist presence
-  useEffect(() => {
-    const q = query(collection(db, "therapistsOnline"), limit(50));
-    const unsub = onSnapshot(q, (snap) => {
-      const onlineTherapists = snap.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
-        .filter((t) => t.online);
-      logFirestoreOperation("read", snap.docs.length, { collection: "therapistsOnline" });
-      setIsTherapistAvailable(onlineTherapists.length > 0);
-      setActiveTherapists(onlineTherapists.map((t) => t.name || "Therapist"));
-    }, (err) => {
-      console.error("Error fetching therapists online:", err);
-      alert("Failed to fetch therapist status. Please try again.");
-    });
-    return () => unsub();
-  }, []);
-
   // Watch private chat messages
   useEffect(() => {
     if (!activeChatId) return;
@@ -273,9 +281,6 @@ function TherapistDashboard() {
       q,
       (snapshot) => {
         const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        logFirestoreOperation("read", snapshot.docs.length, {
-          collection: `privateChats/${activeChatId}/messages`,
-        });
         setPrivateMessages(msgs);
         runTransaction(db, async (transaction) => {
           const chatSnap = await transaction.get(chatRef);
@@ -304,9 +309,6 @@ function TherapistDashboard() {
       q,
       (snapshot) => {
         const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        logFirestoreOperation("read", snapshot.docs.length, {
-          collection: `privateChats/${activeChatId}/events`,
-        });
         setPrivateEvents(evts);
       },
       (err) => {
@@ -324,7 +326,6 @@ function TherapistDashboard() {
       q,
       (snapshot) => {
         const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        logFirestoreOperation("read", snapshot.docs.length, { collection: "messages" });
         setMessages(msgs);
         if (!isGroupChatOpen) {
           const unread = msgs.filter((msg) => {
@@ -350,9 +351,6 @@ function TherapistDashboard() {
       q,
       (snapshot) => {
         const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        logFirestoreOperation("read", snapshot.docs.length, {
-          collection: "groupChats/mainGroup/events",
-        });
         setGroupEvents(evts);
       },
       (err) => {
@@ -391,7 +389,6 @@ function TherapistDashboard() {
     const fetchLastSeen = async () => {
       const docRef = doc(db, "therapists", therapistId);
       const snap = await getDoc(docRef);
-      logFirestoreOperation("read", 1, { collection: "therapists", doc: therapistId });
       if (snap.exists()) {
         const lastSeenGroupChat = snap.data().lastSeenGroupChat;
         let lastSeen;
@@ -424,7 +421,6 @@ function TherapistDashboard() {
           const data = snap.data();
           setTherapistInfo(data);
           setTherapistName(data.name || "Therapist");
-          logFirestoreOperation("read", 1, { collection: "therapists", doc: therapistId });
         } else {
           const defaultInfo = {
             name: "New Therapist",
@@ -483,7 +479,6 @@ function TherapistDashboard() {
             });
           }
         });
-        logFirestoreOperation("write", 2, { collections: ["privateChats", "groupChats"] });
       } catch (err) {
         console.error("Error auto-leaving chats:", err);
         alert("Failed to auto-leave chats. Please try again.");
@@ -506,19 +501,28 @@ function TherapistDashboard() {
     };
   }, [activeChatId, displayName]);
 
-  // Send message to group chat
-  const sendReply = async () => {
-    if (!reply.trim() || !auth.currentUser) return;
+  // Send message to group chat with file support
+  const sendReply = async (file = null) => {
+    if (!reply.trim() && !file) return; // Modified to allow sending files without text
     try {
+      let fileUrl = "";
+      if (file) {
+        const storageRef = ref(storage, `groupChat/${Date.now()}_${file.name}`);
+        await uploadBytes(storageRef, file);
+        fileUrl = await getDownloadURL(storageRef);
+      }
       await runTransaction(db, async (transaction) => {
         const messagesRef = collection(db, "messages");
         const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
         transaction.set(doc(messagesRef), {
-          text: reply,
+          text: reply || "", // Allow empty text if file is present
+          fileUrl: fileUrl || null,
           userId: auth.currentUser.uid,
           displayName: therapistInfo.name,
           role: "therapist",
           timestamp: serverTimestamp(),
+          pinned: false,
+          reactions: {},
         });
         transaction.set(typingDoc, {
           typing: false,
@@ -526,12 +530,62 @@ function TherapistDashboard() {
           timestamp: serverTimestamp(),
         });
       });
-      logFirestoreOperation("write", 2, { collections: ["messages", "typingStatus"] });
       setReply("");
+      setShowEmojiPicker(false);
     } catch (err) {
       console.error("Error sending group message:", err);
       alert("Failed to send group message. Please try again.");
     }
+  };
+
+  // Toggle reaction on message
+  const toggleReaction = async (msgId, reactionType) => {
+    if (!auth.currentUser) return;
+    const msgRef = doc(db, "messages", msgId);
+    try {
+      await runTransaction(db, async (transaction) => {
+        const msgSnap = await transaction.get(msgRef);
+        if (!msgSnap.exists()) return;
+        const reactions = msgSnap.data().reactions || {};
+        const userId = auth.currentUser.uid;
+        const currentReactions = reactions[reactionType] || [];
+        const updatedReactions = currentReactions.includes(userId)
+          ? currentReactions.filter((id) => id !== userId)
+          : [...currentReactions, userId];
+        const updated = { ...reactions, [reactionType]: updatedReactions };
+        transaction.update(msgRef, { reactions: updated });
+      });
+    } catch (err) {
+      console.error("Error toggling reaction:", err);
+      alert("Failed to update reaction. Please try again.");
+    }
+  };
+
+  // Delete message (moderation)
+  const deleteMessage = async (msgId) => {
+    if (therapistInfo.role !== "therapist") return;
+    try {
+      await runTransaction(db, async (transaction) => {
+        transaction.delete(doc(db, "messages", msgId));
+        const groupEventsRef = collection(db, "groupChats/mainGroup/events");
+        transaction.set(doc(groupEventsRef), {
+          type: "delete",
+          user: therapistInfo.name,
+          text: `Message deleted by ${therapistInfo.name}`,
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
+      });
+    } catch (err) {
+      console.error("Error deleting message:", err);
+      alert("Failed to delete message. Please try again.");
+    }
+  };
+
+  // Handle emoji click
+  const onEmojiClick = (emojiData) => {
+    setReply(reply + emojiData.emoji);
+    setShowEmojiPicker(false);
   };
 
   // Logout
@@ -569,9 +623,6 @@ function TherapistDashboard() {
           lastSeen: serverTimestamp(),
         });
       });
-      logFirestoreOperation("write", activeChatId ? 3 : 1, {
-        collections: ["therapistsOnline", activeChatId ? "privateChats" : null],
-      });
       await signOut(auth);
       setTherapistInfo({
         name: "",
@@ -597,7 +648,6 @@ function TherapistDashboard() {
     if (!therapistId) return;
     try {
       await setDoc(doc(db, "therapists", therapistId), therapistInfo, { merge: true });
-      logFirestoreOperation("write", 1, { collection: "therapists", doc: therapistId });
       alert("Profile saved successfully!");
       setEditing(false);
     } catch (err) {
@@ -620,7 +670,6 @@ function TherapistDashboard() {
           { merge: true }
         );
       });
-      logFirestoreOperation("write", 2, { collections: ["groupChats", "therapists"] });
       setLastSeenTimestamp(lastMsgTime);
       setIsGroupChatOpen(true);
       setInGroupChat(true);
@@ -646,7 +695,6 @@ function TherapistDashboard() {
         );
         transaction.update(groupRef, { participants: arrayRemove(auth.currentUser.uid) });
       });
-      logFirestoreOperation("write", 2, { collections: ["therapists", "groupChats"] });
       setIsGroupChatOpen(false);
       setInGroupChat(false);
       setGroupUnreadCount(0);
@@ -658,7 +706,7 @@ function TherapistDashboard() {
     }
   };
 
-// Join private chat (moved event addition inside !includes block to avoid duplicates on re-entry)
+  // Join private chat
   const joinPrivateChat = async (chatId) => {
     if (!auth.currentUser) return;
     const chatRef = doc(db, "privateChats", chatId);
@@ -695,7 +743,7 @@ function TherapistDashboard() {
               aiActive: false,
               unreadCountForTherapist: 0,
               lastJoinEvent: Date.now(),
-              needsTherapist: false, // Set to false here in transaction
+              needsTherapist: false,
             });
             transaction.set(doc(collection(chatRef, "events")), {
               type: "join",
@@ -709,11 +757,9 @@ function TherapistDashboard() {
               unreadCountForTherapist: 0,
               needsTherapist: false,
             });
-            // No event added on re-entry
           }
         }
       });
-      logFirestoreOperation("write", 2, { collection: "privateChats", subcollection: "events" });
       setActiveChatId(chatId);
       setChatError(null);
       navigate(`/therapist-dashboard/private-chat/${chatId}`);
@@ -751,7 +797,6 @@ function TherapistDashboard() {
           needsTherapist: false,
         });
       });
-      logFirestoreOperation("write", 2, { collection: "privateChats", subcollection: "events" });
       setActiveChatId(null);
       setPrivateMessages([]);
       setPrivateEvents([]);
@@ -792,7 +837,6 @@ function TherapistDashboard() {
           needsTherapist: false,
         });
       });
-      logFirestoreOperation("write", 2, { collection: "privateChats", subcollection: "messages" });
       setNewPrivateMessage("");
       setIsSendingPrivate(false);
     } catch (err) {
@@ -814,7 +858,6 @@ function TherapistDashboard() {
     if (msg.role !== "therapist") return;
     try {
       const snap = await getDoc(doc(db, "therapists", msg.userId));
-      logFirestoreOperation("read", 1, { collection: "therapists", doc: msg.userId });
       if (snap.exists()) setSelectedTherapist(snap.data());
     } catch (err) {
       console.error("Error fetching therapist profile:", err);
@@ -863,16 +906,92 @@ function TherapistDashboard() {
             element={
               isGroupChatOpen && inGroupChat ? (
                 <div className="group-chat">
+                  <h3>
+                    Group Chat{" "}
+                    {therapistsOnline.length > 0
+                      ? `(Therapists Online: ${therapistsOnline.map((t) => t.name).join(", ")})`
+                      : "(No therapists online)"}
+                  </h3>
                   <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
+                  <div className="participant-list">
+                    <h4>Participants ({participants.length})</h4>
+                    {participants.map((uid) => (
+                      <div key={uid} className="participant-item">
+                        {uid} {/* TODO: Map to displayName */}
+                      </div>
+                    ))}
+                  </div>
+                  {combinedGroupChat.some((msg) => msg.pinned) && (
+                    <div className="pinned-message">
+                      <strong>Pinned:</strong>{" "}
+                      {combinedGroupChat.find((msg) => msg.pinned)?.text || "Welcome to the group chat!"}
+                    </div>
+                  )}
                   <div className="chat-container">
                     {combinedGroupChat.map((msg) => (
                       <p
                         key={msg.id}
                         className={`chat-message ${
-                          msg.role === "therapist" ? "therapist" : msg.role === "ai" ? "ai" : "user"
+                          msg.role === "therapist"
+                            ? "therapist"
+                            : msg.role === "ai"
+                            ? "ai"
+                            : msg.role === "system"
+                            ? "system"
+                            : "user"
                         }`}
+                        onClick={() => handleTherapistClick(msg)}
                       >
-                        <strong>{msg.displayName || msg.user || "Anonymous"}:</strong> {msg.text || msg.message}
+                        <strong>{msg.displayName || msg.user || "Anonymous"}</strong>{" "}
+                        <div className="message-content-time">
+                          <span>{msg.text || msg.message}</span>
+                          <span className="message-timestamp">
+                            {msg.timestamp?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          <span className="message-reactions">
+                            <i
+                              className="fa-solid fa-heart reaction"
+                              style={{ color: msg.reactions?.heart?.length > 0 ? "red" : "gray" }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleReaction(msg.id, "heart");
+                              }}
+                            >
+                              {msg.reactions?.heart?.length || 0}
+                            </i>
+                            <i
+                              className="fa-solid fa-thumbs-up reaction"
+                              style={{ color: msg.reactions?.thumbsUp?.length > 0 ? "blue" : "gray" }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleReaction(msg.id, "thumbsUp");
+                              }}
+                            >
+                              {msg.reactions?.thumbsUp?.length || 0}
+                            </i>
+                          </span>
+                        </div>
+                        {msg.fileUrl && (
+                          <a
+                            href={msg.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="attachment-link"
+                          >
+                            📎 View Attachment
+                          </a>
+                        )}
+                        {msg.role !== "system" && therapistInfo.role === "therapist" && (
+                          <button
+                            className="delete-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteMessage(msg.id);
+                            }}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </p>
                     ))}
                     {typingUsers.length > 0 && (
@@ -892,7 +1011,26 @@ function TherapistDashboard() {
                       }}
                       placeholder="Reply to group chat..."
                     />
-                    <button onClick={sendReply}>Send</button>
+                    <button
+                      className="emoji-btn"
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    >
+                      😊
+                    </button>
+                    {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
+                    <input
+                      type="file"
+                      id="group-file-upload"
+                      style={{ display: "none" }}
+                      onChange={(e) => sendReply(e.target.files[0])}
+                    />
+                    <button
+                      className="attach-btn"
+                      onClick={() => document.getElementById("group-file-upload").click()}
+                    >
+                      📎
+                    </button>
+                    <button onClick={() => sendReply()}>Send</button>
                   </div>
                 </div>
               ) : (
