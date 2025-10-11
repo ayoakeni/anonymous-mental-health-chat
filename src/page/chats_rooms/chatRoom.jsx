@@ -31,6 +31,7 @@ function Chatroom() {
   const [therapistName, setTherapistName] = useState("Therapist");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [participants, setParticipants] = useState([]);
+  const modalRef = useRef(null);
 
   const displayName = auth.currentUser?.email ? therapistName : getAnonName();
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
@@ -41,6 +42,21 @@ function Chatroom() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, groupEvents]);
+
+  // Handle clicks outside the modal to close it
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (modalRef.current && !modalRef.current.contains(event.target)) {
+        setSelectedTherapist(null);
+      }
+    };
+    if (selectedTherapist) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [selectedTherapist]);
 
   // Initialize authentication and messages
   useEffect(() => {
@@ -374,11 +390,6 @@ function Chatroom() {
         <i className="fa-solid fa-moon"></i>
       </button>
       <h2 className="header-name">Anonymous Mental Health Chat</h2>
-      {/* <p>
-        {therapistsOnline.length > 0
-          ? `Therapists online: ${therapistsOnline.map((t) => t.name).join(", ")}`
-          : "No therapist online currently"}
-      </p> */}
       <div className="therapist-list">
         {therapistsOnline.map((therapist) => (
           <div
@@ -399,134 +410,137 @@ function Chatroom() {
           </div>
         ))}
       </div>
-      {selectedTherapist ? (
-        <TherapistProfile
-          therapist={selectedTherapist}
-          isOnline={isTherapistOnline(selectedTherapist.uid)}
-          onBack={() => setSelectedTherapist(null)}
-          onStartChat={() => startPrivateChat(selectedTherapist)}
-          onBookAppointment={() => alert("Appointment booking coming soon!")}
-        />
-      ) : (
-        <>
-          {combinedChat.some((msg) => msg.pinned) && (
-            <div className="pinned-message">
-              <strong>Pinned:</strong>{" "}
-              {combinedChat.find((msg) => msg.pinned)?.text || "Welcome to the chatroom!"}
-            </div>
-          )}
-          <div className="chat-box">
-            {combinedChat.map((msg) => (
-              <p
-                key={msg.id}
-                className={`chat-message ${
-                  msg.role === "therapist"
-                    ? "therapist"
-                    : msg.role === "ai"
-                    ? "ai"
-                    : msg.role === "system"
-                    ? "system"
-                    : "user"
-                }`}
-                onClick={() => msg.role === "therapist" && handleTherapistClick(msg)}
-              >
-                {msg.role === "system" ? (
-                  <em>{msg.text}</em>
-                ) : (
-                  <>
-                    <strong>{msg.displayName || msg.user || "Anonymous"}</strong>
-                    <div className="message-content-time">
-                      <span>{msg.text}</span>
-                      {msg.fileUrl && (
-                        <a
-                          href={msg.fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="attachment-link"
-                        >
-                          <i className="fa-solid fa-paperclip"></i> View Attachment
-                        </a>
-                      )}
-                      <span className="message-timestamp">
-                        {msg.timestamp?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                      <span className="message-reactions">
-                        <i
-                          className="fa-solid fa-heart reaction"
-                          style={{ color: msg.reactions?.heart?.length > 0 ? "red" : "gray" }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleReaction(msg.id, "heart");
-                          }}
-                        >
-                          {msg.reactions?.heart?.length || 0}
-                        </i>
-                        <i
-                          className="fa-solid fa-thumbs-up reaction"
-                          style={{ color: msg.reactions?.thumbsUp?.length > 0 ? "blue" : "gray" }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleReaction(msg.id, "thumbsUp");
-                          }}
-                        >
-                          {msg.reactions?.thumbsUp?.length || 0}
-                        </i>
-                      </span>
-                    </div>
-                  </>
-                )}
-              </p>
-            ))}
-            {typingUsers.length > 0 && (
-              <p className="typing-indicator">
-                {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
-              </p>
-            )}
-            {aiTyping && (
-              <p className="typing-indicator ai-typing">
-                AI Support is typing...
-              </p>
-            )}
-            <div ref={messagesEndRef} />
+      {selectedTherapist && (
+        <div className="modal-backdrop">
+          <div className="modal" ref={modalRef}>
+            <TherapistProfile
+              therapist={selectedTherapist}
+              isOnline={isTherapistOnline(selectedTherapist.uid)}
+              onBack={() => setSelectedTherapist(null)}
+              onStartChat={() => startPrivateChat(selectedTherapist)}
+              onBookAppointment={() => alert("Appointment booking coming soon!")}
+            />
           </div>
-          {isLoggedIn && (
-            <div className="chat-input">
-              <button
-                className="emoji-btn"
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              >
-                <i className="fa-regular fa-face-smile"></i>
-              </button>
-              {showEmojiPicker && <EmojiPicker className="EmojiPicker" onEmojiClick={onEmojiClick} />}
-              <input
-                type="file"
-                id="chatroom-file-upload"
-                style={{ display: "none" }}
-                onChange={(e) => handleFileUpload(e.target.files[0])}
-              />
-              <button
-                className="attach-btn"
-                onClick={() => document.getElementById("chatroom-file-upload").click()}
-              >
-                <i className="fa-solid fa-paperclip"></i>
-              </button>
-              <input
-                className="inputInsert"
-                type="text"
-                value={newMessage}
-                onChange={(e) => {
-                  setNewMessage(e.target.value);
-                  handleTyping(e.target.value);
-                }}
-                placeholder="Type a message..."
-              />
-              <button className="send-btn" onClick={sendMessage}>
-                <i className="fa-solid fa-paper-plane"></i>
-              </button>
-            </div>
-          )}
-        </>
+        </div>
       )}
+      <div className={selectedTherapist ? "chatroom-content blurred" : "chatroom-content"}>
+        {combinedChat.some((msg) => msg.pinned) && (
+          <div className="pinned-message">
+            <strong>Pinned:</strong>{" "}
+            {combinedChat.find((msg) => msg.pinned)?.text || "Welcome to the chatroom!"}
+          </div>
+        )}
+        <div className="chat-box">
+          {combinedChat.map((msg) => (
+            <p
+              key={msg.id}
+              className={`chat-message ${
+                msg.role === "therapist"
+                  ? "therapist"
+                  : msg.role === "ai"
+                  ? "ai"
+                  : msg.role === "system"
+                  ? "system"
+                  : "user"
+              }`}
+              onClick={() => msg.role === "therapist" && handleTherapistClick(msg)}
+            >
+              {msg.role === "system" ? (
+                <em>{msg.text}</em>
+              ) : (
+                <>
+                  <strong>{msg.displayName || msg.user || "Anonymous"}</strong>
+                  <div className="message-content-time">
+                    <span>{msg.text}</span>
+                    {msg.fileUrl && (
+                      <a
+                        href={msg.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="attachment-link"
+                      >
+                        <i className="fa-solid fa-paperclip"></i> View Attachment
+                      </a>
+                    )}
+                    <span className="message-timestamp">
+                      {msg.timestamp?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    <span className="message-reactions">
+                      <i
+                        className="fa-solid fa-heart reaction"
+                        style={{ color: msg.reactions?.heart?.length > 0 ? "red" : "gray" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleReaction(msg.id, "heart");
+                        }}
+                      >
+                        {msg.reactions?.heart?.length || 0}
+                      </i>
+                      <i
+                        className="fa-solid fa-thumbs-up reaction"
+                        style={{ color: msg.reactions?.thumbsUp?.length > 0 ? "blue" : "gray" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleReaction(msg.id, "thumbsUp");
+                        }}
+                      >
+                        {msg.reactions?.thumbsUp?.length || 0}
+                      </i>
+                    </span>
+                  </div>
+                </>
+              )}
+            </p>
+          ))}
+          {typingUsers.length > 0 && (
+            <p className="typing-indicator">
+              {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+            </p>
+          )}
+          {aiTyping && (
+            <p className="typing-indicator ai-typing">
+              AI Support is typing...
+            </p>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+        {isLoggedIn && (
+          <div className="chat-input">
+            <button
+              className="emoji-btn"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            >
+              <i className="fa-regular fa-face-smile"></i>
+            </button>
+            {showEmojiPicker && <EmojiPicker className="EmojiPicker" onEmojiClick={onEmojiClick} />}
+            <input
+              type="file"
+              id="chatroom-file-upload"
+              style={{ display: "none" }}
+              onChange={(e) => handleFileUpload(e.target.files[0])}
+            />
+            <button
+              className="attach-btn"
+              onClick={() => document.getElementById("chatroom-file-upload").click()}
+            >
+              <i className="fa-solid fa-paperclip"></i>
+            </button>
+            <input
+              className="inputInsert"
+              type="text"
+              value={newMessage}
+              onChange={(e) => {
+                setNewMessage(e.target.value);
+                handleTyping(e.target.value);
+              }}
+              placeholder="Type a message..."
+            />
+            <button className="send-btn" onClick={sendMessage}>
+              <i className="fa-solid fa-paper-plane"></i>
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

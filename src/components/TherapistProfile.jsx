@@ -26,8 +26,8 @@ function TherapistProfile({ therapist, onBack, onStartChat, onBookAppointment, i
 
   return (
     <div className="therapist-profile">
-      <button className="back-button" onClick={onBack}>
-        ⬅ Back
+      <button className="close-button" onClick={onBack}>
+        <i className="fa-solid fa-times"></i>
       </button>
       <div className="avatar">{therapist.name?.[0] || "T"}</div>
       <h3>{therapist.name}{" "}
@@ -48,7 +48,7 @@ function TherapistProfile({ therapist, onBack, onStartChat, onBookAppointment, i
       <p><strong>About:</strong> {therapist.profile || "No description available"}</p>
       <p>
         <strong>Rating:</strong>{" "}
-        <span className="rating"><i class="fa-solid fa-star"></i> {therapist.rating || 0}</span>
+        <span className="rating"><i className="fa-solid fa-star"></i> {therapist.rating || 0}</span>
       </p>
       <div className="specialties">
         {(therapist.specialties || ["Not specified"]).map((specialty, index) => (

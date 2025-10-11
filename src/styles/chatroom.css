@@ -11,6 +11,8 @@
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   --input-bg: #ffffff;
   --input-border: #ccc;
+  --accent-color: #34c759; /* Green for user messages */
+  --secondary-color: #ff9500; /* Orange for AI messages */
   --badge-bg: #ef4444; /* For unread badges */
 }
 
@@ -327,7 +329,7 @@
 
 .chatroom .chat-input .emoji-btn i,
 .chatroom .chat-input .attach-btn i,
-.chatroom .chat-input button i {
+.chatroom .chat-input .send-btn i {
   color: gold;
 }
 
@@ -342,4 +344,9 @@
 .chatroom .chat-input .send-btn:disabled {
   background: #a0a0a0;
   cursor: not-allowed;
+}
+
+.chatroom-content.blurred {
+  filter: blur(3px);
+  pointer-events: none;
 }
