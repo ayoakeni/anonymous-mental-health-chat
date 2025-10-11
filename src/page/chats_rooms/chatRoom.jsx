@@ -374,11 +374,11 @@ function Chatroom() {
         <i className="fa-solid fa-moon"></i>
       </button>
       <h2 className="header-name">Anonymous Mental Health Chat</h2>
-      <p>
+      {/* <p>
         {therapistsOnline.length > 0
           ? `Therapists online: ${therapistsOnline.map((t) => t.name).join(", ")}`
           : "No therapist online currently"}
-      </p>
+      </p> */}
       <div className="therapist-list">
         {therapistsOnline.map((therapist) => (
           <div
@@ -395,7 +395,7 @@ function Chatroom() {
         <h4>Participants ({participants.length})</h4>
         {participants.map((uid) => (
           <div key={uid} className="participant-item">
-            {uid === auth.currentUser?.uid ? displayName : "Anonymous"}
+            {uid}
           </div>
         ))}
       </div>

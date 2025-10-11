@@ -241,8 +241,8 @@
 }
 
 .therapist-dashboard .chat-message:hover .message-reactions {
-  display: flex;
-  gap: 5px;
+  gap: 10px;
+  padding: 5px 7px;
 }
 
 .therapist-dashboard .reaction {
