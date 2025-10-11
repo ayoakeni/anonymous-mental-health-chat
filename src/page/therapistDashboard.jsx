@@ -917,7 +917,7 @@ function TherapistDashboard() {
                   </div>
                   <div className="participant-list">
                     <h4>Participants ({participants.length})</h4>
-                    {participants.map((displayName) => (
+                    {participants.map((uid) => (
                       <div key={displayName} className="participant-item">
                         {displayName}
                       </div>

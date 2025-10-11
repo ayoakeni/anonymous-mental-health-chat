@@ -196,6 +196,7 @@
   position: relative;
 }
 
+/* EmojiPicker box */
 .chatroom .chat-input aside {
   position: absolute;
   bottom: 62px;

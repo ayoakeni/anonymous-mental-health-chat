@@ -497,7 +497,7 @@ function Chatroom() {
               >
                 <i className="fa-regular fa-face-smile"></i>
               </button>
-              {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
+              {showEmojiPicker && <EmojiPicker className="EmojiPicker" onEmojiClick={onEmojiClick} />}
               <input
                 type="file"
                 id="chatroom-file-upload"
