@@ -11,22 +11,26 @@ import {
   runTransaction,
   limit,
 } from "firebase/firestore";
-import { db, auth } from "../../utils/firebase";
+import { db, auth, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
 import { getAIResponse } from "../../utils/AiChatIntegration";
 import { mapMessagesForAI } from "../../utils/aiMessageMapper";
 import { loginAnonymously, getAnonName } from "../../login/anonymous_login";
 import TherapistProfile from "../../components/TherapistProfile";
 import { useTypingStatus } from "../../components/useTypingStatus";
+import EmojiPicker from 'emoji-picker-react';
 import "../../styles/chatroom.css";
 
 function Chatroom() {
   const [messages, setMessages] = useState([]);
+  const [groupEvents, setGroupEvents] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const [therapistsOnline, setTherapistsOnline] = useState([]);
   const [therapistName, setTherapistName] = useState("Therapist");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [participants, setParticipants] = useState([]);
 
   const displayName = auth.currentUser?.email ? therapistName : getAnonName();
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
@@ -36,7 +40,7 @@ function Chatroom() {
   // Auto scroll chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, groupEvents]);
 
   // Initialize authentication and messages
   useEffect(() => {
@@ -65,6 +69,35 @@ function Chatroom() {
     });
 
     return () => unsubscribe();
+  }, []);
+
+  // Watch group chat events
+  useEffect(() => {
+    const groupRef = doc(db, "groupChats", "mainGroup");
+    const q = query(collection(groupRef, "events"), orderBy("timestamp"), limit(50));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setGroupEvents(evts);
+      },
+      (err) => {
+        console.error("Error fetching group events:", err);
+        alert("Failed to load group events. Please try again.");
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+  // Watch group chat participants
+  useEffect(() => {
+    const groupRef = doc(db, "groupChats", "mainGroup");
+    const unsub = onSnapshot(groupRef, (snap) => {
+      if (snap.exists()) {
+        setParticipants(snap.data().participants || []);
+      }
+    });
+    return () => unsub();
   }, []);
 
   // Track therapists online
@@ -188,6 +221,68 @@ function Chatroom() {
     }
   };
 
+  // Toggle reaction on message
+  const toggleReaction = async (msgId, reactionType) => {
+    if (!auth.currentUser) return;
+    const msgRef = doc(db, "messages", msgId);
+    try {
+      await runTransaction(db, async (transaction) => {
+        const msgSnap = await transaction.get(msgRef);
+        if (!msgSnap.exists()) return;
+        const reactions = msgSnap.data().reactions || {};
+        const userId = auth.currentUser.uid;
+        const currentReactions = reactions[reactionType] || [];
+        const updatedReactions = currentReactions.includes(userId)
+          ? currentReactions.filter((id) => id !== userId)
+          : [...currentReactions, userId];
+        const updated = { ...reactions, [reactionType]: updatedReactions };
+        transaction.update(msgRef, { reactions: updated });
+      });
+    } catch (err) {
+      console.error("Error toggling reaction:", err);
+      alert("Failed to update reaction. Please try again.");
+    }
+  };
+
+  // Handle emoji click
+  const onEmojiClick = (emojiData) => {
+    setNewMessage(newMessage + emojiData.emoji);
+    setShowEmojiPicker(false);
+  };
+
+  // Handle file upload
+  const handleFileUpload = async (file) => {
+    if (!file || !auth.currentUser) return;
+    try {
+      const storageRef = ref(storage, `chatroom/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const fileUrl = await getDownloadURL(storageRef);
+      await runTransaction(db, async (transaction) => {
+        const messagesRef = collection(db, "messages");
+        const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
+        transaction.set(doc(messagesRef), {
+          text: newMessage || "",
+          fileUrl,
+          userId: auth.currentUser.uid,
+          displayName,
+          role: auth.currentUser.email ? "therapist" : "user",
+          timestamp: serverTimestamp(),
+          reactions: {},
+        });
+        transaction.set(typingDoc, {
+          typing: false,
+          name: displayName,
+          timestamp: serverTimestamp(),
+        });
+      });
+      setNewMessage("");
+      setShowEmojiPicker(false);
+    } catch (err) {
+      console.error("Error uploading file:", err);
+      alert("Failed to upload file. Please try again.");
+    }
+  };
+
   // Send message
   const sendMessage = async () => {
     if (!newMessage.trim() || !auth.currentUser) return;
@@ -201,10 +296,12 @@ function Chatroom() {
         const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
         transaction.set(doc(messagesRef), {
           text: newMessage,
+          fileUrl: null,
           userId: auth.currentUser.uid,
           displayName,
           role,
           timestamp: serverTimestamp(),
+          reactions: {},
         });
         transaction.set(typingDoc, {
           typing: false,
@@ -224,10 +321,12 @@ function Chatroom() {
           await runTransaction(db, async (transaction) => {
             transaction.set(doc(collection(db, "messages")), {
               text: `You said: "${originalMessage}"\n\n${aiReply}`,
+              fileUrl: null,
               userId: "AI_BOT",
               displayName: "AI Support",
               role: "ai",
               timestamp: serverTimestamp(),
+              reactions: {},
             });
           });
         } catch (err) {
@@ -235,10 +334,12 @@ function Chatroom() {
           await runTransaction(db, async (transaction) => {
             transaction.set(doc(collection(db, "messages")), {
               text: "Sorry, I couldn’t respond right now. Please try again later.",
+              fileUrl: null,
               userId: "AI_BOT",
               displayName: "AI Support",
               role: "ai",
               timestamp: serverTimestamp(),
+              reactions: {},
             });
           });
         } finally {
@@ -253,18 +354,26 @@ function Chatroom() {
     }
 
     setNewMessage("");
+    setShowEmojiPicker(false);
   };
 
   // Check therapist online by uid
   const isTherapistOnline = (uid) =>
-  therapistsOnline.some((t) => t.uid === uid && t.online);
+    therapistsOnline.some((t) => t.uid === uid && t.online);
+
+  // Combine messages and events
+  const combinedChat = [...messages, ...groupEvents].sort((a, b) => {
+    const t1 = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
+    const t2 = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
+    return t1 - t2;
+  });
 
   return (
     <div className="chatroom">
       <button className="theme-toggle" onClick={() => alert("Theme toggle coming soon!")}>
-        <i class="fa-solid fa-moon"></i>
+        <i className="fa-solid fa-moon"></i>
       </button>
-      <h2>Anonymous Mental Health Chat</h2>
+      <h2 className="header-name">Anonymous Mental Health Chat</h2>
       <p>
         {therapistsOnline.length > 0
           ? `Therapists online: ${therapistsOnline.map((t) => t.name).join(", ")}`
@@ -282,6 +391,14 @@ function Chatroom() {
           </div>
         ))}
       </div>
+      <div className="participant-list">
+        <h4>Participants ({participants.length})</h4>
+        {participants.map((uid) => (
+          <div key={uid} className="participant-item">
+            {uid === auth.currentUser?.uid ? displayName : "Anonymous"}
+          </div>
+        ))}
+      </div>
       {selectedTherapist ? (
         <TherapistProfile
           therapist={selectedTherapist}
@@ -292,30 +409,72 @@ function Chatroom() {
         />
       ) : (
         <>
-          {messages.some((msg) => msg.pinned) && (
+          {combinedChat.some((msg) => msg.pinned) && (
             <div className="pinned-message">
               <strong>Pinned:</strong>{" "}
-              {messages.find((msg) => msg.pinned)?.text || "Welcome to the chatroom!"}
+              {combinedChat.find((msg) => msg.pinned)?.text || "Welcome to the chatroom!"}
             </div>
           )}
           <div className="chat-box">
-            {messages.map((msg) => (
+            {combinedChat.map((msg) => (
               <p
                 key={msg.id}
-                className={`chat-message ${msg.role === "therapist" ? "therapist" : msg.role === "ai" ? "ai" : "user"}`}
-                onClick={() => handleTherapistClick(msg)}
+                className={`chat-message ${
+                  msg.role === "therapist"
+                    ? "therapist"
+                    : msg.role === "ai"
+                    ? "ai"
+                    : msg.role === "system"
+                    ? "system"
+                    : "user"
+                }`}
+                onClick={() => msg.role === "therapist" && handleTherapistClick(msg)}
               >
-                <strong>{msg.displayName || "Anonymous"}</strong>
-                <div className="message-content-time">
-                  <span>{msg.text}</span>
-                  <span className="message-timestamp">
-                    {msg.timestamp?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                  <span className="message-reactions">
-                    <i class="fa-solid fa-heart reaction"></i>
-                    <i class="fa-solid fa-thumbs-up reaction"></i>
-                  </span>
-                </div>
+                {msg.role === "system" ? (
+                  <em>{msg.text}</em>
+                ) : (
+                  <>
+                    <strong>{msg.displayName || msg.user || "Anonymous"}</strong>
+                    <div className="message-content-time">
+                      <span>{msg.text}</span>
+                      {msg.fileUrl && (
+                        <a
+                          href={msg.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="attachment-link"
+                        >
+                          <i className="fa-solid fa-paperclip"></i> View Attachment
+                        </a>
+                      )}
+                      <span className="message-timestamp">
+                        {msg.timestamp?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                      <span className="message-reactions">
+                        <i
+                          className="fa-solid fa-heart reaction"
+                          style={{ color: msg.reactions?.heart?.length > 0 ? "red" : "gray" }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleReaction(msg.id, "heart");
+                          }}
+                        >
+                          {msg.reactions?.heart?.length || 0}
+                        </i>
+                        <i
+                          className="fa-solid fa-thumbs-up reaction"
+                          style={{ color: msg.reactions?.thumbsUp?.length > 0 ? "blue" : "gray" }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleReaction(msg.id, "thumbsUp");
+                          }}
+                        >
+                          {msg.reactions?.thumbsUp?.length || 0}
+                        </i>
+                      </span>
+                    </div>
+                  </>
+                )}
               </p>
             ))}
             {typingUsers.length > 0 && (
@@ -332,7 +491,27 @@ function Chatroom() {
           </div>
           {isLoggedIn && (
             <div className="chat-input">
+              <button
+                className="emoji-btn"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              >
+                <i className="fa-regular fa-face-smile"></i>
+              </button>
+              {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
               <input
+                type="file"
+                id="chatroom-file-upload"
+                style={{ display: "none" }}
+                onChange={(e) => handleFileUpload(e.target.files[0])}
+              />
+              <button
+                className="attach-btn"
+                onClick={() => document.getElementById("chatroom-file-upload").click()}
+              >
+                <i className="fa-solid fa-paperclip"></i>
+              </button>
+              <input
+                className="inputInsert"
                 type="text"
                 value={newMessage}
                 onChange={(e) => {
@@ -341,9 +520,9 @@ function Chatroom() {
                 }}
                 placeholder="Type a message..."
               />
-              <button className="emoji-btn">😊</button>
-              <button className="attach-btn">📎</button>
-              <button onClick={sendMessage}>Send</button>
+              <button className="send-btn" onClick={sendMessage}>
+                <i className="fa-solid fa-paper-plane"></i>
+              </button>
             </div>
           )}
         </>
