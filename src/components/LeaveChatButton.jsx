@@ -1,12 +1,10 @@
 import React from "react";
+import "../styles/therapistDashboard.css"
 
 const LeaveChatButton = ({ onLeave }) => {
   return (
-    <button
-      onClick={onLeave}
-      style={{ background: "orange", color: "white" }}
-    >
-      ⬅ Leave Chat
+    <button className="leaveButton" onClick={onLeave} >
+      Leave Chat
     </button>
   );
 };

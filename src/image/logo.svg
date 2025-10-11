@@ -1,0 +1,44 @@
+<svg width="200" height="60" viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg" aria-label="Anonymous Mental Health Support Logo">
+  <!-- Background subtle gradient for modern feel -->
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a90e2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7e3ff2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Stylized brain with digital nodes (symbolizing anonymous connections) -->
+  <g fill="none" stroke="#4a90e2" stroke-width="2">
+    <!-- Brain outline (curved shape for organic feel) -->
+    <path d="M 20 30 Q 10 20 20 10 Q 30 0 40 10 Q 50 20 40 30 Q 30 40 20 30 Q 10 40 20 30" />
+    <!-- Digital nodes (interconnected points for 'anonymous network') -->
+    <circle cx="25" cy="15" r="2" fill="#4a90e2" />
+    <circle cx="35" cy="25" r="2" fill="#4a90e2" />
+    <circle cx="45" cy="15" r="2" fill="#4a90e2" />
+    <!-- Connecting lines between nodes -->
+    <line x1="25" y1="15" x2="35" y2="25" stroke="#4a90e2" stroke-width="1" stroke-dasharray="2,2" />
+    <line x1="35" y1="25" x2="45" y2="15" stroke="#4a90e2" stroke-width="1" stroke-dasharray="2,2" />
+  </g>
+  
+  <!-- Text: "Anonymous Support" with modern font styling -->
+  <text x="60" y="35" font-family="Inter, sans-serif" font-size="18" font-weight="700" fill="#333333" letter-spacing="0.5">
+    Anonymous
+  </text>
+  <text x="60" y="45" font-family="Inter, sans-serif" font-size="14" font-weight="500" fill="#6b7280" letter-spacing="0.2">
+    Mental Health Support
+  </text>
+  
+  <!-- Subtle glow effect on nodes for digital/modern vibe -->
+  <filter id="glow">
+    <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+    <feMerge> 
+      <feMergeNode in="coloredBlur"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+  <g filter="url(#glow)">
+    <circle cx="25" cy="15" r="2" fill="#4a90e2" opacity="0.6" />
+    <circle cx="35" cy="25" r="2" fill="#4a90e2" opacity="0.6" />
+    <circle cx="45" cy="15" r="2" fill="#4a90e2" opacity="0.6" />
+  </g>
+</svg>

@@ -1,13 +1,242 @@
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
+import { auth, db } from "../utils/firebase";
 import Header from "../components/header";
+import MoodTracker from "../components/moodTracker"
+import "../styles/home.css";
+
 function Home() {
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        const { user: anonUser } = await signInAnonymously(auth);
+        await setDoc(doc(db, "usersOnline", anonUser.uid), {
+          name: "Anonymous User",
+          online: true,
+          lastSeen: serverTimestamp(),
+        });
+      } else {
+        await setDoc(doc(db, "usersOnline", user.uid), {
+          name: user.displayName || "Anonymous User",
+          online: true,
+          lastSeen: serverTimestamp(),
+        });
+      }
+
+      const handleBeforeUnload = () => {
+        if (user) {
+          setDoc(
+            doc(db, "usersOnline", user.uid),
+            { online: false, lastSeen: serverTimestamp() },
+            { merge: true }
+          );
+        }
+      };
+      window.addEventListener("beforeunload", handleBeforeUnload);
+
+      return () => {
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+        unsubscribe();
+      };
+    }, []);
+  }, []);
+
+  const [currentTestimonial, setCurrentTestimonial] = useState(0);
+  const testimonials = [
+    {
+      quote: "This platform gave me a safe space to share my struggles anonymously.",
+      author: "Anonymous User",
+    },
+    {
+      quote: "The AI support was there for me at 2 AM when I needed someone to talk to.",
+      author: "Anonymous User",
+    },
+    {
+      quote: "Connecting with a therapist privately changed my perspective on mental health.",
+      author: "Anonymous User",
+    },
+  ];
+
+  const nextTestimonial = () => {
+    setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
+  };
+
+  const prevTestimonial = () => {
+    setCurrentTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length);
+  };
+
+  const toggleFAQ = (index) => {
+    document.getElementById(`faq-${index}`).classList.toggle("open");
+  };
+
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>Welcome to Anonymous Mental Health Support</h1>
-      <p>
-        Connect with peers, talk to AI Support, or chat privately with a therapist.
-      </p>
-      <Header/>
+    <div className="home-container">
+      <Header />
+      <section className="hero-section" aria-labelledby="hero-title">
+        <div className="hero-content">
+          <h1 id="hero-title" className="hero-title">
+            Welcome to Anonymous Mental Health Support
+          </h1>
+          <p className="hero-subtitle">
+            A safe, secure space to connect with peers, access AI-driven support, or chat privately with licensed therapists.
+          </p>
+          <div className="hero-cta">
+            <Link to="/chat-room" className="cta-button primary">
+              Start Chatting
+            </Link>
+            <Link to="/about" className="cta-button secondary">
+              Learn More
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="features-section" aria-labelledby="features-title">
+        <h2 id="features-title" className="features-title">
+          How We Support You
+        </h2>
+        <div className="features-grid">
+          <div className="feature-card">
+            <i className="fas fa-users feature-icon"></i>
+            <h3>Peer Support</h3>
+            <p>Share experiences anonymously with a supportive community.</p>
+            <Link to="/chat-room" className="feature-cta">Join Now</Link>
+          </div>
+          <div className="feature-card">
+            <i className="fas fa-robot feature-icon"></i>
+            <h3>AI Support</h3>
+            <p>Access 24/7 AI-driven guidance for immediate support.</p>
+            <Link to="/ai-support" className="feature-cta">Try AI Chat</Link>
+          </div>
+          <div className="feature-card">
+            <i className="fas fa-user-md feature-icon"></i>
+            <h3>Therapist Chat</h3>
+            <p>Connect privately with licensed therapists in a secure environment.</p>
+            <Link to="/therapist-login" className="feature-cta">Find a Therapist</Link>
+          </div>
+        </div>
+      </section>
+      <MoodTracker/>
+      <section className="testimonials-section" aria-labelledby="testimonials-title">
+        <h2 id="testimonials-title" className="testimonials-title">
+          What Our Community Says
+        </h2>
+        <div className="testimonial-slider">
+          <button
+            className="slider-arrow left"
+            onClick={prevTestimonial}
+            aria-label="Previous testimonial"
+          >
+            <i className="fas fa-chevron-left"></i>
+          </button>
+          <div className="testimonial">
+            <p className="testimonial-quote">"{testimonials[currentTestimonial].quote}"</p>
+            <p className="testimonial-author">{testimonials[currentTestimonial].author}</p>
+          </div>
+          <button
+            className="slider-arrow right"
+            onClick={nextTestimonial}
+            aria-label="Next testimonial"
+          >
+            <i className="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </section>
+
+      <section className="resources-section" aria-labelledby="resources-title">
+        <h2 id="resources-title" className="resources-title">Mental Health Resources</h2>
+        <ul className="resources-list">
+          <li><a href="https://www.nami.org" target="_blank" rel="noopener noreferrer">NAMI</a></li>
+          <li><a href="https://www.mentalhealth.gov" target="_blank" rel="noopener noreferrer">MentalHealth.gov</a></li>
+        </ul>
+      </section>
+      
+      <section className="stories-section">
+        <h2>Community Stories</h2>
+        <div className="stories-grid">
+          <div className="story-card">
+            <h3>Overcoming Anxiety</h3>
+            <p>An anonymous user shares their journey...</p>
+            <Link to="/stories/1" className="story-cta">Read More</Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="crisis-section" aria-labelledby="crisis-title">
+        <h2 id="crisis-title" className="crisis-title">
+          Need Immediate Help?
+        </h2>
+        <p className="crisis-text">
+          If you're in crisis, reach out to a trusted resource immediately.
+        </p>
+        <a
+          href="https://www.crisistextline.org/"
+          className="crisis-button"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Contact Crisis Support
+        </a>
+      </section>
+
+      <section className="faq-section" aria-labelledby="faq-title">
+        <h2 id="faq-title" className="faq-title">Frequently Asked Questions</h2>
+        <div className="faq-list">
+          <div className="faq-item" id="faq-1">
+            <button className="faq-question" onClick={() => toggleFAQ(1)}>
+              Is my identity protected on this platform?
+              <i className="fas fa-chevron-down"></i>
+            </button>
+            <div className="faq-answer">
+              <p>
+                Yes, our platform ensures complete anonymity. You can choose a username, and no personal information is shared publicly.
+              </p>
+            </div>
+          </div>
+          <div className="faq-item" id="faq-2">
+            <button className="faq-question" onClick={() => toggleFAQ(2)}>
+              How do I access AI support?
+              <i className="fas fa-chevron-down"></i>
+            </button>
+            <div className="faq-answer">
+              <p>
+                Click "Try AI Chat" to start an anonymous conversation with our AI-driven support system, available 24/7.
+              </p>
+            </div>
+          </div>
+          <div className="faq-item" id="faq-3">
+            <button className="faq-question" onClick={() => toggleFAQ(3)}>
+              Are therapists licensed?
+              <i className="fas fa-chevron-down"></i>
+            </button>
+            <div className="faq-answer">
+              <p>
+                All therapists on our platform are licensed professionals verified to provide mental health support.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="chatbot-widget">
+        <Link to="/ai-support" className="chatbot-button">
+          <i className="fas fa-comment"></i>
+        </Link>
+      </div>
+
+      <footer className="footer">
+        <p>&copy; {new Date().getFullYear()} Anonymous Mental Health Support. All rights reserved.</p>
+        <div className="footer-links">
+          <Link to="/privacy">Privacy Policy</Link>
+          <Link to="/terms">Terms of Service</Link>
+          <a href="mailto:support@mentalhealthapp.com">Contact Us</a>
+        </div>
+      </footer>
     </div>
   );
 }
+
 export default Home;

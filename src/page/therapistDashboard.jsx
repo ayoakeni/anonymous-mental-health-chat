@@ -699,7 +699,7 @@ function TherapistDashboard() {
       setInGroupChat(false);
       setGroupUnreadCount(0);
       setLastSeenTimestamp(lastMsgTime);
-      navigate("/therapist-dashboard");
+      navigate("/therapist-dashboard/group-chat");
     } catch (err) {
       console.error("Error leaving group chat:", err);
       alert("Failed to leave group chat. Please try again.");
@@ -906,13 +906,15 @@ function TherapistDashboard() {
             element={
               isGroupChatOpen && inGroupChat ? (
                 <div className="group-chat">
-                  <h3>
-                    Group Chat{" "}
-                    {therapistsOnline.length > 0
-                      ? `(Therapists Online: ${therapistsOnline.map((t) => t.name).join(", ")})`
-                      : "(No therapists online)"}
-                  </h3>
-                  <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
+                  <div className="detailLeave">
+                    <h3 className="onlineStatus">
+                      Group Chat{" "}
+                      {therapistsOnline.length > 0
+                        ? `(Therapists Online: ${therapistsOnline.map((t) => t.name).join(", ")})`
+                        : "(No therapists online)"}
+                    </h3>
+                    <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
+                  </div>
                   <div className="participant-list">
                     <h4>Participants ({participants.length})</h4>
                     {participants.map((uid) => (
@@ -945,6 +947,16 @@ function TherapistDashboard() {
                         <strong>{msg.displayName || msg.user || "Anonymous"}</strong>{" "}
                         <div className="message-content-time">
                           <span>{msg.text || msg.message}</span>
+                          {msg.fileUrl && (
+                            <a
+                              href={msg.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="attachment-link"
+                            >
+                              <i class="fa-solid fa-paperclip"></i> View Attachment
+                            </a>
+                          )}
                           <span className="message-timestamp">
                             {msg.timestamp?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </span>
@@ -971,16 +983,6 @@ function TherapistDashboard() {
                             </i>
                           </span>
                         </div>
-                        {msg.fileUrl && (
-                          <a
-                            href={msg.fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="attachment-link"
-                          >
-                            📎 View Attachment
-                          </a>
-                        )}
                         {msg.role !== "system" && therapistInfo.role === "therapist" && (
                           <button
                             className="delete-btn"
@@ -1002,20 +1004,11 @@ function TherapistDashboard() {
                     <div ref={messagesEndRef} />
                   </div>
                   <div className="chat-input">
-                    <input
-                      type="text"
-                      value={reply}
-                      onChange={(e) => {
-                        setReply(e.target.value);
-                        handleTyping(e.target.value);
-                      }}
-                      placeholder="Reply to group chat..."
-                    />
                     <button
                       className="emoji-btn"
                       onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                     >
-                      😊
+                      <i class="fa-regular fa-face-smile"></i>
                     </button>
                     {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
                     <input
@@ -1028,9 +1021,21 @@ function TherapistDashboard() {
                       className="attach-btn"
                       onClick={() => document.getElementById("group-file-upload").click()}
                     >
-                      📎
+                      <i class="fa-solid fa-paperclip"></i>
                     </button>
-                    <button onClick={() => sendReply()}>Send</button>
+                    <input
+                      className="inputInsert"
+                      type="text"
+                      value={reply}
+                      onChange={(e) => {
+                        setReply(e.target.value);
+                        handleTyping(e.target.value);
+                      }}
+                      placeholder="Reply to group chat..."
+                    />
+                    <button className="send-btn" onClick={() => sendReply()}>
+                      <i class="fa-solid fa-paper-plane"></i>
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -1098,7 +1103,7 @@ function TherapistDashboard() {
                 </div>
               ) : activeChatId ? (
                 <div className="private-chat">
-                  <h3>
+                  <h3 className="onlineStatus">
                     Private Chat {activeChatId}{" "}
                     {isTherapistAvailable
                       ? `(Therapist Online: ${activeTherapists.join(", ")})`

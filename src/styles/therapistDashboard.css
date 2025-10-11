@@ -55,7 +55,7 @@
   margin-bottom: 20px;
 }
 
-.therapist-dashboard h2 {
+.therapist-dashboard .welcome-header h2 {
   font-size: 1.8rem;
   color: var(--text-color);
   margin-bottom: 20px;
@@ -114,23 +114,39 @@
   color: gold;
 }
 
-.therapist-dashboard .group-chat,
+/* .therapist-dashboard .group-chat,
 .therapist-dashboard .private-chat {
   margin-bottom: 20px;
+} */
+
+.therapist-dashboard .detailLeave {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
 }
 
-.therapist-dashboard .group-chat h3,
-.therapist-dashboard .private-chat h3 {
+.leaveButton {
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  padding: 7px 10px;
+  background: var(--text-color);
+  color: var(--chat-bg);
+}
+
+.therapist-dashboard .group-chat .onlineStatus,
+.therapist-dashboard .private-chat .onlineStatus {
   font-size: 1.2rem;
   color: var(--text-color);
-  margin-bottom: 10px;
 }
 
 .therapist-dashboard .chat-container {
   background: var(--chat-bg);
   border-radius: var(--border-radius);
   padding: 15px;
-  height: 400px;
+  height: 438px;
   overflow-y: auto;
   margin-bottom: 10px;
   border: 1px solid var(--input-border);
@@ -260,7 +276,7 @@
 
 .therapist-dashboard .chat-input {
   display: flex;
-  gap: 10px;
+  gap: 5px;
   align-items: center;
 }
 
@@ -269,55 +285,52 @@
   bottom: 90px;
 }
 
-.therapist-dashboard .chat-input input {
+.therapist-dashboard .chat-input .inputInsert {
   flex: 1;
   padding: 12px;
-  border: 1px solid var(--input-border);
-  border-radius: var(--border-radius);
-  background: var(--input-bg);
+  border: none;
+  background: transparent;
   color: var(--text-color);
   font-size: 1rem;
   outline: none;
-  transition: border-color 0.2s;
 }
 
-.therapist-dashboard .chat-input input:focus {
-  border-color: var(--primary-color);
-}
-
-.therapist-dashboard .chat-input button {
+.therapist-dashboard .chat-input .emoji-btn,
+.therapist-dashboard .chat-input .attach-btn,
+.therapist-dashboard .chat-input .send-btn {
   padding: 12px 20px;
-  background: var(--primary-color);
   color: #fff;
   border: none;
   border-radius: var(--border-radius);
   font-size: 1rem;
   cursor: pointer;
+  background-color: transparent;
   transition: background 0.2s;
 }
 
-.therapist-dashboard .chat-input button:disabled {
+.therapist-dashboard .chat-input .emoji-btn i,
+.therapist-dashboard .chat-input .attach-btn i,
+.therapist-dashboard .chat-input .send-btn i {
+  color: gold;
+}
+
+.therapist-dashboard .chat-input .emoji-btn:disabled,
+.therapist-dashboard .chat-input .attach-btn:disabled,
+.therapist-dashboard .chat-input .send-btn:disabled {
   background: #a0a0a0;
   cursor: not-allowed;
 }
 
-.therapist-dashboard .chat-input button:hover:not(:disabled) {
-  background: #357abd;
-}
-
-.therapist-dashboard .emoji-btn,
-.therapist-dashboard .attach-btn {
-  padding: 12px;
+.therapist-dashboard .chat-input .emoji-btn:hover:not(:disabled),
+.therapist-dashboard .chat-input .attach-btn:hover:not(:disabled),
+.therapist-dashboard .chat-input .send-btn:hover:not(:disabled) {
   background: var(--input-bg);
-  border: 1px solid var(--input-border);
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  font-size: 1rem;
 }
 
-.therapist-dashboard .emoji-btn:hover,
-.therapist-dashboard .attach-btn:hover {
-  background: var(--therapist-bg);
+.therapist-dashboard .chat-input .emoji-btn:hover,
+.therapist-dashboard .chat-input .attach-btn:hover,
+.therapist-dashboard .chat-input .send-btn:hover {
+  background: var(--input-bg);
 }
 
 .therapist-dashboard .chat-list {
@@ -416,7 +429,7 @@
   }
 }
 
-/* New: Participant List */
+/* Participant List */
 .therapist-dashboard .participant-list {
   margin-bottom: 10px;
   padding: 10px;
@@ -437,7 +450,7 @@
   font-size: 0.9rem;
 }
 
-/* New: Attachment Link */
+/* Attachment Link */
 .therapist-dashboard .attachment-link {
   display: inline-block;
   margin-top: 5px;
@@ -450,7 +463,7 @@
   text-decoration: underline;
 }
 
-/* New: Delete Button */
+/* Delete Button */
 .therapist-dashboard .delete-btn {
   position: absolute;
   top: 5px;
@@ -466,12 +479,4 @@
 
 .therapist-dashboard .delete-btn:hover {
   background: #c82333;
-}
-
-/* New: Emoji Picker Positioning */
-.therapist-dashboard .emoji-picker-react {
-  position: absolute;
-  bottom: 50px;
-  right: 10px;
-  z-index: 1000;
 }

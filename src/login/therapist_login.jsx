@@ -1,32 +1,35 @@
-// TherapistLogin.js
 import React, { useState, useEffect } from "react";
 import { db, auth } from "../utils/firebase";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-
+import "../styles/therapistLogin.css";
 function TherapistLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Login handler
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
+    setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
       console.log("Therapist logged in:", email);
     } catch (err) {
       console.error("Login error:", err.message);
-      setError("Invalid email or password");
+      setError("Invalid email or password. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Presence + redirect
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) return; // not logged in
+      if (!user) return; // Not logged in
 
       const uid = user.uid;
       const therapistRef = doc(db, "therapistsOnline", uid);
@@ -36,7 +39,7 @@ function TherapistLogin() {
           const profileSnap = await getDoc(doc(db, "therapists", uid));
           const therapistName = profileSnap.exists()
             ? profileSnap.data().name
-            : user.email; // fallback
+            : user.email; // Fallback
 
           await setDoc(therapistRef, {
             name: therapistName,
@@ -69,28 +72,46 @@ function TherapistLogin() {
   }, [navigate]);
 
   return (
-    <div style={{ margin: "20px" }}>
-      <h2>Therapist Login</h2>
-      <form onSubmit={handleLogin}>
-        <input
-          type="email"
-          placeholder="Enter email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          style={{ display: "block", marginBottom: "10px" }}
-        />
-        <input
-          type="password"
-          placeholder="Enter password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          style={{ display: "block", marginBottom: "10px" }}
-        />
-        <button type="submit">Login</button>
-      </form>
-      {error && <p style={{ color: "red" }}>{error}</p>}
+    <div className="therapist-login-container">
+      <div className="login-card">
+        <h2 className="login-title">Therapist Login</h2>
+        <form onSubmit={handleLogin} className="login-form" noValidate>
+          <div className="form-group">
+            <label htmlFor="email">Email</label>
+            <input
+              type="email"
+              id="email"
+              placeholder="Enter email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              aria-describedby="email-error"
+              className="form-input"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              placeholder="Enter password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              aria-describedby="password-error"
+              className="form-input"
+            />
+          </div>
+          {error && (
+            <p className="error-message" role="alert" id="login-error">
+              {error}
+            </p>
+          )}
+          <button type="submit" className="login-button" disabled={isLoading}>
+            {isLoading ? "Logging in..." : "Login"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

@@ -165,7 +165,6 @@
   cursor: not-allowed;
 }
 
-/* Therapist list styling */
 .chatroom .therapist-list {
   display: flex;
   flex-wrap: wrap;
@@ -194,8 +193,6 @@
   font-size: 0.8rem;
 }
 
-
-/* Responsive design */
 @media (max-width: 600px) {
   .chatroom {
     padding: 10px;
@@ -216,7 +213,6 @@
   }
 }
 
-/* Scrollbar styling */
 .chatroom .chat-box::-webkit-scrollbar {
   width: 8px;
 }
