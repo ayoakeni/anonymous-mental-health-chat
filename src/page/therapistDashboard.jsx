@@ -929,7 +929,7 @@ function TherapistDashboard() {
                       {combinedGroupChat.find((msg) => msg.pinned)?.text || "Welcome to the group chat!"}
                     </div>
                   )}
-                  <div className="chat-container">
+                  <div className="chat-box">
                     {combinedGroupChat.map((msg) => (
                       <p
                         key={msg.id}

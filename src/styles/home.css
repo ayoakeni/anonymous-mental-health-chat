@@ -28,8 +28,7 @@
 }
 
 .home-container {
-  font-family: 'Inter', sans-serif;
-  background-color: var(--background-color);
+  background: var(--background-color);
   min-height: 100vh;
   color: var(--text-color);
 }

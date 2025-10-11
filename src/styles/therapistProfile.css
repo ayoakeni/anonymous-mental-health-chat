@@ -28,7 +28,6 @@
   background: var(--profile-bg);
   border-radius: var(--border-radius);
   box-shadow: var(--shadow);
-  font-family: 'Inter', sans-serif;
   position: relative;
 }
 

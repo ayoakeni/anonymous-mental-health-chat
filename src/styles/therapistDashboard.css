@@ -31,7 +31,6 @@
 
 .therapist-dashboard {
   display: flex;
-  font-family: 'Inter', sans-serif;
   min-height: 100vh;
 }
 
@@ -143,7 +142,7 @@
   color: var(--text-color);
 }
 
-.therapist-dashboard .chat-container {
+.therapist-dashboard .chat-box {
   background: var(--chat-bg);
   border-radius: var(--border-radius);
   padding: 15px;
@@ -154,15 +153,15 @@
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.therapist-dashboard .chat-container::-webkit-scrollbar {
+.therapist-dashboard .chat-box::-webkit-scrollbar {
   width: 8px;
 }
 
-.therapist-dashboard .chat-container::-webkit-scrollbar-track {
+.therapist-dashboard .chat-box::-webkit-scrollbar-track {
   background: var(--background-color);
 }
 
-.therapist-dashboard .chat-container::-webkit-scrollbar-thumb {
+.therapist-dashboard .chat-box::-webkit-scrollbar-thumb {
   background: var(--primary-color);
   border-radius: 4px;
 }
@@ -287,7 +286,7 @@
 /* EmojiPicker box */
 .therapist-dashboard .chat-input aside {
   position: absolute;
-  bottom: 73px;
+  bottom: 64px;
 }
 
 .therapist-dashboard .chat-input .inputInsert {
