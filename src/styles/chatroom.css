@@ -45,6 +45,93 @@
   margin-bottom: 10px;
 }
 
+.chatroom .therapist-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.chatroom .therapist-item {
+  padding: 8px 15px;
+  background: var(--therapist-bg);
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+  color: var(--text-color);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.chatroom .therapist-item:hover {
+  background: #d0e0ff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .chatroom .therapist-item:hover {
+    background: #4a6b9b;
+  }
+}
+
+.chatroom .therapist-item.online::after {
+  content: "●";
+  color: #28a745;
+  margin-left: 5px;
+  font-size: 0.8rem;
+}
+
+.chatroom .therapist-avatar {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: #fff;
+  text-align: center;
+  line-height: 30px;
+  margin-right: 8px;
+  font-size: 0.9rem;
+}
+
+.chatroom .theme-toggle {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  padding: 8px 15px;
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.chatroom .theme-toggle:hover {
+  background: #357abd;
+}
+
+/* Participant List */
+.chatroom .participant-list {
+  max-height: 101px;
+  margin-bottom: 10px;
+  padding: 10px;
+  background: var(--chat-bg);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--input-border);
+  overflow: auto;
+}
+
+.chatroom .participant-list h4 {
+  margin-bottom: 5px;
+  color: var(--text-color);
+}
+
+.chatroom .participant-item {
+  padding: 5px;
+  color: var(--text-color);
+  opacity: 0.8;
+  font-size: 0.9rem;
+}
+
 .chatroom p {
   font-size: 1rem;
   color: var(--text-color);
@@ -55,7 +142,7 @@
   background: var(--chat-bg);
   border-radius: var(--border-radius);
   padding: 15px;
-  height: 438px;
+  height: 324px;
   overflow-y: auto;
   margin-bottom: 10px;
   border: 1px solid var(--input-border);
@@ -96,7 +183,7 @@
 .chatroom .chat-message.user {
   background: var(--user-bg);
   margin-left: auto;
-  border-left: 4px solid var(--primary-color);
+  border-left: 4px solid var(--accent-color);
 }
 
 .chatroom .chat-message.ai {
@@ -118,6 +205,19 @@
 .chatroom .chat-message strong {
   font-weight: 600;
   color: var(--text-color);
+}
+
+/* Attachment Link */
+.chatroom .attachment-link {
+  display: inline-block;
+  margin-top: 5px;
+  color: var(--primary-color);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.chatroom .attachment-link:hover {
+  text-decoration: underline;
 }
 
 .chatroom .message-content-time {
@@ -242,102 +342,4 @@
 .chatroom .chat-input .send-btn:disabled {
   background: #a0a0a0;
   cursor: not-allowed;
-}
-
-.chatroom .therapist-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.chatroom .therapist-item {
-  padding: 8px 15px;
-  background: var(--therapist-bg);
-  border-radius: var(--border-radius);
-  font-size: 0.9rem;
-  color: var(--text-color);
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.chatroom .therapist-item:hover {
-  background: #d0e0ff;
-}
-
-@media (prefers-color-scheme: dark) {
-  .chatroom .therapist-item:hover {
-    background: #4a6b9b;
-  }
-}
-
-.chatroom .therapist-item.online::after {
-  content: "●";
-  color: #28a745;
-  margin-left: 5px;
-  font-size: 0.8rem;
-}
-
-.chatroom .therapist-avatar {
-  display: inline-block;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--primary-color);
-  color: #fff;
-  text-align: center;
-  line-height: 30px;
-  margin-right: 8px;
-  font-size: 0.9rem;
-}
-
-.chatroom .theme-toggle {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  padding: 8px 15px;
-  background: var(--primary-color);
-  color: #fff;
-  border: none;
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.chatroom .theme-toggle:hover {
-  background: #357abd;
-}
-
-/* Participant List */
-.chatroom .participant-list {
-  margin-bottom: 10px;
-  padding: 10px;
-  background: var(--chat-bg);
-  border-radius: var(--border-radius);
-  border: 1px solid var(--input-border);
-}
-
-.chatroom .participant-list h4 {
-  margin-bottom: 5px;
-  color: var(--text-color);
-}
-
-.chatroom .participant-item {
-  padding: 5px;
-  color: var(--text-color);
-  opacity: 0.8;
-  font-size: 0.9rem;
-}
-
-/* Attachment Link */
-.chatroom .attachment-link {
-  display: inline-block;
-  margin-top: 5px;
-  color: var(--primary-color);
-  text-decoration: none;
-  font-size: 0.9rem;
-}
-
-.chatroom .attachment-link:hover {
-  text-decoration: underline;
 }

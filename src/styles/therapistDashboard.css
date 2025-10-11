@@ -136,6 +136,29 @@
   background: var(--primary-color);
 }
 
+/* Participant List */
+.therapist-dashboard .participant-list {
+  max-height: 101px;
+  margin-bottom: 10px;
+  padding: 10px;
+  background: var(--chat-bg);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--input-border);
+  overflow: auto;
+}
+
+.therapist-dashboard .participant-list h4 {
+  margin-bottom: 5px;
+  color: var(--text-color);
+}
+
+.therapist-dashboard .participant-item {
+  padding: 5px;
+  color: var(--text-color);
+  opacity: 0.8;
+  font-size: 0.9rem;
+}
+
 .therapist-dashboard .group-chat .onlineStatus,
 .therapist-dashboard .private-chat .onlineStatus {
   font-size: 1.2rem;
@@ -146,7 +169,7 @@
   background: var(--chat-bg);
   border-radius: var(--border-radius);
   padding: 15px;
-  height: 438px;
+  height: 399px;
   overflow-y: auto;
   margin-bottom: 10px;
   border: 1px solid var(--input-border);
@@ -211,6 +234,19 @@
 .therapist-dashboard .chat-message strong {
   font-weight: 600;
   color: var(--text-color);
+}
+
+/* Attachment Link */
+.therapist-dashboard .attachment-link {
+  display: inline-block;
+  margin-top: 5px;
+  color: var(--primary-color);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.therapist-dashboard .attachment-link:hover {
+  text-decoration: underline;
 }
 
 .therapist-dashboard .message-content-time {
@@ -432,40 +468,6 @@
   .therapist-dashboard .notification-item:hover {
     background-color: #3a3a4b;
   }
-}
-
-/* Participant List */
-.therapist-dashboard .participant-list {
-  margin-bottom: 10px;
-  padding: 10px;
-  background: var(--chat-bg);
-  border-radius: var(--border-radius);
-  border: 1px solid var(--input-border);
-}
-
-.therapist-dashboard .participant-list h4 {
-  margin-bottom: 5px;
-  color: var(--text-color);
-}
-
-.therapist-dashboard .participant-item {
-  padding: 5px;
-  color: var(--text-color);
-  opacity: 0.8;
-  font-size: 0.9rem;
-}
-
-/* Attachment Link */
-.therapist-dashboard .attachment-link {
-  display: inline-block;
-  margin-top: 5px;
-  color: var(--primary-color);
-  text-decoration: none;
-  font-size: 0.9rem;
-}
-
-.therapist-dashboard .attachment-link:hover {
-  text-decoration: underline;
 }
 
 /* Delete Button */
