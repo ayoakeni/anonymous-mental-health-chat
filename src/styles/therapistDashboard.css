@@ -114,11 +114,6 @@
   color: gold;
 }
 
-/* .therapist-dashboard .group-chat,
-.therapist-dashboard .private-chat {
-  margin-bottom: 20px;
-} */
-
 .therapist-dashboard .detailLeave {
   display: flex;
   justify-content: space-between;
@@ -134,6 +129,12 @@
   padding: 7px 10px;
   background: var(--text-color);
   color: var(--chat-bg);
+  transition: background 0.3s;
+}
+
+.therapist-dashboard .detailLeave .leaveButton:hover {
+  color: white;
+  background: var(--primary-color);
 }
 
 .therapist-dashboard .group-chat .onlineStatus,
@@ -183,17 +184,19 @@
   margin-left: auto;
   font-weight: 600;
   cursor: auto;
+  border-left: 4px solid var(--primary-color);
 }
 
 .therapist-dashboard .chat-message.user {
   background: var(--user-bg);
+  border-left: 4px solid var(--accent-color);
   margin-right: auto;
 }
 
 .therapist-dashboard .chat-message.ai {
   background: var(--ai-bg);
   margin-right: auto;
-  border-left: 4px solid var(--primary-color);
+  border-left: 4px solid var(--secondary-color);
 }
 
 .therapist-dashboard .chat-message.system {
@@ -202,6 +205,7 @@
   text-align: center;
   font-style: italic;
   color: var(--text-color);
+  border-left: 4px solid var(--error-color);
   opacity: 0.7;
 }
 

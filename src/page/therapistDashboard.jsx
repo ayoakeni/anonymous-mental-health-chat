@@ -918,8 +918,8 @@ function TherapistDashboard() {
                   <div className="participant-list">
                     <h4>Participants ({participants.length})</h4>
                     {participants.map((uid) => (
-                      <div key={uid} className="participant-item">
-                        {uid} {/* TODO: Map to displayName */}
+                      <div key={displayName} className="participant-item">
+                        {displayName}
                       </div>
                     ))}
                   </div>
