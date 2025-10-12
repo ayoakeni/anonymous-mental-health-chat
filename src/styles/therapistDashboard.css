@@ -11,8 +11,9 @@
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   --input-bg: #ffffff;
   --input-border: #ccc;
-  --accent-color: #34c759; /* Green for user messages */
-  --secondary-color: #ff9500; /* Orange for AI messages */
+  --accent-color: #34c759; /* Green */
+  --secondary-color: #ff9500; /* Orange */
+  --tertiary-color: #8e44ad; /* Purple */
   --badge-bg: #ef4444; /* For unread badges */
 }
 
@@ -114,6 +115,8 @@
 .therapist-dashboard .profile-view .rating {
   color: gold;
 }
+
+
 
 .therapist-dashboard .detailLeave {
   display: flex;
@@ -396,22 +399,52 @@
   align-items: center;
   border-radius: var(--border-radius);
   background-color: var(--chat-bg);
-  transition: background 0.2s;
+  transition: background 0.2s, filter 0.2s;
+}
+
+.therapist-dashboard .chat-list .chat-card:nth-child(1) {
+  background-color: var(--primary-color); /* #4a90e2 */
+  color: white;
+}
+
+.therapist-dashboard .chat-list .chat-card:nth-child(2) {
+  background-color: var(--accent-color); /* #34c759 */
+  color: white;
+}
+
+.therapist-dashboard .chat-list .chat-card:nth-child(n+3) {
+  background-color: var(--tertiary-color); /* #8e44ad */
+  color: white;
 }
 
 .therapist-dashboard .chat-card:hover {
-  background-color: #f5f5f5;
+  filter: brightness(90%);
 }
 
 @media (prefers-color-scheme: dark) {
+  .therapist-dashboard .chat-list .chat-card:nth-child(1) {
+    background-color: var(--primary-color);
+    color: var(--text-color);
+  }
+
+  .therapist-dashboard .chat-list .chat-card:nth-child(2) {
+    background-color: var(--accent-color);
+    color: var(--text-color);
+  }
+
+  .therapist-dashboard .chat-list .chat-card:nth-child(n+3) {
+    background-color: var(--tertiary-color);
+    color: var(--text-color);
+  }
+
   .therapist-dashboard .chat-card:hover {
-    background-color: #3a3a4b;
+    filter: brightness(110%);
   }
 }
 
+.therapist-dashboard .chat-card strong,
 .therapist-dashboard .chat-card small {
-  color: var(--text-color);
-  opacity: 0.7;
+  color: inherit;
 }
 
 .therapist-dashboard .unread-badge {

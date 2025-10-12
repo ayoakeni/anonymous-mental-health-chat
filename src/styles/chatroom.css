@@ -11,8 +11,9 @@
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   --input-bg: #ffffff;
   --input-border: #ccc;
-  --accent-color: #34c759; /* Green for user messages */
-  --secondary-color: #ff9500; /* Orange for AI messages */
+  --accent-color: #34c759;
+  --secondary-color: #ff9500;
+  --tertiary-color: #8e44ad;
   --badge-bg: #ef4444; /* For unread badges */
 }
 
@@ -29,15 +30,90 @@
     --input-bg: #2a2a3b;
     --input-border: #555;
     --badge-bg: #f87171;
+    --tertiary-color: #8e44ad;
   }
 }
 
 .chatroom {
   padding: 20px;
-  background: var(--background-color);
-  box-shadow: var(--shadow);
+  background-color: var(--background-color);
   min-height: 100vh;
-  position: relative;
+}
+
+.chatroom .chat-list {
+  margin-top: 20px;
+}
+
+.chatroom .chat-list h3 {
+  font-size: 1.2rem;
+  color: var(--text-color);
+  margin-bottom: 10px;
+}
+
+.chatroom .chat-card {
+  border: 1px solid var(--input-border);
+  padding: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: var(--border-radius);
+  background-color: var(--chat-bg);
+  transition: background 0.2s, filter 0.2s;
+}
+
+.chatroom .chat-list .chat-card:nth-child(1) {
+  background-color: var(--primary-color); /* #4a90e2 */
+  color: white;
+}
+
+.chatroom .chat-list .chat-card:nth-child(2) {
+  background-color: var(--accent-color); /* #34c759 */
+  color: white;
+}
+
+.chatroom .chat-list .chat-card:nth-child(n+3) {
+  background-color: var(--tertiary-color); /* #8e44ad */
+  color: white;
+}
+
+.chatroom .chat-card:hover {
+  filter: brightness(90%);
+}
+
+@media (prefers-color-scheme: dark) {
+  .chatroom .chat-list .chat-card:nth-child(1) {
+    background-color: var(--primary-color);
+    color: var(--text-color);
+  }
+
+  .chatroom .chat-list .chat-card:nth-child(2) {
+    background-color: var(--accent-color);
+    color: var(--text-color);
+  }
+
+  .chatroom .chat-list .chat-card:nth-child(n+3) {
+    background-color: var(--tertiary-color);
+    color: var(--text-color);
+  }
+
+  .chatroom .chat-card:hover {
+    filter: brightness(110%);
+  }
+}
+
+.chatroom .chat-card strong,
+.chatroom .chat-card small {
+  color: inherit;
+}
+
+.chatroom .unread-badge {
+  background-color: var(--badge-bg);
+  color: white;
+  border-radius: 50%;
+  padding: 5px 10px;
+  font-size: 12px;
 }
 
 .chatroom .header-name {

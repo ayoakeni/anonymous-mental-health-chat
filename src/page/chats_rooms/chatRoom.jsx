@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   collection,
   onSnapshot,
@@ -10,6 +10,7 @@ import {
   getDoc,
   runTransaction,
   limit,
+  arrayUnion,
 } from "firebase/firestore";
 import { db, auth, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
 import { getAIResponse } from "../../utils/AiChatIntegration";
@@ -17,12 +18,13 @@ import { mapMessagesForAI } from "../../utils/aiMessageMapper";
 import { loginAnonymously, getAnonName } from "../../login/anonymous_login";
 import TherapistProfile from "../../components/TherapistProfile";
 import { useTypingStatus } from "../../components/useTypingStatus";
-import EmojiPicker from 'emoji-picker-react';
+import EmojiPicker from "emoji-picker-react";
 import "../../styles/chatroom.css";
 
 function Chatroom() {
   const [messages, setMessages] = useState([]);
   const [groupEvents, setGroupEvents] = useState([]);
+  const [groupChats, setGroupChats] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
@@ -31,12 +33,14 @@ function Chatroom() {
   const [therapistName, setTherapistName] = useState("Therapist");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [participants, setParticipants] = useState([]);
+  const [activeGroupId, setActiveGroupId] = useState(null);
+  const [participantNames, setParticipantNames] = useState({});
   const modalRef = useRef(null);
-
   const displayName = auth.currentUser?.email ? therapistName : getAnonName();
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
+  const { groupId } = useParams();
 
   // Auto scroll chat
   useEffect(() => {
@@ -58,41 +62,73 @@ function Chatroom() {
     };
   }, [selectedTherapist]);
 
-  // Initialize authentication and messages
+  // Fetch all group chats
+  useEffect(() => {
+    const q = query(collection(db, "groupChats"), limit(50));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setGroupChats(chats);
+      },
+      (err) => {
+        console.error("Error fetching group chats:", err);
+        if (err.code === "resource-exhausted") {
+          alert("Firestore quota exceeded. Please try again later.");
+        } else {
+          alert("Failed to load group chats. Please try again.");
+        }
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+  // Initialize authentication and set active group
   useEffect(() => {
     const initializeAuth = async () => {
       try {
         await loginAnonymously();
         setIsLoggedIn(!!auth.currentUser);
+        if (groupId) {
+          setActiveGroupId(groupId);
+        } else {
+          navigate("/chat-room");
+        }
       } catch (err) {
         console.error("Error during anonymous login:", err);
         if (err.code === "resource-exhausted") {
           alert("Firestore quota exceeded. Please try again later.");
+        } else {
+          alert("Error during login. Please try again.");
         }
       }
     };
     initializeAuth();
+  }, [groupId, navigate]);
 
-    const q = query(collection(db, "messages"), orderBy("timestamp"), limit(50));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setMessages(msgs);
-    }, (err) => {
-      console.error("Error fetching messages:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // Watch group chat events
+  // Watch group chat messages, events, and participants
   useEffect(() => {
-    const groupRef = doc(db, "groupChats", "mainGroup");
-    const q = query(collection(groupRef, "events"), orderBy("timestamp"), limit(50));
-    const unsubscribe = onSnapshot(
-      q,
+    if (!activeGroupId) return;
+    const groupRef = doc(db, "groupChats", activeGroupId);
+    const messagesQuery = query(collection(groupRef, "messages"), orderBy("timestamp"), limit(50));
+    const eventsQuery = query(collection(groupRef, "events"), orderBy("timestamp"), limit(50));
+
+    const unsubMessages = onSnapshot(
+      messagesQuery,
+      (snapshot) => {
+        const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setMessages(msgs);
+      },
+      (err) => {
+        console.error("Error fetching messages:", err);
+        if (err.code === "resource-exhausted") {
+          alert("Firestore quota exceeded. Please try again later.");
+        }
+      }
+    );
+
+    const unsubEvents = onSnapshot(
+      eventsQuery,
       (snapshot) => {
         const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
         setGroupEvents(evts);
@@ -102,35 +138,57 @@ function Chatroom() {
         alert("Failed to load group events. Please try again.");
       }
     );
-    return () => unsubscribe();
-  }, []);
 
-  // Watch group chat participants
-  useEffect(() => {
-    const groupRef = doc(db, "groupChats", "mainGroup");
-    const unsub = onSnapshot(groupRef, (snap) => {
+    const unsubParticipants = onSnapshot(groupRef, (snap) => {
       if (snap.exists()) {
         setParticipants(snap.data().participants || []);
       }
     });
-    return () => unsub();
-  }, []);
+
+    return () => {
+      unsubMessages();
+      unsubEvents();
+      unsubParticipants();
+    };
+  }, [activeGroupId]);
+
+  // Fetch participant names
+  useEffect(() => {
+    const fetchParticipantNames = async () => {
+      const names = {};
+      for (const uid of participants) {
+        const userRef = doc(db, "therapists", uid);
+        const userSnap = await getDoc(userRef);
+        names[uid] = userSnap.exists() ? userSnap.data().name || "Anonymous" : "Anonymous";
+      }
+      setParticipantNames(names);
+    };
+    if (participants.length > 0) {
+      fetchParticipantNames().catch((err) => {
+        console.error("Error fetching participant names:", err);
+      });
+    }
+  }, [participants]);
 
   // Track therapists online
   useEffect(() => {
     const q = query(collection(db, "therapistsOnline"), limit(50));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const onlineList = snapshot.docs.map((doc) => ({
-        uid: doc.id,
-        ...doc.data(),
-      }));
-      setTherapistsOnline(onlineList);
-    }, (err) => {
-      console.error("Error fetching therapists online:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const onlineList = snapshot.docs.map((doc) => ({
+          uid: doc.id,
+          ...doc.data(),
+        }));
+        setTherapistsOnline(onlineList);
+      },
+      (err) => {
+        console.error("Error fetching therapists online:", err);
+        if (err.code === "resource-exhausted") {
+          alert("Firestore quota exceeded. Please try again later.");
+        }
       }
-    });
+    );
     return () => unsubscribe();
   }, []);
 
@@ -138,19 +196,23 @@ function Chatroom() {
   useEffect(() => {
     if (!auth.currentUser?.email) return;
     const therapistRef = doc(db, "therapists", auth.currentUser.uid);
-    const unsubscribe = onSnapshot(therapistRef, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        setTherapistName(data.name || "Therapist");
-      } else {
-        setTherapistName("Therapist");
+    const unsubscribe = onSnapshot(
+      therapistRef,
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          setTherapistName(data.name || "Therapist");
+        } else {
+          setTherapistName("Therapist");
+        }
+      },
+      (err) => {
+        console.error("Error fetching therapist profile:", err);
+        if (err.code === "resource-exhausted") {
+          alert("Firestore quota exceeded. Please try again later.");
+        }
       }
-    }, (err) => {
-      console.error("Error fetching therapist profile:", err);
-      if (err.code === "resource-exhausted") {
-        alert("Firestore quota exceeded. Please try again later.");
-      }
-    });
+    );
     return () => unsubscribe();
   }, [auth.currentUser?.uid]);
 
@@ -192,6 +254,26 @@ function Chatroom() {
     }
   };
 
+  // Join group chat
+  const joinGroupChat = async (groupId) => {
+    if (!auth.currentUser) return;
+    try {
+      const groupRef = doc(db, "groupChats", groupId);
+      await runTransaction(db, async (transaction) => {
+        transaction.update(groupRef, { participants: arrayUnion(auth.currentUser.uid) });
+      });
+      setActiveGroupId(groupId);
+      navigate(`/chat-room/${groupId}`);
+    } catch (err) {
+      console.error("Error joining group chat:", err);
+      if (err.code === "resource-exhausted") {
+        alert("Firestore quota exceeded. Please try again later.");
+      } else {
+        alert("Failed to join group chat. Please try again.");
+      }
+    }
+  };
+
   // Start private chat
   const startPrivateChat = async (therapist) => {
     if (!therapist || !therapist.uid || !auth.currentUser) return;
@@ -227,20 +309,22 @@ function Chatroom() {
       const isTherapist = auth.currentUser?.email;
       const route = isTherapist
         ? `/therapist-dashboard/private-chat/${chatId}`
-        : `/chat-room/${chatId}`;
+        : `/chat-room/private/${chatId}`;
       navigate(route);
     } catch (err) {
       console.error("Error starting private chat:", err);
       if (err.code === "resource-exhausted") {
         alert("Firestore quota exceeded. Please try again later.");
+      } else {
+        alert("Failed to start private chat. Please try again.");
       }
     }
   };
 
   // Toggle reaction on message
   const toggleReaction = async (msgId, reactionType) => {
-    if (!auth.currentUser) return;
-    const msgRef = doc(db, "messages", msgId);
+    if (!auth.currentUser || !activeGroupId) return;
+    const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
     try {
       await runTransaction(db, async (transaction) => {
         const msgSnap = await transaction.get(msgRef);
@@ -268,13 +352,13 @@ function Chatroom() {
 
   // Handle file upload
   const handleFileUpload = async (file) => {
-    if (!file || !auth.currentUser) return;
+    if (!file || !auth.currentUser || !activeGroupId) return;
     try {
-      const storageRef = ref(storage, `chatroom/${Date.now()}_${file.name}`);
+      const storageRef = ref(storage, `groupChats/${activeGroupId}/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
       const fileUrl = await getDownloadURL(storageRef);
       await runTransaction(db, async (transaction) => {
-        const messagesRef = collection(db, "messages");
+        const messagesRef = collection(db, `groupChats/${activeGroupId}/messages`);
         const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
         transaction.set(doc(messagesRef), {
           text: newMessage || "",
@@ -290,25 +374,36 @@ function Chatroom() {
           name: displayName,
           timestamp: serverTimestamp(),
         });
+        transaction.update(doc(db, "groupChats", activeGroupId), {
+          lastMessage: {
+            text: newMessage || "Attachment",
+            displayName,
+            timestamp: serverTimestamp(),
+          },
+        });
       });
       setNewMessage("");
       setShowEmojiPicker(false);
     } catch (err) {
       console.error("Error uploading file:", err);
-      alert("Failed to upload file. Please try again.");
+      if (err.code === "resource-exhausted") {
+        alert("Firestore quota exceeded. Please try again later.");
+      } else {
+        alert("Failed to upload file. Please try again.");
+      }
     }
   };
 
   // Send message
   const sendMessage = async () => {
-    if (!newMessage.trim() || !auth.currentUser) return;
+    if (!newMessage.trim() || !auth.currentUser || !activeGroupId) return;
 
     const role = auth.currentUser.email ? "therapist" : "user";
-    let displayName = role === "therapist" ? therapistName : getAnonName();
+    const displayName = role === "therapist" ? therapistName : getAnonName();
 
     try {
       await runTransaction(db, async (transaction) => {
-        const messagesRef = collection(db, "messages");
+        const messagesRef = collection(db, `groupChats/${activeGroupId}/messages`);
         const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
         transaction.set(doc(messagesRef), {
           text: newMessage,
@@ -324,6 +419,13 @@ function Chatroom() {
           name: displayName,
           timestamp: serverTimestamp(),
         });
+        transaction.update(doc(db, "groupChats", activeGroupId), {
+          lastMessage: {
+            text: newMessage,
+            displayName,
+            timestamp: serverTimestamp(),
+          },
+        });
       });
 
       if (role === "user" && newMessage.toLowerCase().includes("@ai")) {
@@ -335,7 +437,7 @@ function Chatroom() {
           const aiInputMessages = mapMessagesForAI(messages);
           const aiReply = await getAIResponse(cleanMessage, aiInputMessages);
           await runTransaction(db, async (transaction) => {
-            transaction.set(doc(collection(db, "messages")), {
+            transaction.set(doc(collection(db, `groupChats/${activeGroupId}/messages`)), {
               text: `You said: "${originalMessage}"\n\n${aiReply}`,
               fileUrl: null,
               userId: "AI_BOT",
@@ -348,7 +450,7 @@ function Chatroom() {
         } catch (err) {
           console.error("AI error:", err);
           await runTransaction(db, async (transaction) => {
-            transaction.set(doc(collection(db, "messages")), {
+            transaction.set(doc(collection(db, `groupChats/${activeGroupId}/messages`)), {
               text: "Sorry, I couldn’t respond right now. Please try again later.",
               fileUrl: null,
               userId: "AI_BOT",
@@ -366,6 +468,8 @@ function Chatroom() {
       console.error("Error sending message:", err);
       if (err.code === "resource-exhausted") {
         alert("Firestore quota exceeded. Please try again later.");
+      } else {
+        alert("Failed to send message. Please try again.");
       }
     }
 
@@ -390,157 +494,186 @@ function Chatroom() {
         <i className="fa-solid fa-moon"></i>
       </button>
       <h2 className="header-name">Anonymous Mental Health Chat</h2>
-      <div className="therapist-list">
-        {therapistsOnline.map((therapist) => (
-          <div
-            key={therapist.uid}
-            className={`therapist-item ${therapist.online ? "online" : ""}`}
-            onClick={() => handleTherapistClick({ userId: therapist.uid, role: "therapist" })}
-          >
-            <span className="therapist-avatar">{therapist.name?.[0] || "T"}</span>
-            {therapist.name}
-          </div>
-        ))}
-      </div>
-      <div className="participant-list">
-        <h4>Participants ({participants.length})</h4>
-        {participants.map((uid) => (
-          <div key={uid} className="participant-item">
-            {uid}
-          </div>
-        ))}
-      </div>
-      {selectedTherapist && (
-        <div className="modal-backdrop">
-          <div className="modal" ref={modalRef}>
-            <TherapistProfile
-              therapist={selectedTherapist}
-              isOnline={isTherapistOnline(selectedTherapist.uid)}
-              onBack={() => setSelectedTherapist(null)}
-              onStartChat={() => startPrivateChat(selectedTherapist)}
-              onBookAppointment={() => alert("Appointment booking coming soon!")}
-            />
-          </div>
+      {!activeGroupId ? (
+        <div className="chat-list">
+          <h3>Group Chats</h3>
+          {groupChats.length === 0 ? (
+            <p>No group chats available</p>
+          ) : (
+            groupChats.map((group) => (
+              <div key={group.id} className="chat-card" onClick={() => joinGroupChat(group.id)}>
+                <div>
+                  <strong>{group.name || "Unnamed Group"}</strong>
+                  <br />
+                  <small>
+                    {group.lastMessage
+                      ? `${group.lastMessage.displayName || "Anonymous"}: ${group.lastMessage.text}`
+                      : "No messages yet"}
+                  </small>
+                </div>
+                {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
+              </div>
+            ))
+          )}
         </div>
-      )}
-      <div className={selectedTherapist ? "chatroom-content blurred" : "chatroom-content"}>
-        {combinedChat.some((msg) => msg.pinned) && (
-          <div className="pinned-message">
-            <strong>Pinned:</strong>{" "}
-            {combinedChat.find((msg) => msg.pinned)?.text || "Welcome to the chatroom!"}
+      ) : (
+        <>
+          <div className="therapist-list">
+            {therapistsOnline.map((therapist) => (
+              <div
+                key={therapist.uid}
+                className={`therapist-item ${therapist.online ? "online" : ""}`}
+                onClick={() => handleTherapistClick({ userId: therapist.uid, role: "therapist" })}
+              >
+                <span className="therapist-avatar">{therapist.name?.[0] || "T"}</span>
+                {therapist.name}
+              </div>
+            ))}
           </div>
-        )}
-        <div className="chat-box">
-          {combinedChat.map((msg) => (
-            <p
-              key={msg.id}
-              className={`chat-message ${
-                msg.role === "therapist"
-                  ? "therapist"
-                  : msg.role === "ai"
-                  ? "ai"
-                  : msg.role === "system"
-                  ? "system"
-                  : "user"
-              }`}
-              onClick={() => msg.role === "therapist" && handleTherapistClick(msg)}
-            >
-              {msg.role === "system" ? (
-                <em>{msg.text}</em>
-              ) : (
-                <>
-                  <strong>{msg.displayName || msg.user || "Anonymous"}</strong>
-                  <div className="message-content-time">
-                    <span>{msg.text}</span>
-                    {msg.fileUrl && (
-                      <a
-                        href={msg.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="attachment-link"
-                      >
-                        <i className="fa-solid fa-paperclip"></i> View Attachment
-                      </a>
-                    )}
-                    <span className="message-timestamp">
-                      {msg.timestamp?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                    <span className="message-reactions">
-                      <i
-                        className="fa-solid fa-heart reaction"
-                        style={{ color: msg.reactions?.heart?.length > 0 ? "red" : "gray" }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleReaction(msg.id, "heart");
-                        }}
-                      >
-                        {msg.reactions?.heart?.length || 0}
-                      </i>
-                      <i
-                        className="fa-solid fa-thumbs-up reaction"
-                        style={{ color: msg.reactions?.thumbsUp?.length > 0 ? "blue" : "gray" }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleReaction(msg.id, "thumbsUp");
-                        }}
-                      >
-                        {msg.reactions?.thumbsUp?.length || 0}
-                      </i>
-                    </span>
-                  </div>
-                </>
+          <div className="participant-list">
+            <h4>Participants ({participants.length})</h4>
+            {participants.map((uid) => (
+              <div key={uid} className="participant-item">
+                {participantNames[uid] || uid}
+              </div>
+            ))}
+          </div>
+          {selectedTherapist && (
+            <div className="modal-backdrop">
+              <div className="modal" ref={modalRef}>
+                <TherapistProfile
+                  therapist={selectedTherapist}
+                  isOnline={isTherapistOnline(selectedTherapist.uid)}
+                  onBack={() => setSelectedTherapist(null)}
+                  onStartChat={() => startPrivateChat(selectedTherapist)}
+                  onBookAppointment={() => alert("Appointment booking coming soon!")}
+                />
+              </div>
+            </div>
+          )}
+          <div className={selectedTherapist ? "chatroom-content blurred" : "chatroom-content"}>
+            {combinedChat.some((msg) => msg.pinned) && (
+              <div className="pinned-message">
+                <strong>Pinned:</strong>{" "}
+                {combinedChat.find((msg) => msg.pinned)?.text || "Welcome to the chatroom!"}
+              </div>
+            )}
+            <div className="chat-box">
+              {combinedChat.map((msg) => (
+                <p
+                  key={msg.id}
+                  className={`chat-message ${
+                    msg.role === "therapist"
+                      ? "therapist"
+                      : msg.role === "ai"
+                      ? "ai"
+                      : msg.role === "system"
+                      ? "system"
+                      : "user"
+                  }`}
+                  onClick={() => msg.role === "therapist" && handleTherapistClick(msg)}
+                >
+                  {msg.role === "system" ? (
+                    <em>{msg.text}</em>
+                  ) : (
+                    <>
+                      <strong>{msg.displayName || msg.user || "Anonymous"}</strong>
+                      <div className="message-content-time">
+                        <span>{msg.text}</span>
+                        {msg.fileUrl && (
+                          <a
+                            href={msg.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="attachment-link"
+                          >
+                            <i className="fa-solid fa-paperclip"></i> View Attachment
+                          </a>
+                        )}
+                        <span className="message-timestamp">
+                          {msg.timestamp?.toDate().toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                        <span className="message-reactions">
+                          <i
+                            className="fa-solid fa-heart reaction"
+                            style={{ color: msg.reactions?.heart?.length > 0 ? "red" : "gray" }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleReaction(msg.id, "heart");
+                            }}
+                          >
+                            {msg.reactions?.heart?.length || 0}
+                          </i>
+                          <i
+                            className="fa-solid fa-thumbs-up reaction"
+                            style={{ color: msg.reactions?.thumbsUp?.length > 0 ? "blue" : "gray" }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleReaction(msg.id, "thumbsUp");
+                            }}
+                          >
+                            {msg.reactions?.thumbsUp?.length || 0}
+                          </i>
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </p>
+              ))}
+              {typingUsers.length > 0 && (
+                <p className="typing-indicator">
+                  {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+                </p>
               )}
-            </p>
-          ))}
-          {typingUsers.length > 0 && (
-            <p className="typing-indicator">
-              {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
-            </p>
-          )}
-          {aiTyping && (
-            <p className="typing-indicator ai-typing">
-              AI Support is typing...
-            </p>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-        {isLoggedIn && (
-          <div className="chat-input">
-            <button
-              className="emoji-btn"
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            >
-              <i className="fa-regular fa-face-smile"></i>
-            </button>
-            {showEmojiPicker && <EmojiPicker className="EmojiPicker" onEmojiClick={onEmojiClick} />}
-            <input
-              type="file"
-              id="chatroom-file-upload"
-              style={{ display: "none" }}
-              onChange={(e) => handleFileUpload(e.target.files[0])}
-            />
-            <button
-              className="attach-btn"
-              onClick={() => document.getElementById("chatroom-file-upload").click()}
-            >
-              <i className="fa-solid fa-paperclip"></i>
-            </button>
-            <input
-              className="inputInsert"
-              type="text"
-              value={newMessage}
-              onChange={(e) => {
-                setNewMessage(e.target.value);
-                handleTyping(e.target.value);
-              }}
-              placeholder="Type a message..."
-            />
-            <button className="send-btn" onClick={sendMessage}>
-              <i className="fa-solid fa-paper-plane"></i>
-            </button>
+              {aiTyping && (
+                <p className="typing-indicator ai-typing">
+                  AI Support is typing...
+                </p>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+            {isLoggedIn && (
+              <div className="chat-input">
+                <button
+                  className="emoji-btn"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                >
+                  <i className="fa-regular fa-face-smile"></i>
+                </button>
+                {showEmojiPicker && <EmojiPicker className="EmojiPicker" onEmojiClick={onEmojiClick} />}
+                <input
+                  type="file"
+                  id="chatroom-file-upload"
+                  style={{ display: "none" }}
+                  onChange={(e) => handleFileUpload(e.target.files[0])}
+                />
+                <button
+                  className="attach-btn"
+                  onClick={() => document.getElementById("chatroom-file-upload").click()}
+                >
+                  <i className="fa-solid fa-paperclip"></i>
+                </button>
+                <input
+                  className="inputInsert"
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => {
+                    setNewMessage(e.target.value);
+                    handleTyping(e.target.value);
+                  }}
+                  placeholder="Type a message..."
+                />
+                <button className="send-btn" onClick={sendMessage}>
+                  <i className="fa-solid fa-paper-plane"></i>
+                </button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }

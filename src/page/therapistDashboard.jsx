@@ -30,6 +30,7 @@ import "../styles/therapistDashboard.css";
 function TherapistDashboard() {
   const [messages, setMessages] = useState([]);
   const [groupEvents, setGroupEvents] = useState([]);
+  const [groupChats, setGroupChats] = useState([]); // New state for multiple group chats
   const [reply, setReply] = useState("");
   const [privateChats, setPrivateChats] = useState([]);
   const [isGroupChatOpen, setIsGroupChatOpen] = useState(false);
@@ -37,6 +38,7 @@ function TherapistDashboard() {
   const [groupUnreadCount, setGroupUnreadCount] = useState(0);
   const [lastSeenTimestamp, setLastSeenTimestamp] = useState(null);
   const [activeChatId, setActiveChatId] = useState(null);
+  const [activeGroupId, setActiveGroupId] = useState(null); // Track active group chat
   const [editing, setEditing] = useState(false);
   const [therapistInfo, setTherapistInfo] = useState({
     name: "",
@@ -115,16 +117,83 @@ function TherapistDashboard() {
     return () => unsub();
   }, []);
 
-  // Watch group chat participants
+  // Fetch all group chats
   useEffect(() => {
-    const groupRef = doc(db, "groupChats", "mainGroup");
-    const unsub = onSnapshot(groupRef, (snap) => {
+    const q = query(collection(db, "groupChats"), limit(50));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setGroupChats(chats);
+        setIsLoadingChats(false);
+      },
+      (err) => {
+        console.error("Error fetching group chats:", err);
+        alert("Failed to load group chats. Please try again.");
+        setIsLoadingChats(false);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+  // Watch group chat participants and messages for active group
+  useEffect(() => {
+    if (!activeGroupId) return;
+    const groupRef = doc(db, "groupChats", activeGroupId);
+    const messagesQuery = query(collection(groupRef, "messages"), orderBy("timestamp"), limit(50));
+    const eventsQuery = query(collection(groupRef, "events"), orderBy("timestamp"), limit(50));
+
+    const unsubParticipants = onSnapshot(groupRef, (snap) => {
       if (snap.exists()) {
         setParticipants(snap.data().participants || []);
+        const isParticipant = snap.data().participants?.includes(therapistId);
+        setInGroupChat(isParticipant);
+        setIsGroupChatOpen(isParticipant && isGroupChatOpen);
       }
     });
-    return () => unsub();
-  }, []);
+
+    const unsubMessages = onSnapshot(messagesQuery, (snapshot) => {
+      const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setMessages(msgs);
+      if (!isGroupChatOpen) {
+        const unread = msgs.filter((msg) => {
+          const msgTime = msg.timestamp?.toMillis();
+          return msgTime && (!lastSeenTimestamp || msgTime > lastSeenTimestamp);
+        }).length;
+        setGroupUnreadCount(unread);
+      }
+    });
+
+    const unsubEvents = onSnapshot(eventsQuery, (snapshot) => {
+      const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setGroupEvents(evts);
+    });
+
+    return () => {
+      unsubParticipants();
+      unsubMessages();
+      unsubEvents();
+    };
+  }, [activeGroupId, isGroupChatOpen, lastSeenTimestamp, therapistId]);
+
+  // Fetch participant names
+  const [participantNames, setParticipantNames] = useState({});
+  useEffect(() => {
+    const fetchParticipantNames = async () => {
+      const names = {};
+      for (const uid of participants) {
+        const userRef = doc(db, "therapists", uid);
+        const userSnap = await getDoc(userRef);
+        names[uid] = userSnap.exists() ? userSnap.data().name || "Anonymous" : "Anonymous";
+      }
+      setParticipantNames(names);
+    };
+    if (participants.length > 0) {
+      fetchParticipantNames().catch((err) => {
+        console.error("Error fetching participant names:", err);
+      });
+    }
+  }, [participants]);
 
   // Validate and sync activeChatId with URL param
   useEffect(() => {
@@ -153,13 +222,10 @@ function TherapistDashboard() {
         }
 
         let chatData = chatSnap.data();
-        console.log("Chat data:", JSON.stringify(chatData, null, 2));
         let isParticipant = chatData.participants?.includes(therapistId);
         let needsTherapist = chatData.needsTherapist === true;
-        console.log("isParticipant:", isParticipant, "needsTherapist:", needsTherapist, "therapistId:", therapistId);
 
         if (!isParticipant && !needsTherapist) {
-          console.log("Initial validation failed: Therapist not in participants and needsTherapist is false");
           const eventsQuery = query(
             collection(chatRef, "events"),
             where("type", "==", "join"),
@@ -171,7 +237,6 @@ function TherapistDashboard() {
           const recentJoin = eventsSnap.docs.length > 0;
           const recentJoinTime = recentJoin ? eventsSnap.docs[0].data().timestamp?.toMillis() : 0;
           const isRecentJoin = recentJoin && (Date.now() - recentJoinTime) < 10000;
-          console.log("Recent join event:", recentJoin, "isRecentJoin:", isRecentJoin);
 
           if (!isRecentJoin) {
             await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -229,7 +294,6 @@ function TherapistDashboard() {
         limit(50)
       );
       const unsubscribe1 = onSnapshot(q1, (snapshot) => {
-        console.log("Private chats (participant) snapshot received:", snapshot.docs.length);
         const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
         setPrivateChats((prev) => {
           const allChats = [...chats, ...prev];
@@ -249,7 +313,6 @@ function TherapistDashboard() {
         }
       });
       const unsubscribe2 = onSnapshot(q2, (snapshot) => {
-        console.log("Private chats (needsTherapist) snapshot received:", snapshot.docs.length);
         const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
         setPrivateChats((prev) => {
           const allChats = [...chats, ...prev];
@@ -318,70 +381,6 @@ function TherapistDashboard() {
     );
     return () => unsubscribeEvents();
   }, [activeChatId]);
-
-  // Group messages listener + unread count
-  useEffect(() => {
-    const q = query(collection(db, "messages"), orderBy("timestamp"), limit(50));
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        setMessages(msgs);
-        if (!isGroupChatOpen) {
-          const unread = msgs.filter((msg) => {
-            const msgTime = msg.timestamp?.toMillis();
-            return msgTime && (!lastSeenTimestamp || msgTime > lastSeenTimestamp);
-          }).length;
-          setGroupUnreadCount(unread);
-        }
-      },
-      (err) => {
-        console.error("Error fetching group messages:", err);
-        alert("Failed to load group messages. Please try again.");
-      }
-    );
-    return () => unsubscribe();
-  }, [isGroupChatOpen, lastSeenTimestamp]);
-
-  // Watch group chat events
-  useEffect(() => {
-    const groupRef = doc(db, "groupChats", "mainGroup");
-    const q = query(collection(groupRef, "events"), orderBy("timestamp"), limit(50));
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        setGroupEvents(evts);
-      },
-      (err) => {
-        console.error("Error fetching group events:", err);
-        alert("Failed to load group events. Please try again.");
-      }
-    );
-    return () => unsubscribe();
-  }, []);
-
-  // Watch group chat participation
-  useEffect(() => {
-    if (!auth.currentUser) return;
-    const groupRef = doc(db, "groupChats", "mainGroup");
-    const unsub = onSnapshot(
-      groupRef,
-      (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          const isParticipant = data.participants?.includes(auth.currentUser.uid) || false;
-          setInGroupChat(isParticipant);
-          setIsGroupChatOpen(isParticipant && isGroupChatOpen);
-        }
-      },
-      (err) => {
-        console.error("Error fetching group chat data:", err);
-        alert("Failed to load group chat data. Please try again.");
-      }
-    );
-    return () => unsub();
-  }, [isGroupChatOpen]);
 
   // Fetch last seen timestamp
   useEffect(() => {
@@ -467,16 +466,18 @@ function TherapistDashboard() {
               });
             }
           }
-          const groupChatRef = await transaction.get(doc(db, "groupChats", "mainGroup"));
-          if (groupChatRef.exists()) {
-            transaction.update(groupChatRef, {
-              participants: arrayRemove(uid),
-            });
-            transaction.set(doc(collection(groupChatRef, "events")), {
-              type: "leave",
-              user: displayName,
-              timestamp: serverTimestamp(),
-            });
+          if (activeGroupId) {
+            const groupChatRef = await transaction.get(doc(db, "groupChats", activeGroupId));
+            if (groupChatRef.exists()) {
+              transaction.update(groupChatRef, {
+                participants: arrayRemove(uid),
+              });
+              transaction.set(doc(collection(groupChatRef, "events")), {
+                type: "leave",
+                user: displayName,
+                timestamp: serverTimestamp(),
+              });
+            }
           }
         });
       } catch (err) {
@@ -499,23 +500,24 @@ function TherapistDashboard() {
       window.removeEventListener("visibilitychange", handleVisibilityChange);
       debouncedLeave.cancel();
     };
-  }, [activeChatId, displayName]);
+  }, [activeChatId, activeGroupId, displayName]);
 
   // Send message to group chat with file support
   const sendReply = async (file = null) => {
-    if (!reply.trim() && !file) return; // Modified to allow sending files without text
+    if (!reply.trim() && !file) return;
+    if (!activeGroupId) return;
     try {
       let fileUrl = "";
       if (file) {
-        const storageRef = ref(storage, `groupChat/${Date.now()}_${file.name}`);
+        const storageRef = ref(storage, `groupChats/${activeGroupId}/${Date.now()}_${file.name}`);
         await uploadBytes(storageRef, file);
         fileUrl = await getDownloadURL(storageRef);
       }
       await runTransaction(db, async (transaction) => {
-        const messagesRef = collection(db, "messages");
+        const messagesRef = collection(db, `groupChats/${activeGroupId}/messages`);
         const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
         transaction.set(doc(messagesRef), {
-          text: reply || "", // Allow empty text if file is present
+          text: reply || "",
           fileUrl: fileUrl || null,
           userId: auth.currentUser.uid,
           displayName: therapistInfo.name,
@@ -529,6 +531,13 @@ function TherapistDashboard() {
           name: therapistInfo.name || "Therapist",
           timestamp: serverTimestamp(),
         });
+        transaction.update(doc(db, "groupChats", activeGroupId), {
+          lastMessage: {
+            text: reply || "Attachment",
+            displayName: therapistInfo.name,
+            timestamp: serverTimestamp(),
+          },
+        });
       });
       setReply("");
       setShowEmojiPicker(false);
@@ -540,8 +549,8 @@ function TherapistDashboard() {
 
   // Toggle reaction on message
   const toggleReaction = async (msgId, reactionType) => {
-    if (!auth.currentUser) return;
-    const msgRef = doc(db, "messages", msgId);
+    if (!auth.currentUser || !activeGroupId) return;
+    const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
     try {
       await runTransaction(db, async (transaction) => {
         const msgSnap = await transaction.get(msgRef);
@@ -563,11 +572,11 @@ function TherapistDashboard() {
 
   // Delete message (moderation)
   const deleteMessage = async (msgId) => {
-    if (therapistInfo.role !== "therapist") return;
+    if (therapistInfo.role !== "therapist" || !activeGroupId) return;
     try {
       await runTransaction(db, async (transaction) => {
-        transaction.delete(doc(db, "messages", msgId));
-        const groupEventsRef = collection(db, "groupChats/mainGroup/events");
+        transaction.delete(doc(db, `groupChats/${activeGroupId}/messages`, msgId));
+        const groupEventsRef = collection(db, `groupChats/${activeGroupId}/events`);
         transaction.set(doc(groupEventsRef), {
           type: "delete",
           user: therapistInfo.name,
@@ -634,6 +643,7 @@ function TherapistDashboard() {
       setMessages([]);
       setPrivateChats([]);
       setActiveChatId(null);
+      setActiveGroupId(null);
       setPrivateMessages([]);
       setPrivateEvents([]);
       navigate("/therapist-login");
@@ -657,13 +667,17 @@ function TherapistDashboard() {
   };
 
   // Join group chat
-  const joinGroupChat = async () => {
+  const joinGroupChat = async (groupId) => {
     if (!auth.currentUser) return;
     try {
+      const groupRef = doc(db, "groupChats", groupId);
+      const groupSnap = await getDoc(groupRef);
+      if (!groupSnap.exists()) {
+        throw new Error("Group chat does not exist");
+      }
       const lastMsgTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
       await runTransaction(db, async (transaction) => {
-        const groupRef = doc(db, "groupChats", "mainGroup");
-        transaction.set(groupRef, { participants: arrayUnion(auth.currentUser.uid) }, { merge: true });
+        transaction.update(groupRef, { participants: arrayUnion(auth.currentUser.uid) });
         transaction.set(
           doc(db, "therapists", therapistId),
           { lastSeenGroupChat: serverTimestamp() },
@@ -674,7 +688,8 @@ function TherapistDashboard() {
       setIsGroupChatOpen(true);
       setInGroupChat(true);
       setGroupUnreadCount(0);
-      navigate("/therapist-dashboard/group-chat");
+      setActiveGroupId(groupId);
+      navigate(`/therapist-dashboard/group-chat/${groupId}`);
     } catch (err) {
       console.error("Error joining group chat:", err);
       alert("Failed to join group chat. Please try again.");
@@ -683,22 +698,28 @@ function TherapistDashboard() {
 
   // Leave group chat
   const leaveGroupChat = async () => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser || !activeGroupId) return;
     try {
+      const groupRef = doc(db, "groupChats", activeGroupId);
       const lastMsgTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
       await runTransaction(db, async (transaction) => {
-        const groupRef = doc(db, "groupChats", "mainGroup");
+        transaction.update(groupRef, { participants: arrayRemove(auth.currentUser.uid) });
         transaction.set(
           doc(db, "therapists", therapistId),
           { lastSeenGroupChat: serverTimestamp() },
           { merge: true }
         );
-        transaction.update(groupRef, { participants: arrayRemove(auth.currentUser.uid) });
+        transaction.set(doc(collection(groupRef, "events")), {
+          type: "leave",
+          user: displayName,
+          timestamp: serverTimestamp(),
+        });
       });
       setIsGroupChatOpen(false);
       setInGroupChat(false);
       setGroupUnreadCount(0);
       setLastSeenTimestamp(lastMsgTime);
+      setActiveGroupId(null);
       navigate("/therapist-dashboard/group-chat");
     } catch (err) {
       console.error("Error leaving group chat:", err);
@@ -904,11 +925,39 @@ function TherapistDashboard() {
           <Route
             path="/group-chat"
             element={
-              isGroupChatOpen && inGroupChat ? (
+              <div className="chat-list">
+                <h3>Group Chats</h3>
+                {isLoadingChats ? (
+                  <p>Loading group chats...</p>
+                ) : groupChats.length === 0 ? (
+                  <p>No group chats available</p>
+                ) : (
+                  groupChats.map((group) => (
+                    <div key={group.id} className="chat-card" onClick={() => joinGroupChat(group.id)}>
+                      <div>
+                        <strong>{group.name || "Unnamed Group"}</strong>
+                        <br />
+                        <small>
+                          {group.lastMessage
+                            ? `${group.lastMessage.displayName || "Anonymous"}: ${group.lastMessage.text}`
+                            : "No messages yet"}
+                        </small>
+                      </div>
+                      {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
+                    </div>
+                  ))
+                )}
+              </div>
+            }
+          />
+          <Route
+            path="/group-chat/:groupId"
+            element={
+              isGroupChatOpen && inGroupChat && activeGroupId ? (
                 <div className="group-chat">
                   <div className="detailLeave">
                     <h3 className="onlineStatus">
-                      Group Chat{" "}
+                      {groupChats.find((g) => g.id === activeGroupId)?.name || "Group Chat"}{" "}
                       {therapistsOnline.length > 0
                         ? `(Therapists Online: ${therapistsOnline.map((t) => t.name).join(", ")})`
                         : "(No therapists online)"}
@@ -919,7 +968,7 @@ function TherapistDashboard() {
                     <h4>Participants ({participants.length})</h4>
                     {participants.map((uid) => (
                       <div key={uid} className="participant-item">
-                        {uid}
+                        {participantNames[uid] || uid}
                       </div>
                     ))}
                   </div>
@@ -954,7 +1003,7 @@ function TherapistDashboard() {
                               rel="noopener noreferrer"
                               className="attachment-link"
                             >
-                              <i class="fa-solid fa-paperclip"></i> View Attachment
+                              <i className="fa-solid fa-paperclip"></i> View Attachment
                             </a>
                           )}
                           <span className="message-timestamp">
@@ -1008,7 +1057,7 @@ function TherapistDashboard() {
                       className="emoji-btn"
                       onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                     >
-                      <i class="fa-regular fa-face-smile"></i>
+                      <i className="fa-regular fa-face-smile"></i>
                     </button>
                     {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
                     <input
@@ -1021,7 +1070,7 @@ function TherapistDashboard() {
                       className="attach-btn"
                       onClick={() => document.getElementById("group-file-upload").click()}
                     >
-                      <i class="fa-solid fa-paperclip"></i>
+                      <i className="fa-solid fa-paperclip"></i>
                     </button>
                     <input
                       className="inputInsert"
@@ -1034,27 +1083,33 @@ function TherapistDashboard() {
                       placeholder="Reply to group chat..."
                     />
                     <button className="send-btn" onClick={() => sendReply()}>
-                      <i class="fa-solid fa-paper-plane"></i>
+                      <i className="fa-solid fa-paper-plane"></i>
                     </button>
                   </div>
                 </div>
               ) : (
                 <div className="chat-list">
-                  <h3>Group Chat</h3>
-                  <div className="chat-card" onClick={joinGroupChat}>
-                    <div>
-                      <strong>Group Chat</strong>
-                      <br />
-                      <small>
-                        {messages.length > 0
-                          ? `${messages[messages.length - 1].displayName || "Anonymous"}: ${
-                              messages[messages.length - 1].text
-                            }`
-                          : "No messages yet"}
-                      </small>
-                    </div>
-                    {groupUnreadCount > 0 && <span className="unread-badge">{groupUnreadCount}</span>}
-                  </div>
+                  <h3>Group Chats</h3>
+                  {isLoadingChats ? (
+                    <p>Loading group chats...</p>
+                  ) : groupChats.length === 0 ? (
+                    <p>No group chats available</p>
+                  ) : (
+                    groupChats.map((group) => (
+                      <div key={group.id} className="chat-card" onClick={() => joinGroupChat(group.id)}>
+                        <div>
+                          <strong>{group.name || "Unnamed Group"}</strong>
+                          <br />
+                          <small>
+                            {group.lastMessage
+                              ? `${group.lastMessage.displayName || "Anonymous"}: ${group.lastMessage.text}`
+                              : "No messages yet"}
+                          </small>
+                        </div>
+                        {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
+                      </div>
+                    ))
+                  )}
                 </div>
               )
             }
@@ -1205,14 +1260,15 @@ function TherapistDashboard() {
                         New messages in Private Chat {chat.id} ({chat.unreadCountForTherapist})
                       </li>
                     ))}
-                  {groupUnreadCount > 0 && (
-                    <li className="notification-item" onClick={joinGroupChat}>
-                      {groupUnreadCount} new messages in Group Chat
+                  {groupChats.some((group) => group.unreadCount > 0) && (
+                    <li className="notification-item" onClick={() => navigate("/therapist-dashboard/group-chat")}>
+                      New messages in Group Chats
                     </li>
                   )}
-                  {privateChats.every((chat) => chat.unreadCountForTherapist === 0) && groupUnreadCount === 0 && (
-                    <li>No new notifications</li>
-                  )}
+                  {privateChats.every((chat) => chat.unreadCountForTherapist === 0) &&
+                    groupChats.every((group) => group.unreadCount === 0) && (
+                      <li>No new notifications</li>
+                    )}
                 </ul>
               </div>
             }
