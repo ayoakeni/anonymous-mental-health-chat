@@ -35,6 +35,7 @@ function Chatroom() {
   const [participants, setParticipants] = useState([]);
   const [activeGroupId, setActiveGroupId] = useState(null);
   const [participantNames, setParticipantNames] = useState({});
+  const [isParticipantsDropdownOpen, setIsParticipantsDropdownOpen] = useState(false);
   const modalRef = useRef(null);
   const displayName = auth.currentUser?.email ? therapistName : getAnonName();
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
@@ -169,6 +170,21 @@ function Chatroom() {
       });
     }
   }, [participants]);
+
+  // Toggle participant
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const participantList = document.querySelector(".participant-list");
+      if (participantList && !participantList.contains(event.target)) {
+        setIsParticipantsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Track therapists online
   useEffect(() => {
@@ -522,7 +538,9 @@ function Chatroom() {
             {therapistsOnline.map((therapist) => (
               <div
                 key={therapist.uid}
-                className={`therapist-item ${therapist.online ? "online" : ""}`}
+                className={`therapist-item ${therapist.online ? "online" : ""}
+                ${selectedTherapist?.uid === therapist.uid ? "active" : ""}`}
+                data-fullname={therapist.name}
                 onClick={() => handleTherapistClick({ userId: therapist.uid, role: "therapist" })}
               >
                 <span className="therapist-avatar">{therapist.name?.[0] || "T"}</span>
@@ -531,12 +549,39 @@ function Chatroom() {
             ))}
           </div>
           <div className="participant-list">
-            <h4>Participants ({participants.length})</h4>
-            {participants.map((uid) => (
-              <div key={uid} className="participant-item">
-                {participantNames[uid] || uid}
+            <h4
+              className="participant-toggle"
+              onClick={() => setIsParticipantsDropdownOpen(!isParticipantsDropdownOpen)}
+              role="button"
+              aria-expanded={isParticipantsDropdownOpen}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  setIsParticipantsDropdownOpen(!isParticipantsDropdownOpen);
+                }
+              }}
+            >
+              Participants ({participants.length})
+              <i
+                className={`fa-solid fa-chevron-${isParticipantsDropdownOpen ? "up" : "down"}`}
+                style={{ marginLeft: "8px" }}
+              ></i>
+            </h4>
+            {isParticipantsDropdownOpen && (
+              <div className="participant-dropdown">
+                <div className="participant-item-container">
+                  {participants.length > 0 ? (
+                    participants.map((uid) => (
+                      <div key={uid} className="participant-item">
+                        {participantNames[uid] || uid}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="participant-item">No participants</div>
+                  )}
+                </div>
               </div>
-            ))}
+            )}
           </div>
           {selectedTherapist && (
             <div className="modal-backdrop">
@@ -579,7 +624,20 @@ function Chatroom() {
                     <>
                       <strong>{msg.displayName || msg.user || "Anonymous"}</strong>
                       <div className="message-content-time">
-                        <span>{msg.text}</span>
+                        {msg.role === "ai" ? (
+                          <>
+                            {msg.text.split("\n\n").map((part, index) => (
+                              <span
+                                key={index}
+                                className={index === 0 ? "ai-user-quote" : "ai-response"}
+                              >
+                                {part}
+                              </span>
+                            ))}
+                          </>
+                        ) : (
+                          <span>{msg.text}</span>
+                        )}
                         {msg.fileUrl && (
                           <a
                             href={msg.fileUrl}

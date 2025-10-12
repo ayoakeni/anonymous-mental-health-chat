@@ -141,27 +141,79 @@
   background: var(--primary-color);
 }
 
-/* Participant List */
+/* Participant List Dropdown */
 .therapist-dashboard .participant-list {
-  max-height: 101px;
+  position: relative;
   margin-bottom: 10px;
   padding: 10px;
   background: var(--chat-bg);
   border-radius: var(--border-radius);
   border: 1px solid var(--input-border);
-  overflow: auto;
+  box-shadow: var(--shadow);
 }
 
-.therapist-dashboard .participant-list h4 {
-  margin-bottom: 5px;
+.therapist-dashboard .participant-toggle {
+  cursor: pointer;
+  margin: 0;
   color: var(--text-color);
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.therapist-dashboard .participant-toggle:hover {
+  color: var(--primary-color);
+}
+
+.therapist-dashboard .participant-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--chat-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.therapist-dashboard .participant-dropdown .participant-item-container {
+  height: auto;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.therapist-dashboard .participant-dropdown::-webkit-scrollbar,
+.therapist-dashboard .participant-item-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.therapist-dashboard .participant-dropdown::-webkit-scrollbar-track,
+.therapist-dashboard .participant-item-container::-webkit-scrollbar-track {
+  background: var(--background-color);
+}
+
+.therapist-dashboard .participant-dropdown::-webkit-scrollbar-thumb,
+.therapist-dashboard .participant-item-container::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
 }
 
 .therapist-dashboard .participant-item {
-  padding: 5px;
+  padding: 8px 10px;
   color: var(--text-color);
-  opacity: 0.8;
   font-size: 0.9rem;
+  border-bottom: 1px solid var(--input-border);
+}
+
+.therapist-dashboard .participant-item:last-child {
+  border-bottom: none;
+}
+
+.therapist-dashboard .participant-item:hover {
+  background: var(--input-bg);
 }
 
 .therapist-dashboard .group-chat .onlineStatus,
@@ -174,7 +226,7 @@
   background: var(--chat-bg);
   border-radius: var(--border-radius);
   padding: 15px;
-  height: 399px;
+  height: 437px;
   overflow-y: auto;
   margin-bottom: 10px;
   border: 1px solid var(--input-border);
@@ -211,12 +263,12 @@
   margin-left: auto;
   font-weight: 600;
   cursor: auto;
-  border-left: 4px solid var(--primary-color);
+  border-left: 4px solid var(--accent-color);
 }
 
 .therapist-dashboard .chat-message.user {
   background: var(--user-bg);
-  border-left: 4px solid var(--accent-color);
+  border-left: 4px solid var(--primary-color);
   margin-right: auto;
 }
 
@@ -322,6 +374,10 @@
   display: flex;
   gap: 5px;
   align-items: center;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  padding: 10px;
 }
 
 /* EmojiPicker box */
@@ -360,8 +416,6 @@
   color: gold;
 }
 
-.therapist-dashboard .chat-input .emoji-btn:disabled,
-.therapist-dashboard .chat-input .attach-btn:disabled,
 .therapist-dashboard .chat-input .send-btn:disabled {
   background: #a0a0a0;
   cursor: not-allowed;
@@ -370,12 +424,6 @@
 .therapist-dashboard .chat-input .emoji-btn:hover:not(:disabled),
 .therapist-dashboard .chat-input .attach-btn:hover:not(:disabled),
 .therapist-dashboard .chat-input .send-btn:hover:not(:disabled) {
-  background: var(--input-bg);
-}
-
-.therapist-dashboard .chat-input .emoji-btn:hover,
-.therapist-dashboard .chat-input .attach-btn:hover,
-.therapist-dashboard .chat-input .send-btn:hover {
   background: var(--input-bg);
 }
 

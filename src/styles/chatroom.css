@@ -125,12 +125,19 @@
 
 .chatroom .therapist-list {
   display: flex;
-  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 20px;
+  max-height: 200px;
+  overflow-x: auto;
+  padding: 10px;
 }
 
 .chatroom .therapist-item {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 149px;
+  height: fit-content;
   padding: 8px 15px;
   background: var(--therapist-bg);
   border-radius: var(--border-radius);
@@ -140,14 +147,13 @@
   transition: background 0.2s;
 }
 
-.chatroom .therapist-item:hover {
-  background: #d0e0ff;
+.chatroom .therapist-item.online {
+  border: 2px solid var(--accent-color);
 }
 
-@media (prefers-color-scheme: dark) {
-  .chatroom .therapist-item:hover {
-    background: #4a6b9b;
-  }
+.chatroom .therapist-item.active {
+  background: var(--accent-color);
+  color: white;
 }
 
 .chatroom .therapist-item.online::after {
@@ -155,6 +161,32 @@
   color: #28a745;
   margin-left: 5px;
   font-size: 0.8rem;
+}
+
+.chatroom .therapist-item:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+@media (prefers-color-scheme: dark) {
+  .chatroom .therapist-item:hover {
+    background: #4a6b9b;
+  }
+  .chatroom .therapist-item.active {
+    background: var(--accent-color);
+    color: var(--text-color);
+}
+}
+
+.chatroom .therapist-list::-webkit-scrollbar {
+  width: 8px;
+}
+.chatroom .therapist-list::-webkit-scrollbar-track {
+  background: var(--system-bg);
+}
+.chatroom .therapist-list::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
 }
 
 .chatroom .therapist-avatar {
@@ -187,27 +219,79 @@
   background: #357abd;
 }
 
-/* Participant List */
+/* Participant List Dropdown */
 .chatroom .participant-list {
-  max-height: 101px;
+  position: relative;
   margin-bottom: 10px;
   padding: 10px;
   background: var(--chat-bg);
   border-radius: var(--border-radius);
   border: 1px solid var(--input-border);
-  overflow: auto;
+  box-shadow: var(--shadow);
 }
 
-.chatroom .participant-list h4 {
-  margin-bottom: 5px;
+.chatroom .participant-toggle {
+  cursor: pointer;
+  margin: 0;
   color: var(--text-color);
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.chatroom .participant-toggle:hover {
+  color: var(--primary-color);
+}
+
+.chatroom .participant-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--chat-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.chatroom .participant-dropdown .participant-item-container {
+  height: auto;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.chatroom .participant-dropdown::-webkit-scrollbar,
+.chatroom .participant-item-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chatroom .participant-dropdown::-webkit-scrollbar-track,
+.chatroom .participant-item-container::-webkit-scrollbar-track {
+  background: var(--background-color);
+}
+
+.chatroom .participant-dropdown::-webkit-scrollbar-thumb,
+.chatroom .participant-item-container::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
 }
 
 .chatroom .participant-item {
-  padding: 5px;
+  padding: 8px 10px;
   color: var(--text-color);
-  opacity: 0.8;
   font-size: 0.9rem;
+  border-bottom: 1px solid var(--input-border);
+}
+
+.chatroom .participant-item:last-child {
+  border-bottom: none;
+}
+
+.chatroom .participant-item:hover {
+  background: var(--input-bg);
 }
 
 .chatroom p {
@@ -220,7 +304,7 @@
   background: var(--chat-bg);
   border-radius: var(--border-radius);
   padding: 15px;
-  height: 324px;
+  height: 344px;
   overflow-y: auto;
   margin-bottom: 10px;
   border: 1px solid var(--input-border);
@@ -254,20 +338,44 @@
 .chatroom .chat-message.therapist {
   background: var(--therapist-bg);
   margin-right: auto;
-  border-left: 4px solid var(--primary-color);
+  border-left: 4px solid var(--accent-color);
   font-weight: 600;
 }
 
 .chatroom .chat-message.user {
   background: var(--user-bg);
   margin-left: auto;
-  border-left: 4px solid var(--accent-color);
+  border-left: 4px solid var(--primary-color);
 }
 
 .chatroom .chat-message.ai {
   background: var(--ai-bg);
   margin-right: auto;
   border-left: 4px solid var(--secondary-color);
+}
+
+.chatroom .ai-user-quote {
+  display: block;
+  font-style: italic;
+  color: var(--text-color);
+  width: fit-content;
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 5px 10px;
+  border-left: 4px solid var(--primary-color);
+  margin-bottom: 10px;
+  border-radius: var(--border-radius);
+}
+
+.chatroom .ai-response {
+  display: block;
+  color: var(--text-color);
+}
+
+@media (prefers-color-scheme: dark) {
+  .chatroom .ai-user-quote {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-left: 4px solid var(--primary-color);
+  }
 }
 
 .chatroom .chat-message.system {
@@ -371,8 +479,11 @@
   display: flex;
   gap: 5px;
   align-items: center;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  padding: 10px;
 }
-
 /* EmojiPicker box */
 .chatroom .chat-input aside {
   position: absolute;

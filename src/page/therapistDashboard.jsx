@@ -59,9 +59,10 @@ function TherapistDashboard() {
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [isValidatingChat, setIsValidatingChat] = useState(false);
   const [chatError, setChatError] = useState(null);
-  const [participants, setParticipants] = useState([]); // For group chat participants
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false); // For emoji picker
-  const [therapistsOnline, setTherapistsOnline] = useState([]); // For availability indicator
+  const [participants, setParticipants] = useState([]);
+  const [isParticipantsDropdownOpen, setIsParticipantsDropdownOpen] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [therapistsOnline, setTherapistsOnline] = useState([]);
   const therapistId = auth.currentUser?.uid;
   const displayName = therapistInfo.name || "Unknown Therapist";
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
@@ -194,6 +195,21 @@ function TherapistDashboard() {
       });
     }
   }, [participants]);
+
+  // Toggle participant
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const participantList = document.querySelector(".participant-list");
+      if (participantList && !participantList.contains(event.target)) {
+        setIsParticipantsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Validate and sync activeChatId with URL param
   useEffect(() => {
@@ -965,12 +981,39 @@ function TherapistDashboard() {
                     <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
                   </div>
                   <div className="participant-list">
-                    <h4>Participants ({participants.length})</h4>
-                    {participants.map((uid) => (
-                      <div key={uid} className="participant-item">
-                        {participantNames[uid] || uid}
+                    <h4
+                      className="participant-toggle"
+                      onClick={() => setIsParticipantsDropdownOpen(!isParticipantsDropdownOpen)}
+                      role="button"
+                      aria-expanded={isParticipantsDropdownOpen}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          setIsParticipantsDropdownOpen(!isParticipantsDropdownOpen);
+                        }
+                      }}
+                    >
+                      Participants ({participants.length})
+                      <i
+                        className={`fa-solid fa-chevron-${isParticipantsDropdownOpen ? "up" : "down"}`}
+                        style={{ marginLeft: "8px" }}
+                      ></i>
+                    </h4>
+                    {isParticipantsDropdownOpen && (
+                      <div className="participant-dropdown">
+                        <div className="participant-item-container">
+                          {participants.length > 0 ? (
+                            participants.map((uid) => (
+                              <div key={uid} className="participant-item">
+                                {participantNames[uid] || uid}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="participant-item">No participants</div>
+                          )}
+                        </div>
                       </div>
-                    ))}
+                    )}
                   </div>
                   {combinedGroupChat.some((msg) => msg.pinned) && (
                     <div className="pinned-message">
