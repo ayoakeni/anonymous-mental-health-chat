@@ -155,20 +155,45 @@ function Chatroom() {
 
   // Fetch participant names
   useEffect(() => {
-    const fetchParticipantNames = async () => {
-      const names = {};
-      for (const uid of participants) {
-        const userRef = doc(db, "therapists", uid);
-        const userSnap = await getDoc(userRef);
-        names[uid] = userSnap.exists() ? userSnap.data().name || "Anonymous" : "Anonymous";
-      }
-      setParticipantNames(names);
-    };
-    if (participants.length > 0) {
-      fetchParticipantNames().catch((err) => {
-        console.error("Error fetching participant names:", err);
-      });
+    if (participants.length === 0) {
+      setParticipantNames({});
+      return;
     }
+
+    const names = {};
+    const unsubscribes = participants.map((uid) => {
+      // Monitor therapist document
+      const therapistRef = doc(db, "therapists", uid);
+      const anonRef = doc(db, "anonymousUsers", uid);
+
+      // Check therapist first
+      return onSnapshot(therapistRef, (therapistSnap) => {
+        if (therapistSnap.exists()) {
+          names[uid] = therapistSnap.data().name || `Therapist_${uid.slice(0, 8)}`;
+          setParticipantNames({ ...names });
+        } else {
+          // Check anonymousUsers
+          onSnapshot(anonRef, (anonSnap) => {
+            names[uid] = anonSnap.exists()
+              ? anonSnap.data().anonymousName
+              : `Anonymous_${uid.slice(0, 8)}`;
+            setParticipantNames({ ...names });
+          }, (err) => {
+            console.error(`Error fetching anonymous name for ${uid}:`, err);
+            names[uid] = `Anonymous_${uid.slice(0, 8)}`;
+            setParticipantNames({ ...names });
+          });
+        }
+      }, (err) => {
+        console.error(`Error fetching therapist name for ${uid}:`, err);
+        names[uid] = `Anonymous_${uid.slice(0, 8)}`;
+        setParticipantNames({ ...names });
+      });
+    });
+
+    return () => {
+      unsubscribes.forEach((unsub) => unsub());
+    };
   }, [participants]);
 
   // Toggle participant

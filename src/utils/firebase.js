@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, Timestamp } from "firebase/firestore";
+import { getFirestore, Timestamp, serverTimestamp, doc, setDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getAI, GoogleAIBackend } from "firebase/ai";
 
@@ -19,6 +19,6 @@ const storage = getStorage(app)
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-export { db, auth, Timestamp, storage, ref, uploadBytes, getDownloadURL};
+export { db, auth, doc, setDoc, Timestamp, serverTimestamp, storage, ref, uploadBytes, getDownloadURL };
 
 export const ai = getAI(app, { backend: new GoogleAIBackend() });

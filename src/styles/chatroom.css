@@ -284,6 +284,10 @@
   color: var(--text-color);
   font-size: 0.9rem;
   border-bottom: 1px solid var(--input-border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%; /* Ensure it fits within container */
 }
 
 .chatroom .participant-item:last-child {
