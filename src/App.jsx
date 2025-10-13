@@ -7,6 +7,7 @@ import ChatRoom from "./page/chats_rooms/chatRoom";
 import TherapistLogin from "./login/therapist_login";
 import PrivateChatWrapper from "./page/chats_rooms/PrivateChatWrapper";
 import TherapistDashboard from "./page/therapistDashboard";
+import "./styles/App.css";
 
 function ProtectedRoute({ children }) {
   const location = useLocation();
@@ -15,15 +16,25 @@ function ProtectedRoute({ children }) {
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
-      // Check if user is authenticated as therapist (has email)
       setIsAuthenticated(!!user && !!user.email);
       setLoading(false);
     });
+
     return () => unsubscribe();
   }, []);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="loaderbox" role="status" aria-label="Loading application">
+        <span className="loader">
+          <img
+            src="/anonymous-logo.png"
+            alt="Loading Anonymous Mental Health Support Application"
+            className="loader-logo-image"
+          />
+        </span>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {

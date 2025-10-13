@@ -180,7 +180,7 @@ function Chatroom() {
             setParticipantNames({ ...names });
           }, (err) => {
             console.error(`Error fetching anonymous name for ${uid}:`, err);
-            names[uid] = `Anonymous_${uid.slice(0, 8)}`;
+            names[uid] = `Anonymous_${uid.slice(0, 3)}`;
             setParticipantNames({ ...names });
           });
         }
