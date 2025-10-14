@@ -18,11 +18,12 @@ import {
   runTransaction,
   where,
   getDocs,
-  increment, // Added import for increment
+  increment,
 } from "firebase/firestore";
 import { debounce } from "lodash";
 import EmojiPicker from "emoji-picker-react";
 import "../../styles/privateChat.css";
+import Notification from "../../sounds/notification.mp3"
 
 function PrivateChat({ chatId }) {
   const [messages, setMessages] = useState([]);
@@ -53,7 +54,7 @@ function PrivateChat({ chatId }) {
 
   // Load notification sound
   useEffect(() => {
-    const audio = new Audio("/sounds/notification.mp3");
+    const audio = new Audio(Notification);
     setNotificationSound(audio);
   }, []);
 
@@ -89,7 +90,7 @@ function PrivateChat({ chatId }) {
       alert("Failed to fetch therapist status. Please try again.");
     });
     return () => unsub();
-  }, [chatId]); // Added chatId to dependency array
+  }, [chatId]);
 
   // Watch messages
   useEffect(() => {
@@ -228,17 +229,17 @@ function PrivateChat({ chatId }) {
       navigate("/chat-room");
     });
     return () => unsubscribeChat();
-  }, [chatId, navigate, notificationSound]); // Removed prevParticipants, lastJoinEvent, lastLeaveEvent
+  }, [chatId, navigate, notificationSound]);
 
   // Chat History Persistence
-  useEffect(() => {
-    if (!chatId) return;
-    const savedHistory = JSON.parse(localStorage.getItem(`privateChat_${chatId}`)) || [];
-    setMessages((prev) => [...savedHistory, ...prev.filter((msg) => !savedHistory.some((s) => s.id === msg.id))]);
-    return () => {
-      localStorage.setItem(`privateChat_${chatId}`, JSON.stringify(messages));
-    };
-  }, [chatId]);
+  // useEffect(() => {
+  //   if (!chatId) return;
+  //   const savedHistory = JSON.parse(localStorage.getItem(`privateChat_${chatId}`)) || [];
+  //   setMessages((prev) => [...savedHistory, ...prev.filter((msg) => !savedHistory.some((s) => s.id === msg.id))]);
+  //   return () => {
+  //     localStorage.setItem(`privateChat_${chatId}`, JSON.stringify(messages));
+  //   };
+  // }, [chatId]);
 
   // Initial AI offer
   useEffect(() => {

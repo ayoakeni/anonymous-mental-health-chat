@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import LeaveChatButton from "../LeaveChatButton";
+import "../../styles/privateChat.css"
 
 function PrivateChatSplitView({
   privateChats,

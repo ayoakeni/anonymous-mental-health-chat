@@ -557,14 +557,14 @@
   color: #fff;
   text-align: center;
   line-height: 50px;
-  font-size: 0.9rem;
+  font-size: 1.5rem;
 }
 
 .chat-card-content {
   display: flex;
   flex-direction: column;
   max-width: 179px;
-  gap: 5px;
+  gap: 7px;
   height: fit-content;
   white-space: nowrap;
   margin-top: 5px;
@@ -580,33 +580,31 @@
 .therapist-dashboard .chat-card .chat-card-preview {
   font-size: 0.85rem;
   color: var(--text-color);
-  opacity: 0.7;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .therapist-dashboard .chat-card-meta {
-  opacity: 0.6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
 }
 
 .therapist-dashboard .message-timestamp {
   display: flex;
   flex-direction: column;
-  align-items: center;
   font-size: 0.7rem;
-  margin-top: 5px;
 }
 
 .therapist-dashboard .meta-date, 
 .therapist-dashboard .meta-time {
   font-weight: 600;
+  opacity: 0.6;
 }
 
 /* Unread Badge */
 .therapist-dashboard .unread-badge {
-  position: absolute;
-  top: 8px;
-  right: 8px;
   background: var(--badge-bg);
   color: white;
   font-size: 0.75rem;
@@ -614,7 +612,6 @@
   padding: 2px 6px;
   border-radius: 12px;
   min-width: 18px;
-  text-align: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
