@@ -45,6 +45,24 @@
   transition: margin-left 0.3s ease-in-out;
 }
 
+.error-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: var(--error-color);
+  color: white;
+  padding: 10px 20px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @media (max-width: 768px) {
   .therapist-dashboard .box {
     margin-left: 65px;
@@ -459,7 +477,7 @@
 
 .therapist-dashboard .chat-list-container {
   flex: 1;
-  max-width: 300px;
+  max-width: 350px;
   overflow-y: auto;
   padding: 20px;
   background: var(--chat-bg);
@@ -512,11 +530,15 @@
   filter: brightness(140%);
 }
 
-.therapist-dashboard .chat-card .chat-card-list {
+.therapist-dashboard .chat-card .chat-card-inner {
   display: flex;
-  align-items: center;
+  justify-content: space-between;
   gap: 10px;
-  width: fit-content;
+}
+
+.chat-avater-content {
+  display: flex;
+  gap: 10px;
 }
 
 .therapist-dashboard .therapist-avatar {
@@ -531,22 +553,24 @@
   font-size: 0.9rem;
 }
 
-.chat-card-list-item {
+.chat-card-content {
   display: flex;
   flex-direction: column;
-  gap: 10px;
   max-width: 179px;
+  gap: 5px;
+  height: fit-content;
   white-space: nowrap;
+  margin-top: 5px;
 }
 
-.therapist-dashboard .chat-card strong {
+.therapist-dashboard .chat-card .chat-card-title {
   font-size: 1rem;
   color: var(--text-color);
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.therapist-dashboard .chat-card small {
+.therapist-dashboard .chat-card .chat-card-preview {
   font-size: 0.85rem;
   color: var(--text-color);
   opacity: 0.7;
@@ -554,16 +578,37 @@
   text-overflow: ellipsis;
 }
 
+.therapist-dashboard .chat-card-meta {
+  opacity: 0.6;
+}
+
+.therapist-dashboard .message-timestamp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.7rem;
+  margin-top: 5px;
+}
+
+.therapist-dashboard .meta-date, 
+.therapist-dashboard .meta-time {
+  font-weight: 600;
+}
+
+/* Unread Badge */
 .therapist-dashboard .unread-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
   background: var(--badge-bg);
   color: white;
-  font-size: 0.8rem;
-  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  padding: 2px 6px;
   border-radius: 12px;
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
+  min-width: 18px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .therapist-dashboard .chat-box-container {

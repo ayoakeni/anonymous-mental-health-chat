@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, memo } from "react";
 import { useNavigate, useLocation, Routes, Route, useParams } from "react-router-dom";
 import { db, auth, Timestamp, storage, ref, uploadBytes, getDownloadURL } from "../utils/firebase";
 import {
@@ -20,11 +20,11 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { debounce } from "lodash";
-import { useTypingStatus } from "../components/useTypingStatus";
 import { signOut } from "firebase/auth";
-import LeaveChatButton from "../components/LeaveChatButton";
 import Sidebar from "../components/sidebar";
-import EmojiPicker from 'emoji-picker-react';
+import { useTypingStatus } from "../components/useTypingStatus";
+import GroupChatSplitView from "../components/therapistDashboard/GroupChatSplitView";
+import PrivateChatSplitView from "../components/therapistDashboard/PrivateChatSplitView";
 import "../styles/therapistDashboard.css";
 
 function TherapistDashboard() {
@@ -63,6 +63,7 @@ function TherapistDashboard() {
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [therapistsOnline, setTherapistsOnline] = useState([]);
+  const [errorMsg, setErrorMsg] = useState(null);
   const therapistId = auth.currentUser?.uid;
   const displayName = therapistInfo.name || "Unknown Therapist";
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
@@ -70,7 +71,30 @@ function TherapistDashboard() {
   const privateMessagesEndRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { chatId, groupId } = useParams();
+  const { chatId, Complexes } = useParams();
+
+  // Helper to format timestamp (client-side)
+  const formatTimestamp = (fbTimestamp) => {
+    if (!fbTimestamp) return { dateStr: "", timeStr: "" };
+    const date = fbTimestamp.toDate();
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    let dateStr = "";
+    if (diffDays === 0) dateStr = "Today";
+    else if (diffDays === 1) dateStr = "Yesterday";
+    else if (diffDays < 7) dateStr = date.toLocaleDateString([], { weekday: "short" });
+    else dateStr = date.toLocaleDateString([], { month: "short", day: "numeric" });
+
+    const timeStr = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return { dateStr, timeStr };
+  };
+
+  const onEmojiClick = (emojiData) => {
+    setReply(reply + emojiData.emoji);
+    setShowEmojiPicker(false);
+  };
 
   // Check authentication
   useEffect(() => {
@@ -113,7 +137,7 @@ function TherapistDashboard() {
       setActiveTherapists(onlineTherapists.map((t) => t.name || "Therapist"));
     }, (err) => {
       console.error("Error fetching therapists online:", err);
-      alert("Failed to fetch therapist status. Please try again.");
+      setErrorMsg("Failed to fetch therapist status. Please try again.");
     });
     return () => unsub();
   }, []);
@@ -130,7 +154,7 @@ function TherapistDashboard() {
       },
       (err) => {
         console.error("Error fetching group chats:", err);
-        alert("Failed to load group chats. Please try again.");
+        setErrorMsg("Failed to load group chats. Please try again.");
         setIsLoadingChats(false);
       }
     );
@@ -181,12 +205,11 @@ function TherapistDashboard() {
   const [participantNames, setParticipantNames] = useState({});
   useEffect(() => {
     const fetchParticipantNames = async () => {
-      const names = {};
-      for (const uid of participants) {
-        const userRef = doc(db, "therapists", uid);
-        const userSnap = await getDoc(userRef);
-        names[uid] = userSnap.exists() ? userSnap.data().name || "Anonymous" : "Anonymous";
-      }
+      const snapshots = await Promise.all(participants.map(uid => getDoc(doc(db, "therapists", uid))));
+      const names = snapshots.reduce((acc, snap, i) => {
+        acc[participants[i]] = snap.data()?.name || "Anonymous";
+        return acc;
+      }, {});
       setParticipantNames(names);
     };
     if (participants.length > 0) {
@@ -325,7 +348,7 @@ function TherapistDashboard() {
           console.log(`Retrying private chats subscription (${retryCount}/${maxRetries})...`);
           setTimeout(trySubscribe, 2000 * retryCount);
         } else {
-          alert("Failed to load private chats after retries. Please try again.");
+          setErrorMsg("Failed to load private chats after retries. Please try again.");
         }
       });
       const unsubscribe2 = onSnapshot(q2, (snapshot) => {
@@ -368,7 +391,7 @@ function TherapistDashboard() {
           }
         }).catch((err) => {
           console.error("Error resetting unread count:", err);
-          alert("Failed to reset unread count. Please try again.");
+          setErrorMsg("Failed to reset unread count. Please try again.");
         });
       },
       (err) => {
@@ -381,7 +404,8 @@ function TherapistDashboard() {
 
   // Watch private chat events
   useEffect(() => {
-    if (!activeChatId) return;
+    if (!activeChatId) 
+      return;
     const chatRef = doc(db, "privateChats", activeChatId);
     const q = query(collection(chatRef, "events"), orderBy("timestamp"), limit(50));
     const unsubscribeEvents = onSnapshot(
@@ -421,7 +445,7 @@ function TherapistDashboard() {
     };
     fetchLastSeen().catch((err) => {
       console.error("Error fetching last seen:", err);
-      alert("Failed to fetch last seen timestamp. Please try again.");
+      setErrorMsg("Failed to fetch last seen timestamp. Please try again.");
     });
   }, [therapistId]);
 
@@ -450,7 +474,7 @@ function TherapistDashboard() {
       },
       (err) => {
         console.error("Error fetching therapist profile:", err);
-        alert("Failed to fetch therapist profile. Please try again.");
+        setErrorMsg("Failed to fetch therapist profile. Please try again.");
       }
     );
     return () => unsubscribe();
@@ -498,7 +522,7 @@ function TherapistDashboard() {
         });
       } catch (err) {
         console.error("Error auto-leaving chats:", err);
-        alert("Failed to auto-leave chats. Please try again.");
+        setErrorMsg("Failed to auto-leave chats. Please try again.");
       }
     }, 1000);
     const handleBeforeUnload = () => {
@@ -522,6 +546,10 @@ function TherapistDashboard() {
   const sendReply = async (file = null) => {
     if (!reply.trim() && !file) return;
     if (!activeGroupId) return;
+    if (file && (file.size > 5 * 1024 * 1024 || !['image/', 'application/pdf'].some(type => file.type.startsWith(type)))) {
+      setErrorMsg("Invalid file: too large or unsupported type");
+      return;
+    }
     try {
       let fileUrl = "";
       if (file) {
@@ -559,7 +587,7 @@ function TherapistDashboard() {
       setShowEmojiPicker(false);
     } catch (err) {
       console.error("Error sending group message:", err);
-      alert("Failed to send group message. Please try again.");
+      setErrorMsg("Failed to send group message. Please try again.");
     }
   };
 
@@ -582,7 +610,7 @@ function TherapistDashboard() {
       });
     } catch (err) {
       console.error("Error toggling reaction:", err);
-      alert("Failed to update reaction. Please try again.");
+      setErrorMsg("Failed to update reaction. Please try again.");
     }
   };
 
@@ -603,14 +631,8 @@ function TherapistDashboard() {
       });
     } catch (err) {
       console.error("Error deleting message:", err);
-      alert("Failed to delete message. Please try again.");
+      setErrorMsg("Failed to delete message. Please try again.");
     }
-  };
-
-  // Handle emoji click
-  const onEmojiClick = (emojiData) => {
-    setReply(reply + emojiData.emoji);
-    setShowEmojiPicker(false);
   };
 
   // Logout
@@ -665,7 +687,7 @@ function TherapistDashboard() {
       navigate("/therapist-login");
     } catch (err) {
       console.error("Logout error:", err);
-      alert("Failed to logout. Please try again.");
+      setErrorMsg("Failed to logout. Please try again.");
     }
   };
 
@@ -678,7 +700,7 @@ function TherapistDashboard() {
       setEditing(false);
     } catch (err) {
       console.error("Error saving profile:", err);
-      alert("Failed to save profile. Please try again.");
+      setErrorMsg("Failed to save profile. Please try again.");
     }
   };
 
@@ -691,7 +713,7 @@ function TherapistDashboard() {
       if (!groupSnap.exists()) {
         throw new Error("Group chat does not exist");
       }
-      const lastMsgTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
+      const lastMsgsTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
       await runTransaction(db, async (transaction) => {
         transaction.update(groupRef, { participants: arrayUnion(auth.currentUser.uid) });
         transaction.set(
@@ -700,7 +722,7 @@ function TherapistDashboard() {
           { merge: true }
         );
       });
-      setLastSeenTimestamp(lastMsgTime);
+      setLastSeenTimestamp(lastMsgsTime);
       setIsGroupChatOpen(true);
       setInGroupChat(true);
       setGroupUnreadCount(0);
@@ -708,7 +730,7 @@ function TherapistDashboard() {
       navigate(`/therapist-dashboard/group-chat/${groupId}`);
     } catch (err) {
       console.error("Error joining group chat:", err);
-      alert("Failed to join group chat. Please try again.");
+      setErrorMsg("Failed to join group chat. Please try again.");
     }
   };
 
@@ -739,7 +761,7 @@ function TherapistDashboard() {
       navigate("/therapist-dashboard/group-chat");
     } catch (err) {
       console.error("Error leaving group chat:", err);
-      alert("Failed to leave group chat. Please try again.");
+      setErrorMsg("Failed to leave group chat. Please try again.");
     }
   };
 
@@ -898,7 +920,7 @@ function TherapistDashboard() {
       if (snap.exists()) setSelectedTherapist(snap.data());
     } catch (err) {
       console.error("Error fetching therapist profile:", err);
-      alert("Failed to fetch therapist profile. Please try again.");
+      setErrorMsg("Failed to fetch therapist profile. Please try again.");
     }
   };
 
@@ -925,6 +947,7 @@ function TherapistDashboard() {
         onToggle={handleToggleSidebar}
       />
       <div className={`box ${isSidebarOpen ? "open" : "closed"}`}>
+        {errorMsg && <div className="error-toast">{errorMsg}</div>}
         <Routes>
           <Route
             path="/"
@@ -939,641 +962,66 @@ function TherapistDashboard() {
             }
           />
           <Route
-            path="/group-chat"
+            path="/group-chat/*"
             element={
-              <div className="split-chat-container">
-                <div className="chat-list-container">
-                  <h3>Group Chats</h3>
-                  {isLoadingChats ? (
-                    <p>Loading group chats...</p>
-                  ) : groupChats.length === 0 ? (
-                    <p>No group chats available</p>
-                  ) : (
-                    groupChats.map((group) => (
-                      <div
-                        key={group.id}
-                        className={`chat-card ${activeGroupId === group.id ? 'selected' : ''}`}
-                        onClick={() => joinGroupChat(group.id)}
-                      >
-                        <div className="chat-card-list">
-                          <span className="therapist-avatar">{group.name?.[0] || "U"}</span>
-                          <div className="chat-card-list-item">
-                            <strong>{group.name || "Unnamed Group"}</strong>
-                            <small>
-                              {group.lastMessage
-                                ? `${group.lastMessage.displayName || "Anonymous"}: ${group.lastMessage.text}`
-                                : "No messages yet"}
-                            </small>
-                          </div>
-                        </div>
-                        {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="chat-box-container">
-                  {activeGroupId && isGroupChatOpen && inGroupChat ? (
-                    <div className="group-chat">
-                      <div className="detailLeave">
-                        <h3 className="onlineStatus">
-                          {groupChats.find((g) => g.id === activeGroupId)?.name || "Group Chat"}{" "}
-                          {therapistsOnline.length > 0
-                            ? `(Therapists Online: ${therapistsOnline.map((t) => t.name).join(", ")})`
-                            : "(No therapists online)"}
-                        </h3>
-                        <div className="leave-participant">
-                          <div className="participant-list">
-                            <h4
-                              className="participant-toggle"
-                              onClick={() => setIsParticipantsOpen(!isParticipantsOpen)}
-                              role="button"
-                              aria-expanded={isParticipantsOpen}
-                              tabIndex={0}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  setIsParticipantsOpen(!isParticipantsOpen);
-                                }
-                              }}
-                            >
-                              <i className="fas fa-user" style={{color:`${isParticipantsOpen ? "#e0e0e0" : "gray"}`}}></i>
-                              ({participants.length})
-                            </h4>
-                            {isParticipantsOpen && (
-                              <div className="participant-dropdown">
-                                <div className="participant-item-container">
-                                  {participants.length > 0 ? (
-                                    participants.map((uid) => (
-                                      <div key={uid} className="participant-item">
-                                        {participantNames[uid] || uid}
-                                      </div>
-                                    ))
-                                  ) : (
-                                    <div className="participant-item">No participants</div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
-                        </div>
-                      </div>
-                      {combinedGroupChat.some((msg) => msg.pinned) && (
-                        <div className="pinned-message">
-                          <strong>Pinned:</strong>{" "}
-                          {combinedGroupChat.find((msg) => msg.pinned)?.text || "Welcome to the group chat!"}
-                        </div>
-                      )}
-                      <div className="chat-box">
-                        {combinedGroupChat.map((msg) => (
-                          <p
-                            key={msg.id}
-                            className={`chat-message ${
-                              msg.role === "therapist"
-                                ? "therapist"
-                                : msg.role === "ai"
-                                ? "ai"
-                                : msg.role === "system"
-                                ? "system"
-                                : "user"
-                            }`}
-                            onClick={() => handleTherapistClick(msg)}
-                          >
-                            <strong>{msg.displayName || msg.user || "Anonymous"}</strong>{" "}
-                            <div className="message-content-time">
-                              <span>{msg.text || msg.message}</span>
-                              {msg.fileUrl && (
-                                <a
-                                  href={msg.fileUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="attachment-link"
-                                >
-                                  <i className="fa-solid fa-paperclip"></i> View Attachment
-                                </a>
-                              )}
-                              <span className="message-timestamp">
-                                {msg.timestamp?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                              </span>
-                              <span className="message-reactions">
-                                <i
-                                  className="fa-solid fa-heart reaction"
-                                  style={{ color: msg.reactions?.heart?.length > 0 ? "red" : "gray" }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleReaction(msg.id, "heart");
-                                  }}
-                                >
-                                  {msg.reactions?.heart?.length || 0}
-                                </i>
-                                <i
-                                  className="fa-solid fa-thumbs-up reaction"
-                                  style={{ color: msg.reactions?.thumbsUp?.length > 0 ? "blue" : "gray" }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleReaction(msg.id, "thumbsUp");
-                                  }}
-                                >
-                                  {msg.reactions?.thumbsUp?.length || 0}
-                                </i>
-                              </span>
-                            </div>
-                            {msg.role !== "system" && therapistInfo.role === "therapist" && (
-                              <button
-                                className="delete-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteMessage(msg.id);
-                                }}
-                              >
-                                Delete
-                              </button>
-                            )}
-                          </p>
-                        ))}
-                        {typingUsers.length > 0 && (
-                          <p className="typing-indicator">
-                            {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
-                          </p>
-                        )}
-                        <div ref={messagesEndRef} />
-                      </div>
-                      <div className="chat-input">
-                        <button
-                          className="emoji-btn"
-                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                        >
-                          <i className="fa-regular fa-face-smile"></i>
-                        </button>
-                        {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
-                        <input
-                          type="file"
-                          id="group-file-upload"
-                          style={{ display: "none" }}
-                          onChange={(e) => sendReply(e.target.files[0])}
-                        />
-                        <button
-                          className="attach-btn"
-                          onClick={() => document.getElementById("group-file-upload").click()}
-                        >
-                          <i className="fa-solid fa-paperclip"></i>
-                        </button>
-                        <input
-                          className="inputInsert"
-                          type="text"
-                          value={reply}
-                          onChange={(e) => {
-                            setReply(e.target.value);
-                            handleTyping(e.target.value);
-                          }}
-                          placeholder="Reply to group chat..."
-                        />
-                        <button className="send-btn" onClick={() => sendReply()}>
-                          <i className="fa-solid fa-paper-plane"></i>
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="empty-chat">
-                      <p>Select a group chat to view messages</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <GroupChatSplitView
+                groupChats={groupChats}
+                activeGroupId={activeGroupId}
+                isGroupChatOpen={isGroupChatOpen}
+                inGroupChat={inGroupChat}
+                therapistsOnline={therapistsOnline}
+                participants={participants}
+                isParticipantsOpen={isParticipantsOpen}
+                setIsParticipantsOpen={setIsParticipantsOpen}
+                participantNames={participantNames}
+                combinedGroupChat={combinedGroupChat}
+                typingUsers={typingUsers}
+                messagesEndRef={messagesEndRef}
+                showEmojiPicker={showEmojiPicker}
+                setShowEmojiPicker={setShowEmojiPicker}
+                reply={reply}
+                setReply={setReply}
+                handleTyping={handleTyping}
+                sendReply={sendReply}
+                joinGroupChat={joinGroupChat}
+                leaveGroupChat={leaveGroupChat}
+                therapistInfo={therapistInfo}
+                toggleReaction={toggleReaction}
+                deleteMessage={deleteMessage}
+                handleTherapistClick={handleTherapistClick}
+                isLoadingChats={isLoadingChats}
+                formatTimestamp={formatTimestamp}
+                onEmojiClick={onEmojiClick}
+              />
             }
           />
           <Route
-            path="/group-chat/:groupId"
+            path="/private-chat/*"
             element={
-              <div className="split-chat-container">
-                <div className="chat-list-container">
-                  <h3>Group Chats</h3>
-                  {isLoadingChats ? (
-                    <p>Loading group chats...</p>
-                  ) : groupChats.length === 0 ? (
-                    <p>No group chats available</p>
-                  ) : (
-                    groupChats.map((group) => (
-                      <div
-                        key={group.id}
-                        className={`chat-card ${activeGroupId === group.id ? 'selected' : ''}`}
-                        onClick={() => joinGroupChat(group.id)}
-                      >
-                        <div className="chat-card-list">
-                          <span className="therapist-avatar">{group.name?.[0] || "U"}</span>
-                          <div className="chat-card-list-item">
-                            <strong>{group.name || "Unnamed Group"}</strong>
-                            <small>
-                              {group.lastMessage
-                                ? `${group.lastMessage.displayName || "Anonymous"}: ${group.lastMessage.text}`
-                                : "No messages yet"}
-                            </small>
-                          </div>
-                        </div>
-                        {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="chat-box-container">
-                  {activeGroupId && isGroupChatOpen && inGroupChat ? (
-                    <div className="group-chat">
-                      <div className="detailLeave">
-                        <h3 className="onlineStatus">
-                          {groupChats.find((g) => g.id === activeGroupId)?.name || "Group Chat"}{" "}
-                          {therapistsOnline.length > 0
-                            ? `(Therapists Online: ${therapistsOnline.map((t) => t.name).join(", ")})`
-                            : "(No therapists online)"}
-                        </h3>
-                        <div className="leave-participant">
-                          <div className="participant-list">
-                            <h4
-                              className="participant-toggle"
-                              onClick={() => setIsParticipantsOpen(!isParticipantsOpen)}
-                              role="button"
-                              aria-expanded={isParticipantsOpen}
-                              tabIndex={0}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  setIsParticipantsOpen(!isParticipantsOpen);
-                                }
-                              }}
-                            >
-                              <i className="fas fa-user" style={{color:`${isParticipantsOpen ? "#e0e0e0" : "gray"}`}}></i>
-                              ({participants.length})
-                            </h4>
-                            {isParticipantsOpen && (
-                              <div className="participant-dropdown">
-                                <div className="participant-item-container">
-                                  {participants.length > 0 ? (
-                                    participants.map((uid) => (
-                                      <div key={uid} className="participant-item">
-                                        {participantNames[uid] || uid}
-                                      </div>
-                                    ))
-                                  ) : (
-                                    <div className="participant-item">No participants</div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
-                        </div>
-                      </div>
-                      {combinedGroupChat.some((msg) => msg.pinned) && (
-                        <div className="pinned-message">
-                          <strong>Pinned:</strong>{" "}
-                          {combinedGroupChat.find((msg) => msg.pinned)?.text || "Welcome to the group chat!"}
-                        </div>
-                      )}
-                      <div className="chat-box">
-                        {combinedGroupChat.map((msg) => (
-                          <p
-                            key={msg.id}
-                            className={`chat-message ${
-                              msg.role === "therapist"
-                                ? "therapist"
-                                : msg.role === "ai"
-                                ? "ai"
-                                : msg.role === "system"
-                                ? "system"
-                                : "user"
-                            }`}
-                            onClick={() => handleTherapistClick(msg)}
-                          >
-                            <strong>{msg.displayName || msg.user || "Anonymous"}</strong>{" "}
-                            <div className="message-content-time">
-                              <span>{msg.text || msg.message}</span>
-                              {msg.fileUrl && (
-                                <a
-                                  href={msg.fileUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="attachment-link"
-                                >
-                                  <i className="fa-solid fa-paperclip"></i> View Attachment
-                                </a>
-                              )}
-                              <span className="message-timestamp">
-                                {msg.timestamp?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                              </span>
-                              <span className="message-reactions">
-                                <i
-                                  className="fa-solid fa-heart reaction"
-                                  style={{ color: msg.reactions?.heart?.length > 0 ? "red" : "gray" }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleReaction(msg.id, "heart");
-                                  }}
-                                >
-                                  {msg.reactions?.heart?.length || 0}
-                                </i>
-                                <i
-                                  className="fa-solid fa-thumbs-up reaction"
-                                  style={{ color: msg.reactions?.thumbsUp?.length > 0 ? "blue" : "gray" }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleReaction(msg.id, "thumbsUp");
-                                  }}
-                                >
-                                  {msg.reactions?.thumbsUp?.length || 0}
-                                </i>
-                              </span>
-                            </div>
-                            {msg.role !== "system" && therapistInfo.role === "therapist" && (
-                              <button
-                                className="delete-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteMessage(msg.id);
-                                }}
-                              >
-                                Delete
-                              </button>
-                            )}
-                          </p>
-                        ))}
-                        {typingUsers.length > 0 && (
-                          <p className="typing-indicator">
-                            {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
-                          </p>
-                        )}
-                        <div ref={messagesEndRef} />
-                      </div>
-                      <div className="chat-input">
-                        <button
-                          className="emoji-btn"
-                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                        >
-                          <i className="fa-regular fa-face-smile"></i>
-                        </button>
-                        {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
-                        <input
-                          type="file"
-                          id="group-file-upload"
-                          style={{ display: "none" }}
-                          onChange={(e) => sendReply(e.target.files[0])}
-                        />
-                        <button
-                          className="attach-btn"
-                          onClick={() => document.getElementById("group-file-upload").click()}
-                        >
-                          <i className="fa-solid fa-paperclip"></i>
-                        </button>
-                        <input
-                          className="inputInsert"
-                          type="text"
-                          value={reply}
-                          onChange={(e) => {
-                            setReply(e.target.value);
-                            handleTyping(e.target.value);
-                          }}
-                          placeholder="Reply to group chat..."
-                        />
-                        <button className="send-btn" onClick={() => sendReply()}>
-                          <i className="fa-solid fa-paper-plane"></i>
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="empty-chat">
-                      <p>Select a group chat to view messages</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            }
-          />
-          <Route
-            path="/private-chat"
-            element={
-              <div className="split-chat-container">
-                <div className="chat-list-container">
-                  <h3>Private Chats</h3>
-                  {isLoadingChats ? (
-                    <p>Loading private chats...</p>
-                  ) : privateChats.length === 0 ? (
-                    <p>No private chats available</p>
-                  ) : (
-                    privateChats.map((chat) => (
-                      <div
-                        key={chat.id}
-                        className={`chat-card ${activeChatId === chat.id ? 'selected' : ''}`}
-                        onClick={() => joinPrivateChat(chat.id)}
-                      >
-                        <div>
-                          <strong>Chat ID:</strong> {chat.id} {chat.needsTherapist ? "(Needs Therapist)" : ""}
-                          <br />
-                          <small>{chat.lastMessage || "No messages yet"}</small>
-                        </div>
-                        {chat.unreadCountForTherapist > 0 && (
-                          <span className="unread-badge">{chat.unreadCountForTherapist}</span>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="chat-box-container">
-                  {activeChatId ? (
-                    isValidatingChat ? (
-                      <div className="chat-list">
-                        <h3>Loading Private Chat...</h3>
-                        <p>Validating chat access, please wait...</p>
-                      </div>
-                    ) : chatError ? (
-                      <div className="chat-list">
-                        <h3>Error Loading Private Chat</h3>
-                        <p>{chatError}</p>
-                        <button onClick={() => navigate("/therapist-dashboard/private-chat")}>
-                          Back to Private Chats
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="private-chat">
-                        <h3 className="onlineStatus">
-                          Private Chat {activeChatId}{" "}
-                          {isTherapistAvailable
-                            ? `(Therapist Online: ${activeTherapists.join(", ")})`
-                            : "(Waiting for Therapist)"}
-                        </h3>
-                        <LeaveChatButton onLeave={leavePrivateChat} />
-                        {selectedTherapist && (
-                          <div className="therapist-profile-card">
-                            <button onClick={() => setSelectedTherapist(null)}>⬅ Back</button>
-                            <h4>{selectedTherapist.name}</h4>
-                            <p>{selectedTherapist.profile}</p>
-                          </div>
-                        )}
-                        <div className="chat-container">
-                          {combinedPrivateChat.map((msg) => (
-                            <p
-                              key={msg.id}
-                              className={`chat-message ${
-                                msg.role === "therapist"
-                                  ? "therapist"
-                                  : msg.role === "system"
-                                  ? "system"
-                                  : msg.role === "ai"
-                                  ? "ai"
-                                  : "user"
-                              }`}
-                              onClick={() => (msg.role === "therapist" ? handleTherapistClick(msg) : null)}
-                            >
-                              {msg.role === "system" ? (
-                                <em>{msg.text}</em>
-                              ) : (
-                                <>
-                                  <strong>{msg.displayName || msg.role}:</strong> {msg.text}
-                                </>
-                              )}
-                            </p>
-                          ))}
-                          {typingUsers.length > 0 && (
-                            <p className="typing-indicator">
-                              {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
-                            </p>
-                          )}
-                          <div ref={privateMessagesEndRef} />
-                        </div>
-                        <div className="chat-input">
-                          <input
-                            type="text"
-                            value={newPrivateMessage}
-                            onChange={(e) => {
-                              setNewPrivateMessage(e.target.value);
-                              handleTyping(e.target.value);
-                            }}
-                            placeholder="Type a message..."
-                          />
-                          <button onClick={sendPrivateMessage} disabled={isSendingPrivate}>
-                            {isSendingPrivate ? "Sending..." : "Send"}
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  ) : (
-                    <div className="empty-chat">
-                      <p>Select a private chat to view messages</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            }
-          />
-          <Route
-            path="/private-chat/:chatId"
-            element={
-              <div className="split-chat-container">
-                <div className="chat-list-container">
-                  <h3>Private Chats</h3>
-                  {isLoadingChats ? (
-                    <p>Loading private chats...</p>
-                  ) : privateChats.length === 0 ? (
-                    <p>No private chats available</p>
-                  ) : (
-                    privateChats.map((chat) => (
-                      <div
-                        key={chat.id}
-                        className={`chat-card ${activeChatId === chat.id ? 'selected' : ''}`}
-                        onClick={() => joinPrivateChat(chat.id)}
-                      >
-                        <div>
-                          <strong>Chat ID:</strong> {chat.id} {chat.needsTherapist ? "(Needs Therapist)" : ""}
-                          <br />
-                          <small>{chat.lastMessage || "No messages yet"}</small>
-                        </div>
-                        {chat.unreadCountForTherapist > 0 && (
-                          <span className="unread-badge">{chat.unreadCountForTherapist}</span>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="chat-box-container">
-                  {activeChatId ? (
-                    isValidatingChat ? (
-                      <div className="chat-list">
-                        <h3>Loading Private Chat...</h3>
-                        <p>Validating chat access, please wait...</p>
-                      </div>
-                    ) : chatError ? (
-                      <div className="chat-list">
-                        <h3>Error Loading Private Chat</h3>
-                        <p>{chatError}</p>
-                        <button onClick={() => navigate("/therapist-dashboard/private-chat")}>
-                          Back to Private Chats
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="private-chat">
-                        <h3 className="onlineStatus">
-                          Private Chat {activeChatId}{" "}
-                          {isTherapistAvailable
-                            ? `(Therapist Online: ${activeTherapists.join(", ")})`
-                            : "(Waiting for Therapist)"}
-                        </h3>
-                        <LeaveChatButton onLeave={leavePrivateChat} />
-                        {selectedTherapist && (
-                          <div className="therapist-profile-card">
-                            <button onClick={() => setSelectedTherapist(null)}>⬅ Back</button>
-                            <h4>{selectedTherapist.name}</h4>
-                            <p>{selectedTherapist.profile}</p>
-                          </div>
-                        )}
-                        <div className="chat-container">
-                          {combinedPrivateChat.map((msg) => (
-                            <p
-                              key={msg.id}
-                              className={`chat-message ${
-                                msg.role === "therapist"
-                                  ? "therapist"
-                                  : msg.role === "system"
-                                  ? "system"
-                                  : msg.role === "ai"
-                                  ? "ai"
-                                  : "user"
-                              }`}
-                              onClick={() => (msg.role === "therapist" ? handleTherapistClick(msg) : null)}
-                            >
-                              {msg.role === "system" ? (
-                                <em>{msg.text}</em>
-                              ) : (
-                                <>
-                                  <strong>{msg.displayName || msg.role}:</strong> {msg.text}
-                                </>
-                              )}
-                            </p>
-                          ))}
-                          {typingUsers.length > 0 && (
-                            <p className="typing-indicator">
-                              {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
-                            </p>
-                          )}
-                          <div ref={privateMessagesEndRef} />
-                        </div>
-                        <div className="chat-input">
-                          <input
-                            type="text"
-                            value={newPrivateMessage}
-                            onChange={(e) => {
-                              setNewPrivateMessage(e.target.value);
-                              handleTyping(e.target.value);
-                            }}
-                            placeholder="Type a message..."
-                          />
-                          <button onClick={sendPrivateMessage} disabled={isSendingPrivate}>
-                            {isSendingPrivate ? "Sending..." : "Send"}
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  ) : (
-                    <div className="empty-chat">
-                      <p>Select a private chat to view messages</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <PrivateChatSplitView
+                privateChats={privateChats}
+                activeChatId={activeChatId}
+                isValidatingChat={isValidatingChat}
+                chatError={chatError}
+                isTherapistAvailable={isTherapistAvailable}
+                activeTherapists={activeTherapists}
+                selectedTherapist={selectedTherapist}
+                setSelectedTherapist={setSelectedTherapist}
+                combinedPrivateChat={combinedPrivateChat}
+                typingUsers={typingUsers}
+                privateMessagesEndRef={privateMessagesEndRef}
+                newPrivateMessage={newPrivateMessage}
+                setNewPrivateMessage={setNewPrivateMessage}
+                handleTyping={handleTyping}
+                sendPrivateMessage={sendPrivateMessage}
+                isSendingPrivate={isSendingPrivate}
+                joinPrivateChat={joinPrivateChat}
+                leavePrivateChat={leavePrivateChat}
+                handleTherapistClick={handleTherapistClick}
+                navigate={navigate}
+                isLoadingChats={isLoadingChats}
+                formatTimestamp={formatTimestamp}
+              />
             }
           />
           <Route
