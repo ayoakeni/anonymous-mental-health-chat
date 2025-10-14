@@ -41,7 +41,14 @@
 .therapist-dashboard .box {
   flex: 1;
   /* padding: 20px; */
-  background-color: var(--background-color);
+  background-color: var(--chat-bg);
+  transition: margin-left 0.3s ease-in-out;
+}
+
+.therapist-dashboard .dashboard {
+  flex: 1;
+  padding: 20px;
+  height: 100vh;
   transition: margin-left 0.3s ease-in-out;
 }
 

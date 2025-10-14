@@ -952,13 +952,13 @@ function TherapistDashboard() {
           <Route
             path="/"
             element={
-              <>
+              <div className="dashboard">
                 <div className="welcome-header">
                   <h2>
                     Welcome, <span className="highlight">{therapistInfo.name || "Therapist"}</span>!
                   </h2>
                 </div>
-              </>
+              </div>
             }
           />
           <Route

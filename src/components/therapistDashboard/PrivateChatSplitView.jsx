@@ -53,12 +53,14 @@ function PrivateChatSplitView({
                 onClick={() => joinPrivateChat(chat.id)}
               >
                 <div className="chat-card-inner">
-                  <span className="therapist-avatar">{chat.id[0] || "P"}</span>
-                  <div className="chat-card-content">
-                    <strong className="chat-card-title">
-                      Chat {chat.id} {chat.needsTherapist ? "(Needs Therapist)" : ""}
-                    </strong>
-                    <small className="chat-card-preview">{chat.lastMessage || "No messages yet"}</small>
+                  <div className="chat-avater-content">
+                    <span className="therapist-avatar">{chat.id[0] || "P"}</span>
+                    <div className="chat-card-content">
+                      <strong className="chat-card-title">
+                        Chat {chat.id} {chat.needsTherapist ? "(Needs Therapist)" : ""}
+                      </strong>
+                      <small className="chat-card-preview">{chat.lastMessage || "No messages yet"}</small>
+                    </div>
                   </div>
                   <div className="chat-card-meta">
                     {lastTs ? (
