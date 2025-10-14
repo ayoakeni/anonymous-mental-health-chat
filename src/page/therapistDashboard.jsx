@@ -30,7 +30,7 @@ import "../styles/therapistDashboard.css";
 function TherapistDashboard() {
   const [messages, setMessages] = useState([]);
   const [groupEvents, setGroupEvents] = useState([]);
-  const [groupChats, setGroupChats] = useState([]); // New state for multiple group chats
+  const [groupChats, setGroupChats] = useState([]);
   const [reply, setReply] = useState("");
   const [privateChats, setPrivateChats] = useState([]);
   const [isGroupChatOpen, setIsGroupChatOpen] = useState(false);
@@ -38,7 +38,7 @@ function TherapistDashboard() {
   const [groupUnreadCount, setGroupUnreadCount] = useState(0);
   const [lastSeenTimestamp, setLastSeenTimestamp] = useState(null);
   const [activeChatId, setActiveChatId] = useState(null);
-  const [activeGroupId, setActiveGroupId] = useState(null); // Track active group chat
+  const [activeGroupId, setActiveGroupId] = useState(null);
   const [editing, setEditing] = useState(false);
   const [therapistInfo, setTherapistInfo] = useState({
     name: "",
@@ -60,7 +60,7 @@ function TherapistDashboard() {
   const [isValidatingChat, setIsValidatingChat] = useState(false);
   const [chatError, setChatError] = useState(null);
   const [participants, setParticipants] = useState([]);
-  const [isParticipantsDropdownOpen, setIsParticipantsDropdownOpen] = useState(false);
+  const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [therapistsOnline, setTherapistsOnline] = useState([]);
   const therapistId = auth.currentUser?.uid;
@@ -70,7 +70,7 @@ function TherapistDashboard() {
   const privateMessagesEndRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { chatId } = useParams();
+  const { chatId, groupId } = useParams();
 
   // Check authentication
   useEffect(() => {
@@ -201,7 +201,7 @@ function TherapistDashboard() {
     const handleClickOutside = (event) => {
       const participantList = document.querySelector(".participant-list");
       if (participantList && !participantList.contains(event.target)) {
-        setIsParticipantsDropdownOpen(false);
+        setIsParticipantsOpen(false);
       }
     };
 
@@ -941,197 +941,8 @@ function TherapistDashboard() {
           <Route
             path="/group-chat"
             element={
-              <div className="chat-list">
-                <h3>Group Chats</h3>
-                {isLoadingChats ? (
-                  <p>Loading group chats...</p>
-                ) : groupChats.length === 0 ? (
-                  <p>No group chats available</p>
-                ) : (
-                  groupChats.map((group) => (
-                    <div key={group.id} className="chat-card" onClick={() => joinGroupChat(group.id)}>
-                      <div>
-                        <strong>{group.name || "Unnamed Group"}</strong>
-                        <br />
-                        <small>
-                          {group.lastMessage
-                            ? `${group.lastMessage.displayName || "Anonymous"}: ${group.lastMessage.text}`
-                            : "No messages yet"}
-                        </small>
-                      </div>
-                      {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
-                    </div>
-                  ))
-                )}
-              </div>
-            }
-          />
-          <Route
-            path="/group-chat/:groupId"
-            element={
-              isGroupChatOpen && inGroupChat && activeGroupId ? (
-                <div className="group-chat">
-                  <div className="detailLeave">
-                    <h3 className="onlineStatus">
-                      {groupChats.find((g) => g.id === activeGroupId)?.name || "Group Chat"}{" "}
-                      {therapistsOnline.length > 0
-                        ? `(Therapists Online: ${therapistsOnline.map((t) => t.name).join(", ")})`
-                        : "(No therapists online)"}
-                    </h3>
-                    <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
-                  </div>
-                  <div className="participant-list">
-                    <h4
-                      className="participant-toggle"
-                      onClick={() => setIsParticipantsDropdownOpen(!isParticipantsDropdownOpen)}
-                      role="button"
-                      aria-expanded={isParticipantsDropdownOpen}
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          setIsParticipantsDropdownOpen(!isParticipantsDropdownOpen);
-                        }
-                      }}
-                    >
-                      Participants ({participants.length})
-                      <i
-                        className={`fa-solid fa-chevron-${isParticipantsDropdownOpen ? "up" : "down"}`}
-                        style={{ marginLeft: "8px" }}
-                      ></i>
-                    </h4>
-                    {isParticipantsDropdownOpen && (
-                      <div className="participant-dropdown">
-                        <div className="participant-item-container">
-                          {participants.length > 0 ? (
-                            participants.map((uid) => (
-                              <div key={uid} className="participant-item">
-                                {participantNames[uid] || uid}
-                              </div>
-                            ))
-                          ) : (
-                            <div className="participant-item">No participants</div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {combinedGroupChat.some((msg) => msg.pinned) && (
-                    <div className="pinned-message">
-                      <strong>Pinned:</strong>{" "}
-                      {combinedGroupChat.find((msg) => msg.pinned)?.text || "Welcome to the group chat!"}
-                    </div>
-                  )}
-                  <div className="chat-box">
-                    {combinedGroupChat.map((msg) => (
-                      <p
-                        key={msg.id}
-                        className={`chat-message ${
-                          msg.role === "therapist"
-                            ? "therapist"
-                            : msg.role === "ai"
-                            ? "ai"
-                            : msg.role === "system"
-                            ? "system"
-                            : "user"
-                        }`}
-                        onClick={() => handleTherapistClick(msg)}
-                      >
-                        <strong>{msg.displayName || msg.user || "Anonymous"}</strong>{" "}
-                        <div className="message-content-time">
-                          <span>{msg.text || msg.message}</span>
-                          {msg.fileUrl && (
-                            <a
-                              href={msg.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="attachment-link"
-                            >
-                              <i className="fa-solid fa-paperclip"></i> View Attachment
-                            </a>
-                          )}
-                          <span className="message-timestamp">
-                            {msg.timestamp?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                          <span className="message-reactions">
-                            <i
-                              className="fa-solid fa-heart reaction"
-                              style={{ color: msg.reactions?.heart?.length > 0 ? "red" : "gray" }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleReaction(msg.id, "heart");
-                              }}
-                            >
-                              {msg.reactions?.heart?.length || 0}
-                            </i>
-                            <i
-                              className="fa-solid fa-thumbs-up reaction"
-                              style={{ color: msg.reactions?.thumbsUp?.length > 0 ? "blue" : "gray" }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleReaction(msg.id, "thumbsUp");
-                              }}
-                            >
-                              {msg.reactions?.thumbsUp?.length || 0}
-                            </i>
-                          </span>
-                        </div>
-                        {msg.role !== "system" && therapistInfo.role === "therapist" && (
-                          <button
-                            className="delete-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteMessage(msg.id);
-                            }}
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </p>
-                    ))}
-                    {typingUsers.length > 0 && (
-                      <p className="typing-indicator">
-                        {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
-                      </p>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
-                  <div className="chat-input">
-                    <button
-                      className="emoji-btn"
-                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                    >
-                      <i className="fa-regular fa-face-smile"></i>
-                    </button>
-                    {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
-                    <input
-                      type="file"
-                      id="group-file-upload"
-                      style={{ display: "none" }}
-                      onChange={(e) => sendReply(e.target.files[0])}
-                    />
-                    <button
-                      className="attach-btn"
-                      onClick={() => document.getElementById("group-file-upload").click()}
-                    >
-                      <i className="fa-solid fa-paperclip"></i>
-                    </button>
-                    <input
-                      className="inputInsert"
-                      type="text"
-                      value={reply}
-                      onChange={(e) => {
-                        setReply(e.target.value);
-                        handleTyping(e.target.value);
-                      }}
-                      placeholder="Reply to group chat..."
-                    />
-                    <button className="send-btn" onClick={() => sendReply()}>
-                      <i className="fa-solid fa-paper-plane"></i>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="chat-list">
+              <div className="split-chat-container">
+                <div className="chat-list-container">
                   <h3>Group Chats</h3>
                   {isLoadingChats ? (
                     <p>Loading group chats...</p>
@@ -1139,137 +950,630 @@ function TherapistDashboard() {
                     <p>No group chats available</p>
                   ) : (
                     groupChats.map((group) => (
-                      <div key={group.id} className="chat-card" onClick={() => joinGroupChat(group.id)}>
-                        <div>
-                          <strong>{group.name || "Unnamed Group"}</strong>
-                          <br />
-                          <small>
-                            {group.lastMessage
-                              ? `${group.lastMessage.displayName || "Anonymous"}: ${group.lastMessage.text}`
-                              : "No messages yet"}
-                          </small>
+                      <div
+                        key={group.id}
+                        className={`chat-card ${activeGroupId === group.id ? 'selected' : ''}`}
+                        onClick={() => joinGroupChat(group.id)}
+                      >
+                        <div className="chat-card-list">
+                          <span className="therapist-avatar">{group.name?.[0] || "U"}</span>
+                          <div className="chat-card-list-item">
+                            <strong>{group.name || "Unnamed Group"}</strong>
+                            <small>
+                              {group.lastMessage
+                                ? `${group.lastMessage.displayName || "Anonymous"}: ${group.lastMessage.text}`
+                                : "No messages yet"}
+                            </small>
+                          </div>
                         </div>
                         {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
                       </div>
                     ))
                   )}
                 </div>
-              )
+                <div className="chat-box-container">
+                  {activeGroupId && isGroupChatOpen && inGroupChat ? (
+                    <div className="group-chat">
+                      <div className="detailLeave">
+                        <h3 className="onlineStatus">
+                          {groupChats.find((g) => g.id === activeGroupId)?.name || "Group Chat"}{" "}
+                          {therapistsOnline.length > 0
+                            ? `(Therapists Online: ${therapistsOnline.map((t) => t.name).join(", ")})`
+                            : "(No therapists online)"}
+                        </h3>
+                        <div className="leave-participant">
+                          <div className="participant-list">
+                            <h4
+                              className="participant-toggle"
+                              onClick={() => setIsParticipantsOpen(!isParticipantsOpen)}
+                              role="button"
+                              aria-expanded={isParticipantsOpen}
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  setIsParticipantsOpen(!isParticipantsOpen);
+                                }
+                              }}
+                            >
+                              <i className="fas fa-user" style={{color:`${isParticipantsOpen ? "#e0e0e0" : "gray"}`}}></i>
+                              ({participants.length})
+                            </h4>
+                            {isParticipantsOpen && (
+                              <div className="participant-dropdown">
+                                <div className="participant-item-container">
+                                  {participants.length > 0 ? (
+                                    participants.map((uid) => (
+                                      <div key={uid} className="participant-item">
+                                        {participantNames[uid] || uid}
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="participant-item">No participants</div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
+                        </div>
+                      </div>
+                      {combinedGroupChat.some((msg) => msg.pinned) && (
+                        <div className="pinned-message">
+                          <strong>Pinned:</strong>{" "}
+                          {combinedGroupChat.find((msg) => msg.pinned)?.text || "Welcome to the group chat!"}
+                        </div>
+                      )}
+                      <div className="chat-box">
+                        {combinedGroupChat.map((msg) => (
+                          <p
+                            key={msg.id}
+                            className={`chat-message ${
+                              msg.role === "therapist"
+                                ? "therapist"
+                                : msg.role === "ai"
+                                ? "ai"
+                                : msg.role === "system"
+                                ? "system"
+                                : "user"
+                            }`}
+                            onClick={() => handleTherapistClick(msg)}
+                          >
+                            <strong>{msg.displayName || msg.user || "Anonymous"}</strong>{" "}
+                            <div className="message-content-time">
+                              <span>{msg.text || msg.message}</span>
+                              {msg.fileUrl && (
+                                <a
+                                  href={msg.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="attachment-link"
+                                >
+                                  <i className="fa-solid fa-paperclip"></i> View Attachment
+                                </a>
+                              )}
+                              <span className="message-timestamp">
+                                {msg.timestamp?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                              <span className="message-reactions">
+                                <i
+                                  className="fa-solid fa-heart reaction"
+                                  style={{ color: msg.reactions?.heart?.length > 0 ? "red" : "gray" }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleReaction(msg.id, "heart");
+                                  }}
+                                >
+                                  {msg.reactions?.heart?.length || 0}
+                                </i>
+                                <i
+                                  className="fa-solid fa-thumbs-up reaction"
+                                  style={{ color: msg.reactions?.thumbsUp?.length > 0 ? "blue" : "gray" }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleReaction(msg.id, "thumbsUp");
+                                  }}
+                                >
+                                  {msg.reactions?.thumbsUp?.length || 0}
+                                </i>
+                              </span>
+                            </div>
+                            {msg.role !== "system" && therapistInfo.role === "therapist" && (
+                              <button
+                                className="delete-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteMessage(msg.id);
+                                }}
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </p>
+                        ))}
+                        {typingUsers.length > 0 && (
+                          <p className="typing-indicator">
+                            {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+                          </p>
+                        )}
+                        <div ref={messagesEndRef} />
+                      </div>
+                      <div className="chat-input">
+                        <button
+                          className="emoji-btn"
+                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        >
+                          <i className="fa-regular fa-face-smile"></i>
+                        </button>
+                        {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
+                        <input
+                          type="file"
+                          id="group-file-upload"
+                          style={{ display: "none" }}
+                          onChange={(e) => sendReply(e.target.files[0])}
+                        />
+                        <button
+                          className="attach-btn"
+                          onClick={() => document.getElementById("group-file-upload").click()}
+                        >
+                          <i className="fa-solid fa-paperclip"></i>
+                        </button>
+                        <input
+                          className="inputInsert"
+                          type="text"
+                          value={reply}
+                          onChange={(e) => {
+                            setReply(e.target.value);
+                            handleTyping(e.target.value);
+                          }}
+                          placeholder="Reply to group chat..."
+                        />
+                        <button className="send-btn" onClick={() => sendReply()}>
+                          <i className="fa-solid fa-paper-plane"></i>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="empty-chat">
+                      <p>Select a group chat to view messages</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            }
+          />
+          <Route
+            path="/group-chat/:groupId"
+            element={
+              <div className="split-chat-container">
+                <div className="chat-list-container">
+                  <h3>Group Chats</h3>
+                  {isLoadingChats ? (
+                    <p>Loading group chats...</p>
+                  ) : groupChats.length === 0 ? (
+                    <p>No group chats available</p>
+                  ) : (
+                    groupChats.map((group) => (
+                      <div
+                        key={group.id}
+                        className={`chat-card ${activeGroupId === group.id ? 'selected' : ''}`}
+                        onClick={() => joinGroupChat(group.id)}
+                      >
+                        <div className="chat-card-list">
+                          <span className="therapist-avatar">{group.name?.[0] || "U"}</span>
+                          <div className="chat-card-list-item">
+                            <strong>{group.name || "Unnamed Group"}</strong>
+                            <small>
+                              {group.lastMessage
+                                ? `${group.lastMessage.displayName || "Anonymous"}: ${group.lastMessage.text}`
+                                : "No messages yet"}
+                            </small>
+                          </div>
+                        </div>
+                        {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="chat-box-container">
+                  {activeGroupId && isGroupChatOpen && inGroupChat ? (
+                    <div className="group-chat">
+                      <div className="detailLeave">
+                        <h3 className="onlineStatus">
+                          {groupChats.find((g) => g.id === activeGroupId)?.name || "Group Chat"}{" "}
+                          {therapistsOnline.length > 0
+                            ? `(Therapists Online: ${therapistsOnline.map((t) => t.name).join(", ")})`
+                            : "(No therapists online)"}
+                        </h3>
+                        <div className="leave-participant">
+                          <div className="participant-list">
+                            <h4
+                              className="participant-toggle"
+                              onClick={() => setIsParticipantsOpen(!isParticipantsOpen)}
+                              role="button"
+                              aria-expanded={isParticipantsOpen}
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  setIsParticipantsOpen(!isParticipantsOpen);
+                                }
+                              }}
+                            >
+                              <i className="fas fa-user" style={{color:`${isParticipantsOpen ? "#e0e0e0" : "gray"}`}}></i>
+                              ({participants.length})
+                            </h4>
+                            {isParticipantsOpen && (
+                              <div className="participant-dropdown">
+                                <div className="participant-item-container">
+                                  {participants.length > 0 ? (
+                                    participants.map((uid) => (
+                                      <div key={uid} className="participant-item">
+                                        {participantNames[uid] || uid}
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="participant-item">No participants</div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
+                        </div>
+                      </div>
+                      {combinedGroupChat.some((msg) => msg.pinned) && (
+                        <div className="pinned-message">
+                          <strong>Pinned:</strong>{" "}
+                          {combinedGroupChat.find((msg) => msg.pinned)?.text || "Welcome to the group chat!"}
+                        </div>
+                      )}
+                      <div className="chat-box">
+                        {combinedGroupChat.map((msg) => (
+                          <p
+                            key={msg.id}
+                            className={`chat-message ${
+                              msg.role === "therapist"
+                                ? "therapist"
+                                : msg.role === "ai"
+                                ? "ai"
+                                : msg.role === "system"
+                                ? "system"
+                                : "user"
+                            }`}
+                            onClick={() => handleTherapistClick(msg)}
+                          >
+                            <strong>{msg.displayName || msg.user || "Anonymous"}</strong>{" "}
+                            <div className="message-content-time">
+                              <span>{msg.text || msg.message}</span>
+                              {msg.fileUrl && (
+                                <a
+                                  href={msg.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="attachment-link"
+                                >
+                                  <i className="fa-solid fa-paperclip"></i> View Attachment
+                                </a>
+                              )}
+                              <span className="message-timestamp">
+                                {msg.timestamp?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                              <span className="message-reactions">
+                                <i
+                                  className="fa-solid fa-heart reaction"
+                                  style={{ color: msg.reactions?.heart?.length > 0 ? "red" : "gray" }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleReaction(msg.id, "heart");
+                                  }}
+                                >
+                                  {msg.reactions?.heart?.length || 0}
+                                </i>
+                                <i
+                                  className="fa-solid fa-thumbs-up reaction"
+                                  style={{ color: msg.reactions?.thumbsUp?.length > 0 ? "blue" : "gray" }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleReaction(msg.id, "thumbsUp");
+                                  }}
+                                >
+                                  {msg.reactions?.thumbsUp?.length || 0}
+                                </i>
+                              </span>
+                            </div>
+                            {msg.role !== "system" && therapistInfo.role === "therapist" && (
+                              <button
+                                className="delete-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteMessage(msg.id);
+                                }}
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </p>
+                        ))}
+                        {typingUsers.length > 0 && (
+                          <p className="typing-indicator">
+                            {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+                          </p>
+                        )}
+                        <div ref={messagesEndRef} />
+                      </div>
+                      <div className="chat-input">
+                        <button
+                          className="emoji-btn"
+                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        >
+                          <i className="fa-regular fa-face-smile"></i>
+                        </button>
+                        {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
+                        <input
+                          type="file"
+                          id="group-file-upload"
+                          style={{ display: "none" }}
+                          onChange={(e) => sendReply(e.target.files[0])}
+                        />
+                        <button
+                          className="attach-btn"
+                          onClick={() => document.getElementById("group-file-upload").click()}
+                        >
+                          <i className="fa-solid fa-paperclip"></i>
+                        </button>
+                        <input
+                          className="inputInsert"
+                          type="text"
+                          value={reply}
+                          onChange={(e) => {
+                            setReply(e.target.value);
+                            handleTyping(e.target.value);
+                          }}
+                          placeholder="Reply to group chat..."
+                        />
+                        <button className="send-btn" onClick={() => sendReply()}>
+                          <i className="fa-solid fa-paper-plane"></i>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="empty-chat">
+                      <p>Select a group chat to view messages</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             }
           />
           <Route
             path="/private-chat"
             element={
-              <div className="chat-list">
-                <h3>Private Chats</h3>
-                {isLoadingChats ? (
-                  <p>Loading private chats...</p>
-                ) : privateChats.length === 0 ? (
-                  <p>No private chats available</p>
-                ) : (
-                  privateChats.map((chat) => (
-                    <div key={chat.id} className="chat-card" onClick={() => joinPrivateChat(chat.id)}>
-                      <div>
-                        <strong>Chat ID:</strong> {chat.id} {chat.needsTherapist ? "(Needs Therapist)" : ""}
-                        <br />
-                        <small>{chat.lastMessage || "No messages yet"}</small>
+              <div className="split-chat-container">
+                <div className="chat-list-container">
+                  <h3>Private Chats</h3>
+                  {isLoadingChats ? (
+                    <p>Loading private chats...</p>
+                  ) : privateChats.length === 0 ? (
+                    <p>No private chats available</p>
+                  ) : (
+                    privateChats.map((chat) => (
+                      <div
+                        key={chat.id}
+                        className={`chat-card ${activeChatId === chat.id ? 'selected' : ''}`}
+                        onClick={() => joinPrivateChat(chat.id)}
+                      >
+                        <div>
+                          <strong>Chat ID:</strong> {chat.id} {chat.needsTherapist ? "(Needs Therapist)" : ""}
+                          <br />
+                          <small>{chat.lastMessage || "No messages yet"}</small>
+                        </div>
+                        {chat.unreadCountForTherapist > 0 && (
+                          <span className="unread-badge">{chat.unreadCountForTherapist}</span>
+                        )}
                       </div>
-                      {chat.unreadCountForTherapist > 0 && (
-                        <span className="unread-badge">{chat.unreadCountForTherapist}</span>
-                      )}
+                    ))
+                  )}
+                </div>
+                <div className="chat-box-container">
+                  {activeChatId ? (
+                    isValidatingChat ? (
+                      <div className="chat-list">
+                        <h3>Loading Private Chat...</h3>
+                        <p>Validating chat access, please wait...</p>
+                      </div>
+                    ) : chatError ? (
+                      <div className="chat-list">
+                        <h3>Error Loading Private Chat</h3>
+                        <p>{chatError}</p>
+                        <button onClick={() => navigate("/therapist-dashboard/private-chat")}>
+                          Back to Private Chats
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="private-chat">
+                        <h3 className="onlineStatus">
+                          Private Chat {activeChatId}{" "}
+                          {isTherapistAvailable
+                            ? `(Therapist Online: ${activeTherapists.join(", ")})`
+                            : "(Waiting for Therapist)"}
+                        </h3>
+                        <LeaveChatButton onLeave={leavePrivateChat} />
+                        {selectedTherapist && (
+                          <div className="therapist-profile-card">
+                            <button onClick={() => setSelectedTherapist(null)}>⬅ Back</button>
+                            <h4>{selectedTherapist.name}</h4>
+                            <p>{selectedTherapist.profile}</p>
+                          </div>
+                        )}
+                        <div className="chat-container">
+                          {combinedPrivateChat.map((msg) => (
+                            <p
+                              key={msg.id}
+                              className={`chat-message ${
+                                msg.role === "therapist"
+                                  ? "therapist"
+                                  : msg.role === "system"
+                                  ? "system"
+                                  : msg.role === "ai"
+                                  ? "ai"
+                                  : "user"
+                              }`}
+                              onClick={() => (msg.role === "therapist" ? handleTherapistClick(msg) : null)}
+                            >
+                              {msg.role === "system" ? (
+                                <em>{msg.text}</em>
+                              ) : (
+                                <>
+                                  <strong>{msg.displayName || msg.role}:</strong> {msg.text}
+                                </>
+                              )}
+                            </p>
+                          ))}
+                          {typingUsers.length > 0 && (
+                            <p className="typing-indicator">
+                              {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+                            </p>
+                          )}
+                          <div ref={privateMessagesEndRef} />
+                        </div>
+                        <div className="chat-input">
+                          <input
+                            type="text"
+                            value={newPrivateMessage}
+                            onChange={(e) => {
+                              setNewPrivateMessage(e.target.value);
+                              handleTyping(e.target.value);
+                            }}
+                            placeholder="Type a message..."
+                          />
+                          <button onClick={sendPrivateMessage} disabled={isSendingPrivate}>
+                            {isSendingPrivate ? "Sending..." : "Send"}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  ) : (
+                    <div className="empty-chat">
+                      <p>Select a private chat to view messages</p>
                     </div>
-                  ))
-                )}
+                  )}
+                </div>
               </div>
             }
           />
           <Route
             path="/private-chat/:chatId"
             element={
-              isValidatingChat ? (
-                <div className="chat-list">
-                  <h3>Loading Private Chat...</h3>
-                  <p>Validating chat access, please wait...</p>
+              <div className="split-chat-container">
+                <div className="chat-list-container">
+                  <h3>Private Chats</h3>
+                  {isLoadingChats ? (
+                    <p>Loading private chats...</p>
+                  ) : privateChats.length === 0 ? (
+                    <p>No private chats available</p>
+                  ) : (
+                    privateChats.map((chat) => (
+                      <div
+                        key={chat.id}
+                        className={`chat-card ${activeChatId === chat.id ? 'selected' : ''}`}
+                        onClick={() => joinPrivateChat(chat.id)}
+                      >
+                        <div>
+                          <strong>Chat ID:</strong> {chat.id} {chat.needsTherapist ? "(Needs Therapist)" : ""}
+                          <br />
+                          <small>{chat.lastMessage || "No messages yet"}</small>
+                        </div>
+                        {chat.unreadCountForTherapist > 0 && (
+                          <span className="unread-badge">{chat.unreadCountForTherapist}</span>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
-              ) : chatError ? (
-                <div className="chat-list">
-                  <h3>Error Loading Private Chat</h3>
-                  <p>{chatError}</p>
-                  <button onClick={() => navigate("/therapist-dashboard/private-chat")}>
-                    Back to Private Chats
-                  </button>
-                </div>
-              ) : activeChatId ? (
-                <div className="private-chat">
-                  <h3 className="onlineStatus">
-                    Private Chat {activeChatId}{" "}
-                    {isTherapistAvailable
-                      ? `(Therapist Online: ${activeTherapists.join(", ")})`
-                      : "(Waiting for Therapist)"}
-                  </h3>
-                  <LeaveChatButton onLeave={leavePrivateChat} />
-                  {selectedTherapist && (
-                    <div className="therapist-profile-card">
-                      <button onClick={() => setSelectedTherapist(null)}>⬅ Back</button>
-                      <h4>{selectedTherapist.name}</h4>
-                      <p>{selectedTherapist.profile}</p>
+                <div className="chat-box-container">
+                  {activeChatId ? (
+                    isValidatingChat ? (
+                      <div className="chat-list">
+                        <h3>Loading Private Chat...</h3>
+                        <p>Validating chat access, please wait...</p>
+                      </div>
+                    ) : chatError ? (
+                      <div className="chat-list">
+                        <h3>Error Loading Private Chat</h3>
+                        <p>{chatError}</p>
+                        <button onClick={() => navigate("/therapist-dashboard/private-chat")}>
+                          Back to Private Chats
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="private-chat">
+                        <h3 className="onlineStatus">
+                          Private Chat {activeChatId}{" "}
+                          {isTherapistAvailable
+                            ? `(Therapist Online: ${activeTherapists.join(", ")})`
+                            : "(Waiting for Therapist)"}
+                        </h3>
+                        <LeaveChatButton onLeave={leavePrivateChat} />
+                        {selectedTherapist && (
+                          <div className="therapist-profile-card">
+                            <button onClick={() => setSelectedTherapist(null)}>⬅ Back</button>
+                            <h4>{selectedTherapist.name}</h4>
+                            <p>{selectedTherapist.profile}</p>
+                          </div>
+                        )}
+                        <div className="chat-container">
+                          {combinedPrivateChat.map((msg) => (
+                            <p
+                              key={msg.id}
+                              className={`chat-message ${
+                                msg.role === "therapist"
+                                  ? "therapist"
+                                  : msg.role === "system"
+                                  ? "system"
+                                  : msg.role === "ai"
+                                  ? "ai"
+                                  : "user"
+                              }`}
+                              onClick={() => (msg.role === "therapist" ? handleTherapistClick(msg) : null)}
+                            >
+                              {msg.role === "system" ? (
+                                <em>{msg.text}</em>
+                              ) : (
+                                <>
+                                  <strong>{msg.displayName || msg.role}:</strong> {msg.text}
+                                </>
+                              )}
+                            </p>
+                          ))}
+                          {typingUsers.length > 0 && (
+                            <p className="typing-indicator">
+                              {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+                            </p>
+                          )}
+                          <div ref={privateMessagesEndRef} />
+                        </div>
+                        <div className="chat-input">
+                          <input
+                            type="text"
+                            value={newPrivateMessage}
+                            onChange={(e) => {
+                              setNewPrivateMessage(e.target.value);
+                              handleTyping(e.target.value);
+                            }}
+                            placeholder="Type a message..."
+                          />
+                          <button onClick={sendPrivateMessage} disabled={isSendingPrivate}>
+                            {isSendingPrivate ? "Sending..." : "Send"}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  ) : (
+                    <div className="empty-chat">
+                      <p>Select a private chat to view messages</p>
                     </div>
                   )}
-                  <div className="chat-container">
-                    {combinedPrivateChat.map((msg) => (
-                      <p
-                        key={msg.id}
-                        className={`chat-message ${
-                          msg.role === "therapist"
-                            ? "therapist"
-                            : msg.role === "system"
-                            ? "system"
-                            : msg.role === "ai"
-                            ? "ai"
-                            : "user"
-                        }`}
-                        onClick={() => (msg.role === "therapist" ? handleTherapistClick(msg) : null)}
-                      >
-                        {msg.role === "system" ? (
-                          <em>{msg.text}</em>
-                        ) : (
-                          <>
-                            <strong>{msg.displayName || msg.role}:</strong> {msg.text}
-                          </>
-                        )}
-                      </p>
-                    ))}
-                    {typingUsers.length > 0 && (
-                      <p className="typing-indicator">
-                        {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
-                      </p>
-                    )}
-                    <div ref={privateMessagesEndRef} />
-                  </div>
-                  <div className="chat-input">
-                    <input
-                      type="text"
-                      value={newPrivateMessage}
-                      onChange={(e) => {
-                        setNewPrivateMessage(e.target.value);
-                        handleTyping(e.target.value);
-                      }}
-                      placeholder="Type a message..."
-                    />
-                    <button onClick={sendPrivateMessage} disabled={isSendingPrivate}>
-                      {isSendingPrivate ? "Sending..." : "Send"}
-                    </button>
-                  </div>
                 </div>
-              ) : (
-                <div className="chat-list">
-                  <h3>Error Loading Private Chat</h3>
-                  <p>Chat not found or inaccessible. Please select a chat from the private chats list.</p>
-                  <button onClick={() => navigate("/therapist-dashboard/private-chat")}>
-                    Back to Private Chats
-                  </button>
-                </div>
-              )
+              </div>
             }
           />
           <Route

@@ -1,20 +1,20 @@
 :root {
-  --primary-color: #4a90e2; /* Matches Chatroom */
-  --background-color: #f5f7fa; /* Light background */
-  --chat-bg: #ffffff; /* Chat box background */
-  --text-color: #333333; /* Default text color */
-  --therapist-bg: #e6f0fa; /* Therapist message background */
-  --user-bg: #d9e8ff; /* User message background */
-  --ai-bg: #f0f0f0; /* AI message background */
-  --system-bg: #f9fafb; /* System message background */
+  --primary-color: #4a90e2;
+  --background-color: #f5f7fa;
+  --chat-bg: #ffffff;
+  --text-color: #333333;
+  --therapist-bg: #e6f0fa;
+  --user-bg: #d9e8ff;
+  --ai-bg: #f0f0f0;
+  --system-bg: #f9fafb;
   --border-radius: 8px;
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   --input-bg: #ffffff;
   --input-border: #ccc;
-  --accent-color: #34c759; /* Green */
-  --secondary-color: #ff9500; /* Orange */
-  --tertiary-color: #8e44ad; /* Purple */
-  --badge-bg: #ef4444; /* For unread badges */
+  --accent-color: #34c759;
+  --secondary-color: #ff9500;
+  --error-color: #ff3b30;
+  --badge-bg: #ef4444;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -27,6 +27,7 @@
     --ai-bg: #3b3b4b;
     --system-bg: #2e2e4b;
     --input-bg: #2a2a3b;
+    --chat-input-bg: #1e1e2f;
     --input-border: #555;
     --badge-bg: #f87171;
   }
@@ -39,7 +40,7 @@
 
 .therapist-dashboard .box {
   flex: 1;
-  padding: 20px;
+  /* padding: 20px; */
   background-color: var(--background-color);
   transition: margin-left 0.3s ease-in-out;
 }
@@ -116,43 +117,36 @@
   color: gold;
 }
 
-
-
 .therapist-dashboard .detailLeave {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
+  align-items: center;
+  padding: 20px 15px;
+  background: var(--chat-input-bg);
 }
 
-.leaveButton {
-  font-size: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  border-radius: 10px;
-  padding: 7px 10px;
-  background: var(--text-color);
-  color: var(--chat-bg);
+.leave-participant {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Participant List */
+.therapist-dashboard .participant-list {
+  position: relative;
+  padding: 5px 7px;
+  background: var(--chat-bg);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
   transition: background 0.3s;
 }
 
-.therapist-dashboard .detailLeave .leaveButton:hover {
-  color: white;
-  background: var(--primary-color);
-}
-
-/* Participant List Dropdown */
-.therapist-dashboard .participant-list {
-  position: relative;
-  margin-bottom: 10px;
-  padding: 10px;
-  background: var(--chat-bg);
-  border-radius: var(--border-radius);
-  border: 1px solid var(--input-border);
-  box-shadow: var(--shadow);
+.therapist-dashboard .participant-list:hover {
+  background-color: var(--input-border);
 }
 
 .therapist-dashboard .participant-toggle {
+  font-size: 14px;
   cursor: pointer;
   margin: 0;
   color: var(--text-color);
@@ -161,28 +155,28 @@
   transition: color 0.2s;
 }
 
-.therapist-dashboard .participant-toggle:hover {
-  color: var(--primary-color);
+.therapist-dashboard .participant-toggle i {
+  font-size: 14px;
+  cursor: pointer;
+  margin-right: 3px;
 }
 
 .therapist-dashboard .participant-dropdown {
   position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
+  top: 178%;
+  right: -25px;
   background: var(--chat-bg);
   border: 1px solid var(--input-border);
   border-radius: var(--border-radius);
   box-shadow: var(--shadow);
   z-index: 100;
-  max-height: 200px;
+  max-width: 130px;
+  max-height: 300px;
   overflow-y: auto;
 }
 
 .therapist-dashboard .participant-dropdown .participant-item-container {
   height: auto;
-  max-height: 160px;
-  overflow-y: auto;
 }
 
 .therapist-dashboard .participant-dropdown::-webkit-scrollbar,
@@ -216,6 +210,24 @@
   background: var(--input-bg);
 }
 
+.therapist-dashboard .leaveButton {
+  font-size: 10px;
+  font-weight: 600;
+  height: fit-content;
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  padding: 7px 10px;
+  background: var(--text-color);
+  color: var(--chat-bg);
+  transition: background 0.3s;
+}
+
+.therapist-dashboard .leaveButton:hover {
+  color: white;
+  background: var(--primary-color);
+}
+
 .therapist-dashboard .group-chat .onlineStatus,
 .therapist-dashboard .private-chat .onlineStatus {
   font-size: 1.2rem;
@@ -224,17 +236,15 @@
 
 .therapist-dashboard .chat-box {
   background: var(--chat-bg);
-  border-radius: var(--border-radius);
-  padding: 15px;
-  height: 437px;
+  padding: 0 20px;
+  height: 510px;
   overflow-y: auto;
-  margin-bottom: 10px;
-  border: 1px solid var(--input-border);
+  margin: 0 5px 0 0;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .therapist-dashboard .chat-box::-webkit-scrollbar {
-  width: 8px;
+  width: 4px;
 }
 
 .therapist-dashboard .chat-box::-webkit-scrollbar-track {
@@ -258,11 +268,9 @@
 }
 
 .therapist-dashboard .chat-message.therapist {
-  text-decoration: none;
   background: var(--therapist-bg);
   margin-left: auto;
   font-weight: 600;
-  cursor: auto;
   border-left: 4px solid var(--accent-color);
 }
 
@@ -323,7 +331,7 @@
 }
 
 .therapist-dashboard .message-reactions {
-  display: none;
+  display: flex;
   position: absolute;
   top: -20px;
   right: 10px;
@@ -331,11 +339,11 @@
   padding: 5px;
   border-radius: var(--border-radius);
   box-shadow: var(--shadow);
+  gap: 10px;
 }
 
 .therapist-dashboard .chat-message:hover .message-reactions {
-  gap: 10px;
-  padding: 5px 7px;
+  display: flex;
 }
 
 .therapist-dashboard .reaction {
@@ -374,19 +382,19 @@
   display: flex;
   gap: 5px;
   align-items: center;
-  background: var(--input-bg);
-  border: 1px solid var(--input-border);
-  border-radius: var(--border-radius);
+  background: var(--chat-input-bg);
   padding: 10px;
 }
 
 /* EmojiPicker box */
 .therapist-dashboard .chat-input aside {
   position: absolute;
-  bottom: 64px;
+  left: 85px;
+  bottom: 94px;
 }
 
-.therapist-dashboard .chat-input .inputInsert {
+.therapist-dashboard .chat-input .inputInsert,
+.therapist-dashboard .chat-input input {
   flex: 1;
   width: 100%;
   padding: 12px;
@@ -427,86 +435,245 @@
   background: var(--input-bg);
 }
 
-.therapist-dashboard .chat-list {
-  margin-top: 20px;
+.therapist-dashboard .delete-btn {
+  font-size: 0.8rem;
+  padding: 5px 10px;
+  margin-left: 10px;
+  background: var(--error-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
 }
 
-.therapist-dashboard .chat-list h3 {
-  font-size: 1.2rem;
-  color: var(--text-color);
-  margin-bottom: 10px;
+.therapist-dashboard .delete-btn:hover {
+  background: #cc0000;
 }
 
-.therapist-dashboard .chat-list p {
-  font-size: 16px;
+/* Split Layout Styles */
+.therapist-dashboard .split-chat-container {
+  display: flex;
+  height: 100vh;
+  row-gap: 20px;
+}
+
+.therapist-dashboard .chat-list-container {
+  flex: 1;
+  max-width: 300px;
+  overflow-y: auto;
+  padding: 20px;
+  background: var(--chat-bg);
+  border-right: 1px solid var(--input-border);
+  box-shadow: var(--shadow);
+}
+
+.therapist-dashboard .chat-list-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.therapist-dashboard .chat-list-container::-webkit-scrollbar-track {
+  background: var(--background-color);
+}
+
+.therapist-dashboard .chat-list-container::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
+}
+
+.therapist-dashboard .chat-list-container h3 {
+  font-size: 1.4rem;
   color: var(--text-color);
-  margin-bottom: 10px;
+  margin: 0 15px 10px;
 }
 
 .therapist-dashboard .chat-card {
-  border: 1px solid var(--input-border);
   padding: 10px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-radius: var(--border-radius);
-  background-color: var(--chat-bg);
   transition: background 0.2s, filter 0.2s;
-}
-
-.therapist-dashboard .chat-list .chat-card:nth-child(1) {
-  background-color: var(--primary-color); /* #4a90e2 */
-  color: white;
-}
-
-.therapist-dashboard .chat-list .chat-card:nth-child(2) {
-  background-color: var(--accent-color); /* #34c759 */
-  color: white;
-}
-
-.therapist-dashboard .chat-list .chat-card:nth-child(n+3) {
-  background-color: var(--tertiary-color); /* #8e44ad */
-  color: white;
+  overflow: hidden;
 }
 
 .therapist-dashboard .chat-card:hover {
-  filter: brightness(90%);
+  background: var(--user-bg);
+  border-radius: var(--border-radius);
+  filter: brightness(100%);
 }
 
-@media (prefers-color-scheme: dark) {
-  .therapist-dashboard .chat-list .chat-card:nth-child(1) {
-    background-color: var(--primary-color);
-    color: var(--text-color);
-  }
-
-  .therapist-dashboard .chat-list .chat-card:nth-child(2) {
-    background-color: var(--accent-color);
-    color: var(--text-color);
-  }
-
-  .therapist-dashboard .chat-list .chat-card:nth-child(n+3) {
-    background-color: var(--tertiary-color);
-    color: var(--text-color);
-  }
-
-  .therapist-dashboard .chat-card:hover {
-    filter: brightness(110%);
-  }
+.therapist-dashboard .chat-card.selected {
+  background: var(--user-bg);
+  border-left: 4px solid var(--primary-color);
+  border-radius: var(--border-radius);
+  padding-left: 6px;
+  filter: brightness(120%);
 }
 
-.therapist-dashboard .chat-card strong,
+.therapist-dashboard .chat-card.selected:hover {
+  filter: brightness(140%);
+}
+
+.therapist-dashboard .chat-card .chat-card-list {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+}
+
+.therapist-dashboard .therapist-avatar {
+  display: inline-block;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: #fff;
+  text-align: center;
+  line-height: 50px;
+  font-size: 0.9rem;
+}
+
+.chat-card-list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 179px;
+  white-space: nowrap;
+}
+
+.therapist-dashboard .chat-card strong {
+  font-size: 1rem;
+  color: var(--text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .therapist-dashboard .chat-card small {
-  color: inherit;
+  font-size: 0.85rem;
+  color: var(--text-color);
+  opacity: 0.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .therapist-dashboard .unread-badge {
-  background-color: var(--badge-bg);
+  background: var(--badge-bg);
   color: white;
-  border-radius: 50%;
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.therapist-dashboard .chat-box-container {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  background: var(--chat-bg);
+}
+
+.therapist-dashboard .group-chat,
+.therapist-dashboard .private-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.therapist-dashboard .empty-chat {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--text-color);
+  font-size: 1.2rem;
+  opacity: 0.7;
+}
+
+.therapist-dashboard .chat-container {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--chat-bg);
+  border-radius: var(--border-radius);
+  padding: 15px;
+  border: 1px solid var(--input-border);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.therapist-dashboard .chat-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.therapist-dashboard .chat-container::-webkit-scrollbar-track {
+  background: var(--background-color);
+}
+
+.therapist-dashboard .chat-container::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
+}
+
+.therapist-dashboard .therapist-profile-card {
+  background: var(--chat-bg);
+  padding: 15px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  margin-bottom: 10px;
+  box-shadow: var(--shadow);
+}
+
+.therapist-dashboard .therapist-profile-card button {
   padding: 5px 10px;
-  font-size: 12px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+}
+
+.therapist-dashboard .therapist-profile-card button:hover {
+  background: #357abd;
+}
+
+.therapist-dashboard .notification-item {
+  padding: 10px;
+  margin-bottom: 5px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  color: var(--text-color);
+}
+
+.therapist-dashboard .notification-item:hover {
+  background: var(--therapist-bg);
+}
+
+@media (max-width: 768px) {
+  .therapist-dashboard .split-chat-container {
+    flex-direction: column;
+  }
+
+  .therapist-dashboard .chat-list-container {
+    max-width: 100%;
+    max-height: 40vh;
+  }
+
+  .therapist-dashboard .chat-box-container {
+    flex: 1;
+    max-height: 60vh;
+  }
+
+  .therapist-dashboard .chat-box,
+  .therapist-dashboard .chat-container {
+    height: auto;
+    max-height: 50vh;
+  }
+
+  .therapist-dashboard .chat-message {
+    max-width: 80%;
+  }
 }
 
 .therapist-dashboard .therapist-profile-card {
@@ -557,22 +724,4 @@
   .therapist-dashboard .notification-item:hover {
     background-color: #3a3a4b;
   }
-}
-
-/* Delete Button */
-.therapist-dashboard .delete-btn {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  padding: 2px 6px;
-  background: #dc3545;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-
-.therapist-dashboard .delete-btn:hover {
-  background: #c82333;
 }
