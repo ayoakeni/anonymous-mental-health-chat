@@ -23,6 +23,7 @@ import Sidebar from "../components/sidebar";
 import { useTypingStatus } from "../components/useTypingStatus";
 import GroupChatSplitView from "../components/therapistDashboard/GroupChatSplitView";
 import PrivateChatSplitView from "../components/therapistDashboard/PrivateChatSplitView";
+import useNotificationSound from '../components/useNotificationSound';
 import "../styles/therapistDashboard.css";
 
 function TherapistDashboard() {
@@ -32,6 +33,9 @@ function TherapistDashboard() {
   const [reply, setReply] = useState("");
   const [privateChats, setPrivateChats] = useState([]);
   const [isGroupChatOpen, setIsGroupChatOpen] = useState(false);
+  const playNotification = useNotificationSound();
+  const prevPrivateMessagesRef = useRef([]);
+  const prevGroupMessagesRef = useRef([]);
   const [inGroupChat, setInGroupChat] = useState(false);
   const [groupUnreadCount, setGroupUnreadCount] = useState(0);
   const [lastSeenTimestamp, setLastSeenTimestamp] = useState(null);
@@ -177,8 +181,16 @@ function TherapistDashboard() {
 
     const unsubMessages = onSnapshot(messagesQuery, (snapshot) => {
       const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+      const newMsgs = msgs.filter(
+        (msg) => !prevGroupMessagesRef.current.some((prev) => prev.id === msg.id)
+      );
+
       setMessages(msgs);
-      if (!isGroupChatOpen) {
+      prevGroupMessagesRef.current = msgs;
+
+      if (newMsgs.length > 0 && !isGroupChatOpen) {
+        playNotification(); // Or always play if desired
         const unread = msgs.filter((msg) => {
           const msgTime = msg.timestamp?.toMillis();
           return msgTime && (!lastSeenTimestamp || msgTime > lastSeenTimestamp);
@@ -197,7 +209,7 @@ function TherapistDashboard() {
       unsubMessages();
       unsubEvents();
     };
-  }, [activeGroupId, isGroupChatOpen, lastSeenTimestamp, therapistId]);
+  }, [activeGroupId, isGroupChatOpen, lastSeenTimestamp, therapistId, playNotification]);
 
   // Fetch participant names
   const [participantNames, setParticipantNames] = useState({});
@@ -381,7 +393,20 @@ function TherapistDashboard() {
       q,
       (snapshot) => {
         const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+        // Detect new
+        const newMsgs = msgs.filter(
+          (msg) => !prevPrivateMessagesRef.current.some((prev) => prev.id === msg.id)
+        );
+
         setPrivateMessages(msgs);
+        prevPrivateMessagesRef.current = msgs;
+
+        if (newMsgs.length > 0) {
+          playNotification();
+        }
+
+        // Existing transaction for unread reset...
         runTransaction(db, async (transaction) => {
           const chatSnap = await transaction.get(chatRef);
           if (chatSnap.exists()) {
@@ -398,7 +423,7 @@ function TherapistDashboard() {
       }
     );
     return () => unsubscribeMessages();
-  }, [activeChatId]);
+  }, [activeChatId, playNotification]);
 
   // Watch private chat events
   useEffect(() => {

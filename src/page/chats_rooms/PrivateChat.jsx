@@ -5,6 +5,7 @@ import { getAnonName } from "../../login/anonymous_login";
 import { useTypingStatus } from "../../components/useTypingStatus";
 import { getAIResponse } from "../../utils/AiChatIntegration";
 import { mapMessagesForAI } from "../../utils/aiMessageMapper";
+import useNotificationSound from '../../components/useNotificationSound';
 import {
   collection,
   onSnapshot,
@@ -23,7 +24,6 @@ import {
 import { debounce } from "lodash";
 import EmojiPicker from "emoji-picker-react";
 import "../../styles/privateChat.css";
-import Notification from "../../sounds/notification.mp3"
 
 function PrivateChat({ chatId }) {
   const [messages, setMessages] = useState([]);
@@ -46,16 +46,11 @@ function PrivateChat({ chatId }) {
   const [lastLeaveEvent, setLastLeaveEvent] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [file, setFile] = useState(null);
-  const [notificationSound, setNotificationSound] = useState(null);
+  const playNotification = useNotificationSound();
+  const prevMessagesRef = useRef([]);
   const messagesEndRef = useRef(null);
   const noJoinTimerRef = useRef(null);
   const navigate = useNavigate();
-
-  // Load notification sound
-  useEffect(() => {
-    const audio = new Audio(Notification);
-    setNotificationSound(audio);
-  }, []);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -98,17 +93,23 @@ function PrivateChat({ chatId }) {
     const q = query(collection(chatRef, "messages"), orderBy("timestamp"), limit(50));
     const unsubscribeMessages = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      // Detect new messages (compare IDs to avoid duplicates/initial load)
+      const newMsgs = msgs.filter(
+        (msg) => !prevMessagesRef.current.some((prev) => prev.id === msg.id)
+      );
+
       setMessages(msgs);
-      // Play notification sound for new messages
-      if (msgs.length > 0 && notificationSound) {
-        notificationSound.play().catch((err) => console.error("Audio play error:", err));
+      prevMessagesRef.current = msgs;
+
+      if (newMsgs.length > 0) {
+        playNotification(); // Play only for new ones
       }
     }, (err) => {
       console.error("Error fetching messages:", err);
       alert("Failed to load messages. Please try again.");
     });
     return () => unsubscribeMessages();
-  }, [chatId, notificationSound]);
+  }, [chatId, playNotification]);
 
   // Watch events
   useEffect(() => {
@@ -181,9 +182,6 @@ function PrivateChat({ chatId }) {
           console.error("Error updating on join:", err);
           alert("Failed to process therapist join event. Please try again.");
         });
-        if (notificationSound) {
-          notificationSound.play().catch((err) => console.error("Audio play error:", err));
-        }
         setLastJoinEvent(now);
         setHasOfferedNoTherapist(false);
       }
@@ -227,7 +225,7 @@ function PrivateChat({ chatId }) {
       navigate("/chat-room");
     });
     return () => unsubscribeChat();
-  }, [chatId, navigate, prevParticipants, lastJoinEvent, lastLeaveEvent, notificationSound]);
+  }, [chatId, navigate, prevParticipants, lastJoinEvent, lastLeaveEvent]);
 
   // Chat History Persistence
   // useEffect(() => {
