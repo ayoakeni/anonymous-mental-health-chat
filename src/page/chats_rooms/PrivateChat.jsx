@@ -42,7 +42,6 @@ function PrivateChat({ chatId }) {
   const [therapistsLoaded, setTherapistsLoaded] = useState(false);
   const [prevParticipants, setPrevParticipants] = useState([]);
   const [hasOfferedNoTherapist, setHasOfferedNoTherapist] = useState(false);
-  const [hasOfferedNoJoin, setHasOfferedNoJoin] = useState(false);
   const [lastJoinEvent, setLastJoinEvent] = useState(null);
   const [lastLeaveEvent, setLastLeaveEvent] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -187,7 +186,6 @@ function PrivateChat({ chatId }) {
         }
         setLastJoinEvent(now);
         setHasOfferedNoTherapist(false);
-        setHasOfferedNoJoin(false);
       }
 
       if (
@@ -229,7 +227,7 @@ function PrivateChat({ chatId }) {
       navigate("/chat-room");
     });
     return () => unsubscribeChat();
-  }, [chatId, navigate, notificationSound]);
+  }, [chatId, navigate, prevParticipants, lastJoinEvent, lastLeaveEvent, notificationSound]);
 
   // Chat History Persistence
   // useEffect(() => {
