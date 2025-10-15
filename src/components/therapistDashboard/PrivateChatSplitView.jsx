@@ -26,6 +26,7 @@ function PrivateChatSplitView({
   navigate,
   isLoadingChats,
   formatTimestamp,
+  anonNames = {},
 }) {
   const { chatId } = useParams();
 
@@ -47,6 +48,7 @@ function PrivateChatSplitView({
           privateChats.map((chat) => {
             const lastTs = chat.lastUpdated;
             const { dateStr, timeStr } = formatTimestamp(lastTs);
+            const anonName = anonNames[chat.id] || "Loading...";
             return (
               <div
                 key={chat.id}
@@ -55,10 +57,10 @@ function PrivateChatSplitView({
               >
                 <div className="chat-card-inner">
                   <div className="chat-avater-content">
-                    <span className="therapist-avatar">{chat.id[0] || "P"}</span>
+                    <span className="therapist-avatar">{anonName[0] || "A"}</span>
                     <div className="chat-card-content">
                       <strong className="chat-card-title">
-                        Chat {chat.id} {chat.needsTherapist ? "(Needs Therapist)" : ""}
+                        {anonName} {chat.needsTherapist ? "(Needs Therapist)" : ""}
                       </strong>
                       <small className="chat-card-preview">{chat.lastMessage || "No messages yet"}</small>
                     </div>

@@ -102,7 +102,7 @@ function PrivateChat({ chatId }) {
       prevMessagesRef.current = msgs;
 
       if (newMsgs.length > 0) {
-        playNotification(); // Play only for new ones
+        playNotification();
       }
     }, (err) => {
       console.error("Error fetching messages:", err);
@@ -228,14 +228,14 @@ function PrivateChat({ chatId }) {
   }, [chatId, navigate, prevParticipants, lastJoinEvent, lastLeaveEvent]);
 
   // Chat History Persistence
-  // useEffect(() => {
-  //   if (!chatId) return;
-  //   const savedHistory = JSON.parse(localStorage.getItem(`privateChat_${chatId}`)) || [];
-  //   setMessages((prev) => [...savedHistory, ...prev.filter((msg) => !savedHistory.some((s) => s.id === msg.id))]);
-  //   return () => {
-  //     localStorage.setItem(`privateChat_${chatId}`, JSON.stringify(messages));
-  //   };
-  // }, [chatId]);
+  useEffect(() => {
+    if (!chatId) return;
+    const savedHistory = JSON.parse(localStorage.getItem(`privateChat_${chatId}`)) || [];
+    setMessages((prev) => [...savedHistory, ...prev.filter((msg) => !savedHistory.some((s) => s.id === msg.id))]);
+    return () => {
+      localStorage.setItem(`privateChat_${chatId}`, JSON.stringify(messages));
+    };
+  }, [chatId]);
 
   // Initial AI offer
   useEffect(() => {

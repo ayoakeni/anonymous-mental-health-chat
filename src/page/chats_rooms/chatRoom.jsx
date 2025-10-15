@@ -11,6 +11,7 @@ import {
   runTransaction,
   limit,
   arrayUnion,
+  increment,
 } from "firebase/firestore";
 import { db, auth, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
 import { getAIResponse } from "../../utils/AiChatIntegration";
@@ -397,6 +398,9 @@ function Chatroom() {
   // Handle file upload
   const handleFileUpload = async (file) => {
     if (!file || !auth.currentUser || !activeGroupId) return;
+
+    const role = auth.currentUser.email ? "therapist" : "user";  // Define role here to match sendMessage logic
+
     try {
       const storageRef = ref(storage, `groupChats/${activeGroupId}/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
@@ -404,12 +408,15 @@ function Chatroom() {
       await runTransaction(db, async (transaction) => {
         const messagesRef = collection(db, `groupChats/${activeGroupId}/messages`);
         const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
+        const groupRef = doc(db, "groupChats", activeGroupId);
+        const groupSnap = await transaction.get(groupRef);
+        const currentUnread = groupSnap.data()?.unreadCount || 0;
         transaction.set(doc(messagesRef), {
           text: newMessage || "",
           fileUrl,
           userId: auth.currentUser.uid,
           displayName,
-          role: auth.currentUser.email ? "therapist" : "user",
+          role,
           timestamp: serverTimestamp(),
           reactions: {},
         });
@@ -418,12 +425,13 @@ function Chatroom() {
           name: displayName,
           timestamp: serverTimestamp(),
         });
-        transaction.update(doc(db, "groupChats", activeGroupId), {
+        transaction.update(groupRef, {
           lastMessage: {
             text: newMessage || "Attachment",
             displayName,
             timestamp: serverTimestamp(),
           },
+          ...(role === "user" ? { unreadCount: currentUnread + 1 } : {}),  // Fixed: Use defined role; increment atomically for consistency
         });
       });
       setNewMessage("");
@@ -469,7 +477,8 @@ function Chatroom() {
             displayName,
             timestamp: serverTimestamp(),
           },
-        });
+          ...(role === "user" ? { unreadCount: increment(1) } : {}),
+        })
       });
 
       if (role === "user" && newMessage.toLowerCase().includes("@ai")) {
@@ -502,6 +511,7 @@ function Chatroom() {
               role: "ai",
               timestamp: serverTimestamp(),
               reactions: {},
+              ...(role === "user" ? { unreadCount: increment(1) } : {}),
             });
           });
         } finally {

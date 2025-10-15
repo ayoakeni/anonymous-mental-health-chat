@@ -37,7 +37,7 @@ function TherapistDashboard() {
   const prevPrivateMessagesRef = useRef([]);
   const prevGroupMessagesRef = useRef([]);
   const [inGroupChat, setInGroupChat] = useState(false);
-  const [groupUnreadCount, setGroupUnreadCount] = useState(0);
+  const totalGroupUnread = groupChats.reduce((sum, group) => sum + (group.unreadCount || 0), 0);
   const [lastSeenTimestamp, setLastSeenTimestamp] = useState(null);
   const [activeChatId, setActiveChatId] = useState(null);
   const [activeGroupId, setActiveGroupId] = useState(null);
@@ -66,6 +66,7 @@ function TherapistDashboard() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [therapistsOnline, setTherapistsOnline] = useState([]);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [anonNames, setAnonNames] = useState({});
   const therapistId = auth.currentUser?.uid;
   const displayName = therapistInfo.name || "Unknown Therapist";
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
@@ -97,6 +98,41 @@ function TherapistDashboard() {
     setReply(reply + emojiData.emoji);
     setShowEmojiPicker(false);
   };
+
+  // Fetch anonymous names for private chats - runs when privateChats or therapistId changes
+  useEffect(() => {
+    if (privateChats.length === 0 || !therapistId) return;
+
+    const fetchAnonNames = async () => {
+      const names = {};
+      // Extract user UIDs first (filter out therapist and invalid)
+      const fetchTasks = privateChats.map(async (chat) => {
+        // Find the participant that is NOT the current therapist
+        const userUid = chat.participants?.find(uid => uid && uid !== therapistId);
+        
+        if (!userUid) {
+          names[chat.id] = "Unknown"; // No valid user participant
+          return;
+        }
+
+        try {
+          const anonSnap = await getDoc(doc(db, "anonymousUsers", userUid));
+          const anonData = anonSnap.exists() ? anonSnap.data() : null;
+          names[chat.id] = anonData?.anonymousName?.trim() || "Anonymous";
+        } catch (err) {
+          console.error(`Error fetching anon name for user ${userUid} in chat ${chat.id}:`, err);
+          names[chat.id] = "Anonymous";
+        }
+      });
+
+      await Promise.all(fetchTasks);
+      setAnonNames(names);
+    };
+
+    fetchAnonNames().catch((err) => {
+      console.error("Unexpected error fetching anon names:", err);
+    });
+  }, [privateChats, therapistId]);
 
   // Check authentication
   useEffect(() => {
@@ -189,13 +225,8 @@ function TherapistDashboard() {
       setMessages(msgs);
       prevGroupMessagesRef.current = msgs;
 
-      if (newMsgs.length > 0 && !isGroupChatOpen) {
-        playNotification(); // Or always play if desired
-        const unread = msgs.filter((msg) => {
-          const msgTime = msg.timestamp?.toMillis();
-          return msgTime && (!lastSeenTimestamp || msgTime > lastSeenTimestamp);
-        }).length;
-        setGroupUnreadCount(unread);
+      if (newMsgs.length > 0) {
+        playNotification();
       }
     });
 
@@ -738,7 +769,10 @@ function TherapistDashboard() {
       }
       const lastMsgsTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
       await runTransaction(db, async (transaction) => {
-        transaction.update(groupRef, { participants: arrayUnion(auth.currentUser.uid) });
+        transaction.update(groupRef, { 
+          participants: arrayUnion(auth.currentUser.uid),
+          unreadCount: 0
+        });
         transaction.set(
           doc(db, "therapists", therapistId),
           { lastSeenGroupChat: serverTimestamp() },
@@ -748,7 +782,6 @@ function TherapistDashboard() {
       setLastSeenTimestamp(lastMsgsTime);
       setIsGroupChatOpen(true);
       setInGroupChat(true);
-      setGroupUnreadCount(0);
       setActiveGroupId(groupId);
       navigate(`/therapist-dashboard/group-chat/${groupId}`);
     } catch (err) {
@@ -778,7 +811,6 @@ function TherapistDashboard() {
       });
       setIsGroupChatOpen(false);
       setInGroupChat(false);
-      setGroupUnreadCount(0);
       setLastSeenTimestamp(lastMsgTime);
       setActiveGroupId(null);
       navigate("/therapist-dashboard/group-chat");
@@ -852,6 +884,8 @@ function TherapistDashboard() {
       navigate("/therapist-dashboard/private-chat");
     }
   };
+
+
 
   // Leave private chat
   const leavePrivateChat = async () => {
@@ -964,7 +998,7 @@ function TherapistDashboard() {
   return (
     <div className="therapist-dashboard">
       <Sidebar
-        groupUnreadCount={groupUnreadCount}
+        groupUnreadCount={totalGroupUnread}
         privateUnreadCount={privateUnreadCount}
         onLogout={handleLogout}
         onToggle={handleToggleSidebar}
@@ -1044,6 +1078,7 @@ function TherapistDashboard() {
                 navigate={navigate}
                 isLoadingChats={isLoadingChats}
                 formatTimestamp={formatTimestamp}
+                anonNames={anonNames}
               />
             }
           />
