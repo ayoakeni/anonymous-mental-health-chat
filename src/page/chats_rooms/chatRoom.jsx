@@ -431,7 +431,7 @@ function Chatroom() {
             displayName,
             timestamp: serverTimestamp(),
           },
-          ...(role === "user" ? { unreadCount: currentUnread + 1 } : {}),  // Fixed: Use defined role; increment atomically for consistency
+          ...(role === "user" ? { unreadCount: currentUnread + 1 } : {}),
         });
       });
       setNewMessage("");

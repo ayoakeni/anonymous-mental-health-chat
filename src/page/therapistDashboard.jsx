@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation, Routes, Route, useParams } from "react-router-dom";
 import { db, auth, Timestamp, storage, ref, uploadBytes, getDownloadURL } from "../utils/firebase";
 import {
@@ -37,7 +37,9 @@ function TherapistDashboard() {
   const prevPrivateMessagesRef = useRef([]);
   const prevGroupMessagesRef = useRef([]);
   const [inGroupChat, setInGroupChat] = useState(false);
-  const totalGroupUnread = groupChats.reduce((sum, group) => sum + (group.unreadCount || 0), 0);
+  // Calculate total group and private unread count
+  const totalGroupUnread = useMemo(() => groupChats.reduce((sum, group) => sum + (group.unreadCount || 0), 0), [groupChats]);
+  const privateUnreadCount = useMemo(() => privateChats.reduce((sum, chat) => sum + (chat.unreadCountForTherapist || 0), 0), [privateChats]);
   const [lastSeenTimestamp, setLastSeenTimestamp] = useState(null);
   const [activeChatId, setActiveChatId] = useState(null);
   const [activeGroupId, setActiveGroupId] = useState(null);
@@ -66,6 +68,8 @@ function TherapistDashboard() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [therapistsOnline, setTherapistsOnline] = useState([]);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [isErrorFading, setIsErrorFading] = useState(false);
+  const errorTimeoutRef = useRef(null);
   const [anonNames, setAnonNames] = useState({});
   const therapistId = auth.currentUser?.uid;
   const displayName = therapistInfo.name || "Unknown Therapist";
@@ -75,6 +79,40 @@ function TherapistDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { chatId } = useParams();
+
+  // Memoized closeError - dependencies: setters and ref
+  const closeError = useCallback(() => {
+    setIsErrorFading(true);
+    setTimeout(() => {
+      setErrorMsg(null);
+      setIsErrorFading(false);
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current);
+        errorTimeoutRef.current = null;
+      }
+    }, 300);  // Match CSS
+  }, []);
+
+  // Memoized showError - dependencies: setters and ref it closes over
+  const showError = useCallback((msg, autoDismiss = true) => {
+    if (errorTimeoutRef.current) {
+      clearTimeout(errorTimeoutRef.current);
+    }
+    setErrorMsg(msg);
+    setIsErrorFading(false);
+    if (msg && autoDismiss) {
+      errorTimeoutRef.current = setTimeout(() => {
+        closeError();
+      }, 5000);
+    }
+  }, [closeError]);
+
+  // Cleanup effect (unchanged, but add deps if needed)
+  useEffect(() => {
+    return () => {
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+    };
+  }, []);
 
   // Helper to format timestamp (client-side)
   const formatTimestamp = (fbTimestamp) => {
@@ -147,12 +185,6 @@ function TherapistDashboard() {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  // Calculate total private unread count
-  const privateUnreadCount = privateChats.reduce(
-    (sum, chat) => sum + (chat.unreadCountForTherapist || 0),
-    0
-  );
-
   // Auto scroll group chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -175,10 +207,10 @@ function TherapistDashboard() {
       setActiveTherapists(onlineTherapists.map((t) => t.name || "Therapist"));
     }, (err) => {
       console.error("Error fetching therapists online:", err);
-      setErrorMsg("Failed to fetch therapist status. Please try again.");
+      showError("Failed to fetch therapist status. Please try again.");
     });
     return () => unsub();
-  }, []);
+  }, [showError]);
 
   // Fetch all group chats
   useEffect(() => {
@@ -192,12 +224,12 @@ function TherapistDashboard() {
       },
       (err) => {
         console.error("Error fetching group chats:", err);
-        setErrorMsg("Failed to load group chats. Please try again.");
+        showError("Failed to load group chats. Please try again.");
         setIsLoadingChats(false);
       }
     );
     return () => unsubscribe();
-  }, []);
+  }, [showError]);
 
   // Watch group chat participants and messages for active group
   useEffect(() => {
@@ -389,7 +421,7 @@ function TherapistDashboard() {
           console.log(`Retrying private chats subscription (${retryCount}/${maxRetries})...`);
           setTimeout(trySubscribe, 2000 * retryCount);
         } else {
-          setErrorMsg("Failed to load private chats after retries. Please try again.");
+          showError("Failed to load private chats after retries. Please try again.");
         }
       });
       const unsubscribe2 = onSnapshot(q2, (snapshot) => {
@@ -413,7 +445,7 @@ function TherapistDashboard() {
     };
     const unsubscribe = trySubscribe();
     return () => unsubscribe();
-  }, [therapistId]);
+  }, [therapistId, showError]);
 
   // Watch private chat messages
   useEffect(() => {
@@ -445,7 +477,7 @@ function TherapistDashboard() {
           }
         }).catch((err) => {
           console.error("Error resetting unread count:", err);
-          setErrorMsg("Failed to reset unread count. Please try again.");
+          showError("Failed to reset unread count. Please try again.");
         });
       },
       (err) => {
@@ -454,7 +486,7 @@ function TherapistDashboard() {
       }
     );
     return () => unsubscribeMessages();
-  }, [activeChatId, playNotification]);
+  }, [activeChatId, playNotification, showError]);
 
   // Watch private chat events
   useEffect(() => {
@@ -499,9 +531,9 @@ function TherapistDashboard() {
     };
     fetchLastSeen().catch((err) => {
       console.error("Error fetching last seen:", err);
-      setErrorMsg("Failed to fetch last seen timestamp. Please try again.");
+      showError("Failed to fetch last seen timestamp. Please try again.");
     });
-  }, [therapistId]);
+  }, [therapistId, showError]);
 
   // Fetch therapist profile
   useEffect(() => {
@@ -528,11 +560,11 @@ function TherapistDashboard() {
       },
       (err) => {
         console.error("Error fetching therapist profile:", err);
-        setErrorMsg("Failed to fetch therapist profile. Please try again.");
+        showError("Failed to fetch therapist profile. Please try again.");
       }
     );
     return () => unsubscribe();
-  }, [therapistId]);
+  }, [therapistId, showError]);
 
   // Tab close vs refresh detection
   useEffect(() => {
@@ -576,7 +608,7 @@ function TherapistDashboard() {
         });
       } catch (err) {
         console.error("Error auto-leaving chats:", err);
-        setErrorMsg("Failed to auto-leave chats. Please try again.");
+        showError("Failed to auto-leave chats. Please try again.");
       }
     }, 1000);
     const handleBeforeUnload = () => {
@@ -594,14 +626,14 @@ function TherapistDashboard() {
       window.removeEventListener("visibilitychange", handleVisibilityChange);
       debouncedLeave.cancel();
     };
-  }, [activeChatId, activeGroupId, displayName]);
+  }, [activeChatId, activeGroupId, displayName, showError]);
 
   // Send message to group chat with file support
   const sendReply = async (file = null) => {
     if (!reply.trim() && !file) return;
     if (!activeGroupId) return;
     if (file && (file.size > 5 * 1024 * 1024 || !['image/', 'application/pdf'].some(type => file.type.startsWith(type)))) {
-      setErrorMsg("Invalid file: too large or unsupported type");
+      showError("Invalid file: too large or unsupported type");
       return;
     }
     try {
@@ -641,7 +673,7 @@ function TherapistDashboard() {
       setShowEmojiPicker(false);
     } catch (err) {
       console.error("Error sending group message:", err);
-      setErrorMsg("Failed to send group message. Please try again.");
+      showError("Failed to send group message. Please try again.");
     }
   };
 
@@ -664,7 +696,7 @@ function TherapistDashboard() {
       });
     } catch (err) {
       console.error("Error toggling reaction:", err);
-      setErrorMsg("Failed to update reaction. Please try again.");
+      showError("Failed to update reaction. Please try again.");
     }
   };
 
@@ -685,7 +717,7 @@ function TherapistDashboard() {
       });
     } catch (err) {
       console.error("Error deleting message:", err);
-      setErrorMsg("Failed to delete message. Please try again.");
+      showError("Failed to delete message. Please try again.");
     }
   };
 
@@ -741,7 +773,7 @@ function TherapistDashboard() {
       navigate("/therapist-login");
     } catch (err) {
       console.error("Logout error:", err);
-      setErrorMsg("Failed to logout. Please try again.");
+      showError("Failed to logout. Please try again.");
     }
   };
 
@@ -754,7 +786,7 @@ function TherapistDashboard() {
       setEditing(false);
     } catch (err) {
       console.error("Error saving profile:", err);
-      setErrorMsg("Failed to save profile. Please try again.");
+      showError("Failed to save profile. Please try again.");
     }
   };
 
@@ -786,7 +818,7 @@ function TherapistDashboard() {
       navigate(`/therapist-dashboard/group-chat/${groupId}`);
     } catch (err) {
       console.error("Error joining group chat:", err);
-      setErrorMsg("Failed to join group chat. Please try again.");
+      showError("Failed to join group chat. Please try again.");
     }
   };
 
@@ -816,7 +848,7 @@ function TherapistDashboard() {
       navigate("/therapist-dashboard/group-chat");
     } catch (err) {
       console.error("Error leaving group chat:", err);
-      setErrorMsg("Failed to leave group chat. Please try again.");
+      showError("Failed to leave group chat. Please try again.");
     }
   };
 
@@ -977,7 +1009,7 @@ function TherapistDashboard() {
       if (snap.exists()) setSelectedTherapist(snap.data());
     } catch (err) {
       console.error("Error fetching therapist profile:", err);
-      setErrorMsg("Failed to fetch therapist profile. Please try again.");
+      showError("Failed to fetch therapist profile. Please try again.");
     }
   };
 
@@ -1004,7 +1036,17 @@ function TherapistDashboard() {
         onToggle={handleToggleSidebar}
       />
       <div className={`box ${isSidebarOpen ? "open" : "closed"}`}>
-        {errorMsg && <div className="error-toast">{errorMsg}</div>}
+        {errorMsg && (
+          <div className={`error-toast ${isErrorFading ? 'fade-out' : ''}`}>
+            {errorMsg}
+            <button className="error-close-btn" 
+            onClick={closeError}
+            aria-label="Close error message"
+            >
+              <i className="fa-solid fa-times"></i>
+            </button>
+          </div>
+        )}
         <Routes>
           <Route
             path="/"
@@ -1085,7 +1127,7 @@ function TherapistDashboard() {
           <Route
             path="/appointments"
             element={
-              <div>
+              <div className="appointments">
                 <h3>Appointments</h3>
                 <p>View and manage your appointments here. (Feature coming soon)</p>
               </div>
@@ -1094,7 +1136,7 @@ function TherapistDashboard() {
           <Route
             path="/clients"
             element={
-              <div>
+              <div className="clients">
                 <h3>Clients</h3>
                 <p>Manage your client list and view client details. (Feature coming soon)</p>
               </div>
@@ -1103,7 +1145,7 @@ function TherapistDashboard() {
           <Route
             path="/notifications"
             element={
-              <div>
+              <div className="notifications">
                 <h3>Notifications</h3>
                 <ul>
                   {privateChats
@@ -1129,73 +1171,75 @@ function TherapistDashboard() {
           <Route
             path="/profile"
             element={
-              <div className="therapist-profile">
-                {editing ? (
-                  <div className="profile-edit">
-                    <input
-                      type="text"
-                      placeholder="Name"
-                      value={therapistInfo.name}
-                      onChange={(e) => setTherapistInfo((prev) => ({ ...prev, name: e.target.value }))}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Gender"
-                      value={therapistInfo.gender}
-                      onChange={(e) => setTherapistInfo((prev) => ({ ...prev, gender: e.target.value }))}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Position"
-                      value={therapistInfo.position}
-                      onChange={(e) => setTherapistInfo((prev) => ({ ...prev, position: e.target.value }))}
-                    />
-                    <textarea
-                      placeholder="Profile description"
-                      value={therapistInfo.profile}
-                      onChange={(e) => setTherapistInfo((prev) => ({ ...prev, profile: e.target.value }))}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Rating"
-                      value={therapistInfo.rating}
-                      onChange={(e) =>
-                        setTherapistInfo((prev) => ({ ...prev, rating: parseFloat(e.target.value) || 0 }))
-                      }
-                      min={0}
-                      max={5}
-                      step={0.1}
-                    />
-                    <button onClick={saveProfile}>Save</button>
-                    <button onClick={() => setEditing(false)}>Cancel</button>
-                  </div>
-                ) : (
-                  <div className="profile-view">
-                    <p>
-                      <strong>Name:</strong> {therapistInfo.name}
-                    </p>
-                    <p>
-                      <strong>Gender:</strong> {therapistInfo.gender}
-                    </p>
-                    <p>
-                      <strong>Position:</strong> {therapistInfo.position}
-                    </p>
-                    <p>
-                      <strong>About:</strong> {therapistInfo.profile}
-                    </p>
-                    <p>
-                      <strong>Rating:</strong> <span className="rating">⭐ {therapistInfo.rating}</span>
-                    </p>
-                    <button onClick={() => setEditing(true)}>Edit Profile</button>
-                  </div>
-                )}
+              <div className="profile">
+                <div className="therapist-profile">
+                  {editing ? (
+                    <div className="profile-edit">
+                      <input
+                        type="text"
+                        placeholder="Name"
+                        value={therapistInfo.name}
+                        onChange={(e) => setTherapistInfo((prev) => ({ ...prev, name: e.target.value }))}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Gender"
+                        value={therapistInfo.gender}
+                        onChange={(e) => setTherapistInfo((prev) => ({ ...prev, gender: e.target.value }))}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Position"
+                        value={therapistInfo.position}
+                        onChange={(e) => setTherapistInfo((prev) => ({ ...prev, position: e.target.value }))}
+                      />
+                      <textarea
+                        placeholder="Profile description"
+                        value={therapistInfo.profile}
+                        onChange={(e) => setTherapistInfo((prev) => ({ ...prev, profile: e.target.value }))}
+                      />
+                      <input
+                        type="number"
+                        placeholder="Rating"
+                        value={therapistInfo.rating}
+                        onChange={(e) =>
+                          setTherapistInfo((prev) => ({ ...prev, rating: parseFloat(e.target.value) || 0 }))
+                        }
+                        min={0}
+                        max={5}
+                        step={0.1}
+                      />
+                      <button onClick={saveProfile}>Save</button>
+                      <button onClick={() => setEditing(false)}>Cancel</button>
+                    </div>
+                  ) : (
+                    <div className="profile-view">
+                      <p>
+                        <strong>Name:</strong> {therapistInfo.name}
+                      </p>
+                      <p>
+                        <strong>Gender:</strong> {therapistInfo.gender}
+                      </p>
+                      <p>
+                        <strong>Position:</strong> {therapistInfo.position}
+                      </p>
+                      <p>
+                        <strong>About:</strong> {therapistInfo.profile}
+                      </p>
+                      <p>
+                        <strong>Rating:</strong> <span className="rating">⭐ {therapistInfo.rating}</span>
+                      </p>
+                      <button onClick={() => setEditing(true)}>Edit Profile</button>
+                    </div>
+                  )}
+                </div>
               </div>
             }
           />
           <Route
             path="/settings"
             element={
-              <div>
+              <div className="settings">
                 <h3>Settings</h3>
                 <p>Adjust notification preferences and chat settings. (Feature coming soon)</p>
               </div>

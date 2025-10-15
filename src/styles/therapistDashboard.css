@@ -40,13 +40,18 @@
 
 .therapist-dashboard .box {
   flex: 1;
-  /* padding: 20px; */
   background-color: var(--chat-bg);
   transition: margin-left 0.3s ease-in-out;
 }
 
-.therapist-dashboard .dashboard {
+.therapist-dashboard .dashboard,
+.therapist-dashboard .appointments,
+.therapist-dashboard .clients,
+.therapist-dashboard .notifications,
+.therapist-dashboard .profile,
+.therapist-dashboard .settings {
   flex: 1;
+  color: var(--text-color);
   padding: 20px;
   height: 100vh;
   transition: margin-left 0.3s ease-in-out;
@@ -63,11 +68,41 @@
   box-shadow: var(--shadow);
   z-index: 1000;
   animation: fadeIn 0.3s ease-in;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  max-width: 300px;
+  word-wrap: break-word;
+}
+
+.error-close-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 10px;
+  transition: opacity 0.2s ease;
+}
+
+.error-close-btn:hover {
+  opacity: 0.7;
 }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+.error-toast.fade-out {
+  animation: fadeOut 0.3s ease-out forwards;
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-10px); }
 }
 
 @media (max-width: 768px) {
