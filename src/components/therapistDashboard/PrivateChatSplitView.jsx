@@ -38,49 +38,51 @@ function PrivateChatSplitView({
 
   return (
     <div className="split-chat-container">
-      <div className="chat-list-container">
+      <div className="chat-box-card">
         <h3>Private Chats</h3>
-        {isLoadingChats ? (
-          <p>Loading private chats...</p>
-        ) : privateChats.length === 0 ? (
-          <p>No private chats available</p>
-        ) : (
-          privateChats.map((chat) => {
-            const lastTs = chat.lastUpdated;
-            const { dateStr, timeStr } = formatTimestamp(lastTs);
-            const anonName = anonNames[chat.id] || "Loading...";
-            return (
-              <div
-                key={chat.id}
-                className={`chat-card ${activeChatId === chat.id ? "selected" : ""}`}
-                onClick={() => joinPrivateChat(chat.id)}
-              >
-                <div className="chat-card-inner">
-                  <div className="chat-avater-content">
-                    <span className="therapist-avatar">{anonName[0] || "A"}</span>
-                    <div className="chat-card-content">
-                      <strong className="chat-card-title">
-                        {anonName} {chat.needsTherapist ? "(Needs Therapist)" : ""}
-                      </strong>
-                      <small className="chat-card-preview">{chat.lastMessage || "No messages yet"}</small>
+        <div className="chat-list-container">
+          {isLoadingChats ? (
+            <p>Loading private chats...</p>
+          ) : privateChats.length === 0 ? (
+            <p>No private chats available</p>
+          ) : (
+            privateChats.map((chat) => {
+              const lastTs = chat.lastUpdated;
+              const { dateStr, timeStr } = formatTimestamp(lastTs);
+              const anonName = anonNames[chat.id] || "Loading...";
+              return (
+                <div
+                  key={chat.id}
+                  className={`chat-card ${activeChatId === chat.id ? "selected" : ""}`}
+                  onClick={() => joinPrivateChat(chat.id)}
+                >
+                  <div className="chat-card-inner">
+                    <div className="chat-avater-content">
+                      <span className="therapist-avatar">{anonName[0] || "A"}</span>
+                      <div className="chat-card-content">
+                        <strong className="chat-card-title">
+                          {anonName} {chat.needsTherapist ? "(Needs Therapist)" : ""}
+                        </strong>
+                        <small className="chat-card-preview">{chat.lastMessage || "No messages yet"}</small>
+                      </div>
+                    </div>
+                    <div className="chat-card-meta">
+                      {lastTs ? (
+                        <div className="message-timestamp">
+                          <span className="meta-date">{dateStr}</span>
+                          <span className="meta-time">{timeStr}</span>
+                        </div>
+                      ) : null}
+                      {chat.unreadCountForTherapist > 0 && (
+                        <span className="unread-badge">{chat.unreadCountForTherapist}</span>
+                      )}
                     </div>
                   </div>
-                  <div className="chat-card-meta">
-                    {lastTs ? (
-                      <div className="message-timestamp">
-                        <span className="meta-date">{dateStr}</span>
-                        <span className="meta-time">{timeStr}</span>
-                      </div>
-                    ) : null}
-                    {chat.unreadCountForTherapist > 0 && (
-                      <span className="unread-badge">{chat.unreadCountForTherapist}</span>
-                    )}
-                  </div>
                 </div>
-              </div>
-            );
-          })
-        )}
+              );
+            })
+          )}
+        </div>
       </div>
       <div className="chat-box-container">
         {activeChatId ? (

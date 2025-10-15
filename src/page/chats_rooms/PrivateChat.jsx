@@ -235,7 +235,7 @@ function PrivateChat({ chatId }) {
     return () => {
       localStorage.setItem(`privateChat_${chatId}`, JSON.stringify(messages));
     };
-  }, [chatId]);
+  }, [chatId, messages]);
 
   // Initial AI offer
   useEffect(() => {

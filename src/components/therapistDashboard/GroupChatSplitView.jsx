@@ -49,48 +49,50 @@ function GroupChatSplitView({
 
   return (
     <div className="split-chat-container">
-      <div className="chat-list-container">
+      <div className="chat-box-card">
         <h3>Group Chats</h3>
-        {isLoadingChats ? (
-          <p>Loading group chats...</p>
-        ) : groupChats.length === 0 ? (
-          <p>No group chats available</p>
-        ) : (
-          groupChats.map((group) => {
-            const lastTs = group.lastMessage?.timestamp;
-            const { dateStr, timeStr } = formatTimestamp(lastTs);
-            return (
-              <div
-                key={group.id}
-                className={`chat-card ${activeGroupId === group.id ? "selected" : ""}`}
-                onClick={() => joinGroupChat(group.id)}
-              >
-                <div className="chat-card-inner">
-                  <div className="chat-avater-content">
-                    <span className="therapist-avatar">{group.name?.[0] || "U"}</span>
-                    <div className="chat-card-content">
-                      <strong className="chat-card-title">{group.name || "Unnamed Group"}</strong>
-                      <small className="chat-card-preview">
-                        {group.lastMessage
-                          ? `${group.lastMessage.displayName || "Anonymous"}: ${group.lastMessage.text}`
-                          : "No messages yet"}
-                      </small>
+        <div className="chat-list-container">
+          {isLoadingChats ? (
+            <p>Loading group chats...</p>
+          ) : groupChats.length === 0 ? (
+            <p>No group chats available</p>
+          ) : (
+            groupChats.map((group) => {
+              const lastTs = group.lastMessage?.timestamp;
+              const { dateStr, timeStr } = formatTimestamp(lastTs);
+              return (
+                <div
+                  key={group.id}
+                  className={`chat-card ${activeGroupId === group.id ? "selected" : ""}`}
+                  onClick={() => joinGroupChat(group.id)}
+                >
+                  <div className="chat-card-inner">
+                    <div className="chat-avater-content">
+                      <span className="therapist-avatar">{group.name?.[0] || "U"}</span>
+                      <div className="chat-card-content">
+                        <strong className="chat-card-title">{group.name || "Unnamed Group"}</strong>
+                        <small className="chat-card-preview">
+                          {group.lastMessage
+                            ? `${group.lastMessage.displayName || "Anonymous"}: ${group.lastMessage.text}`
+                            : "No messages yet"}
+                        </small>
+                      </div>
+                    </div>
+                    <div className="chat-card-meta">
+                      {lastTs ? (
+                        <div className="message-timestamp">
+                          <span className="meta-date">{dateStr}</span>
+                          <span className="meta-time">{timeStr}</span>
+                        </div>
+                      ) : null}
+                      {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
                     </div>
                   </div>
-                  <div className="chat-card-meta">
-                    {lastTs ? (
-                      <div className="message-timestamp">
-                        <span className="meta-date">{dateStr}</span>
-                        <span className="meta-time">{timeStr}</span>
-                      </div>
-                    ) : null}
-                    {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
-                  </div>
-                </div>
               </div>
             );
-          })
-        )}
+            })
+          )}
+        </div>
       </div>
       <div className="chat-box-container">
         {activeGroupId && isGroupChatOpen && inGroupChat ? (
