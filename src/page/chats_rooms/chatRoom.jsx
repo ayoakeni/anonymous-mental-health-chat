@@ -235,7 +235,8 @@ function Chatroom() {
 
   // Fetch therapist name with real-time updates
   useEffect(() => {
-    if (!auth.currentUser?.email) return;
+    if (!auth.currentUser?.email || !auth.currentUser.uid) return;
+
     const therapistRef = doc(db, "therapists", auth.currentUser.uid);
     const unsubscribe = onSnapshot(
       therapistRef,
@@ -254,8 +255,10 @@ function Chatroom() {
         }
       }
     );
+
     return () => unsubscribe();
-  }, [auth.currentUser?.uid]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.currentUser?.email]);
 
   // Track therapist login
   useEffect(() => {

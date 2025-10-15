@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, memo } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation, Routes, Route, useParams } from "react-router-dom";
 import { db, auth, Timestamp, storage, ref, uploadBytes, getDownloadURL } from "../utils/firebase";
 import {
@@ -15,9 +15,7 @@ import {
   where,
   limit,
   runTransaction,
-  getDocs,
-  updateDoc,
-  deleteDoc,
+  getDocs
 } from "firebase/firestore";
 import { debounce } from "lodash";
 import { signOut } from "firebase/auth";
@@ -71,7 +69,7 @@ function TherapistDashboard() {
   const privateMessagesEndRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { chatId, Complexes } = useParams();
+  const { chatId } = useParams();
 
   // Helper to format timestamp (client-side)
   const formatTimestamp = (fbTimestamp) => {
