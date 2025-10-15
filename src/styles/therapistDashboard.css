@@ -485,7 +485,7 @@
 .chat-box-card {
   flex: 1;
   max-width: 350px;
-  padding: 20px;
+  padding: 20px 0;
   background: var(--chat-bg);
   border-right: 1px solid var(--input-border);
   box-shadow: var(--shadow);
