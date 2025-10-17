@@ -450,12 +450,11 @@
 /* EmojiPicker box */
 .therapist-dashboard .chat-input aside {
   position: absolute;
-  left: 85px;
-  bottom: 94px;
+  left: 250px;
+  bottom: 65px;
 }
 
-.therapist-dashboard .chat-input .inputInsert,
-.therapist-dashboard .chat-input input {
+.therapist-dashboard .chat-input .inputInsert {
   flex: 1;
   width: 100%;
   padding: 12px;
