@@ -19,6 +19,7 @@ import { mapMessagesForAI } from "../../utils/aiMessageMapper";
 import { loginAnonymously, getAnonName } from "../../login/anonymous_login";
 import TherapistProfile from "../../components/TherapistProfile";
 import { useTypingStatus } from "../../components/useTypingStatus";
+import { getTimestampMillis, formatMessageTime } from "../../components/timestampUtils";
 import EmojiPicker from "emoji-picker-react";
 import "../../styles/chatroom.css";
 
@@ -533,13 +534,11 @@ function Chatroom() {
 
   // Check therapist online by uid
   const isTherapistOnline = (uid) =>
-    therapistsOnline.some((t) => t.uid === uid && t.online);
+  therapistsOnline.some((t) => t.uid === uid && t.online);
 
-  // Combine messages and events
+  // Combine with safe sort
   const combinedChat = [...messages, ...groupEvents].sort((a, b) => {
-    const t1 = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
-    const t2 = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
-    return t1 - t2;
+    return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
   });
 
   return (
@@ -687,10 +686,7 @@ function Chatroom() {
                           </a>
                         )}
                         <span className="message-timestamp">
-                          {msg.timestamp?.toDate().toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {formatMessageTime(msg.timestamp)}
                         </span>
                         <span className="message-reactions">
                           <i

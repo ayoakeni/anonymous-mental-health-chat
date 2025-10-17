@@ -1,4 +1,5 @@
 import React, { memo } from "react";
+import { formatMessageTime } from "../../components/timestampUtils";
 
 const ChatMessage = memo(({ msg, toggleReaction, deleteMessage, therapistInfo, handleTherapistClick }) => (
   <p
@@ -27,7 +28,7 @@ const ChatMessage = memo(({ msg, toggleReaction, deleteMessage, therapistInfo, h
         </a>
       )}
       <span className="message-timestamp">
-        {msg.timestamp?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        {formatMessageTime(msg.timestamp)}
       </span>
       <span className="message-reactions">
         <i

@@ -24,6 +24,7 @@ import { useTypingStatus } from "../components/useTypingStatus";
 import GroupChatSplitView from "../components/therapistDashboard/GroupChatSplitView";
 import PrivateChatSplitView from "../components/therapistDashboard/PrivateChatSplitView";
 import useNotificationSound from '../components/useNotificationSound';
+import { getTimestampMillis, formatTimestamp } from "../components/timestampUtils";
 import "../styles/therapistDashboard.css";
 
 function TherapistDashboard() {
@@ -1013,18 +1014,13 @@ function TherapistDashboard() {
     }
   };
 
-  // Combine private messages and events
+  // Combines use getTimestampMillis
   const combinedPrivateChat = [...privateMessages, ...privateEvents].sort((a, b) => {
-    const t1 = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
-    const t2 = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
-    return t1 - t2;
+    return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
   });
 
-  // Combine group messages and events
   const combinedGroupChat = [...messages, ...groupEvents].sort((a, b) => {
-    const t1 = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
-    const t2 = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
-    return t1 - t2;
+    return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
   });
 
   return (

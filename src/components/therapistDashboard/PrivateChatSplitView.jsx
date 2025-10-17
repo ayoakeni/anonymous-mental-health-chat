@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { formatMessageTime } from "../../components/timestampUtils";
 import LeaveChatButton from "../LeaveChatButton";
 import "../../styles/privateChat.css"
 
@@ -138,7 +139,7 @@ function PrivateChatSplitView({
                       </>
                     )}
                     <span className="message-timestamp">
-                      {msg.timestamp?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {formatMessageTime(msg.timestamp)}
                     </span>
                   </p>
                 ))}

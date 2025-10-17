@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import ChatMessage from "./ChatMessage";
+import { formatTimestamp } from "../../components/timestampUtils";
 import EmojiPicker from "emoji-picker-react";
 import LeaveChatButton from "../LeaveChatButton";
 

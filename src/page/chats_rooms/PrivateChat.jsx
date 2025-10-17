@@ -40,50 +40,46 @@ function PrivateChat({ chatId }) {
   const [chatData, setChatData] = useState(null);
   const [chatLoaded, setChatLoaded] = useState(false);
   const [therapistsLoaded, setTherapistsLoaded] = useState(false);
-  const [prevParticipants, setPrevParticipants] = useState([]);
-  const [hasOfferedNoTherapist, setHasOfferedNoTherapist] = useState(false);
-  const [lastJoinEvent, setLastJoinEvent] = useState(null);
-  const [lastLeaveEvent, setLastLeaveEvent] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [file, setFile] = useState(null);
   const playNotification = useNotificationSound();
   const prevMessagesRef = useRef([]);
   const messagesEndRef = useRef(null);
-  const noJoinTimerRef = useRef(null);
   const navigate = useNavigate();
+
+  // Refs to track previous values without causing re-renders
+  const prevParticipantsRef = useRef([]);
+  const lastJoinEventRef = useRef(null);
+  const lastLeaveEventRef = useRef(null);
+  const hasOfferedNoTherapistRef = useRef(false);
+  const userIdRef = useRef(auth.currentUser?.uid);
+
+  // Update userIdRef if auth changes (rare, but safe)
+  useEffect(() => {
+    userIdRef.current = auth.currentUser?.uid;
+  }, [auth.currentUser?.uid]);
 
   // Auto-scroll chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, events]);
 
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (noJoinTimerRef.current) {
-        clearTimeout(noJoinTimerRef.current);
-        noJoinTimerRef.current = null;
-      }
-    };
-  }, []);
-
-  // Utils: Safely convert timestamp to Date (handles Firestore Timestamp, Date, millis, or null)
+  // Utils: Safely convert timestamp to Date
   const getMessageDate = (timestamp) => {
     if (!timestamp) return null;
     if (typeof timestamp.toDate === 'function') {
-      return timestamp.toDate();  // Firestore Timestamp
+      return timestamp.toDate();
     }
     if (timestamp instanceof Date) {
       return timestamp;
     }
     if (typeof timestamp === 'number') {
-      return new Date(timestamp);  // Millis
+      return new Date(timestamp);
     }
     if (timestamp.seconds != null) {
-      // Firestore Timestamp literal (seconds/nanoseconds)
-      return new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
+      return new Date(timestamp.seconds * 1000 + Math.floor(timestamp.nanoseconds / 1000000));
     }
-    return null;  // Fallback
+    return null;
   };
 
   const formatMessageTime = (timestamp) => {
@@ -115,22 +111,27 @@ function PrivateChat({ chatId }) {
     return () => unsub();
   }, [chatId]);
 
-  // Watch messages
+  // Watch messages (fixed for instant local updates)
   useEffect(() => {
     if (!chatId) return;
     const chatRef = doc(db, "privateChats", chatId);
     const q = query(collection(chatRef, "messages"), orderBy("timestamp"), limit(50));
-    const unsubscribeMessages = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      // Detect new messages (compare IDs to avoid duplicates/initial load)
-      const newMsgs = msgs.filter(
-        (msg) => !prevMessagesRef.current.some((prev) => prev.id === msg.id)
-      );
-
+    const unsubscribeMessages = onSnapshot(q, {
+      includeMetadataChanges: true
+    }, (snapshot) => {
+      const msgs = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
       setMessages(msgs);
       prevMessagesRef.current = msgs;
 
-      if (newMsgs.length > 0) {
+      // Notify only on remote adds
+      const newRemoteMsgs = snapshot.docChanges().filter(change => 
+        change.type === 'added' && !change.doc.metadata.hasPendingWrites
+      );
+      if (newRemoteMsgs.length > 0) {
         playNotification();
       }
     }, (err) => {
@@ -155,7 +156,7 @@ function PrivateChat({ chatId }) {
     return () => unsubscribeEvents();
   }, [chatId]);
 
-  // Watch chat document
+  // Watcher: Only set chat data (no transactions or state that triggers loops)
   useEffect(() => {
     if (!chatId) return;
     const chatRef = doc(db, "privateChats", chatId);
@@ -169,144 +170,130 @@ function PrivateChat({ chatId }) {
       setAiEnabled(data.aiActive || false);
       setChatLoaded(true);
 
-      const currentParticipants = data.participants || [];
-      const userId = auth.currentUser?.uid;
-      const prevSet = new Set(prevParticipants);
-      const currentSet = new Set(currentParticipants);
-      const now = Date.now();
-      const lastJoinEventTime = data.lastJoinEvent || 0;
-      const lastLeaveEventTime = data.lastLeaveEvent || 0;
-
-      const therapistJoined = currentParticipants.some(
-        (uid) => uid !== userId && !prevSet.has(uid)
-      );
-      const therapistLeft = prevParticipants.some(
-        (uid) => uid !== userId && !currentSet.has(uid)
-      );
-
-      if (therapistJoined && (!lastJoinEvent || now - lastJoinEvent > 2000) && now > lastJoinEventTime) {
-        runTransaction(db, async (transaction) => {
-          const chatSnap = await transaction.get(chatRef);
-          if (!chatSnap.exists()) throw new Error("Chat document does not exist");
-          transaction.update(chatRef, {
-            therapistJoinedOnce: true,
-            aiActive: false,
-            aiOffered: false,
-            lastJoinEvent: now,
-            needsTherapist: true,
-          });
-          const unreadQuery = query(collection(chatRef, "messages"), where("read", "==", false));
-          const unreadSnap = await getDocs(unreadQuery);
-          unreadSnap.forEach((doc) => {
-            transaction.update(doc.ref, { read: true });
-          });
-          transaction.set(doc(collection(chatRef, "events")), {
-            type: "join",
-            user: "Therapist",
-            text: "A therapist has joined. You can now continue your conversation with them.",
-            role: "system",
-            timestamp: serverTimestamp(),
-          });
-        }).catch((err) => {
-          console.error("Error updating on join:", err);
-          alert("Failed to process therapist join event. Please try again.");
-        });
-        setLastJoinEvent(now);
-        setHasOfferedNoTherapist(false);
-      }
-
-      if (
-        therapistLeft &&
-        data.therapistJoinedOnce &&
-        (!lastLeaveEvent || now - lastLeaveEvent > 2000) &&
-        now > lastLeaveEventTime &&
-        !data.lastLeaveAiOffered
-      ) {
-        runTransaction(db, async (transaction) => {
-          const chatSnap = await transaction.get(chatRef);
-          if (!chatSnap.exists()) throw new Error("Chat document does not exist");
-          transaction.set(doc(collection(chatRef, "messages")), {
-            text: "Your therapist has left the chat. Would you like to continue chatting with our support assistant?",
-            role: "system",
-            type: "ai-offer",
-            timestamp: serverTimestamp(),
-          });
-          transaction.update(chatRef, {
-            aiOffered: true,
-            therapistJoinedOnce: false,
-            lastLeaveEvent: now,
-            lastLeaveAiOffered: now,
-            needsTherapist: true,
-          });
-        }).catch((err) => {
-          console.error("Error updating on leave:", err);
-          alert("Failed to process therapist leave event. Please try again.");
-        });
-        setLastLeaveEvent(now);
-      }
-
-      // Only update prevParticipants if it has actually changed
-      if (JSON.stringify(prevParticipants) !== JSON.stringify(currentParticipants)) {
-        setPrevParticipants(currentParticipants);
-      }
+      prevParticipantsRef.current = data.participants || [];
     }, (err) => {
       console.error("Error fetching chat data:", err);
       navigate("/chat-room");
     });
     return () => unsubscribeChat();
-  }, [chatId, navigate, prevParticipants, lastJoinEvent, lastLeaveEvent]);
+  }, [chatId, navigate]);
 
-  // Chat History Persistence
+  // Consolidated Logic: Handle join/leave detection, transactions, AND initial AI offer
   useEffect(() => {
-    if (!chatId) return;
-    const saved = localStorage.getItem(`privateChat_${chatId}`);
-    if (saved) {
-      const savedHistory = JSON.parse(saved).map(msg => ({
-        ...msg,
-        timestamp: msg.timestamp ? { seconds: msg.timestamp.seconds, nanoseconds: msg.timestamp.nanoseconds } : null
-      }));
-      setMessages(prev => [...savedHistory, ...prev.filter(m => !savedHistory.some(s => s.id === m.id))]);
-    }
-    return () => {
-      const toSave = messages.map(msg => ({
-        ...msg,
-        timestamp: msg.timestamp ? { seconds: msg.timestamp.toDate().getTime() / 1000, nanoseconds: 0 } : null  // Or use getMessageDate
-      }));
-      localStorage.setItem(`privateChat_${chatId}`, JSON.stringify(toSave));
-    };
-  }, [chatId, messages]);
+    if (!chatLoaded || !chatData || !therapistsLoaded) return;
 
-  // Initial AI offer
-  useEffect(() => {
-    if (!chatLoaded || !therapistsLoaded || !chatData || hasOfferedNoTherapist || messages.length === 0) return;
-    const { participants, aiOffered, therapistJoinedOnce, needsTherapist } = chatData;
-    const therapistPresent = participants.some((uid) => uid !== auth.currentUser?.uid);
-    if (!therapistPresent && !aiOffered && !therapistJoinedOnce && needsTherapist && !isTherapistAvailable) {
-      const offerAI = async () => {
-        setHasOfferedNoTherapist(true);
-        const chatRef = doc(db, "privateChats", chatId);
-        try {
-          await runTransaction(db, async (transaction) => {
-            const chatSnap = await transaction.get(chatRef);
-            if (!chatSnap.exists()) throw new Error("Chat document does not exist");
-            transaction.update(chatRef, { aiOffered: true, needsTherapist: true });
-            transaction.set(doc(collection(chatRef, "messages")), {
-              text: "No therapist is online right now. Would you like to chat with our support assistant while you wait?",
-              role: "system",
-              type: "ai-offer",
-              timestamp: serverTimestamp(),
-            });
-          });
-        } catch (err) {
-          console.error("Error offering AI:", err);
-          alert("Failed to offer AI assistant. Please try again.");
-        }
-      };
-      offerAI();
-    }
-  }, [chatLoaded, therapistsLoaded, chatData, hasOfferedNoTherapist, isTherapistAvailable, chatId, messages]);
+    const currentParticipants = chatData.participants || [];
+    const userId = userIdRef.current;
+    const prevSet = new Set(prevParticipantsRef.current);
+    const currentSet = new Set(currentParticipants);
+    const now = Date.now();
+    const lastJoinEventTime = chatData.lastJoinEvent || 0;
+    const lastLeaveEventTime = chatData.lastLeaveEvent || 0;
 
-  // Combine messages and events
+    const therapistJoined = currentParticipants.some(
+      (uid) => uid !== userId && !prevSet.has(uid)
+    );
+    const therapistLeft = prevParticipantsRef.current.some(
+      (uid) => uid !== userId && !currentSet.has(uid)
+    );
+    const therapistPresent = currentParticipants.some((uid) => uid !== userId);
+
+    // Handle therapist join
+    if (therapistJoined && now - (lastJoinEventRef.current || 0) > 2000 && now > lastJoinEventTime) {
+      const chatRef = doc(db, "privateChats", chatId);
+      runTransaction(db, async (transaction) => {
+        const chatSnap = await transaction.get(chatRef);
+        if (!chatSnap.exists()) throw new Error("Chat document does not exist");
+        transaction.update(chatRef, {
+          therapistJoinedOnce: true,
+          aiActive: false,
+          aiOffered: false,
+          lastJoinEvent: now,
+          needsTherapist: true,
+        });
+        const unreadQuery = query(collection(chatRef, "messages"), where("read", "==", false));
+        const unreadSnap = await getDocs(unreadQuery);
+        unreadSnap.forEach((doc) => {
+          transaction.update(doc.ref, { read: true });
+        });
+        transaction.set(doc(collection(chatRef, "events")), {
+          type: "join",
+          user: "Therapist",
+          text: "A therapist has joined. You can now continue your conversation with them.",
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
+      }).catch((err) => {
+        console.error("Error updating on join:", err);
+        alert("Failed to process therapist join event. Please try again.");
+      });
+      lastJoinEventRef.current = now;
+      hasOfferedNoTherapistRef.current = false;
+    }
+
+    // Handle therapist leave
+    if (
+      therapistLeft &&
+      chatData.therapistJoinedOnce &&
+      now - (lastLeaveEventRef.current || 0) > 2000 &&
+      now > lastLeaveEventTime &&
+      !chatData.lastLeaveAiOffered
+    ) {
+      const chatRef = doc(db, "privateChats", chatId);
+      runTransaction(db, async (transaction) => {
+        const chatSnap = await transaction.get(chatRef);
+        if (!chatSnap.exists()) throw new Error("Chat document does not exist");
+        transaction.set(doc(collection(chatRef, "messages")), {
+          text: "Your therapist has left the chat. Would you like to continue chatting with our support assistant?",
+          role: "system",
+          type: "ai-offer",
+          timestamp: serverTimestamp(),
+        });
+        transaction.update(chatRef, {
+          aiOffered: true,
+          therapistJoinedOnce: false,
+          lastLeaveEvent: now,
+          lastLeaveAiOffered: now,
+          needsTherapist: true,
+        });
+      }).catch((err) => {
+        console.error("Error updating on leave:", err);
+        alert("Failed to process therapist leave event. Please try again.");
+      });
+      lastLeaveEventRef.current = now;
+    }
+
+    // Handle initial AI offer if no therapist
+    const { aiOffered, therapistJoinedOnce, needsTherapist } = chatData;
+    if (
+      messages.length > 0 &&
+      !therapistPresent &&
+      !aiOffered &&
+      !therapistJoinedOnce &&
+      needsTherapist &&
+      !isTherapistAvailable &&
+      !hasOfferedNoTherapistRef.current
+    ) {
+      hasOfferedNoTherapistRef.current = true;
+      const chatRef = doc(db, "privateChats", chatId);
+      runTransaction(db, async (transaction) => {
+        const chatSnap = await transaction.get(chatRef);
+        if (!chatSnap.exists()) throw new Error("Chat document does not exist");
+        transaction.update(chatRef, { aiOffered: true, needsTherapist: true });
+        transaction.set(doc(collection(chatRef, "messages")), {
+          text: "No therapist is online right now. Would you like to chat with our support assistant while you wait?",
+          role: "system",
+          type: "ai-offer",
+          timestamp: serverTimestamp(),
+        });
+      }).catch((err) => {
+        console.error("Error offering AI:", err);
+        alert("Failed to offer AI assistant. Please try again.");
+      });
+    }
+  }, [chatLoaded, chatData, therapistsLoaded, isTherapistAvailable, chatId, messages.length]);
+
+  // Combine messages and events (no caching)
   const combinedChat = [...messages, ...events].sort((a, b) => {
     return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
   });
@@ -671,7 +658,7 @@ function PrivateChat({ chatId }) {
       {selectedTherapist && (
         <div className="therapist-profile-card">
           <button onClick={() => setSelectedTherapist(null)} disabled={isSending || aiTyping}>
-            ⬅ Back
+            Back
           </button>
           <h4>{selectedTherapist.name}</h4>
           <p>{selectedTherapist.profile}</p>
