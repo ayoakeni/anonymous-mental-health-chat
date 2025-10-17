@@ -289,7 +289,7 @@
 }
 
 .therapist-dashboard .group-chat-box .onlineStatus,
-.therapist-dashboard .private-chat-box- .onlineStatus {
+.therapist-dashboard .private-chat-box .onlineStatus {
   font-size: 1.2rem;
   color: var(--text-color);
 }

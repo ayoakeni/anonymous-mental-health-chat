@@ -333,7 +333,7 @@ function Chatroom() {
         if (!chatSnap.exists()) {
           transaction.set(chatRef, {
             participants: [auth.currentUser.uid],
-            createdBy: auth.currentUser.uid,
+            createdBy: displayName,
             lastMessage: "",
             lastUpdated: serverTimestamp(),
             unreadCountForTherapist: 0,

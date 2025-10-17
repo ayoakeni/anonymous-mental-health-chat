@@ -161,7 +161,7 @@ function PrivateChat({ chatId }) {
     return () => unsubscribeMessages();
   }, [chatId, playNotification, messages.length]);
 
-  // Watch events (unchanged)
+  // Watch events
   useEffect(() => {
     if (!chatId) return;
     const chatRef = doc(db, "privateChats", chatId);
