@@ -113,7 +113,7 @@ function PrivateChat({ chatId }) {
     return () => unsub();
   }, [chatId]);
 
-  // Watch messages (updated for incremental remote updates + metadata)
+  // Watch messages (only incremental for remote, no full set on every snapshot)
   useEffect(() => {
     if (!chatId) return;
     const chatRef = doc(db, "privateChats", chatId);
@@ -121,39 +121,45 @@ function PrivateChat({ chatId }) {
     const unsubscribeMessages = onSnapshot(q, {
       includeMetadataChanges: true
     }, (snapshot) => {
-      // Handle incremental changes for remote adds only
+      // Only handle incremental changes; rely on optimistic for local
+      let hasRemoteChange = false;
       snapshot.docChanges().forEach((change) => {
+        const msgData = change.doc.data();
+        const newMsg = { id: change.doc.id, ...msgData };
         if (change.type === 'added' && !change.doc.metadata.hasPendingWrites) {
-          const newMsg = { id: change.doc.id, ...change.doc.data() };
+          hasRemoteChange = true;
           setMessages((prev) => {
-            // Avoid duplicates from optimistic (check by temp ID or content)
-            const exists = prev.some((m) => m.id === newMsg.id || (m.optimistic && m.text === newMsg.text));
-            return exists ? prev : [...prev, newMsg];
+            // Remove optimistic match if exists (by text + role + userId approx)
+            const filtered = prev.filter((m) => !(m.optimistic && m.text === newMsg.text && m.role === newMsg.role));
+            // Add real if not already (by id)
+            const exists = filtered.some((m) => m.id === newMsg.id);
+            return exists ? filtered : [...filtered, newMsg];
           });
-          playNotification();
-        } else if (change.type === 'modified') {
-          const updatedMsg = { id: change.doc.id, ...change.doc.data() };
-          setMessages((prev) => prev.map((m) => (m.id === updatedMsg.id ? updatedMsg : m)));
+        } else if (change.type === 'modified' && !change.doc.metadata.hasPendingWrites) {
+          hasRemoteChange = true;
+          setMessages((prev) => prev.map((m) => (m.id === newMsg.id ? newMsg : m)));
         }
+        // Ignore removed or local pending
       });
-
-      // Optional: Full sync on initial load or metadata changes
-      if (snapshot.metadata.hasPendingWrites) {
-        return;
+      if (hasRemoteChange) {
+        playNotification();
       }
-      // Full set only if needed (e.g., initial load); otherwise incremental above suffices
-      const msgs = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setMessages(msgs);
-      prevMessagesRef.current = msgs;
+
+      // Initial load: if no messages yet (empty snapshot.docs on first call)
+      if (messages.length === 0 && snapshot.docs.length > 0 && !snapshot.metadata.fromCache) {
+        const msgs = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setMessages(msgs);
+        prevMessagesRef.current = msgs;
+      }
     }, (err) => {
       console.error("Error fetching messages:", err);
       alert("Failed to load messages. Please try again.");
     });
     return () => unsubscribeMessages();
-  }, [chatId, playNotification]);
+  }, [chatId, playNotification, messages.length]);
 
   // Watch events (unchanged)
   useEffect(() => {
@@ -332,12 +338,13 @@ function PrivateChat({ chatId }) {
         fileUrl = await getDownloadURL(storageRef);
       }
       let messageText = newMessage;
-      if (role === "user" && newMessage.toLowerCase().includes("@ai")) {
+      const isAiTrigger = role === "user" && newMessage.toLowerCase().includes("@ai");
+      if (isAiTrigger) {
         messageText = `You said: "${newMessage.replace(/@ai/gi, "").trim()}"\n\n`;
       }
 
       // Optimistic update data
-      const optimisticId = `optimistic-${Date.now()}`;
+      const optimisticId = `optimistic-${Date.now()}-${Math.random()}`; // More unique
       const clientTimestamp = Timestamp.now();
       const optimisticMessage = {
         id: optimisticId,
@@ -382,21 +389,24 @@ function PrivateChat({ chatId }) {
       setFile(null);
       setIsSending(false);
 
+      // AI logic (uses messages incl optimistic, but mapMessagesForAI likely filters)
       const chatSnap = await getDoc(chatRef);
       if (!chatSnap.exists()) {
         navigate("/chat-room");
+        aiTyping && setAiTyping(false);
         return;
       }
       const data = chatSnap.data();
       const therapistInChat = data.participants?.some((uid) => uid !== auth.currentUser?.uid) || false;
-      if (newMessage.toLowerCase().includes("@ai") && !therapistInChat) {
+
+      if ((isAiTrigger || data.aiActive) && !therapistInChat) {
         try {
           setAiTyping(true);
-          const aiInputMessages = mapMessagesForAI(messages);
-          const aiResponse = await getAIResponse(userMessage, aiInputMessages);
+          const aiInputMessages = mapMessagesForAI(messages); // May include optimistic, but should be fine if mapper handles
+          const aiResponse = await getAIResponse(userMessage || "Continue", aiInputMessages);
 
           // Optimistic AI message
-          const optimisticAiId = `optimistic-ai-${Date.now()}`;
+          const optimisticAiId = `optimistic-ai-${Date.now()}-${Math.random()}`;
           const optimisticAiMessage = {
             id: optimisticAiId,
             text: `You said: "${userMessage}"\n\n${aiResponse}`,
@@ -423,52 +433,15 @@ function PrivateChat({ chatId }) {
           });
         } catch (err) {
           console.error("AI response error:", err);
-          await runTransaction(db, async (transaction) => {
-            const chatSnap = await transaction.get(chatRef);
-            if (!chatSnap.exists()) throw new Error("Chat document does not exist");
-            transaction.set(doc(collection(chatRef, "messages")), {
-              text: "Sorry, I couldn’t respond right now. Please wait for a therapist.",
-              role: "system",
-              timestamp: serverTimestamp(),
-            });
-          });
-        } finally {
-          setAiTyping(false);
-        }
-      } else if (data.aiActive && !therapistInChat) {
-        try {
-          setAiTyping(true);
-          const aiInputMessages = mapMessagesForAI(messages);
-          const aiResponse = await getAIResponse(userMessage, aiInputMessages);
-
-          // Optimistic AI message
-          const optimisticAiId = `optimistic-ai-${Date.now()}`;
-          const optimisticAiMessage = {
-            id: optimisticAiId,
-            text: `You said: "${userMessage}"\n\n${aiResponse}`,
-            role: "ai",
-            displayName: "Support Assistant",
+          // Optimistic error message
+          const errorId = `optimistic-error-${Date.now()}`;
+          setMessages((prev) => [...prev, {
+            id: errorId,
+            text: "Sorry, I couldn’t respond right now. Please wait for a therapist.",
+            role: "system",
             timestamp: Timestamp.now(),
-            fileUrl: null,
-            reactions: {},
             optimistic: true,
-          };
-          setMessages((prev) => [...prev, optimisticAiMessage]);
-
-          await runTransaction(db, async (transaction) => {
-            const chatSnap = await transaction.get(chatRef);
-            if (!chatSnap.exists()) throw new Error("Chat document does not exist");
-            transaction.set(doc(collection(chatRef, "messages")), {
-              text: `You said: "${userMessage}"\n\n${aiResponse}`,
-              role: "ai",
-              displayName: "Support Assistant",
-              timestamp: serverTimestamp(),
-              fileUrl: null,
-              reactions: {},
-            });
-          });
-        } catch (err) {
-          console.error("AI response error:", err);
+          }]);
           await runTransaction(db, async (transaction) => {
             const chatSnap = await transaction.get(chatRef);
             if (!chatSnap.exists()) throw new Error("Chat document does not exist");
@@ -486,14 +459,29 @@ function PrivateChat({ chatId }) {
       console.error("Error sending message:", err);
       alert("Failed to send message. Please try again.");
       setIsSending(false);
+      // Remove last optimistic on error
+      setMessages((prev) => prev.filter((m) => !m.optimistic || m.id !== prev[prev.length - 1]?.id));
     }
   };
 
-  // Handle AI choice
+  // Handle AI choice - add optimistic for user choice and system
   const handleAiChoice = async (choice) => {
     const chatRef = doc(db, "privateChats", chatId);
     const userDisplayName = getAnonName();
     try {
+      // Optimistic user choice
+      const optChoiceId = `opt-choice-${Date.now()}`;
+      setMessages((prev) => [...prev, {
+        id: optChoiceId,
+        text: choice === "yes" ? "Yes" : "No",
+        userId: auth.currentUser.uid,
+        displayName: userDisplayName,
+        role: "user",
+        timestamp: Timestamp.now(),
+        read: false,
+        optimistic: true,
+      }]);
+
       await runTransaction(db, async (transaction) => {
         const chatSnap = await transaction.get(chatRef);
         if (!chatSnap.exists()) throw new Error("Chat document does not exist");
@@ -512,6 +500,15 @@ function PrivateChat({ chatId }) {
             role: "system",
             timestamp: serverTimestamp(),
           });
+          // Optimistic system
+          const optSystemId = `opt-system-${Date.now()}`;
+          setMessages((prev) => [...prev, {
+            id: optSystemId,
+            text: "You are now chatting with our support assistant until a therapist joins.",
+            role: "system",
+            timestamp: Timestamp.now(),
+            optimistic: true,
+          }]);
           try {
             setAiTyping(true);
             const aiInputMessages = mapMessagesForAI(messages);
@@ -522,6 +519,16 @@ function PrivateChat({ chatId }) {
               displayName: "Support Assistant",
               timestamp: serverTimestamp(),
             });
+            // Optimistic AI
+            const optAiId = `opt-ai-${Date.now()}`;
+            setMessages((prev) => [...prev, {
+              id: optAiId,
+              text: aiResponse,
+              role: "ai",
+              displayName: "Support Assistant",
+              timestamp: Timestamp.now(),
+              optimistic: true,
+            }]);
           } catch (err) {
             console.error("AI response error:", err);
             transaction.set(doc(collection(chatRef, "messages")), {
@@ -543,6 +550,8 @@ function PrivateChat({ chatId }) {
     } catch (err) {
       console.error("Error handling AI choice:", err);
       alert("Failed to process AI choice. Please try again.");
+      // Remove optimistics on error
+      setMessages((prev) => prev.filter((m) => !m.optimistic));
     } finally {
       setAiTyping(false);
     }
