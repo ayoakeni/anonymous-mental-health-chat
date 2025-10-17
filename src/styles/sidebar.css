@@ -26,7 +26,7 @@
   top: 0;
   left: 0;
   bottom: 0;
-  padding: 20px;
+  padding: 10px;
   padding-right: 0;
   transition: width 0.3s ease-in-out, padding 0.3s ease-in-out;
   z-index: 1000;
@@ -35,8 +35,12 @@
 }
 
 .sidebar.closed {
-  width: 65px;
-  padding: 10px;
+  width: 69px;
+  padding-right: 10px;
+}
+
+.sidebar a:last-child {
+  width: fit-content;
 }
 
 .toggle-btn {
@@ -45,8 +49,8 @@
   color: var(--text-color);
   font-size: 24px;
   cursor: pointer;
-  padding: 10px;
-  margin-bottom: 20px;
+  padding: 10px 15px;
+  margin-bottom: 10px;
   align-self: flex-start;
   transition: color 0.2s;
 }
@@ -62,19 +66,31 @@
   flex: 1;
   height: 100vh;
   overflow-y: auto;
-}
-
-.sidebar.open .list {
-  padding-right: 20px;
+  overflow-x: hidden;
+  padding-right: 10px;
+  white-space: nowrap;
 }
 
 .sidebar.closed .list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  flex: 1;
+  height: 100vh;
   padding-right: 0;
-  align-items: center;
+  overflow-y: auto;
+  border-top: 1px solid #333;
+  border-bottom: 1px solid #333;
+  padding: 10px 0;
+  align-self: flex-start;
 }
 
 .sidebar .list::-webkit-scrollbar {
-  width: 8px;
+  width: 5px;
+}
+
+.sidebar.closed .list::-webkit-scrollbar {
+  width: 0px;
 }
 
 .sidebar .list::-webkit-scrollbar-track {
@@ -91,19 +107,36 @@
   color: inherit;
 }
 
-.list a:first-child {
+.sidebar.open .list a:first-child {
   border-top: 1px solid #333;
+  padding-top: 10px;
+}
+
+/* Tooltip for closed state */
+.sidebar.closed .list .logOut:hover::after,
+.sidebar.closed .list a:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 60px;
+  transform: translateY(-50%);
+  background: var(--primary-color);
+  color: var(--text-color);
+  padding: 5px 10px;
+  border-radius: var(--border-radius);
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 100;
+  box-shadow: var(--shadow);
 }
 
 .list .iconBadge {
   display: flex;
-  align-items: center;
+  align-items: cente;
   padding: 10px;
   border-radius: var(--border-radius);
   cursor: pointer;
   transition: background-color 0.2s;
   font-size: 16px;
-  /* position: relative; */
 }
 
 .sidebar.closed .list .iconBadge {
@@ -112,22 +145,6 @@
 
 .sidebar.closed .list .iconBadge .link-text {
   display: none;
-}
-
-/* Tooltip for closed state */
-.sidebar.closed .list .iconBadge:hover::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  left: 60px;
-  transform: translateY(-50%);
-  background: var(--sidebar-bg);
-  color: var(--text-color);
-  padding: 5px 10px;
-  border-radius: var(--border-radius);
-  font-size: 12px;
-  white-space: nowrap;
-  z-index: 100;
-  box-shadow: var(--shadow);
 }
 
 .list .iconBadge:hover,
@@ -186,11 +203,25 @@
 
 .divider {
   border-top: 1px solid #333;
-  margin: 10px 0;
+}
+
+.divider.closed {
+  border-top: 1px solid #333;
+  margin: 5px 0;
 }
 
 .sidebar.closed .divider {
   display: none;
+}
+
+.sidebar .logo-image {
+  height: 30px;
+  margin-top: 10px;
+  padding: 0 10px;
+}
+
+.sidebar.closed .logo-image {
+  margin-top: 15px;
 }
 
 @media (max-width: 768px) {

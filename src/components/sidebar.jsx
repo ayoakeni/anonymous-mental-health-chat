@@ -30,75 +30,69 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
         <i className={`fas ${isOpen ? 'fa-times' : 'fa-bars'}`}></i>
       </button>
       <div className="list">
-        <Link to="/therapist-dashboard">
+        <Link data-tooltip="Dashboard" to="/therapist-dashboard">
           <span
             role="button"
             aria-label="Dashboard"
             tabIndex="0"
             className={`iconBadge ${location.pathname === '/therapist-dashboard' ? 'active' : ''}`}
-            data-tooltip="Dashboard"
           >
             <i className="fas fa-home"></i>
             {isOpen && <span className="link-text">Dashboard</span>}
           </span>
         </Link>
-        <Link to="/therapist-dashboard/group-chat">
+        <Link data-tooltip="Group Chat" to="/therapist-dashboard/group-chat">
           <span
             role="button"
             aria-label="Group Chat"
             tabIndex="0"
             className={`iconBadge ${location.pathname === '/therapist-dashboard/group-chat' ? 'active' : ''}`}
-            data-tooltip="Group Chat"
           >
             <i className="fas fa-users"></i>
             {isOpen && <span className="link-text">Group Chat</span>}
             {groupUnreadCount > 0 && <span className="badge">{groupUnreadCount}</span>}
           </span>
         </Link>
-        <Link to="/therapist-dashboard/private-chat">
+        <Link data-tooltip="Private Chat" to="/therapist-dashboard/private-chat">
           <span
             role="button"
             aria-label="Private Chat"
             tabIndex="0"
             className={`iconBadge ${location.pathname === '/therapist-dashboard/private-chat' ? 'active' : ''}`}
-            data-tooltip="Private Chat"
           >
             <i className="fas fa-comment"></i>
             {isOpen && <span className="link-text">Private Chat</span>}
             {privateUnreadCount > 0 && <span className="badge">{privateUnreadCount}</span>}
           </span>
         </Link>
-        <Link to="/therapist-dashboard/appointments">
+        <Link data-tooltip="Appointments" to="/therapist-dashboard/appointments">
           <span
             role="button"
             aria-label="Appointments"
             tabIndex="0"
             className={`iconBadge ${location.pathname === '/therapist-dashboard/appointments' ? 'active' : ''}`}
-            data-tooltip="Appointments"
           >
             <i className="fas fa-calendar"></i>
             {isOpen && <span className="link-text">Appointments</span>}
           </span>
         </Link>
-        <Link to="/therapist-dashboard/clients">
+        <Link data-tooltip="Clients" to="/therapist-dashboard/clients">
           <span
             role="button"
             aria-label="Clients"
             tabIndex="0"
             className={`iconBadge ${location.pathname === '/therapist-dashboard/clients' ? 'active' : ''}`}
-            data-tooltip="Clients"
           >
             <i className="fas fa-user-friends"></i>
             {isOpen && <span className="link-text">Clients</span>}
           </span>
         </Link>
-        <Link to="/therapist-dashboard/notifications">
+        <Link data-tooltip="Notification" to="/therapist-dashboard/notifications">
           <span
             role="button"
             aria-label="Notification"
             tabIndex="0"
             className={`iconBadge ${location.pathname === '/therapist-dashboard/notifications' ? 'active' : ''}`}
-            data-tooltip="Notification"
           >
             <i className="fas fa-bell"></i>
             {isOpen && <span className="link-text">Notification</span>}
@@ -107,43 +101,49 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout }) => {
             )}
           </span>
         </Link>
-        <Link to="/therapist-dashboard/profile">
+        <Link data-tooltip="Profile" to="/therapist-dashboard/profile">
           <span
             role="button"
             aria-label="Profile"
             tabIndex="0"
             className={`iconBadge ${location.pathname === '/therapist-dashboard/profile' ? 'active' : ''}`}
-            data-tooltip="Profile"
           >
             <i className="fas fa-user"></i>
             {isOpen && <span className="link-text">Profile</span>}
           </span>
         </Link>
-        <Link to="/therapist-dashboard/settings">
+        <Link data-tooltip="Settings" to="/therapist-dashboard/settings">
           <span
             role="button"
             aria-label="Settings"
             tabIndex="0"
             className={`iconBadge ${location.pathname === '/therapist-dashboard/settings' ? 'active' : ''}`}
-            data-tooltip="Settings"
           >
             <i className="fas fa-cog"></i>
             {isOpen && <span className="link-text">Settings</span>}
           </span>
         </Link>
         <div className="divider"></div>
-        <span
-          role="button"
-          aria-label="Logout"
-          tabIndex="0"
-          onClick={onLogout}
-          className={`iconBadge ${location.pathname === '/therapist-dashboard/logout' ? 'active' : ''}`}
-          data-tooltip="Logout"
-        >
-          <i className="fas fa-sign-out-alt"></i>
-          {isOpen && <span className="link-text">Logout</span>}
+        <span className='logOut' data-tooltip="Logout">
+          <span
+            role="button"
+            aria-label="Logout"
+            tabIndex="0"
+            onClick={onLogout}
+            className={`iconBadge ${location.pathname === '/therapist-dashboard/logout' ? 'active' : ''}`}
+          >
+            <i className="fas fa-sign-out-alt"></i>
+            {isOpen && <span className="link-text">Logout</span>}
+          </span>
         </span>
       </div>
+      <Link to="/">
+        <img
+          src="/anonymous-logo.png"
+          alt="Anonymous Mental Health Support Logo"
+          className="logo-image"
+        />
+      </Link>
     </div>
   );
 };

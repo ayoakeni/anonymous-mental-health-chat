@@ -67,6 +67,35 @@ function PrivateChat({ chatId }) {
     };
   }, []);
 
+  // Utils: Safely convert timestamp to Date (handles Firestore Timestamp, Date, millis, or null)
+  const getMessageDate = (timestamp) => {
+    if (!timestamp) return null;
+    if (typeof timestamp.toDate === 'function') {
+      return timestamp.toDate();  // Firestore Timestamp
+    }
+    if (timestamp instanceof Date) {
+      return timestamp;
+    }
+    if (typeof timestamp === 'number') {
+      return new Date(timestamp);  // Millis
+    }
+    if (timestamp.seconds != null) {
+      // Firestore Timestamp literal (seconds/nanoseconds)
+      return new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
+    }
+    return null;  // Fallback
+  };
+
+  const formatMessageTime = (timestamp) => {
+    const date = getMessageDate(timestamp);
+    return date ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  };
+
+  const getTimestampMillis = (timestamp) => {
+    const date = getMessageDate(timestamp);
+    return date ? date.getTime() : 0;
+  };
+
   // Watch therapist presence
   useEffect(() => {
     if (!chatId) return;
@@ -230,10 +259,20 @@ function PrivateChat({ chatId }) {
   // Chat History Persistence
   useEffect(() => {
     if (!chatId) return;
-    const savedHistory = JSON.parse(localStorage.getItem(`privateChat_${chatId}`)) || [];
-    setMessages((prev) => [...savedHistory, ...prev.filter((msg) => !savedHistory.some((s) => s.id === msg.id))]);
+    const saved = localStorage.getItem(`privateChat_${chatId}`);
+    if (saved) {
+      const savedHistory = JSON.parse(saved).map(msg => ({
+        ...msg,
+        timestamp: msg.timestamp ? { seconds: msg.timestamp.seconds, nanoseconds: msg.timestamp.nanoseconds } : null
+      }));
+      setMessages(prev => [...savedHistory, ...prev.filter(m => !savedHistory.some(s => s.id === m.id))]);
+    }
     return () => {
-      localStorage.setItem(`privateChat_${chatId}`, JSON.stringify(messages));
+      const toSave = messages.map(msg => ({
+        ...msg,
+        timestamp: msg.timestamp ? { seconds: msg.timestamp.toDate().getTime() / 1000, nanoseconds: 0 } : null  // Or use getMessageDate
+      }));
+      localStorage.setItem(`privateChat_${chatId}`, JSON.stringify(toSave));
     };
   }, [chatId, messages]);
 
@@ -269,9 +308,7 @@ function PrivateChat({ chatId }) {
 
   // Combine messages and events
   const combinedChat = [...messages, ...events].sort((a, b) => {
-    const t1 = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
-    const t2 = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
-    return t1 - t2;
+    return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
   });
 
   const displayName = auth.currentUser?.email ? therapistName : getAnonName();
@@ -691,10 +728,7 @@ function PrivateChat({ chatId }) {
                         </a>
                       )}
                       <span className="message-timestamp">
-                        {msg.timestamp?.toDate().toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {formatMessageTime(msg.timestamp)}
                       </span>
                       <span className="message-reactions">
                         <i
@@ -736,10 +770,7 @@ function PrivateChat({ chatId }) {
                         </a>
                       )}
                       <span className="message-timestamp">
-                        {msg.timestamp?.toDate().toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {formatMessageTime(msg.timestamp)}
                       </span>
                       <span className="message-reactions">
                         <i
