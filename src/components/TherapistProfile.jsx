@@ -62,7 +62,7 @@ function TherapistProfile({ therapist, onBack, onStartChat, onBookAppointment, i
         <button
           className="action-button chat-button"
           onClick={onStartChat}
-          disabled={!realTimeOnline}
+          // disabled={!realTimeOnline}
         >
           Start Private Chat
         </button>

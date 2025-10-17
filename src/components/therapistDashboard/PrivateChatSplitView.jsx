@@ -1,8 +1,9 @@
 import React, { useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { formatMessageTime } from "../../components/timestampUtils";
+import ChatMessage from "./ChatMessage";
+import { formatTimestamp } from "../../components/timestampUtils"; // Use passed formatTimestamp
+import EmojiPicker from "emoji-picker-react";
 import LeaveChatButton from "../LeaveChatButton";
-import "../../styles/privateChat.css"
 
 function PrivateChatSplitView({
   privateChats,
@@ -16,6 +17,8 @@ function PrivateChatSplitView({
   combinedPrivateChat,
   typingUsers,
   privateMessagesEndRef,
+  showEmojiPicker,
+  setShowEmojiPicker,
   newPrivateMessage,
   setNewPrivateMessage,
   handleTyping,
@@ -25,9 +28,14 @@ function PrivateChatSplitView({
   leavePrivateChat,
   handleTherapistClick,
   navigate,
+  therapistInfo,
+  toggleReaction,
+  deleteMessage,
   isLoadingChats,
   formatTimestamp,
+  onEmojiClick: parentOnEmojiClick,
   anonNames = {},
+  showError,
 }) {
   const { chatId } = useParams();
 
@@ -36,6 +44,21 @@ function PrivateChatSplitView({
       joinPrivateChat(chatId);
     }
   }, [chatId, activeChatId, joinPrivateChat]);
+
+  // Local emoji handler
+  const onEmojiClick = (emojiData) => {
+    setNewPrivateMessage(newPrivateMessage + emojiData.emoji);
+    setShowEmojiPicker(false);
+  };
+
+  // File validation helper
+  const handleFileChange = (file) => {
+    if (file && (file.size > 5 * 1024 * 1024 || !['image/', 'application/pdf'].some(type => file.type.startsWith(type)))) {
+      showError("Invalid file: too large or unsupported type");
+      return;
+    }
+    sendPrivateMessage(file);
+  };
 
   return (
     <div className="split-chat-container">
@@ -101,14 +124,17 @@ function PrivateChatSplitView({
               </button>
             </div>
           ) : (
-            <div className="private-chat">
-              <h3 className="onlineStatus">
-                Private Chat {activeChatId}{" "}
-                {isTherapistAvailable
-                  ? `(Therapist Online: ${activeTherapists.join(", ")})`
-                  : "(Waiting for Therapist)"}
-              </h3>
-              <LeaveChatButton onLeave={leavePrivateChat} />
+            <div className="private-chat-box">
+              <div className="detailLeave">
+                <h3 className="onlineStatus">
+                  {isTherapistAvailable
+                    ? `Therapist Online: ${activeTherapists.join(", ")}`
+                    : "Waiting for Therapist"}
+                </h3>
+                <div className="leave-participant">
+                  <LeaveChatButton type="private" onLeave={leavePrivateChat} />
+                </div>
+              </div>
               {selectedTherapist && (
                 <div className="therapist-profile-card">
                   <button onClick={() => setSelectedTherapist(null)}>Back</button>
@@ -116,32 +142,16 @@ function PrivateChatSplitView({
                   <p>{selectedTherapist.profile}</p>
                 </div>
               )}
-              <div className="chat-container" role="log" aria-live="polite">
+              <div className="chat-box" role="log" aria-live="polite">
                 {combinedPrivateChat.map((msg) => (
-                  <p
+                  <ChatMessage
                     key={msg.id}
-                    className={`chat-message ${
-                      msg.role === "therapist"
-                        ? "therapist"
-                        : msg.role === "system"
-                        ? "system"
-                        : msg.role === "ai"
-                        ? "ai"
-                        : "user"
-                    }`}
-                    onClick={() => (msg.role === "therapist" ? handleTherapistClick(msg) : null)}
-                  >
-                    {msg.role === "system" ? (
-                      <em>{msg.text}</em>
-                    ) : (
-                      <>
-                        <strong>{msg.displayName || msg.role}:</strong> {msg.text}
-                      </>
-                    )}
-                    <span className="message-timestamp">
-                      {formatMessageTime(msg.timestamp)}
-                    </span>
-                  </p>
+                    msg={msg}
+                    toggleReaction={toggleReaction}
+                    deleteMessage={(msgId) => deleteMessage(msgId, 'private')}
+                    therapistInfo={therapistInfo}
+                    handleTherapistClick={handleTherapistClick}
+                  />
                 ))}
                 {typingUsers.length > 0 && (
                   <p className="typing-indicator">
@@ -151,6 +161,28 @@ function PrivateChatSplitView({
                 <div ref={privateMessagesEndRef} />
               </div>
               <div className="chat-input">
+                <button
+                  className="emoji-btn"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  aria-label="Open emoji picker"
+                >
+                  <i className="fa-regular fa-face-smile"></i>
+                </button>
+                {showEmojiPicker && <EmojiPicker onEmojiClick={parentOnEmojiClick || onEmojiClick} />}
+                <input
+                  type="file"
+                  id="private-file-upload"
+                  style={{ display: "none" }}
+                  onChange={(e) => handleFileChange(e.target.files[0])}
+                  aria-label="Upload file"
+                />
+                <button
+                  className="attach-btn"
+                  onClick={() => document.getElementById("private-file-upload").click()}
+                  aria-label="Attach file"
+                >
+                  <i className="fa-solid fa-paperclip"></i>
+                </button>
                 <input
                   type="text"
                   value={newPrivateMessage}
@@ -162,13 +194,13 @@ function PrivateChatSplitView({
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
-                      sendPrivateMessage();
+                      sendPrivateMessage(); // Text-only
                     }
                   }}
                   aria-label="Message input"
                 />
-                <button onClick={sendPrivateMessage} disabled={isSendingPrivate} aria-label="Send message">
-                  {isSendingPrivate ? "Sending..." : "Send"}
+                <button className="send-btn" onClick={() => sendPrivateMessage()} disabled={isSendingPrivate} aria-label="Send message">
+                  {isSendingPrivate ? "Sending..." : <i className="fa-solid fa-paper-plane"></i>}
                 </button>
               </div>
             </div>

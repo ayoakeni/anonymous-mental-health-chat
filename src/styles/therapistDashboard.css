@@ -288,8 +288,8 @@
   background: var(--primary-color);
 }
 
-.therapist-dashboard .group-chat .onlineStatus,
-.therapist-dashboard .private-chat .onlineStatus {
+.therapist-dashboard .group-chat-box .onlineStatus,
+.therapist-dashboard .private-chat-box- .onlineStatus {
   font-size: 1.2rem;
   color: var(--text-color);
 }
@@ -351,6 +351,7 @@
   margin: 10px auto;
   text-align: center;
   font-style: italic;
+  padding: 3px 15px;
   color: var(--text-color);
   border-left: 4px solid var(--error-color);
   opacity: 0.7;
@@ -679,8 +680,8 @@
   background: var(--chat-bg);
 }
 
-.therapist-dashboard .group-chat,
-.therapist-dashboard .private-chat {
+.therapist-dashboard .group-chat-box,
+.therapist-dashboard .private-chat-box {
   flex: 1;
   display: flex;
   flex-direction: column;

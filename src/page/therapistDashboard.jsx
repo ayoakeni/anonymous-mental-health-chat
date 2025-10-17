@@ -115,62 +115,30 @@ function TherapistDashboard() {
     };
   }, []);
 
-  // Helper to format timestamp (client-side)
-  const formatTimestamp = (fbTimestamp) => {
-    if (!fbTimestamp) return { dateStr: "", timeStr: "" };
-    const date = fbTimestamp.toDate();
-    const now = new Date();
-    const diffMs = now - date;
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    let dateStr = "";
-    if (diffDays === 0) dateStr = "Today";
-    else if (diffDays === 1) dateStr = "Yesterday";
-    else if (diffDays < 7) dateStr = date.toLocaleDateString([], { weekday: "short" });
-    else dateStr = date.toLocaleDateString([], { month: "short", day: "numeric" });
-
-    const timeStr = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    return { dateStr, timeStr };
-  };
-
   const onEmojiClick = (emojiData) => {
     setReply(reply + emojiData.emoji);
     setShowEmojiPicker(false);
   };
 
-  // Fetch anonymous names for private chats - runs when privateChats or therapistId changes
+  // Fetch anonymous names for private chats
   useEffect(() => {
     if (privateChats.length === 0 || !therapistId) return;
 
-    const fetchAnonNames = async () => {
-      const names = {};
-      // Extract user UIDs first (filter out therapist and invalid)
-      const fetchTasks = privateChats.map(async (chat) => {
-        // Find the participant that is NOT the current therapist
-        const userUid = chat.participants?.find(uid => uid && uid !== therapistId);
-        
-        if (!userUid) {
-          names[chat.id] = "Unknown"; // No valid user participant
-          return;
-        }
+    const unsubs = privateChats.map((chat) => {
+      const userUid = chat.participants?.find(uid => uid && uid !== therapistId);
+      if (!userUid) return () => {};
 
-        try {
-          const anonSnap = await getDoc(doc(db, "anonymousUsers", userUid));
-          const anonData = anonSnap.exists() ? anonSnap.data() : null;
-          names[chat.id] = anonData?.anonymousName?.trim() || "Anonymous";
-        } catch (err) {
-          console.error(`Error fetching anon name for user ${userUid} in chat ${chat.id}:`, err);
-          names[chat.id] = "Anonymous";
-        }
+      const anonRef = doc(db, "anonymousUsers", userUid);
+      return onSnapshot(anonRef, (snap) => {
+        const anonData = snap.exists() ? snap.data() : null;
+        setAnonNames(prev => ({ ...prev, [chat.id]: anonData?.anonymousName?.trim() || "Anonymous" }));
+      }, (err) => {
+        console.error("Error listening to anon name:", err);
+        setAnonNames(prev => ({ ...prev, [chat.id]: "Anonymous" }));
       });
-
-      await Promise.all(fetchTasks);
-      setAnonNames(names);
-    };
-
-    fetchAnonNames().catch((err) => {
-      console.error("Unexpected error fetching anon names:", err);
     });
+
+    return () => unsubs.forEach(unsub => unsub());
   }, [privateChats, therapistId]);
 
   // Check authentication
@@ -701,14 +669,20 @@ function TherapistDashboard() {
     }
   };
 
-  // Delete message (moderation)
-  const deleteMessage = async (msgId) => {
-    if (therapistInfo.role !== "therapist" || !activeGroupId) return;
+  // Delete message
+  const deleteMessage = async (msgId, chatType = "group") => {
+    if (therapistInfo.role !== "therapist") return;
+    const activeId = chatType === "private" ? activeChatId : activeGroupId;
+    if (!activeId) return;
+
     try {
       await runTransaction(db, async (transaction) => {
-        transaction.delete(doc(db, `groupChats/${activeGroupId}/messages`, msgId));
-        const groupEventsRef = collection(db, `groupChats/${activeGroupId}/events`);
-        transaction.set(doc(groupEventsRef), {
+        const messagesPath = `${chatType === "private" ? "privateChats" : "groupChats"}/${activeId}/messages`;
+        const msgRef = doc(db, messagesPath, msgId);
+        transaction.delete(msgRef);
+
+        const eventsPath = `${chatType === "private" ? "privateChats" : "groupChats"}/${activeId}/events`;
+        transaction.set(doc(collection(db, eventsPath)), {
           type: "delete",
           user: therapistInfo.name,
           text: `Message deleted by ${therapistInfo.name}`,
@@ -918,8 +892,6 @@ function TherapistDashboard() {
     }
   };
 
-
-
   // Leave private chat
   const leavePrivateChat = async () => {
     if (!activeChatId || !auth.currentUser) return;
@@ -964,37 +936,49 @@ function TherapistDashboard() {
   };
 
   // Send private chat message
-  const sendPrivateMessage = async () => {
-    if (!newPrivateMessage.trim() || !auth.currentUser || !activeChatId) return;
+  const sendPrivateMessage = async (file = null) => {
+    const text = newPrivateMessage.trim();
+    if (!text && !file) return;
+    if (!activeChatId || !auth.currentUser) return;
+    
+    if (file && (file.size > 5 * 1024 * 1024 || !['image/', 'application/pdf'].some(type => file.type.startsWith(type)))) {
+      showError("Invalid file: too large or unsupported type");
+      return;
+    }
+
     setIsSendingPrivate(true);
-    const chatRef = doc(db, "privateChats", activeChatId);
     try {
+      let fileUrl = "";
+      if (file) {
+        const storageRef = ref(storage, `privateChats/${activeChatId}/${Date.now()}_${file.name}`);
+        await uploadBytes(storageRef, file);
+        fileUrl = await getDownloadURL(storageRef);
+      }
+
       await runTransaction(db, async (transaction) => {
+        const chatRef = doc(db, "privateChats", activeChatId);
         const chatSnap = await transaction.get(chatRef);
         if (!chatSnap.exists()) throw new Error("Chat document does not exist");
+
         transaction.set(doc(collection(chatRef, "messages")), {
-          text: newPrivateMessage,
+          text: text || "",
+          fileUrl: fileUrl || null,
           userId: auth.currentUser.uid,
           displayName: therapistName,
           role: "therapist",
           timestamp: serverTimestamp(),
         });
         transaction.update(chatRef, {
-          lastMessage: newPrivateMessage,
+          lastMessage: text || "Attachment",
           lastUpdated: serverTimestamp(),
           unreadCountForTherapist: 0,
           needsTherapist: false,
         });
       });
       setNewPrivateMessage("");
-      setIsSendingPrivate(false);
     } catch (err) {
       console.error("Error sending private message:", err);
-      if (err.message === "Chat document does not exist") {
-        setChatError("This chat no longer exists.");
-      } else {
-        setChatError("Failed to send private message. Please try again.");
-      }
+      showError(err.message === "Chat document does not exist" ? "This chat no longer exists." : "Failed to send message.");
       setActiveChatId(null);
       navigate("/therapist-dashboard/private-chat");
     } finally {
@@ -1004,7 +988,10 @@ function TherapistDashboard() {
 
   // Handle therapist profile click
   const handleTherapistClick = async (msg) => {
-    if (msg.role !== "therapist") return;
+    if (msg.role !== "therapist") {
+      showError("Cannot view profile: Not a therapist message.");
+      return;
+    }
     try {
       const snap = await getDoc(doc(db, "therapists", msg.userId));
       if (snap.exists()) setSelectedTherapist(snap.data());
@@ -1105,6 +1092,8 @@ function TherapistDashboard() {
                 combinedPrivateChat={combinedPrivateChat}
                 typingUsers={typingUsers}
                 privateMessagesEndRef={privateMessagesEndRef}
+                showEmojiPicker={showEmojiPicker}
+                setShowEmojiPicker={setShowEmojiPicker}
                 newPrivateMessage={newPrivateMessage}
                 setNewPrivateMessage={setNewPrivateMessage}
                 handleTyping={handleTyping}
@@ -1114,9 +1103,14 @@ function TherapistDashboard() {
                 leavePrivateChat={leavePrivateChat}
                 handleTherapistClick={handleTherapistClick}
                 navigate={navigate}
+                therapistInfo={therapistInfo}
+                toggleReaction={toggleReaction}
+                deleteMessage={deleteMessage}
                 isLoadingChats={isLoadingChats}
                 formatTimestamp={formatTimestamp}
+                onEmojiClick={onEmojiClick}
                 anonNames={anonNames}
+                showError={showError}
               />
             }
           />

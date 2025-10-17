@@ -97,7 +97,7 @@ function GroupChatSplitView({
       </div>
       <div className="chat-box-container">
         {activeGroupId && isGroupChatOpen && inGroupChat ? (
-          <div className="group-chat">
+          <div className="group-chat-box">
             <div className="detailLeave">
               <h3 className="onlineStatus">
                 {groupChats.find((g) => g.id === activeGroupId)?.name || "Group Chat"}{" "}
@@ -153,7 +153,7 @@ function GroupChatSplitView({
                   key={msg.id}
                   msg={msg}
                   toggleReaction={toggleReaction}
-                  deleteMessage={deleteMessage}
+                  deleteMessage={(msgId) => deleteMessage(msgId, 'group')}
                   therapistInfo={therapistInfo}
                   handleTherapistClick={handleTherapistClick}
                 />
