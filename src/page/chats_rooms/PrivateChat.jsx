@@ -20,6 +20,7 @@ import {
   where,
   getDocs,
   increment,
+  Timestamp,
 } from "firebase/firestore";
 import { debounce } from "lodash";
 import EmojiPicker from "emoji-picker-react";
@@ -88,8 +89,9 @@ function PrivateChat({ chatId }) {
   };
 
   const getTimestampMillis = (timestamp) => {
+    if (!timestamp) return Date.now(); // Fallback for null/sentinel/invalid
     const date = getMessageDate(timestamp);
-    return date ? date.getTime() : 0;
+    return date ? date.getTime() : Date.now();
   };
 
   // Watch therapist presence
@@ -111,7 +113,7 @@ function PrivateChat({ chatId }) {
     return () => unsub();
   }, [chatId]);
 
-  // Watch messages (fixed for instant local updates)
+  // Watch messages (updated for incremental remote updates + metadata)
   useEffect(() => {
     if (!chatId) return;
     const chatRef = doc(db, "privateChats", chatId);
@@ -119,21 +121,33 @@ function PrivateChat({ chatId }) {
     const unsubscribeMessages = onSnapshot(q, {
       includeMetadataChanges: true
     }, (snapshot) => {
+      // Handle incremental changes for remote adds only
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added' && !change.doc.metadata.hasPendingWrites) {
+          const newMsg = { id: change.doc.id, ...change.doc.data() };
+          setMessages((prev) => {
+            // Avoid duplicates from optimistic (check by temp ID or content)
+            const exists = prev.some((m) => m.id === newMsg.id || (m.optimistic && m.text === newMsg.text));
+            return exists ? prev : [...prev, newMsg];
+          });
+          playNotification();
+        } else if (change.type === 'modified') {
+          const updatedMsg = { id: change.doc.id, ...change.doc.data() };
+          setMessages((prev) => prev.map((m) => (m.id === updatedMsg.id ? updatedMsg : m)));
+        }
+      });
+
+      // Optional: Full sync on initial load or metadata changes
+      if (snapshot.metadata.hasPendingWrites) {
+        return;
+      }
+      // Full set only if needed (e.g., initial load); otherwise incremental above suffices
       const msgs = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data()
       }));
-      
       setMessages(msgs);
       prevMessagesRef.current = msgs;
-
-      // Notify only on remote adds
-      const newRemoteMsgs = snapshot.docChanges().filter(change => 
-        change.type === 'added' && !change.doc.metadata.hasPendingWrites
-      );
-      if (newRemoteMsgs.length > 0) {
-        playNotification();
-      }
     }, (err) => {
       console.error("Error fetching messages:", err);
       alert("Failed to load messages. Please try again.");
@@ -141,7 +155,7 @@ function PrivateChat({ chatId }) {
     return () => unsubscribeMessages();
   }, [chatId, playNotification]);
 
-  // Watch events
+  // Watch events (unchanged)
   useEffect(() => {
     if (!chatId) return;
     const chatRef = doc(db, "privateChats", chatId);
@@ -317,16 +331,34 @@ function PrivateChat({ chatId }) {
         await uploadBytes(storageRef, file);
         fileUrl = await getDownloadURL(storageRef);
       }
+      let messageText = newMessage;
+      if (role === "user" && newMessage.toLowerCase().includes("@ai")) {
+        messageText = `You said: "${newMessage.replace(/@ai/gi, "").trim()}"\n\n`;
+      }
+
+      // Optimistic update data
+      const optimisticId = `optimistic-${Date.now()}`;
+      const clientTimestamp = Timestamp.now();
+      const optimisticMessage = {
+        id: optimisticId,
+        text: messageText,
+        userId: auth.currentUser.uid,
+        displayName: nameToUse,
+        role,
+        timestamp: clientTimestamp,
+        fileUrl,
+        reactions: {},
+        read: false,
+        optimistic: true, // Flag to identify for dedup
+      };
+      setMessages((prev) => [...prev, optimisticMessage]);
+
       await runTransaction(db, async (transaction) => {
         const chatSnap = await transaction.get(chatRef);
         if (!chatSnap.exists()) throw new Error("Chat document does not exist");
         const data = chatSnap.data();
         const hasTherapist = data.participants?.some((uid) => uid !== auth.currentUser.uid) || false;
         const needsTherapist = !hasTherapist && role !== "therapist";
-        let messageText = newMessage;
-        if (role === "user" && newMessage.toLowerCase().includes("@ai")) {
-          messageText = `You said: "${newMessage.replace(/@ai/gi, "").trim()}"\n\n`;
-        }
         transaction.set(doc(collection(chatRef, "messages")), {
           text: messageText,
           userId: auth.currentUser.uid,
@@ -362,6 +394,21 @@ function PrivateChat({ chatId }) {
           setAiTyping(true);
           const aiInputMessages = mapMessagesForAI(messages);
           const aiResponse = await getAIResponse(userMessage, aiInputMessages);
+
+          // Optimistic AI message
+          const optimisticAiId = `optimistic-ai-${Date.now()}`;
+          const optimisticAiMessage = {
+            id: optimisticAiId,
+            text: `You said: "${userMessage}"\n\n${aiResponse}`,
+            role: "ai",
+            displayName: "Support Assistant",
+            timestamp: Timestamp.now(),
+            fileUrl: null,
+            reactions: {},
+            optimistic: true,
+          };
+          setMessages((prev) => [...prev, optimisticAiMessage]);
+
           await runTransaction(db, async (transaction) => {
             const chatSnap = await transaction.get(chatRef);
             if (!chatSnap.exists()) throw new Error("Chat document does not exist");
@@ -393,6 +440,21 @@ function PrivateChat({ chatId }) {
           setAiTyping(true);
           const aiInputMessages = mapMessagesForAI(messages);
           const aiResponse = await getAIResponse(userMessage, aiInputMessages);
+
+          // Optimistic AI message
+          const optimisticAiId = `optimistic-ai-${Date.now()}`;
+          const optimisticAiMessage = {
+            id: optimisticAiId,
+            text: `You said: "${userMessage}"\n\n${aiResponse}`,
+            role: "ai",
+            displayName: "Support Assistant",
+            timestamp: Timestamp.now(),
+            fileUrl: null,
+            reactions: {},
+            optimistic: true,
+          };
+          setMessages((prev) => [...prev, optimisticAiMessage]);
+
           await runTransaction(db, async (transaction) => {
             const chatSnap = await transaction.get(chatRef);
             if (!chatSnap.exists()) throw new Error("Chat document does not exist");
