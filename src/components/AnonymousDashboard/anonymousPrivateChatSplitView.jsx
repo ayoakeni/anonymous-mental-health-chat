@@ -448,28 +448,32 @@ function AnonymousPrivateChatSplitView({
               </div>
             </div>
             <div className="chat-box" role="log" aria-live="polite">
-              {combinedPrivateChat.map((msg) => (
-                <div key={msg.id}>
-                  {msg.type === "ai-offer" && chatData?.aiOffered && !aiEnabled && msg.role === "system" ? (
-                    <div className="ai-offer">
-                      <p className="chat-message system"><em>{msg.text}</em></p>
-                      <button onClick={() => handleAiChoice("yes")} disabled={isSending || aiTyping}>
-                        Yes
-                      </button>
-                      <button onClick={() => handleAiChoice("no")} disabled={isSending || aiTyping}>
-                        No
-                      </button>
-                    </div>
-                  ) : (
-                    <ChatMessage
-                      msg={msg}
-                      toggleReaction={toggleReaction}
-                      therapistInfo={{ role: "user" }}
-                      handleTherapistClick={() => {}}
-                    />
-                  )}
-                </div>
-              ))}
+              {combinedPrivateChat.length === 0 ? (
+                <p>No messages in this chat yet.</p>
+              ) : (
+                combinedPrivateChat.map((msg) => (
+                  <div key={msg.id}>
+                    {msg.type === "ai-offer" && chatData?.aiOffered && !aiEnabled && msg.role === "system" ? (
+                      <div className="ai-offer">
+                        <p className="chat-message system"><em>{msg.text}</em></p>
+                        <button onClick={() => handleAiChoice("yes")} disabled={isSending || aiTyping}>
+                          Yes
+                        </button>
+                        <button onClick={() => handleAiChoice("no")} disabled={isSending || aiTyping}>
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <ChatMessage
+                        msg={msg}
+                        toggleReaction={toggleReaction}
+                        therapistInfo={{ role: "user" }}
+                        handleTherapistClick={() => {}}
+                      />
+                    )}
+                  </div>
+                ))
+              )}
               {typingUsers.length > 0 && (
                 <p className="typing-indicator">
                   {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...

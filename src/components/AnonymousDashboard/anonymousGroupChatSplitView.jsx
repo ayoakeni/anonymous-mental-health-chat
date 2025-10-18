@@ -60,6 +60,7 @@ function AnonymousGroupChatSplitView({
       messagesQuery,
       (snapshot) => {
         const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        console.log("Fetched messages:", msgs); // Debug log
         setMessages(msgs);
         if (msgs.length > 0) playNotification();
       },
@@ -73,6 +74,7 @@ function AnonymousGroupChatSplitView({
       eventsQuery,
       (snapshot) => {
         const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        console.log("Fetched events:", evts); // Debug log
         setGroupEvents(evts);
       },
       (err) => {
@@ -85,6 +87,7 @@ function AnonymousGroupChatSplitView({
       groupRef,
       (snap) => {
         if (snap.exists()) {
+          console.log("Fetched participants:", snap.data().participants); // Debug log
           setParticipants(snap.data().participants || []);
         }
       },
@@ -155,6 +158,8 @@ function AnonymousGroupChatSplitView({
       await runTransaction(db, async (transaction) => {
         transaction.update(groupRef, { participants: arrayUnion(userId) });
       });
+      console.log("Joining group:", groupId); // Debug log
+      setActiveGroupId(groupId); // Set activeGroupId explicitly
       navigate(`/anonymous-dashboard/group-chat/${groupId}`);
     } catch (err) {
       console.error("Error joining group chat:", err);
@@ -286,7 +291,10 @@ function AnonymousGroupChatSplitView({
                 <div
                   key={group.id}
                   className={`chat-card ${activeGroupId === group.id ? "selected" : ""}`}
-                  onClick={() => joinGroupChat(group.id)}
+                  onClick={() => {
+                    console.log("Clicked group:", group.id); // Debug log
+                    joinGroupChat(group.id);
+                  }}
                 >
                   <div className="chat-card-inner">
                     <div className="chat-avater-content">
@@ -360,15 +368,19 @@ function AnonymousGroupChatSplitView({
               </div>
             </div>
             <div className="chat-box" role="log" aria-live="polite">
-              {combinedGroupChat.map((msg) => (
-                <ChatMessage
-                  key={msg.id}
-                  msg={msg}
-                  toggleReaction={toggleReaction}
-                  therapistInfo={{ role: "user" }}
-                  handleTherapistClick={() => {}}
-                />
-              ))}
+              {combinedGroupChat.length === 0 ? (
+                <p>No messages in this group yet.</p>
+              ) : (
+                combinedGroupChat.map((msg) => (
+                  <ChatMessage
+                    key={msg.id}
+                    msg={msg}
+                    toggleReaction={toggleReaction}
+                    therapistInfo={{ role: "user" }}
+                    handleTherapistClick={() => {}}
+                  />
+                ))
+              )}
               {typingUsers.length > 0 && (
                 <p className="typing-indicator">
                   {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...

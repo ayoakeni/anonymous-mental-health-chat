@@ -301,11 +301,12 @@ function AnonymousDashboard() {
             }
           />
           <Route
-            path="/private-chat/*"
+            path="/private-chat/"
             element={
               <AnonymousPrivateChatSplitView
                 privateChats={privateChats}
                 activeChatId={activeChatId}
+                setActiveChatId={setActiveChatId}
                 formatTimestamp={formatTimestamp}
                 getTimestampMillis={getTimestampMillis}
                 displayName={displayName}
