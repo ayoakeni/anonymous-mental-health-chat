@@ -33,6 +33,7 @@ function GroupChatSplitView({
   isLoadingChats,
   formatTimestamp,
   onEmojiClick: parentOnEmojiClick,
+  isLoadingNames,
 }) {
   const { groupId } = useParams();
 
@@ -42,7 +43,6 @@ function GroupChatSplitView({
     }
   }, [groupId, activeGroupId, joinGroupChat]);
 
-  // Local emoji handler if not passed
   const onEmojiClick = (emojiData) => {
     setReply(reply + emojiData.emoji);
     setShowEmojiPicker(false);
@@ -89,8 +89,8 @@ function GroupChatSplitView({
                       {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
                     </div>
                   </div>
-              </div>
-            );
+                </div>
+              );
             })
           )}
         </div>
@@ -125,10 +125,12 @@ function GroupChatSplitView({
                   {isParticipantsOpen && (
                     <div className="participant-dropdown">
                       <div className="participant-item-container">
-                        {participants.length > 0 ? (
+                        {isLoadingNames ? (
+                          <div className="participant-item">Loading participants...</div>
+                        ) : participants.length > 0 ? (
                           participants.map((uid) => (
                             <div key={uid} className="participant-item">
-                              {participantNames[uid] || uid}
+                              {participantNames[uid] || "Anonymous User"}
                             </div>
                           ))
                         ) : (

@@ -184,6 +184,7 @@ function PrivateChatSplitView({
                   <i className="fa-solid fa-paperclip"></i>
                 </button>
                 <input
+                  className="inputInsert"
                   type="text"
                   value={newPrivateMessage}
                   onChange={(e) => {

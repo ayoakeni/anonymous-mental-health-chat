@@ -1,21 +1,57 @@
+:root {
+  --primary-color: #4a90e2;
+  --background-color: #f5f7fa;
+  --chat-bg: #ffffff;
+  --text-color: #333333;
+  --therapist-bg: #e6f0fa;
+  --user-bg: #d9e8ff;
+  --ai-bg: #f0f0f0;
+  --system-bg: #f9fafb;
+  --border-radius: 8px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --input-bg: #ffffff;
+  --input-border: #ccc;
+  --accent-color: #34c759;
+  --secondary-color: #ff9500;
+  --error-color: #ff3b30;
+  --badge-bg: #ef4444;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-color: #1e1e2f;
+    --chat-bg: #2a2a3b;
+    --text-color: #e0e0e0;
+    --therapist-bg: #3a4a6b;
+    --user-bg: #4a6b9b;
+    --ai-bg: #3b3b4b;
+    --system-bg: #2e2e4b;
+    --input-bg: #2a2a3b;
+    --chat-input-bg: #1e1e2f;
+    --input-border: #555;
+    --badge-bg: #f87171;
+  }
+}
+
 .private-chat {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  background-color: var(--background-color);
-  padding: 20px;
+  height: 100%;
+  background-color: var(--chat-bg);
 }
 
 .private-chat .detailLeave {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
+  align-items: center;
+  padding: 20px 15px;
+  background: var(--chat-input-bg);
 }
 
-.private-chat h3 {
+.private-chat .onlineStatus {
   font-size: 1.2rem;
   color: var(--text-color);
-  margin-bottom: 10px;
 }
 
 .private-chat .exit-chat-button {
@@ -23,11 +59,11 @@
   padding: 8px 16px;
   border: none;
   border-radius: var(--border-radius);
-  background-color: var(--badge-bg); /* Red for exit */
+  background-color: var(--badge-bg);
   color: white;
   cursor: pointer;
   font-size: 0.9rem;
-  transition: background 0.2s;
+  transition: background 0.3s;
 }
 
 .private-chat .exit-chat-button:hover {
@@ -39,67 +75,18 @@
   cursor: not-allowed;
 }
 
-/* Therapist List */
-.private-chat .therapist-list {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  max-height: 200px;
-  overflow-x: auto;
-  padding: 10px;
-  background: var(--chat-bg);
-  border: 1px solid var(--input-border);
-  border-radius: var(--border-radius);
-}
-
-.private-chat .therapist-item {
-  max-width: 130px;
-  text-overflow: ellipsis;
-  height: fit-content;
-  padding: 8px 15px;
-  background: var(--therapist-bg);
-  border-radius: var(--border-radius);
-  font-size: 0.9rem;
-  color: var(--text-color);
-  cursor: pointer;
-  transition: background 0.2s;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.private-chat .therapist-item.online {
-  border: 2px solid var(--accent-color); /* Green border for online */
-}
-
-.private-chat .therapist-item.active {
-  background: var(--accent-color); /* Green background for active */
-  color: white;
-}
-
-.private-chat .therapist-item:hover {
-  background: var(--primary-color); /* Blue on hover */
-  color: white;
-}
-
-@media (prefers-color-scheme: dark) {
-  .private-chat .therapist-item.active,
-  .private-chat .therapist-item:hover {
-    color: var(--text-color); /* Ensure readability in dark mode */
-  }
-}
-
 /* Status Indicator */
 .private-chat .therapist-status {
   display: inline-block;
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background-color: var(--accent-color); /* Green for available */
+  background-color: var(--accent-color);
   margin-left: 5px;
 }
 
 .private-chat .therapist-status.offline {
-  background-color: var(--badge-bg); /* Red for unavailable */
+  background-color: var(--badge-bg);
 }
 
 /* Read Receipts */
@@ -125,17 +112,15 @@
 /* Chat Container */
 .private-chat .chat-container {
   background: var(--chat-bg);
-  border-radius: var(--border-radius);
-  padding: 15px;
-  height: 399px;
+  padding: 0 20px;
+  height: 507px;
   overflow-y: auto;
-  margin-bottom: 10px;
-  border: 1px solid var(--input-border);
+  margin: 0 5px 0 0;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .private-chat .chat-container::-webkit-scrollbar {
-  width: 8px;
+  width: 4px;
 }
 
 .private-chat .chat-container::-webkit-scrollbar-track {
@@ -306,14 +291,13 @@
   display: flex;
   gap: 5px;
   align-items: center;
-  background: var(--input-bg);
-  border: 1px solid var(--input-border);
-  border-radius: var(--border-radius);
+  background: var(--chat-input-bg);
   padding: 10px;
 }
 
 .private-chat .chat-input .inputInsert {
   flex: 1;
+  width: 100%;
   padding: 12px;
   border: none;
   background: transparent;
@@ -355,7 +339,8 @@
 /* EmojiPicker box */
 .private-chat .chat-input aside {
   position: absolute;
-  bottom: 64px;
+  left: 250px;
+  bottom: 65px;
 }
 
 /* Therapist Profile Card */
@@ -394,9 +379,6 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .private-chat {
-    padding: 10px;
-  }
   .private-chat .chat-message {
     max-width: 80%;
   }

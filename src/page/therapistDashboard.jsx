@@ -65,13 +65,15 @@ function TherapistDashboard() {
   const [isValidatingChat, setIsValidatingChat] = useState(false);
   const [chatError, setChatError] = useState(null);
   const [participants, setParticipants] = useState([]);
+  const [participantNames, setParticipantNames] = useState({});
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [therapistsOnline, setTherapistsOnline] = useState([]);
   const [errorMsg, setErrorMsg] = useState(null);
   const [isErrorFading, setIsErrorFading] = useState(false);
-  const errorTimeoutRef = useRef(null);
+  const [isLoadingNames, setIsLoadingNames] = useState(false);
   const [anonNames, setAnonNames] = useState({});
+  const errorTimeoutRef = useRef(null);
   const therapistId = auth.currentUser?.uid;
   const displayName = therapistInfo.name || "Unknown Therapist";
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
@@ -81,7 +83,6 @@ function TherapistDashboard() {
   const location = useLocation();
   const { chatId } = useParams();
 
-  // Memoized closeError - dependencies: setters and ref
   const closeError = useCallback(() => {
     setIsErrorFading(true);
     setTimeout(() => {
@@ -91,10 +92,9 @@ function TherapistDashboard() {
         clearTimeout(errorTimeoutRef.current);
         errorTimeoutRef.current = null;
       }
-    }, 300);  // Match CSS
+    }, 300);
   }, []);
 
-  // Memoized showError - dependencies: setters and ref it closes over
   const showError = useCallback((msg, autoDismiss = true) => {
     if (errorTimeoutRef.current) {
       clearTimeout(errorTimeoutRef.current);
@@ -108,7 +108,6 @@ function TherapistDashboard() {
     }
   }, [closeError]);
 
-  // Cleanup effect (unchanged, but add deps if needed)
   useEffect(() => {
     return () => {
       if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
@@ -159,7 +158,6 @@ function TherapistDashboard() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, groupEvents]);
 
-  // Auto scroll private chat
   useEffect(() => {
     privateMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [privateMessages, privateEvents]);
@@ -186,10 +184,48 @@ function TherapistDashboard() {
     const q = query(collection(db, "groupChats"), limit(50));
     const unsubscribe = onSnapshot(
       q,
-      (snapshot) => {
+      async (snapshot) => {
         const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
         setGroupChats(chats);
         setIsLoadingChats(false);
+
+        const allParticipants = chats.flatMap(group => group.participants || []);
+        const uniqueParticipants = [...new Set(allParticipants)];
+        setIsLoadingNames(true);
+        const names = { ...participantNames };
+
+        const unsubscribes = uniqueParticipants.map((uid) => {
+          const therapistRef = doc(db, "therapists", uid);
+          const anonRef = doc(db, "anonymousUsers", uid);
+
+          return onSnapshot(therapistRef, (therapistSnap) => {
+            if (therapistSnap.exists()) {
+              names[uid] = therapistSnap.data().name || `Therapist_${uid.slice(0, 8)}`;
+              setParticipantNames({ ...names });
+              setIsLoadingNames(false);
+            } else {
+              onSnapshot(anonRef, (anonSnap) => {
+                names[uid] = anonSnap.exists()
+                  ? anonSnap.data().anonymousName || `Anonymous_${uid.slice(0, 8)}`
+                  : `Anonymous_${uid.slice(0, 8)}`;
+                setParticipantNames({ ...names });
+                setIsLoadingNames(false);
+              }, (err) => {
+                console.error(`Error fetching anonymous name for ${uid}:`, err);
+                names[uid] = `Anonymous_${uid.slice(0, 8)}`;
+                setParticipantNames({ ...names });
+                setIsLoadingNames(false);
+              });
+            }
+          }, (err) => {
+            console.error(`Error fetching therapist name for ${uid}:`, err);
+            names[uid] = `Anonymous_${uid.slice(0, 8)}`;
+            setParticipantNames({ ...names });
+            setIsLoadingNames(false);
+          });
+        });
+
+        return () => unsubscribes.forEach(unsub => unsub());
       },
       (err) => {
         console.error("Error fetching group chats:", err);
@@ -243,25 +279,6 @@ function TherapistDashboard() {
     };
   }, [activeGroupId, isGroupChatOpen, lastSeenTimestamp, therapistId, playNotification]);
 
-  // Fetch participant names
-  const [participantNames, setParticipantNames] = useState({});
-  useEffect(() => {
-    const fetchParticipantNames = async () => {
-      const snapshots = await Promise.all(participants.map(uid => getDoc(doc(db, "therapists", uid))));
-      const names = snapshots.reduce((acc, snap, i) => {
-        acc[participants[i]] = snap.data()?.name || "Anonymous";
-        return acc;
-      }, {});
-      setParticipantNames(names);
-    };
-    if (participants.length > 0) {
-      fetchParticipantNames().catch((err) => {
-        console.error("Error fetching participant names:", err);
-      });
-    }
-  }, [participants]);
-
-  // Toggle participant
   useEffect(() => {
     const handleClickOutside = (event) => {
       const participantList = document.querySelector(".participant-list");
@@ -1074,6 +1091,7 @@ function TherapistDashboard() {
                 isLoadingChats={isLoadingChats}
                 formatTimestamp={formatTimestamp}
                 onEmojiClick={onEmojiClick}
+                isLoadingNames={isLoadingNames}
               />
             }
           />

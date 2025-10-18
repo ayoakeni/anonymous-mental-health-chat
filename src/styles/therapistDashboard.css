@@ -185,7 +185,7 @@
   background: var(--chat-input-bg);
 }
 
-.leave-participant {
+.therapist-dashboard .leave-participant {
   display: flex;
   align-items: center;
   gap: 10px;
