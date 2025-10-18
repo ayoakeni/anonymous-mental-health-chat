@@ -249,23 +249,24 @@
 .anonymous-dashboard .chat-card-meta {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  gap: 2px;
 }
 
-.anonymous-dashboard .message-timestamp {
+.anonymous-dashboard .chat-card-meta .message-timestamp {
   display: flex;
   flex-direction: column;
   font-size: 0.7rem;
+  color: var(--text-color);
+  font-weight: 600;
 }
 
-.anonymous-dashboard .meta-date,
-.anonymous-dashboard .meta-time {
-  font-weight: 600;
+.anonymous-dashboard .chat-card-meta .meta-date,
+.anonymous-dashboard .chat-card-meta .meta-time {
   opacity: 0.6;
 }
 
-.anonymous-dashboard .unread-badge {
+.anonymous-dashboard .chat-card-meta .unread-badge {
   background: var(--badge-bg);
   color: white;
   font-size: 0.75rem;
@@ -366,7 +367,7 @@
   color: var(--text-color);
 }
 
-.anonymous-dashboard .attachment-link {
+.anonymous-dashboard .chat-message .attachment-link {
   display: inline-block;
   margin-top: 5px;
   color: var(--primary-color);
@@ -374,18 +375,18 @@
   font-size: 0.9rem;
 }
 
-.anonymous-dashboard .attachment-link:hover {
+.anonymous-dashboard .chat-message .attachment-link:hover {
   text-decoration: underline;
 }
 
-.anonymous-dashboard .message-content-time {
+.anonymous-dashboard .chat-message .message-content-time {
   margin-top: 5px;
   font-size: 0.9rem;
   color: var(--text-color);
   opacity: 0.8;
 }
 
-.anonymous-dashboard .message-timestamp {
+.anonymous-dashboard .chat-message .message-timestamp {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-color);
@@ -394,7 +395,7 @@
   display: block;
 }
 
-.anonymous-dashboard .message-reactions {
+.anonymous-dashboard .chat-message .message-reactions {
   display: none;
   position: absolute;
   top: -20px;
@@ -534,6 +535,10 @@
   background: var(--chat-input-bg);
 }
 
+.anonymous-dashboard .detailLeave .onlineStatus {
+  color: var(--text-color);
+}
+
 .anonymous-dashboard .leave-participant {
   display: flex;
   align-items: center;
@@ -632,7 +637,7 @@
 }
 
 .anonymous-dashboard .leaveButton:hover {
-  color: white;
+  color: var(--text-color);
   background: var(--primary-color);
 }
 

@@ -255,19 +255,20 @@
 .therapist-dashboard .chat-card-meta {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  gap: 2px;
 }
 
-.therapist-dashboard .message-timestamp {
+.therapist-dashboard .chat-card-meta .message-timestamp {
   display: flex;
   flex-direction: column;
   font-size: 0.7rem;
+  color: var(--text-color);
+  font-weight: 600;
 }
 
-.therapist-dashboard .meta-date, 
+.therapist-dashboard .chat-card-meta .meta-date, 
 .therapist-dashboard .meta-time {
-  font-weight: 600;
   opacity: 0.6;
 }
 
