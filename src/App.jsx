@@ -3,9 +3,7 @@ import { useState, useEffect } from "react";
 import { auth } from "./utils/firebase";
 import Home from "./page/home";
 import About from "./page/about";
-import ChatRoom from "./page/chats_rooms/chatRoom";
 import TherapistLogin from "./login/therapist_login";
-import PrivateChatWrapper from "./page/chats_rooms/PrivateChatWrapper";
 import TherapistDashboard from "./page/therapistDashboard";
 import AnonymousDashboard from "./page/anonymousDashboard";
 import "./styles/App.css";
@@ -20,7 +18,7 @@ function ProtectedRoute({ children, requireTherapist = false }) {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
         setIsAuthenticated(true);
-        setIsTherapist(!!user.email); // Therapist if user has email
+        setIsTherapist(!!user.email);
       } else {
         setIsAuthenticated(false);
         setIsTherapist(false);
@@ -50,7 +48,7 @@ function ProtectedRoute({ children, requireTherapist = false }) {
   }
 
   if (!isAuthenticated && !requireTherapist) {
-    return <Navigate to="/chat-room" state={{ from: location }} replace />;
+    return <Navigate to="/anonymous-dashboard/*" state={{ from: location }} replace />;
   }
 
   return children;
@@ -60,9 +58,6 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/chat-room" element={<ChatRoom />} />
-      <Route path="/chat-room/:groupId" element={<ChatRoom />} />
-      <Route path="/chat-room/private/:chatId" element={<PrivateChatWrapper />} />
       <Route path="/about" element={<About />} />
       <Route path="/therapist-login" element={<TherapistLogin />} />
       <Route

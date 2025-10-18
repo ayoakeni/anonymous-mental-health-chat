@@ -84,7 +84,7 @@ function Home() {
             A safe, secure space to connect with peers, access AI-driven support, or chat privately with licensed therapists.
           </p>
           <div className="hero-cta">
-            <Link to="/chat-room" className="cta-button primary">
+            <Link to="/anonymous-dashboard" className="cta-button primary">
               Start Chatting
             </Link>
             <Link to="/about" className="cta-button secondary">
@@ -103,7 +103,7 @@ function Home() {
             <i className="fas fa-users feature-icon"></i>
             <h3>Peer Support</h3>
             <p>Share experiences anonymously with a supportive community.</p>
-            <Link to="/chat-room" className="feature-cta">Join Now</Link>
+            <Link to="/anonymous-dashboard" className="feature-cta">Join Now</Link>
           </div>
           <div className="feature-card">
             <i className="fas fa-robot feature-icon"></i>

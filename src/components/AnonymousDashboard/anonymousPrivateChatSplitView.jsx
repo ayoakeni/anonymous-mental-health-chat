@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { db, auth, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
+import { useNavigate } from "react-router-dom";
+import { db, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
 import {
   collection,
   query,
@@ -25,7 +25,7 @@ import EmojiPicker from "emoji-picker-react";
 function AnonymousPrivateChatSplitView({
   privateChats,
   activeChatId,
-  setActiveChatId, // Added prop
+  setActiveChatId,
   formatTimestamp,
   getTimestampMillis,
   displayName,
@@ -47,7 +47,6 @@ function AnonymousPrivateChatSplitView({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
-  const { chatId } = useParams();
   const { handleTyping } = useTypingStatus(displayName);
 
   // Auto scroll
@@ -167,7 +166,6 @@ function AnonymousPrivateChatSplitView({
           }
         }
       });
-      setActiveChatId(chatId);
       navigate(`/anonymous-dashboard/private-chat/${chatId}`);
     } catch (err) {
       console.error("Error joining private chat:", err);
@@ -225,7 +223,7 @@ function AnonymousPrivateChatSplitView({
         messageText = `You said: "${newMessage.replace(/@ai/gi, "").trim()}"\n\n`;
       }
 
-      const chatRef = doc(db, "privateChats", activeChatId); // Define chatRef here
+      const chatRef = doc(db, "privateChats", activeChatId);
       await runTransaction(db, async (transaction) => {
         const chatSnap = await transaction.get(chatRef);
         if (!chatSnap.exists()) throw new Error("Chat document does not exist");
@@ -253,7 +251,6 @@ function AnonymousPrivateChatSplitView({
       setNewMessage("");
       setShowEmojiPicker(false);
 
-      // AI logic
       const chatSnap = await getDoc(chatRef);
       if (!chatSnap.exists()) {
         navigate("/anonymous-dashboard/private-chat");

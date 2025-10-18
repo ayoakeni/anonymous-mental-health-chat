@@ -141,7 +141,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout, isAnonymous =
           </>
         )}
       </div>
-      <Link to="/">
+      <Link className='logo-side' to="/">
         <img
           src="/anonymous-logo.png"
           alt="Anonymous Mental Health Support Logo"

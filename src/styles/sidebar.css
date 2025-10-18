@@ -39,7 +39,7 @@
   padding-right: 10px;
 }
 
-.sidebar a:last-child {
+.sidebar .logo-side:last-child {
   width: fit-content;
 }
 

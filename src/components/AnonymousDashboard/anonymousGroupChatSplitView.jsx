@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { db, auth, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
+import { useNavigate } from "react-router-dom";
+import { db, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
 import {
   collection,
   query,
@@ -22,7 +22,7 @@ import EmojiPicker from "emoji-picker-react";
 function AnonymousGroupChatSplitView({
   groupChats,
   activeGroupId,
-  setActiveGroupId, // Added prop
+  setActiveGroupId,
   isLoadingChats,
   formatTimestamp,
   getTimestampMillis,
@@ -42,7 +42,6 @@ function AnonymousGroupChatSplitView({
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
-  const { groupId } = useParams();
   const { handleTyping } = useTypingStatus(displayName);
 
   // Auto scroll
@@ -156,7 +155,6 @@ function AnonymousGroupChatSplitView({
       await runTransaction(db, async (transaction) => {
         transaction.update(groupRef, { participants: arrayUnion(userId) });
       });
-      setActiveGroupId(groupId);
       navigate(`/anonymous-dashboard/group-chat/${groupId}`);
     } catch (err) {
       console.error("Error joining group chat:", err);

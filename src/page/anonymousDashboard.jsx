@@ -1,16 +1,13 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
-import { useNavigate, useLocation, Routes, Route, useParams } from "react-router-dom";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import { useNavigate, Routes, Route, useParams } from "react-router-dom";
 import { db, auth } from "../utils/firebase";
 import {
   collection,
   query,
-  orderBy,
   onSnapshot,
   serverTimestamp,
   doc,
-  arrayUnion,
   arrayRemove,
-  getDoc,
   runTransaction,
   where,
   limit,
@@ -20,8 +17,8 @@ import { useTypingStatus } from "../components/useTypingStatus";
 import useNotificationSound from "../components/useNotificationSound";
 import { formatTimestamp, getTimestampMillis } from "../components/timestampUtils";
 import Sidebar from "../components/sidebar";
-import GroupChatSplitView from "../components/AnonymousDashboard/anonymousGroupChatSplitView";
-import PrivateChatSplitView from "../components/AnonymousDashboard/anonymousPrivateChatSplitView";
+import AnonymousGroupChatSplitView from "../components/AnonymousDashboard/anonymousGroupChatSplitView";
+import AnonymousPrivateChatSplitView from "../components/AnonymousDashboard/anonymousPrivateChatSplitView";
 import "../styles/anonymousDashboard.css";
 
 function AnonymousDashboard() {
@@ -37,7 +34,6 @@ function AnonymousDashboard() {
   const playNotification = useNotificationSound();
   const errorTimeoutRef = useRef(null);
   const navigate = useNavigate();
-  const location = useLocation();
   const { groupId, chatId } = useParams();
   const userId = auth.currentUser?.uid;
   const displayName = getAnonName();
@@ -55,7 +51,7 @@ function AnonymousDashboard() {
   );
 
   // Handle error display
-  const closeError = () => {
+  const closeError = useCallback(() => {
     setIsErrorFading(true);
     setTimeout(() => {
       setErrorMsg(null);
@@ -64,16 +60,19 @@ function AnonymousDashboard() {
         clearTimeout(errorTimeoutRef.current);
       }
     }, 300);
-  };
+  }, [setErrorMsg, setIsErrorFading, errorTimeoutRef]);
 
-  const showError = (msg, autoDismiss = true) => {
-    if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
-    setErrorMsg(msg);
-    setIsErrorFading(false);
-    if (msg && autoDismiss) {
-      errorTimeoutRef.current = setTimeout(closeError, 5000);
-    }
-  };
+  const showError = useCallback(
+    (msg, autoDismiss = true) => {
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+      setErrorMsg(msg);
+      setIsErrorFading(false);
+      if (msg && autoDismiss) {
+        errorTimeoutRef.current = setTimeout(closeError, 5000);
+      }
+    },
+    [closeError, setErrorMsg, setIsErrorFading, errorTimeoutRef]
+  );
 
   // Cleanup error timeout
   useEffect(() => {
@@ -259,7 +258,7 @@ function AnonymousDashboard() {
         groupUnreadCount={totalGroupUnread}
         privateUnreadCount={privateUnreadCount}
         onToggle={handleToggleSidebar}
-        isAnonymous={true} // Pass prop to customize Sidebar for anonymous users
+        isAnonymous={true}
       />
       <div className={`box ${isSidebarOpen ? "open" : "closed"}`}>
         {errorMsg && (
@@ -286,9 +285,10 @@ function AnonymousDashboard() {
           <Route
             path="/group-chat/*"
             element={
-              <GroupChatSplitView
+              <AnonymousGroupChatSplitView
                 groupChats={groupChats}
                 activeGroupId={activeGroupId}
+                setActiveGroupId={setActiveGroupId}
                 isLoadingChats={isLoadingChats}
                 formatTimestamp={formatTimestamp}
                 getTimestampMillis={getTimestampMillis}
@@ -303,7 +303,7 @@ function AnonymousDashboard() {
           <Route
             path="/private-chat/*"
             element={
-              <PrivateChatSplitView
+              <AnonymousPrivateChatSplitView
                 privateChats={privateChats}
                 activeChatId={activeChatId}
                 formatTimestamp={formatTimestamp}
