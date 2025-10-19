@@ -127,7 +127,6 @@ function AnonymousGroupChatSplitView({
       groupRef,
       (snap) => {
         if (snap.exists()) {
-          console.log("Fetched participants:", snap.data().participants);
           setParticipants(snap.data().participants || []);
         }
       },
@@ -198,7 +197,6 @@ function AnonymousGroupChatSplitView({
       await runTransaction(db, async (transaction) => {
         transaction.update(groupRef, { participants: arrayUnion(userId) });
       });
-      console.log("Joining group:", groupId);
       setActiveGroupId(groupId);
       navigate(`/anonymous-dashboard/group-chat/${groupId}`);
     } catch (err) {
@@ -392,7 +390,6 @@ function AnonymousGroupChatSplitView({
                   key={group.id}
                   className={`chat-card ${activeGroupId === group.id ? "selected" : ""}`}
                   onClick={() => {
-                    console.log("Clicked group:", group.id);
                     joinGroupChat(group.id);
                   }}
                 >
