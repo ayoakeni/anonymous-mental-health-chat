@@ -439,6 +439,23 @@ function AnonymousPrivateChatSplitView({
         {activeChatId ? (
           <div className="private-chat-box">
             <div className="detailLeave">
+              <div className="chat-avater">
+                <span className="text-avatar">{privateChats.find((g) => g.id === activeChatId).name?.[0] || "T"}</span>
+                <div className="card-content">
+                  <strong className="group-title">{privateChats.find((g) => g.id === activeChatId).name || "Unnamed therapist"}</strong>
+                  <small className="participant-preview">
+                    {activeTherapists.length > 0 ? (
+                      activeTherapists.map((uid) => (
+                        <div key={uid} className="participant">
+                          {<span className="participant-name">{activeTherapists[uid]} <b>,</b></span> || "Loading..."}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="participant">No therapist</div>
+                    )}           
+                  </small>
+                </div>
+              </div>
               <h3 className="onlineStatus">
                 {isTherapistAvailable
                   ? `Therapist Online: ${activeTherapists.join(", ")}`
