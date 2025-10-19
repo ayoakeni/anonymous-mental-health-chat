@@ -48,6 +48,7 @@ function AnonymousPrivateChatSplitView({
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
   const { handleTyping } = useTypingStatus(displayName);
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
 
   // Auto scroll
   useEffect(() => {
@@ -85,11 +86,13 @@ function AnonymousPrivateChatSplitView({
       (snapshot) => {
         const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
         setMessages(msgs);
+        setIsLoadingChat(false);
         if (msgs.length > 0) playNotification();
       },
       (err) => {
         console.error("Error fetching messages:", err);
         showError("Failed to load messages. Please try again.");
+        setIsLoadingChat(false);
       }
     );
     return () => unsubscribeMessages();
@@ -466,8 +469,10 @@ function AnonymousPrivateChatSplitView({
               </div>
             </div>
             <div className="chat-box" role="log" aria-live="polite">
-              {combinedPrivateChat.length === 0 ? (
-                <p>No messages in this chat yet.</p>
+              {isLoadingChat ? (
+                <p>Loading chat data...</p>
+              ) : combinedPrivateChat.length === 0 ? (
+                <p>No messages or events in this chat yet.</p>
               ) : (
                 combinedPrivateChat.map((msg) => (
                   <div key={msg.id}>
