@@ -170,6 +170,7 @@ function AnonymousPrivateChatSplitView({
     } catch (err) {
       console.error("Error joining private chat:", err);
       showError("Failed to join private chat. Please try again.");
+      navigate("/anonymous-dashboard/private-chat");
     }
   };
 

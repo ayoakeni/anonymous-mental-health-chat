@@ -204,6 +204,7 @@ function AnonymousGroupChatSplitView({
     } catch (err) {
       console.error("Error joining group chat:", err);
       showError("Failed to join group chat. Please try again.");
+      navigate("/anonymous-dashboard/group-chat");
     }
   };
 
@@ -345,8 +346,10 @@ function AnonymousGroupChatSplitView({
             lastMessage: "",
             lastUpdated: serverTimestamp(),
             unreadCountForTherapist: 0,
+            aiActive: false,
             aiOffered: false,
-            chatStatus: "waiting",
+            therapistJoinedOnce: false,
+            needsTherapist: true,
           });
         } else {
           const currentData = chatSnap.data();
@@ -356,7 +359,6 @@ function AnonymousGroupChatSplitView({
           transaction.update(chatRef, {
             participants: updatedParticipants,
             lastUpdated: serverTimestamp(),
-            chatStatus: updatedParticipants.length === 2 ? "active" : "waiting",
           });
         }
       });

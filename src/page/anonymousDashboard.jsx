@@ -301,7 +301,7 @@ function AnonymousDashboard() {
             }
           />
           <Route
-            path="/private-chat/"
+            path="/private-chat/*"
             element={
               <AnonymousPrivateChatSplitView
                 privateChats={privateChats}
