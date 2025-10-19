@@ -98,6 +98,13 @@ function Header() {
         </button>
         <nav className={`nav-menu ${isMenuOpen ? "open" : ""}`}>
           <Link
+            to="/"
+            className="nav-link"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            Home
+          </Link>
+          <Link
             to="/anonymous-dashboard/group-chat"
             className="nav-link"
             onClick={() => setIsMenuOpen(false)}
