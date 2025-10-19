@@ -210,7 +210,7 @@
   gap: 10px;
 }
 
-.anonymous-dashboard .therapist-avatar {
+.anonymous-dashboard .therapist-text-avatar {
   display: inline-block;
   width: 50px;
   height: 50px;
@@ -305,7 +305,7 @@
 .anonymous-dashboard .chat-box {
   background: var(--chat-bg);
   padding: 0 20px;
-  height: 510px;
+  height: 520px;
   overflow-y: auto;
   margin: 0 5px 0 0;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -322,6 +322,14 @@
 .anonymous-dashboard .chat-box::-webkit-scrollbar-thumb {
   background: var(--primary-color);
   border-radius: 4px;
+}
+
+.no-message {
+  color: var(--text-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
 }
 
 .anonymous-dashboard .chat-message {
@@ -531,12 +539,135 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 15px;
+  gap: 10px;
+  padding: 10px 15px;
   background: var(--chat-input-bg);
 }
 
-.anonymous-dashboard .detailLeave .onlineStatus {
+.anonymous-dashboard .detailLeave .chat-avater {
+  display: flex;
+  gap: 10px;
+}
+
+.anonymous-dashboard .detailLeave .text-avatar {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: #fff;
+  text-align: center;
+  line-height: 40px;
+  font-size: 1.5rem;
+}
+
+.anonymous-dashboard .detailLeave .card-content {
+  display: flex;
+  flex-direction: column;
+  max-width: 232px;
+  gap: 3px;
+  height: fit-content;
+  white-space: nowrap;
+  margin-top: 3px;
+}
+
+.anonymous-dashboard .detailLeave .group-title {
   color: var(--text-color);
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.anonymous-dashboard .detailLeave .participant-preview {
+  display: flex;
+  gap: 5px;
+  font-size: 0.85rem;
+  color: var(--text-color);
+}
+
+.anonymous-dashboard .detailLeave .participant:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.anonymous-dashboard .detailLeave .participant:last-child .participant-name b {
+  display: none;
+}
+
+.anonymous-dashboard .therapist-list {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-height: 60px;
+  overflow-x: auto;
+}
+
+.anonymous-dashboard .therapist-item {
+  white-space: nowrap;
+  max-width: 140px;
+  height: fit-content;
+  padding: 4px 7px;
+  background: var(--therapist-bg);
+  border-radius: var(--border-radius);
+  font-size: 0.7rem;
+  color: var(--text-color);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.anonymous-dashboard .therapist-item.active {
+  background: var(--accent-color);
+  color: white;
+}
+
+.anonymous-dashboard .therapist-avatar {
+  display: inline-block;
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: #fff;
+  text-align: center;
+  line-height: 23px;
+  margin-right: 3px;
+  font-size: 0.7rem;
+}
+
+.anonymous-dashboard .therapist-item.online {
+  border: 2px solid var(--accent-color);
+}
+
+.anonymous-dashboard .therapist-item.online::after {
+  content: "●";
+  color: #28a745;
+  margin-left: 5px;
+  font-size: 0.7rem;
+}
+
+.anonymous-dashboard .therapist-item:hover {
+  background: var(--primary-color);
+  color: var(--text-color);
+}
+
+@media (prefers-color-scheme: dark) {
+  .anonymous-dashboard .therapist-item:hover {
+    background: #4a6b9b;
+  }
+  .anonymous-dashboard .therapist-item.active {
+    background: var(--accent-color);
+    color: var(--text-color);
+  }
+}
+
+.anonymous-dashboard .therapist-list::-webkit-scrollbar {
+  width: 4px;
+}
+.anonymous-dashboard .therapist-list::-webkit-scrollbar-track {
+  background: var(--system-bg);
+}
+.anonymous-dashboard .therapist-list::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
 }
 
 .anonymous-dashboard .leave-participant {
@@ -631,6 +762,7 @@
   border: none;
   border-radius: 10px;
   padding: 7px 10px;
+  white-space: nowrap;
   background: var(--text-color);
   color: var(--chat-bg);
   transition: background 0.3s;

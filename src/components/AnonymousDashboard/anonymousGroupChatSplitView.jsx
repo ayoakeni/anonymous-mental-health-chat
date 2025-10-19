@@ -13,11 +13,13 @@ import {
   runTransaction,
   limit,
   increment,
+  getDoc,
 } from "firebase/firestore";
 import { useTypingStatus } from "../useTypingStatus";
 import ChatMessage from "../therapistDashboard/ChatMessage";
 import LeaveChatButton from "../LeaveChatButton";
 import EmojiPicker from "emoji-picker-react";
+import TherapistProfile from "../TherapistProfile";
 
 function AnonymousGroupChatSplitView({
   groupChats,
@@ -40,7 +42,10 @@ function AnonymousGroupChatSplitView({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [therapistsOnline, setTherapistsOnline] = useState([]);
+  const [selectedTherapist, setSelectedTherapist] = useState(null);
   const messagesEndRef = useRef(null);
+  const modalRef = useRef(null);
   const navigate = useNavigate();
   const { handleTyping } = useTypingStatus(displayName);
 
@@ -48,6 +53,41 @@ function AnonymousGroupChatSplitView({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, groupEvents]);
+
+  // Fetch online therapists
+  useEffect(() => {
+    const q = query(collection(db, "therapistsOnline"), limit(50));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const onlineList = snapshot.docs.map((doc) => ({
+          uid: doc.id,
+          ...doc.data(),
+        }));
+        setTherapistsOnline(onlineList);
+      },
+      (err) => {
+        console.error("Error fetching therapists online:", err);
+        showError("Failed to fetch online therapists. Please try again.");
+      }
+    );
+    return () => unsubscribe();
+  }, [showError]);
+
+  // Handle clicks outside the modal to close it
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (modalRef.current && !modalRef.current.contains(event.target)) {
+        setSelectedTherapist(null);
+      }
+    };
+    if (selectedTherapist) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [selectedTherapist]);
 
   // Fetch group chat data
   useEffect(() => {
@@ -60,7 +100,7 @@ function AnonymousGroupChatSplitView({
       messagesQuery,
       (snapshot) => {
         const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        console.log("Fetched messages:", msgs); // Debug log
+        console.log("Fetched messages:", msgs);
         setMessages(msgs);
         if (msgs.length > 0) playNotification();
       },
@@ -74,7 +114,7 @@ function AnonymousGroupChatSplitView({
       eventsQuery,
       (snapshot) => {
         const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        console.log("Fetched events:", evts); // Debug log
+        console.log("Fetched events:", evts);
         setGroupEvents(evts);
       },
       (err) => {
@@ -87,7 +127,7 @@ function AnonymousGroupChatSplitView({
       groupRef,
       (snap) => {
         if (snap.exists()) {
-          console.log("Fetched participants:", snap.data().participants); // Debug log
+          console.log("Fetched participants:", snap.data().participants);
           setParticipants(snap.data().participants || []);
         }
       },
@@ -158,8 +198,8 @@ function AnonymousGroupChatSplitView({
       await runTransaction(db, async (transaction) => {
         transaction.update(groupRef, { participants: arrayUnion(userId) });
       });
-      console.log("Joining group:", groupId); // Debug log
-      setActiveGroupId(groupId); // Set activeGroupId explicitly
+      console.log("Joining group:", groupId);
+      setActiveGroupId(groupId);
       navigate(`/anonymous-dashboard/group-chat/${groupId}`);
     } catch (err) {
       console.error("Error joining group chat:", err);
@@ -215,6 +255,7 @@ function AnonymousGroupChatSplitView({
           role: "user",
           timestamp: serverTimestamp(),
           reactions: {},
+          pinned: false,
         });
         transaction.set(typingDoc, {
           typing: false,
@@ -269,6 +310,63 @@ function AnonymousGroupChatSplitView({
     setShowEmojiPicker(false);
   };
 
+  // Handle therapist click to view profile
+  const handleTherapistClick = async (msg) => {
+    if (msg.role !== "therapist") return;
+    try {
+      const snap = await getDoc(doc(db, "therapists", msg.userId));
+      if (snap.exists()) {
+        setSelectedTherapist({ ...snap.data(), uid: msg.userId });
+      }
+    } catch (err) {
+      console.error("Error fetching therapist profile:", err);
+      showError("Failed to fetch therapist profile. Please try again.");
+    }
+  };
+
+  // Check if therapist is online
+  const isTherapistOnline = (uid) =>
+    therapistsOnline.some((t) => t.uid === uid && t.online);
+
+  // Start private chat
+  const startPrivateChat = async (therapist) => {
+    if (!therapist || !therapist.uid || !userId) return;
+    const uids = [userId, therapist.uid].sort();
+    const chatId = `chat_${uids[0]}_${uids[1]}`;
+    const chatRef = doc(db, "privateChats", chatId);
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const chatSnap = await transaction.get(chatRef);
+        if (!chatSnap.exists()) {
+          transaction.set(chatRef, {
+            participants: [userId],
+            createdBy: displayName,
+            lastMessage: "",
+            lastUpdated: serverTimestamp(),
+            unreadCountForTherapist: 0,
+            aiOffered: false,
+            chatStatus: "waiting",
+          });
+        } else {
+          const currentData = chatSnap.data();
+          const updatedParticipants = [
+            ...new Set([...(currentData.participants || []), userId]),
+          ];
+          transaction.update(chatRef, {
+            participants: updatedParticipants,
+            lastUpdated: serverTimestamp(),
+            chatStatus: updatedParticipants.length === 2 ? "active" : "waiting",
+          });
+        }
+      });
+      navigate(`/anonymous-dashboard/private-chat/${chatId}`);
+    } catch (err) {
+      console.error("Error starting private chat:", err);
+      showError("Failed to start private chat. Please try again.");
+    }
+  };
+
   // Combine messages and events
   const combinedGroupChat = [...messages, ...groupEvents].sort((a, b) => {
     return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
@@ -292,13 +390,13 @@ function AnonymousGroupChatSplitView({
                   key={group.id}
                   className={`chat-card ${activeGroupId === group.id ? "selected" : ""}`}
                   onClick={() => {
-                    console.log("Clicked group:", group.id); // Debug log
+                    console.log("Clicked group:", group.id);
                     joinGroupChat(group.id);
                   }}
                 >
                   <div className="chat-card-inner">
                     <div className="chat-avater-content">
-                      <span className="therapist-avatar">{group.name?.[0] || "G"}</span>
+                      <span className="therapist-text-avatar">{group.name?.[0] || "G"}</span>
                       <div className="chat-card-content">
                         <strong className="chat-card-title">{group.name || "Unnamed Group"}</strong>
                         <small className="chat-card-preview">
@@ -327,10 +425,61 @@ function AnonymousGroupChatSplitView({
       <div className="chat-box-container">
         {activeGroupId ? (
           <div className="group-chat-box">
+            {/* Therapist Profile Modal */}
+            {selectedTherapist && (
+              <div className="modal-backdrop">
+                <div className="modal" ref={modalRef}>
+                  <TherapistProfile
+                    therapist={selectedTherapist}
+                    isOnline={isTherapistOnline(selectedTherapist.uid)}
+                    onBack={() => setSelectedTherapist(null)}
+                    onStartChat={() => startPrivateChat(selectedTherapist)}
+                    onBookAppointment={() => alert("Appointment booking coming soon!")}
+                  />
+                </div>
+              </div>
+            )}
+            {/* Pinned Message */}
+            {combinedGroupChat.some((msg) => msg.pinned) && (
+              <div className="pinned-message">
+                <strong>Pinned:</strong>{" "}
+                {combinedGroupChat.find((msg) => msg.pinned)?.text || "Welcome to the chatroom!"}
+              </div>
+            )}
             <div className="detailLeave">
-              <h3 className="onlineStatus">
-                {groupChats.find((g) => g.id === activeGroupId)?.name || "Group Chat"}
-              </h3>
+              <div className="chat-avater">
+                <span className="text-avatar">{groupChats.find((g) => g.id === activeGroupId).name?.[0] || "G"}</span>
+                <div className="card-content">
+                  <strong className="group-title">{groupChats.find((g) => g.id === activeGroupId).name || "Unnamed Group"}</strong>
+                  <small className="participant-preview">
+                    {participants.length > 0 ? (
+                      participants.map((uid) => (
+                        <div key={uid} className="participant">
+                          {<span className="participant-name">{participantNames[uid]} <b>,</b></span> || "Loading..."}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="participant">No participants</div>
+                    )}           
+                  </small>
+                </div>
+              </div>
+              {/* Therapist List */}
+              <div className="therapist-list">
+                {therapistsOnline.map((therapist) => (
+                  <div
+                    key={therapist.uid}
+                    className={`therapist-item ${therapist.online ? "online" : ""} ${
+                      selectedTherapist?.uid === therapist.uid ? "active" : ""
+                    }`}
+                    data-fullname={therapist.name}
+                    onClick={() => handleTherapistClick({ userId: therapist.uid, role: "therapist" })}
+                  >
+                    <span className="therapist-avatar">{therapist.name?.[0] || "T"}</span>
+                    {therapist.name.slice(0, 9)}
+                  </div>
+                ))}
+              </div>
               <div className="leave-participant">
                 <div className="participant-list">
                   <h4
@@ -367,9 +516,9 @@ function AnonymousGroupChatSplitView({
                 <LeaveChatButton type="group" onLeave={leaveGroupChat} />
               </div>
             </div>
-            <div className="chat-box" role="log" aria-live="polite">
+            <div className={selectedTherapist ? "chat-box blurred" : "chat-box"} role="log" aria-live="polite">
               {combinedGroupChat.length === 0 ? (
-                <p>No messages in this group yet.</p>
+                <p className="no-message">No messages in this group yet.</p>
               ) : (
                 combinedGroupChat.map((msg) => (
                   <ChatMessage
@@ -377,7 +526,7 @@ function AnonymousGroupChatSplitView({
                     msg={msg}
                     toggleReaction={toggleReaction}
                     therapistInfo={{ role: "user" }}
-                    handleTherapistClick={() => {}}
+                    handleTherapistClick={handleTherapistClick}
                   />
                 ))
               )}
