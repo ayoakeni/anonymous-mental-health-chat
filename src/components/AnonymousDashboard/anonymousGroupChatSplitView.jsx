@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { db, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
 import {
@@ -49,12 +49,27 @@ function AnonymousGroupChatSplitView({
   const navigate = useNavigate();
   const { handleTyping } = useTypingStatus(displayName);
 
+  // Memoize active group to avoid repeated find calls
+  const activeGroup = useMemo(() => 
+    groupChats.find((g) => g.id === activeGroupId), 
+    [groupChats, activeGroupId]
+  );
+
   // Auto scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, groupEvents]);
 
-  // Fetch online therapists
+  // Reset invalid activeGroupId
+  useEffect(() => {
+    if (activeGroupId && !groupChats.find(g => g.id === activeGroupId)) {
+      console.warn(`Active group ${activeGroupId} not found in groupChats, resetting`);
+      setActiveGroupId(null);
+      navigate("/anonymous-dashboard/group-chat");
+    }
+  }, [activeGroupId, groupChats, navigate, setActiveGroupId]);
+
+  // Fetch online therapists with default name
   useEffect(() => {
     const q = query(collection(db, "therapistsOnline"), limit(50));
     const unsubscribe = onSnapshot(
@@ -63,6 +78,7 @@ function AnonymousGroupChatSplitView({
         const onlineList = snapshot.docs.map((doc) => ({
           uid: doc.id,
           ...doc.data(),
+          name: doc.data().name || `Therapist_${doc.id.slice(0, 8)}`, // Default name if missing
         }));
         setTherapistsOnline(onlineList);
       },
@@ -447,14 +463,16 @@ function AnonymousGroupChatSplitView({
             )}
             <div className="detailLeave">
               <div className="chat-avater">
-                <span className="text-avatar">{groupChats.find((g) => g.id === activeGroupId).name?.[0] || "G"}</span>
+                <span className="text-avatar">{activeGroup?.name?.[0] || "G"}</span>
                 <div className="card-content">
-                  <strong className="group-title">{groupChats.find((g) => g.id === activeGroupId).name || "Unnamed Group"}</strong>
+                  <strong className="group-title">{activeGroup?.name || "Unnamed Group"}</strong>
                   <small className="participant-preview">
                     {participants.length > 0 ? (
                       participants.map((uid) => (
                         <div key={uid} className="participant">
-                          {<span className="participant-name">{participantNames[uid]} <b>,</b></span> || "Loading..."}
+                          <span className="participant-name">
+                            {participantNames[uid] || "Loading..."}<b>,</b>
+                          </span>
                         </div>
                       ))
                     ) : (
@@ -475,7 +493,7 @@ function AnonymousGroupChatSplitView({
                     onClick={() => handleTherapistClick({ userId: therapist.uid, role: "therapist" })}
                   >
                     <span className="therapist-avatar">{therapist.name?.[0] || "T"}</span>
-                    {therapist.name.slice(0, 9)}
+                    {therapist.name?.slice(0, 9) || "Unknown"}
                   </div>
                 ))}
               </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { db, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
 import {
@@ -50,10 +50,25 @@ function AnonymousPrivateChatSplitView({
   const { handleTyping } = useTypingStatus(displayName);
   const [isLoadingChat, setIsLoadingChat] = useState(false);
 
+  // Memoize active chat to avoid repeated find calls
+  const activeChat = useMemo(() => 
+    privateChats.find((g) => g.id === activeChatId), 
+    [privateChats, activeChatId]
+  );
+
   // Auto scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, events]);
+
+  // Reset invalid activeChatId
+  useEffect(() => {
+    if (activeChatId && !privateChats.find(g => g.id === activeChatId)) {
+      console.warn(`Active chat ${activeChatId} not found in privateChats, resetting`);
+      setActiveChatId(null);
+      navigate("/anonymous-dashboard/private-chat");
+    }
+  }, [activeChatId, privateChats, navigate, setActiveChatId]);
 
   // Watch therapist presence
   useEffect(() => {
@@ -63,9 +78,13 @@ function AnonymousPrivateChatSplitView({
       q,
       (snap) => {
         const onlineTherapists = snap.docs
-          .map((d) => ({ uid: d.id, ...d.data() }))
+          .map((d) => ({
+            uid: d.id,
+            ...d.data(),
+            name: d.data().name || `Therapist_${d.id.slice(0, 8)}`, // Default name if missing
+          }))
           .filter((t) => t.online);
-        setActiveTherapists(onlineTherapists.map((t) => t.name || "Therapist"));
+        setActiveTherapists(onlineTherapists);
         setIsTherapistAvailable(onlineTherapists.length > 0);
       },
       (err) => {
@@ -443,14 +462,16 @@ function AnonymousPrivateChatSplitView({
           <div className="private-chat-box">
             <div className="detailLeave">
               <div className="chat-avater">
-                <span className="text-avatar">{privateChats.find((g) => g.id === activeChatId).name?.[0] || "T"}</span>
+                <span className="text-avatar">{activeChat?.name?.[0] || "T"}</span>
                 <div className="card-content">
-                  <strong className="group-title">{privateChats.find((g) => g.id === activeChatId).name || "Unnamed therapist"}</strong>
+                  <strong className="group-title">{activeChat?.name || "Unnamed therapist"}</strong>
                   <small className="participant-preview">
                     {activeTherapists.length > 0 ? (
-                      activeTherapists.map((uid) => (
-                        <div key={uid} className="participant">
-                          {<span className="participant-name">{activeTherapists[uid]} <b>,</b></span> || "Loading..."}
+                      activeTherapists.map((therapist, index) => (
+                        <div key={therapist.uid} className="participant">
+                          <span className="participant-name">
+                            {therapist.name || "Loading..."}<b>,</b>
+                          </span>
                         </div>
                       ))
                     ) : (
@@ -461,7 +482,7 @@ function AnonymousPrivateChatSplitView({
               </div>
               <h3 className="onlineStatus">
                 {isTherapistAvailable
-                  ? `Therapist Online: ${activeTherapists.join(", ")}`
+                  ? `Therapist Online: ${activeTherapists.map(t => t.name).join(", ")}`
                   : "Waiting for Therapist"}
               </h3>
               <div className="leave-participant">
