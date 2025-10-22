@@ -340,7 +340,7 @@ function PrivateChat({ chatId }) {
       let messageText = newMessage;
       const isAiTrigger = role === "user" && newMessage.toLowerCase().includes("@ai");
       if (isAiTrigger) {
-        messageText = `You said: "${newMessage.replace(/@ai/gi, "").trim()}"\n\n`;
+        messageText = `"${newMessage.replace(/@ai/gi, "").trim()}"\n\n`;
       }
 
       // Optimistic update data
@@ -409,7 +409,7 @@ function PrivateChat({ chatId }) {
           const optimisticAiId = `optimistic-ai-${Date.now()}-${Math.random()}`;
           const optimisticAiMessage = {
             id: optimisticAiId,
-            text: `You said: "${userMessage}"\n\n${aiResponse}`,
+            text: `"${userMessage}"\n\n${aiResponse}`,
             role: "ai",
             displayName: "Support Assistant",
             timestamp: Timestamp.now(),
@@ -423,7 +423,7 @@ function PrivateChat({ chatId }) {
             const chatSnap = await transaction.get(chatRef);
             if (!chatSnap.exists()) throw new Error("Chat document does not exist");
             transaction.set(doc(collection(chatRef, "messages")), {
-              text: `You said: "${userMessage}"\n\n${aiResponse}`,
+              text: `"${userMessage}"\n\n${aiResponse}`,
               role: "ai",
               displayName: "Support Assistant",
               timestamp: serverTimestamp(),

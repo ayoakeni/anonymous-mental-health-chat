@@ -415,7 +415,7 @@
 .therapist-dashboard .participant-dropdown {
   position: absolute;
   top: 178%;
-  right: -25px;
+  right: -40px;
   background: var(--chat-bg);
   border: 1px solid var(--input-border);
   border-radius: var(--border-radius);

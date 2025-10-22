@@ -241,11 +241,6 @@ function AnonymousPrivateChatSplitView({
       }
 
       let messageText = newMessage;
-      const isAiTrigger = newMessage.toLowerCase().includes("@ai");
-      if (isAiTrigger) {
-        messageText = `You said: "${newMessage.replace(/@ai/gi, "").trim()}"\n\n`;
-      }
-
       const chatRef = doc(db, "privateChats", activeChatId);
       await runTransaction(db, async (transaction) => {
         const chatSnap = await transaction.get(chatRef);
@@ -270,7 +265,6 @@ function AnonymousPrivateChatSplitView({
         });
       });
 
-      const userMessage = newMessage.replace(/@ai/gi, "").trim();
       setNewMessage("");
       setShowEmojiPicker(false);
 
@@ -282,16 +276,16 @@ function AnonymousPrivateChatSplitView({
       const data = chatSnap.data();
       const therapistInChat = data.participants?.some((uid) => uid !== userId) || false;
 
-      if ((isAiTrigger || data.aiActive) && !therapistInChat) {
+      if (data.aiActive && !therapistInChat) {
         try {
           setAiTyping(true);
           const aiInputMessages = mapMessagesForAI(messages);
-          const aiResponse = await getAIResponse(userMessage || "Continue", aiInputMessages);
+          const aiResponse = await getAIResponse(newMessage, aiInputMessages);
           await runTransaction(db, async (transaction) => {
             const chatSnap = await transaction.get(chatRef);
             if (!chatSnap.exists()) throw new Error("Chat document does not exist");
             transaction.set(doc(collection(chatRef, "messages")), {
-              text: `You said: "${userMessage}"\n\n${aiResponse}`,
+              text: `"${newMessage}"\n\n${aiResponse}`,
               role: "ai",
               displayName: "Support Assistant",
               timestamp: serverTimestamp(),

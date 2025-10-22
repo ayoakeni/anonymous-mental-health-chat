@@ -20,6 +20,8 @@ import ChatMessage from "../therapistDashboard/ChatMessage";
 import LeaveChatButton from "../LeaveChatButton";
 import EmojiPicker from "emoji-picker-react";
 import TherapistProfile from "../TherapistProfile";
+import { getAIResponse } from "../../utils/AiChatIntegration";
+import { mapMessagesForAI } from "../../utils/aiMessageMapper";
 
 function AnonymousGroupChatSplitView({
   groupChats,
@@ -44,6 +46,7 @@ function AnonymousGroupChatSplitView({
   const [isSending, setIsSending] = useState(false);
   const [therapistsOnline, setTherapistsOnline] = useState([]);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
+  const [aiTyping, setAiTyping] = useState(false);
   const messagesEndRef = useRef(null);
   const modalRef = useRef(null);
   const navigate = useNavigate();
@@ -175,20 +178,20 @@ function AnonymousGroupChatSplitView({
         therapistRef,
         (therapistSnap) => {
           if (therapistSnap.exists()) {
-            names[uid] = therapistSnap.data().name || `Therapist_${uid.slice(0, 8)}`;
+            names[uid] = therapistSnap.data().name || `Therapist_${uid.slice(0, 3)}`;
             setParticipantNames({ ...names });
           } else {
             onSnapshot(
               anonRef,
               (anonSnap) => {
                 names[uid] = anonSnap.exists()
-                  ? anonSnap.data().anonymousName || `Anonymous_${uid.slice(0, 8)}`
-                  : `Anonymous_${uid.slice(0, 8)}`;
+                  ? anonSnap.data().anonymousName || `Anonymous_${uid.slice(0, 3)}`
+                  : `Anonymous_${uid.slice(0, 3)}`;
                 setParticipantNames({ ...names });
               },
               (err) => {
                 console.error(`Error fetching anonymous name for ${uid}:`, err);
-                names[uid] = `Anonymous_${uid.slice(0, 8)}`;
+                names[uid] = `Anonymous_${uid.slice(0, 3)}`;
                 setParticipantNames({ ...names });
               }
             );
@@ -196,7 +199,7 @@ function AnonymousGroupChatSplitView({
         },
         (err) => {
           console.error(`Error fetching therapist name for ${uid}:`, err);
-          names[uid] = `Anonymous_${uid.slice(0, 8)}`;
+          names[uid] = `Anonymous_${uid.slice(0, 3)}`;
           setParticipantNames({ ...names });
         }
       );
@@ -259,11 +262,18 @@ function AnonymousGroupChatSplitView({
         fileUrl = await getDownloadURL(storageRef);
       }
 
+      let messageText = newMessage;
+      const isAiTrigger = newMessage.toLowerCase().includes("@ai");
+      if (isAiTrigger) {
+        messageText = `"${newMessage.replace(/@ai/gi, "").trim()}"\n\n`;
+      }
+
+      const groupRef = doc(db, "groupChats", activeGroupId);
       await runTransaction(db, async (transaction) => {
         const messagesRef = collection(db, `groupChats/${activeGroupId}/messages`);
         const typingDoc = doc(db, "typingStatus", userId);
         transaction.set(doc(messagesRef), {
-          text: newMessage || "",
+          text: messageText || "",
           fileUrl,
           userId,
           displayName,
@@ -277,7 +287,7 @@ function AnonymousGroupChatSplitView({
           name: displayName,
           timestamp: serverTimestamp(),
         });
-        transaction.update(doc(db, "groupChats", activeGroupId), {
+        transaction.update(groupRef, {
           lastMessage: {
             text: newMessage || "Attachment",
             displayName,
@@ -287,8 +297,41 @@ function AnonymousGroupChatSplitView({
         });
       });
 
+      const userMessage = newMessage.replace(/@ai/gi, "").trim();
       setNewMessage("");
       setShowEmojiPicker(false);
+
+      if (isAiTrigger) {
+        try {
+          setAiTyping(true);
+          const aiInputMessages = mapMessagesForAI(messages);
+          const aiResponse = await getAIResponse(userMessage || "Continue", aiInputMessages);
+          await runTransaction(db, async (transaction) => {
+            const messagesRef = collection(db, `groupChats/${activeGroupId}/messages`);
+            transaction.set(doc(messagesRef), {
+              text: `"${userMessage}"\n\n${aiResponse}`,
+              role: "ai",
+              displayName: "Support Assistant",
+              timestamp: serverTimestamp(),
+              fileUrl: null,
+              reactions: {},
+              pinned: false,
+            });
+          });
+        } catch (err) {
+          console.error("AI response error:", err);
+          await runTransaction(db, async (transaction) => {
+            const messagesRef = collection(db, `groupChats/${activeGroupId}/messages`);
+            transaction.set(doc(messagesRef), {
+              text: "Sorry, I couldn’t respond right now. Please try again later.",
+              role: "system",
+              timestamp: serverTimestamp(),
+            });
+          });
+        } finally {
+          setAiTyping(false);
+        }
+      }
     } catch (err) {
       console.error("Error sending message:", err);
       showError("Failed to send message. Please try again.");
@@ -550,6 +593,11 @@ function AnonymousGroupChatSplitView({
               {typingUsers.length > 0 && (
                 <p className="typing-indicator">
                   {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+                </p>
+              )}
+              {aiTyping && (
+                <p className="typing-indicator ai-typing">
+                  Support Assistant is typing...
                 </p>
               )}
               <div ref={messagesEndRef} />

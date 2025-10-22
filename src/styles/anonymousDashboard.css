@@ -744,13 +744,13 @@
 .anonymous-dashboard .participant-dropdown {
   position: absolute;
   top: 178%;
-  right: -25px;
+  right: -40px;
   background: var(--chat-bg);
   border: 1px solid var(--input-border);
   border-radius: var(--border-radius);
   box-shadow: var(--shadow);
   z-index: 100;
-  max-width: 130px;
+  max-width: 140px;
   max-height: 300px;
   overflow-y: auto;
 }
