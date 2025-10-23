@@ -17,6 +17,7 @@ import { useTypingStatus } from "../components/useTypingStatus";
 import useNotificationSound from "../components/useNotificationSound";
 import { formatTimestamp, getTimestampMillis } from "../components/timestampUtils";
 import Sidebar from "../components/sidebar";
+import AnonymousDashboardHome from "../components/AnonymousDashboard/anonymousDashboardHome"
 import AnonymousGroupChatSplitView from "../components/AnonymousDashboard/anonymousGroupChatSplitView";
 import AnonymousPrivateChatSplitView from "../components/AnonymousDashboard/anonymousPrivateChatSplitView";
 import "../styles/anonymousDashboard.css";
@@ -273,13 +274,13 @@ function AnonymousDashboard() {
           <Route
             path="/"
             element={
-              <div className="dashboard">
-                <div className="welcome-header">
-                  <h2>
-                    Welcome, <span className="highlight">{displayName}</span>!
-                  </h2>
-                </div>
-              </div>
+            <AnonymousDashboardHome
+              groupChats={groupChats}
+              privateChats={privateChats}
+              displayName={displayName}
+              anonNames={anonNames}
+              formatTimestamp={formatTimestamp}
+            />
             }
           />
           <Route
