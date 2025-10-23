@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { db, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
 import {
@@ -14,6 +14,8 @@ import {
   limit,
   increment,
   getDoc,
+  getDocs,
+  startAfter,
 } from "firebase/firestore";
 import { useTypingStatus } from "../useTypingStatus";
 import ChatMessage from "../therapistDashboard/ChatMessage";
@@ -47,7 +49,11 @@ function AnonymousGroupChatSplitView({
   const [therapistsOnline, setTherapistsOnline] = useState([]);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const [aiTyping, setAiTyping] = useState(false);
+  const [pendingMessages, setPendingMessages] = useState([]);
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const messagesEndRef = useRef(null);
+  const chatBoxRef = useRef(null);
   const modalRef = useRef(null);
   const navigate = useNavigate();
   const { handleTyping } = useTypingStatus(displayName);
@@ -58,10 +64,35 @@ function AnonymousGroupChatSplitView({
     [groupChats, activeGroupId]
   );
 
-  // Auto scroll
+  // Auto scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, groupEvents]);
+  }, [messages, groupEvents, pendingMessages]);
+  
+  // Load more messages (pagination)
+  const loadMoreMessages = useCallback(async () => {
+    if (!activeGroupId || !hasMoreMessages || isLoadingChat) return;
+    setIsLoadingChat(true);
+    try {
+      const groupRef = doc(db, "groupChats", activeGroupId);
+      const lastVisibleMsg = messages[messages.length - 1];
+      const nextQuery = query(
+        collection(groupRef, "messages"),
+        orderBy("timestamp", "desc"),
+        startAfter(lastVisibleMsg?.timestamp),
+        limit(50)
+      );
+      const snapshot = await getDocs(nextQuery);
+      const newMessages = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setMessages((prev) => [...newMessages, ...prev]); // Prepend new messages
+      setHasMoreMessages(snapshot.docs.length === 50); // More messages if we hit the limit
+    } catch (err) {
+      console.error("Error loading more messages:", err);
+      showError("Failed to load more messages. Please try again.");
+    } finally {
+      setIsLoadingChat(false);
+    }
+  }, [activeGroupId, hasMoreMessages, isLoadingChat, messages, setMessages, setHasMoreMessages, showError]);
 
   // Reset invalid activeGroupId
   useEffect(() => {
@@ -71,7 +102,21 @@ function AnonymousGroupChatSplitView({
       navigate("/anonymous-dashboard/group-chat");
     }
   }, [activeGroupId, groupChats, navigate, setActiveGroupId]);
+  
+  // Handle scroll to load more messages
+  useEffect(() => {
+    const chatBox = chatBoxRef.current;
+    if (!chatBox) return;
 
+    const handleScroll = () => {
+      if (chatBox.scrollTop === 0 && hasMoreMessages && !isLoadingChat) {
+        loadMoreMessages();
+      }
+    };
+  chatBox.addEventListener("scroll", handleScroll);
+  return () => chatBox.removeEventListener("scroll", handleScroll);
+}, [hasMoreMessages, isLoadingChat, activeGroupId, loadMoreMessages]);
+  
   // Fetch online therapists with default name
   useEffect(() => {
     const q = query(collection(db, "therapistsOnline"), limit(50));
@@ -81,7 +126,7 @@ function AnonymousGroupChatSplitView({
         const onlineList = snapshot.docs.map((doc) => ({
           uid: doc.id,
           ...doc.data(),
-          name: doc.data().name || `Therapist_${doc.id.slice(0, 8)}`, // Default name if missing
+          name: doc.data().name || `Therapist_${doc.id.slice(0, 8)}`,
         }));
         setTherapistsOnline(onlineList);
       },
@@ -112,20 +157,26 @@ function AnonymousGroupChatSplitView({
   useEffect(() => {
     if (!activeGroupId) return;
     const groupRef = doc(db, "groupChats", activeGroupId);
-    const messagesQuery = query(collection(groupRef, "messages"), orderBy("timestamp"), limit(50));
+    const messagesQuery = query(collection(groupRef, "messages"), orderBy("timestamp", "desc"), limit(50));
     const eventsQuery = query(collection(groupRef, "events"), orderBy("timestamp"), limit(50));
 
     const unsubMessages = onSnapshot(
       messagesQuery,
       (snapshot) => {
         const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        console.log("Fetched messages:", msgs);
         setMessages(msgs);
+        // Clear pending messages that match real messages
+        setPendingMessages((prev) =>
+          prev.filter((pending) => !msgs.some((msg) => msg.text === pending.text && msg.role === pending.role))
+        );
+        setIsLoadingChat(false);
+        setHasMoreMessages(snapshot.docs.length === 50); // More messages if we hit the limit
         if (msgs.length > 0) playNotification();
       },
       (err) => {
         console.error("Error fetching messages:", err);
         showError("Failed to load messages. Please try again.");
+        setIsLoadingChat(false);
       }
     );
 
@@ -159,6 +210,7 @@ function AnonymousGroupChatSplitView({
       unsubMessages();
       unsubEvents();
       unsubParticipants();
+      setPendingMessages([]);
     };
   }, [activeGroupId, showError, playNotification]);
 
@@ -262,18 +314,17 @@ function AnonymousGroupChatSplitView({
         fileUrl = await getDownloadURL(storageRef);
       }
 
-      let messageText = newMessage;
       const isAiTrigger = newMessage.toLowerCase().includes("@ai");
-      if (isAiTrigger) {
-        messageText = `${displayName}: "${newMessage.replace(/@ai/gi, "").trim()}"\n\n`;
-      }
+      const cleanUserText = newMessage.replace(/@ai/gi, "").trim();
 
       const groupRef = doc(db, "groupChats", activeGroupId);
-      await runTransaction(db, async (transaction) => {
-        const messagesRef = collection(db, `groupChats/${activeGroupId}/messages`);
-        const typingDoc = doc(db, "typingStatus", userId);
-        transaction.set(doc(messagesRef), {
-          text: messageText || "",
+      const messagesRef = collection(db, `groupChats/${activeGroupId}/messages`);
+
+      // User message transaction
+      await runTransaction(db, async (tx) => {
+        const userMsgRef = doc(messagesRef);
+        tx.set(userMsgRef, {
+          text: cleanUserText || "",
           fileUrl,
           userId,
           displayName,
@@ -282,59 +333,125 @@ function AnonymousGroupChatSplitView({
           reactions: {},
           pinned: false,
         });
-        transaction.set(typingDoc, {
+        tx.set(doc(db, "typingStatus", userId), {
           typing: false,
           name: displayName,
           timestamp: serverTimestamp(),
         });
-        transaction.update(groupRef, {
-          lastMessage: {
-            text: newMessage || "Attachment",
-            displayName,
-            timestamp: serverTimestamp(),
-          },
-          unreadCount: increment(1),
-        });
+        tx.update(groupRef, { unreadCount: increment(1) });
       });
 
-      const userMessage = newMessage.replace(/@ai/gi, "").trim();
+      // Add user message to pendingMessages for instant feedback
+      setPendingMessages((prev) => [
+        ...prev,
+        {
+          id: `pending-user-${Date.now()}`,
+          text: cleanUserText,
+          fileUrl,
+          userId,
+          displayName,
+          role: "user",
+          timestamp: { toMillis: () => Date.now() },
+          reactions: {},
+          pinned: false,
+        },
+      ]);
+
       setNewMessage("");
       setShowEmojiPicker(false);
 
       if (isAiTrigger) {
+        setAiTyping(true);
         try {
-          setAiTyping(true);
-          const aiInputMessages = mapMessagesForAI(messages);
-          const aiResponse = await getAIResponse(userMessage || "Continue", aiInputMessages);
-          await runTransaction(db, async (transaction) => {
-            const messagesRef = collection(db, `groupChats/${activeGroupId}/messages`);
-            transaction.set(doc(messagesRef), {
-              text: `${displayName}: "${userMessage}"\n\n${aiResponse}`,
+          const aiInput = mapMessagesForAI(messages);
+          const aiResponse = await getAIResponse(cleanUserText || "Continue", aiInput);
+          const aiFullText = `${displayName}: "${cleanUserText}"\n\n${aiResponse}`;
+
+          // AI message transaction
+          await runTransaction(db, async (tx) => {
+            const aiMsgRef = doc(messagesRef);
+            tx.set(aiMsgRef, {
+              text: aiFullText,
               role: "ai",
               displayName: "Support Assistant",
+              userId: "ai",
               timestamp: serverTimestamp(),
               fileUrl: null,
               reactions: {},
               pinned: false,
             });
-          });
-        } catch (err) {
-          console.error("AI response error:", err);
-          await runTransaction(db, async (transaction) => {
-            const messagesRef = collection(db, `groupChats/${activeGroupId}/messages`);
-            transaction.set(doc(messagesRef), {
-              text: "Sorry, I couldn’t respond right now. Please try again later.",
-              role: "system",
-              timestamp: serverTimestamp(),
+            tx.update(groupRef, {
+              lastMessage: {
+                text: aiFullText,
+                displayName: "Support Assistant",
+                timestamp: serverTimestamp(),
+              },
+              unreadCount: increment(1),
             });
           });
+
+          // Add AI message to pendingMessages for instant feedback
+          setPendingMessages((prev) => [
+            ...prev,
+            {
+              id: `pending-ai-${Date.now()}`,
+              text: aiFullText,
+              role: "ai",
+              displayName: "Support Assistant",
+              userId: "ai",
+              timestamp: { toMillis: () => Date.now() },
+              fileUrl: null,
+              reactions: {},
+              pinned: false,
+            },
+          ]);
+        } catch (aiErr) {
+          console.error("AI error:", aiErr);
+          const errText = "Sorry, I couldn’t respond right now. Please try again later.";
+          await runTransaction(db, async (tx) => {
+            const errRef = doc(messagesRef);
+            tx.set(errRef, {
+              text: errText,
+              role: "system",
+              displayName: "System",
+              userId: "system",
+              timestamp: serverTimestamp(),
+              fileUrl: null,
+              reactions: {},
+              pinned: false,
+            });
+            tx.update(groupRef, {
+              lastMessage: {
+                text: errText,
+                displayName: "System",
+                timestamp: serverTimestamp(),
+              },
+              unreadCount: increment(1),
+            });
+          });
+
+          // Add error message to pendingMessages
+          setPendingMessages((prev) => [
+            ...prev,
+            {
+              id: `pending-error-${Date.now()}`,
+              text: errText,
+              role: "system",
+              displayName: "System",
+              userId: "system",
+              timestamp: { toMillis: () => Date.now() },
+              fileUrl: null,
+              reactions: {},
+              pinned: false,
+            },
+          ]);
         } finally {
           setAiTyping(false);
         }
       }
-    } catch (err) {
-      console.error("Error sending message:", err);
-      showError("Failed to send message. Please try again.");
+    } catch (e) {
+      console.error("Error sending message:", e);
+      showError("Failed to send message.");
     } finally {
       setIsSending(false);
     }
@@ -427,7 +544,7 @@ function AnonymousGroupChatSplitView({
   };
 
   // Combine messages and events
-  const combinedGroupChat = [...messages, ...groupEvents].sort((a, b) => {
+  const combinedGroupChat = [...messages, ...groupEvents, ...pendingMessages].sort((a, b) => {
     return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
   });
 
@@ -514,7 +631,7 @@ function AnonymousGroupChatSplitView({
                       participants.map((uid) => (
                         <div key={uid} className="participant">
                           <span className="participant-name">
-                            {participantNames[uid] || "Loading..."}<b>,</b>
+                            {participantNames[uid] || "Loading"}<b>,</b>
                           </span>
                         </div>
                       ))
@@ -576,15 +693,17 @@ function AnonymousGroupChatSplitView({
                 <LeaveChatButton type="group" onLeave={leaveGroupChat} />
               </div>
             </div>
-            <div className={selectedTherapist ? "chat-box blurred" : "chat-box"} role="log" aria-live="polite">
-              {combinedGroupChat.length === 0 ? (
+            <div className={selectedTherapist ? "chat-box blurred" : "chat-box"} role="log" aria-live="polite" ref={chatBoxRef}>
+              {isLoadingChat ? (
+                <p>Loading chat data...</p>
+              ) : combinedGroupChat.length === 0 ? (
                 <p className="no-message">No messages in this group yet.</p>
               ) : (
                 combinedGroupChat.map((msg) => (
                   <ChatMessage
                     key={msg.id}
                     msg={msg}
-                    toggleReaction={toggleReaction}
+                    toggleReaction={msg.id.startsWith("pending-") ? () => {} : toggleReaction}
                     therapistInfo={{ role: "user" }}
                     handleTherapistClick={handleTherapistClick}
                   />

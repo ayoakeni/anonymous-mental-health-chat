@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { db, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
 import {
@@ -13,7 +13,9 @@ import {
   runTransaction,
   limit,
   getDoc,
+  getDocs,
   increment,
+  startAfter,
 } from "firebase/firestore";
 import { useTypingStatus } from "../useTypingStatus";
 import { getAIResponse } from "../../utils/AiChatIntegration";
@@ -37,6 +39,7 @@ function AnonymousPrivateChatSplitView({
 }) {
   const [messages, setMessages] = useState([]);
   const [events, setEvents] = useState([]);
+  const [pendingMessages, setPendingMessages] = useState([]);
   const [isTherapistAvailable, setIsTherapistAvailable] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
@@ -45,10 +48,12 @@ function AnonymousPrivateChatSplitView({
   const [activeTherapists, setActiveTherapists] = useState([]);
   const [chatData, setChatData] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const messagesEndRef = useRef(null);
+  const chatBoxRef = useRef(null);
   const navigate = useNavigate();
   const { handleTyping } = useTypingStatus(displayName);
-  const [isLoadingChat, setIsLoadingChat] = useState(false);
 
   // Memoize active chat to avoid repeated find calls
   const activeChat = useMemo(() => 
@@ -56,10 +61,50 @@ function AnonymousPrivateChatSplitView({
     [privateChats, activeChatId]
   );
 
-  // Auto scroll
+  // Auto scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, events]);
+  }, [messages, events, pendingMessages]);
+
+  // Load more messages (pagination)
+  const loadMoreMessages = useCallback(async () => {
+    if (!activeChatId || !hasMoreMessages || isLoadingChat) return;
+    setIsLoadingChat(true);
+    try {
+      const chatRef = doc(db, "privateChats", activeChatId);
+      const lastVisibleMsg = messages[messages.length - 1];
+      const nextQuery = query(
+        collection(chatRef, "messages"),
+        orderBy("timestamp", "desc"),
+        startAfter(lastVisibleMsg?.timestamp),
+        limit(50)
+      );
+      const snapshot = await getDocs(nextQuery);
+      const newMessages = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setMessages((prev) => [...newMessages, ...prev]); // Prepend new messages
+      setHasMoreMessages(snapshot.docs.length === 50); // More messages if we hit the limit
+    } catch (err) {
+      console.error("Error loading more messages:", err);
+      showError("Failed to load more messages. Please try again.");
+    } finally {
+      setIsLoadingChat(false);
+    }
+  }, [activeChatId, hasMoreMessages, isLoadingChat, messages, setMessages, setHasMoreMessages, showError]);
+
+  // Handle scroll to load more messages
+  useEffect(() => {
+    const chatBox = chatBoxRef.current;
+    if (!chatBox) return;
+
+    const handleScroll = () => {
+      if (chatBox.scrollTop === 0 && hasMoreMessages && !isLoadingChat) {
+        loadMoreMessages();
+      }
+    };
+
+    chatBox.addEventListener("scroll", handleScroll);
+    return () => chatBox.removeEventListener("scroll", handleScroll);
+  }, [hasMoreMessages, isLoadingChat, activeChatId, loadMoreMessages]);
 
   // Reset invalid activeChatId
   useEffect(() => {
@@ -81,7 +126,7 @@ function AnonymousPrivateChatSplitView({
           .map((d) => ({
             uid: d.id,
             ...d.data(),
-            name: d.data().name || `Therapist_${d.id.slice(0, 8)}`, // Default name if missing
+            name: d.data().name || `Therapist_${d.id.slice(0, 8)}`,
           }))
           .filter((t) => t.online);
         setActiveTherapists(onlineTherapists);
@@ -99,13 +144,17 @@ function AnonymousPrivateChatSplitView({
   useEffect(() => {
     if (!activeChatId) return;
     const chatRef = doc(db, "privateChats", activeChatId);
-    const q = query(collection(chatRef, "messages"), orderBy("timestamp"), limit(50));
+    const q = query(collection(chatRef, "messages"), orderBy("timestamp", "desc"), limit(50));
     const unsubscribeMessages = onSnapshot(
       q,
       (snapshot) => {
         const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
         setMessages(msgs);
+        setPendingMessages((prev) =>
+          prev.filter((pending) => !msgs.some((msg) => msg.text === pending.text && msg.role === pending.role))
+        );
         setIsLoadingChat(false);
+        setHasMoreMessages(snapshot.docs.length === 50); // More messages if we hit the limit
         if (msgs.length > 0) playNotification();
       },
       (err) => {
@@ -114,7 +163,10 @@ function AnonymousPrivateChatSplitView({
         setIsLoadingChat(false);
       }
     );
-    return () => unsubscribeMessages();
+    return () => {
+      unsubscribeMessages();
+      setPendingMessages([]);
+    };
   }, [activeChatId, playNotification, showError]);
 
   // Watch events
@@ -265,6 +317,22 @@ function AnonymousPrivateChatSplitView({
         });
       });
 
+      // Add user message to pendingMessages for instant feedback
+      setPendingMessages((prev) => [
+        ...prev,
+        {
+          id: `pending-user-${Date.now()}`,
+          text: messageText,
+          userId,
+          displayName,
+          role: "user",
+          timestamp: { toMillis: () => Date.now() },
+          fileUrl,
+          reactions: {},
+          read: false,
+        },
+      ]);
+
       setNewMessage("");
       setShowEmojiPicker(false);
 
@@ -281,27 +349,62 @@ function AnonymousPrivateChatSplitView({
           setAiTyping(true);
           const aiInputMessages = mapMessagesForAI(messages);
           const aiResponse = await getAIResponse(newMessage, aiInputMessages);
+          const aiFullText = `"${newMessage}"\n\n${aiResponse}`;
           await runTransaction(db, async (transaction) => {
             const chatSnap = await transaction.get(chatRef);
             if (!chatSnap.exists()) throw new Error("Chat document does not exist");
             transaction.set(doc(collection(chatRef, "messages")), {
-              text: `"${newMessage}"\n\n${aiResponse}`,
+              text: aiFullText,
               role: "ai",
               displayName: "Support Assistant",
               timestamp: serverTimestamp(),
               fileUrl: null,
               reactions: {},
             });
+            transaction.update(chatRef, {
+              lastMessage: aiFullText,
+              lastUpdated: serverTimestamp(),
+            });
           });
+
+          // Add AI message to pendingMessages for instant feedback
+          setPendingMessages((prev) => [
+            ...prev,
+            {
+              id: `pending-ai-${Date.now()}`,
+              text: aiFullText,
+              role: "ai",
+              displayName: "Support Assistant",
+              timestamp: { toMillis: () => Date.now() },
+              fileUrl: null,
+              reactions: {},
+            },
+          ]);
         } catch (err) {
           console.error("AI response error:", err);
+          const errText = "Sorry, I couldn’t respond right now. Please wait for a therapist.";
           await runTransaction(db, async (transaction) => {
             transaction.set(doc(collection(chatRef, "messages")), {
-              text: "Sorry, I couldn’t respond right now. Please wait for a therapist.",
+              text: errText,
               role: "system",
               timestamp: serverTimestamp(),
             });
+            transaction.update(chatRef, {
+              lastMessage: errText,
+              lastUpdated: serverTimestamp(),
+            });
           });
+
+          // Add error message to pendingMessages
+          setPendingMessages((prev) => [
+            ...prev,
+            {
+              id: `pending-error-${Date.now()}`,
+              text: errText,
+              role: "system",
+              timestamp: { toMillis: () => Date.now() },
+            },
+          ]);
         } finally {
           setAiTyping(false);
         }
@@ -340,21 +443,80 @@ function AnonymousPrivateChatSplitView({
             setAiTyping(true);
             const aiInputMessages = mapMessagesForAI(messages);
             const aiResponse = await getAIResponse("Start conversation", aiInputMessages);
+            const aiFullText = aiResponse;
             transaction.set(doc(collection(chatRef, "messages")), {
-              text: aiResponse,
+              text: aiFullText,
               role: "ai",
               displayName: "Support Assistant",
               timestamp: serverTimestamp(),
               fileUrl: null,
               reactions: {},
             });
+            transaction.update(chatRef, {
+              lastMessage: aiFullText,
+              lastUpdated: serverTimestamp(),
+            });
+
+            // Add AI messages to pendingMessages for instant feedback
+            setPendingMessages((prev) => [
+              ...prev,
+              {
+                id: `pending-user-${Date.now()}`,
+                text: choice === "yes" ? "Yes" : "No",
+                userId,
+                displayName,
+                role: "user",
+                timestamp: { toMillis: () => Date.now() },
+                read: false,
+              },
+              {
+                id: `pending-system-${Date.now()}`,
+                text: "You are now chatting with our support assistant until a therapist joins.",
+                role: "system",
+                timestamp: { toMillis: () => Date.now() },
+              },
+              {
+                id: `pending-ai-${Date.now()}`,
+                text: aiFullText,
+                role: "ai",
+                displayName: "Support Assistant",
+                timestamp: { toMillis: () => Date.now() },
+                fileUrl: null,
+                reactions: {},
+              },
+            ]);
           } catch (err) {
             console.error("AI response error:", err);
+            const errText = "Sorry, I couldn’t respond right now. Please wait for a therapist.";
             transaction.set(doc(collection(chatRef, "messages")), {
-              text: "Sorry, I couldn’t respond right now. Please wait for a therapist.",
+              text: errText,
               role: "system",
               timestamp: serverTimestamp(),
             });
+            transaction.update(chatRef, {
+              lastMessage: errText,
+              lastUpdated: serverTimestamp(),
+            });
+
+            // Add error message to pendingMessages
+            setPendingMessages((prev) => [
+              ...prev,
+              {
+                id: `pending-user-${Date.now()}`,
+                text: choice === "yes" ? "Yes" : "No",
+                userId,
+                displayName,
+                role: "user",
+                timestamp: { toMillis: () => Date.now() },
+                read: false,
+              },
+              {
+                id: `pending-system-${Date.now()}`,
+                text: errText,
+                role: "system",
+                timestamp: { toMillis: () => Date.now() },
+              },
+            ]);
           }
         } else {
           transaction.update(chatRef, { aiActive: false, aiOffered: false, needsTherapist: true });
@@ -363,6 +525,26 @@ function AnonymousPrivateChatSplitView({
             role: "system",
             timestamp: serverTimestamp(),
           });
+
+          // Add messages to pendingMessages for instant feedback
+          setPendingMessages((prev) => [
+            ...prev,
+            {
+              id: `pending-user-${Date.now()}`,
+              text: "No",
+              userId,
+              displayName,
+              role: "user",
+              timestamp: { toMillis: () => Date.now() },
+              read: false,
+            },
+            {
+              id: `pending-system-${Date.now()}`,
+              text: "Okay, please hold on while we connect you to a therapist.",
+              role: "system",
+              timestamp: { toMillis: () => Date.now() },
+            },
+          ]);
         }
       });
       setAiEnabled(choice === "yes");
@@ -403,7 +585,7 @@ function AnonymousPrivateChatSplitView({
   };
 
   // Combine messages and events
-  const combinedPrivateChat = [...messages, ...events].sort((a, b) => {
+  const combinedPrivateChat = [...messages, ...events, ...pendingMessages].sort((a, b) => {
     return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
   });
 
@@ -461,7 +643,7 @@ function AnonymousPrivateChatSplitView({
                   <strong className="group-title">{activeChat?.name || "Unnamed therapist"}</strong>
                   <small className="participant-preview">
                     {activeTherapists.length > 0 ? (
-                      activeTherapists.map((therapist, index) => (
+                      activeTherapists.map((therapist) => (
                         <div key={therapist.uid} className="participant">
                           <span className="participant-name">
                             {therapist.name || "Loading..."}<b>,</b>
@@ -483,7 +665,7 @@ function AnonymousPrivateChatSplitView({
                 <LeaveChatButton type="private" onLeave={leavePrivateChat} />
               </div>
             </div>
-            <div className="chat-box" role="log" aria-live="polite">
+            <div className="chat-box" role="log" aria-live="polite" ref={chatBoxRef}>
               {isLoadingChat ? (
                 <p>Loading chat data...</p>
               ) : combinedPrivateChat.length === 0 ? (
@@ -504,7 +686,7 @@ function AnonymousPrivateChatSplitView({
                     ) : (
                       <ChatMessage
                         msg={msg}
-                        toggleReaction={toggleReaction}
+                        toggleReaction={msg.id.startsWith("pending-") ? () => {} : toggleReaction}
                         therapistInfo={{ role: "user" }}
                         handleTherapistClick={() => {}}
                       />

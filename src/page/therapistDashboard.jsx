@@ -15,7 +15,8 @@ import {
   where,
   limit,
   runTransaction,
-  getDocs
+  getDocs,
+  startAfter,
 } from "firebase/firestore";
 import { debounce } from "lodash";
 import { signOut } from "firebase/auth";
@@ -34,11 +35,14 @@ function TherapistDashboard() {
   const [reply, setReply] = useState("");
   const [privateChats, setPrivateChats] = useState([]);
   const [isGroupChatOpen, setIsGroupChatOpen] = useState(false);
+  const [isLoadingGroupMessages, setIsLoadingGroupMessages] = useState(false);
+  const [hasMoreGroupMessages, setHasMoreGroupMessages] = useState(true);
+  const [isLoadingPrivateMessages, setIsLoadingPrivateMessages] = useState(false);
+  const [hasMorePrivateMessages, setHasMorePrivateMessages] = useState(true);
   const playNotification = useNotificationSound();
   const prevPrivateMessagesRef = useRef([]);
   const prevGroupMessagesRef = useRef([]);
   const [inGroupChat, setInGroupChat] = useState(false);
-  // Calculate total group and private unread count
   const totalGroupUnread = useMemo(() => groupChats.reduce((sum, group) => sum + (group.unreadCount || 0), 0), [groupChats]);
   const privateUnreadCount = useMemo(() => privateChats.reduce((sum, chat) => sum + (chat.unreadCountForTherapist || 0), 0), [privateChats]);
   const [lastSeenTimestamp, setLastSeenTimestamp] = useState(null);
@@ -79,6 +83,8 @@ function TherapistDashboard() {
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
   const messagesEndRef = useRef(null);
   const privateMessagesEndRef = useRef(null);
+  const groupChatBoxRef = useRef(null);
+  const privateChatBoxRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { chatId } = useParams();
@@ -158,9 +164,91 @@ function TherapistDashboard() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, groupEvents]);
 
+  // Auto scroll private chat
   useEffect(() => {
     privateMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [privateMessages, privateEvents]);
+  
+  // Load more group messages (pagination)
+  const loadMoreGroupMessages = useCallback(async () => {
+    if (!activeGroupId || !hasMoreGroupMessages || isLoadingGroupMessages) return;
+    setIsLoadingGroupMessages(true);
+    try {
+      const groupRef = doc(db, "groupChats", activeGroupId);
+      const lastVisibleMsg = messages[messages.length - 1];
+      const nextQuery = query(
+        collection(groupRef, "messages"),
+        orderBy("timestamp", "desc"),
+        startAfter(lastVisibleMsg?.timestamp),
+        limit(50)
+      );
+      const snapshot = await getDocs(nextQuery);
+      const newMessages = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setMessages((prev) => [...newMessages, ...prev]);
+      setHasMoreGroupMessages(snapshot.docs.length === 50);
+    } catch (err) {
+      console.error("Error loading more group messages:", err);
+      showError("Failed to load more group messages. Please try again.");
+    } finally {
+      setIsLoadingGroupMessages(false);
+    }
+  }, [activeGroupId, hasMoreGroupMessages, isLoadingGroupMessages, messages, showError]);
+
+  // Load more private messages (pagination)
+  const loadMorePrivateMessages = useCallback(async () => {
+    if (!activeChatId || !hasMorePrivateMessages || isLoadingPrivateMessages) return;
+    setIsLoadingPrivateMessages(true);
+    try {
+      const chatRef = doc(db, "privateChats", activeChatId);
+      const lastVisibleMsg = privateMessages[privateMessages.length - 1];
+      const nextQuery = query(
+        collection(chatRef, "messages"),
+        orderBy("timestamp", "desc"),
+        startAfter(lastVisibleMsg?.timestamp),
+        limit(50)
+      );
+      const snapshot = await getDocs(nextQuery);
+      const newMessages = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setPrivateMessages((prev) => [...newMessages, ...prev]);
+      setHasMorePrivateMessages(snapshot.docs.length === 50);
+    } catch (err) {
+      console.error("Error loading more private messages:", err);
+      showError("Failed to load more private messages. Please try again.");
+    } finally {
+      setIsLoadingPrivateMessages(false);
+    }
+  }, [activeChatId, hasMorePrivateMessages, isLoadingPrivateMessages, privateMessages, showError]);
+  
+  // Handle scroll to load more group messages
+  useEffect(() => {
+    const chatBox = groupChatBoxRef.current;
+    if (!chatBox) return;
+
+    const handleScroll = () => {
+      if (chatBox.scrollTop === 0 && hasMoreGroupMessages && !isLoadingGroupMessages) {
+        loadMoreGroupMessages();
+      }
+    };
+
+    chatBox.addEventListener("scroll", handleScroll);
+    return () => chatBox.removeEventListener("scroll", handleScroll);
+  }, [hasMoreGroupMessages, isLoadingGroupMessages, loadMoreGroupMessages]);
+
+  // Handle scroll to load more private messages
+  useEffect(() => {
+    const chatBox = privateChatBoxRef.current;
+    if (!chatBox) return;
+
+    const handleScroll = () => {
+      if (chatBox.scrollTop === 0 && hasMorePrivateMessages && !isLoadingPrivateMessages) {
+        loadMorePrivateMessages();
+      }
+    };
+
+    chatBox.addEventListener("scroll", handleScroll);
+    return () => chatBox.removeEventListener("scroll", handleScroll);
+  }, [hasMorePrivateMessages, isLoadingPrivateMessages, loadMorePrivateMessages]);
+
 
   // Watch therapists online for availability indicator
   useEffect(() => {
@@ -240,7 +328,7 @@ function TherapistDashboard() {
   useEffect(() => {
     if (!activeGroupId) return;
     const groupRef = doc(db, "groupChats", activeGroupId);
-    const messagesQuery = query(collection(groupRef, "messages"), orderBy("timestamp"), limit(50));
+    const messagesQuery = query(collection(groupRef, "messages"), orderBy("timestamp", "desc"), limit(50));
     const eventsQuery = query(collection(groupRef, "events"), orderBy("timestamp"), limit(50));
 
     const unsubParticipants = onSnapshot(groupRef, (snap) => {
@@ -254,22 +342,28 @@ function TherapistDashboard() {
 
     const unsubMessages = onSnapshot(messagesQuery, (snapshot) => {
       const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-
       const newMsgs = msgs.filter(
         (msg) => !prevGroupMessagesRef.current.some((prev) => prev.id === msg.id)
       );
-
       setMessages(msgs);
       prevGroupMessagesRef.current = msgs;
-
+      setHasMoreGroupMessages(snapshot.docs.length === 50);
+      setIsLoadingGroupMessages(false);
       if (newMsgs.length > 0) {
         playNotification();
       }
+    }, (err) => {
+      console.error("Error fetching group messages:", err);
+      showError("Failed to load group messages. Please try again.");
+      setIsLoadingGroupMessages(false);
     });
 
     const unsubEvents = onSnapshot(eventsQuery, (snapshot) => {
       const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setGroupEvents(evts);
+    }, (err) => {
+      console.error("Error fetching group events:", err);
+      showError("Failed to load group events. Please try again.");
     });
 
     return () => {
@@ -277,7 +371,7 @@ function TherapistDashboard() {
       unsubMessages();
       unsubEvents();
     };
-  }, [activeGroupId, isGroupChatOpen, lastSeenTimestamp, therapistId, playNotification]);
+  }, [activeGroupId, isGroupChatOpen, therapistId, playNotification, showError]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -437,25 +531,21 @@ function TherapistDashboard() {
   useEffect(() => {
     if (!activeChatId) return;
     const chatRef = doc(db, "privateChats", activeChatId);
-    const q = query(collection(chatRef, "messages"), orderBy("timestamp"), limit(50));
+    const q = query(collection(chatRef, "messages"), orderBy("timestamp", "desc"), limit(50));
     const unsubscribeMessages = onSnapshot(
       q,
       (snapshot) => {
         const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-
-        // Detect new
         const newMsgs = msgs.filter(
           (msg) => !prevPrivateMessagesRef.current.some((prev) => prev.id === msg.id)
         );
-
         setPrivateMessages(msgs);
         prevPrivateMessagesRef.current = msgs;
-
+        setHasMorePrivateMessages(snapshot.docs.length === 50);
+        setIsLoadingPrivateMessages(false);
         if (newMsgs.length > 0) {
           playNotification();
         }
-
-        // Existing transaction for unread reset...
         runTransaction(db, async (transaction) => {
           const chatSnap = await transaction.get(chatRef);
           if (chatSnap.exists()) {
@@ -469,6 +559,7 @@ function TherapistDashboard() {
       (err) => {
         console.error("Error fetching private messages:", err);
         setChatError("Failed to load private messages. Please try again.");
+        setIsLoadingPrivateMessages(false);
       }
     );
     return () => unsubscribeMessages();
@@ -1076,6 +1167,10 @@ function TherapistDashboard() {
                 combinedGroupChat={combinedGroupChat}
                 typingUsers={typingUsers}
                 messagesEndRef={messagesEndRef}
+                chatBoxRef={groupChatBoxRef}
+                isLoadingMessages={isLoadingGroupMessages}
+                hasMoreMessages={hasMoreGroupMessages}
+                loadMoreMessages={loadMoreGroupMessages}
                 showEmojiPicker={showEmojiPicker}
                 setShowEmojiPicker={setShowEmojiPicker}
                 reply={reply}
@@ -1092,6 +1187,7 @@ function TherapistDashboard() {
                 formatTimestamp={formatTimestamp}
                 onEmojiClick={onEmojiClick}
                 isLoadingNames={isLoadingNames}
+                showError={showError}
               />
             }
           />
@@ -1110,6 +1206,10 @@ function TherapistDashboard() {
                 combinedPrivateChat={combinedPrivateChat}
                 typingUsers={typingUsers}
                 privateMessagesEndRef={privateMessagesEndRef}
+                chatBoxRef={privateChatBoxRef}
+                isLoadingMessages={isLoadingPrivateMessages}
+                hasMoreMessages={hasMorePrivateMessages}
+                loadMoreMessages={loadMorePrivateMessages}
                 showEmojiPicker={showEmojiPicker}
                 setShowEmojiPicker={setShowEmojiPicker}
                 newPrivateMessage={newPrivateMessage}
