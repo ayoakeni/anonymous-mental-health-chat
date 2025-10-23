@@ -34,6 +34,7 @@ function GroupChatSplitView({
   formatTimestamp,
   onEmojiClick: parentOnEmojiClick,
   isLoadingNames,
+  lastSeenTimestamp,
 }) {
   const { groupId } = useParams();
 
@@ -150,16 +151,26 @@ function GroupChatSplitView({
               </div>
             )}
             <div className="chat-box" role="log" aria-live="polite">
-              {combinedGroupChat.map((msg) => (
-                <ChatMessage
-                  key={msg.id}
-                  msg={msg}
-                  toggleReaction={toggleReaction}
-                  deleteMessage={(msgId) => deleteMessage(msgId, 'group')}
-                  therapistInfo={therapistInfo}
-                  handleTherapistClick={handleTherapistClick}
-                />
-              ))}
+              {combinedGroupChat.length === 0 ? (
+                <p className="no-message">No messages in this group yet.</p>
+              ) : (
+                combinedGroupChat.map((msg, index) => (
+                  <React.Fragment key={msg.id}>
+                    {msg.isNew && index > 0 && !combinedGroupChat[index - 1].isNew && (
+                      <div className="new-messages-divider">New Messages</div>
+                    )}
+                    <div className={`message ${msg.isNew ? "new-message" : ""}`}>
+                      <ChatMessage
+                        msg={msg}
+                        toggleReaction={toggleReaction}
+                        deleteMessage={(msgId) => deleteMessage(msgId, 'group')}
+                        therapistInfo={therapistInfo}
+                        handleTherapistClick={handleTherapistClick}
+                      />
+                    </div>
+                  </React.Fragment>
+                ))
+              )}
               {typingUsers.length > 0 && (
                 <p className="typing-indicator">
                   {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...

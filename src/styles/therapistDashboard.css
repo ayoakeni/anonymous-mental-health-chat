@@ -507,6 +507,25 @@
   border-radius: 4px;
 }
 
+.therapist-dashboard .new-messages-divider {
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+  font-weight: bold;
+  margin: 10px 0;
+  border-top: 1px solid #ccc;
+  padding-top: 5px;
+}
+
+.therapist-dashboard .new-message {
+  background-color: #f0f8ff;
+  padding: 5px;
+}
+
+.therapist-dashboard .message {
+  padding: 5px;
+}
+
 .therapist-dashboard .chat-message {
   margin: 10px 0;
   padding: 10px 15px;

@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import ChatMessage from "./ChatMessage";
-import { formatTimestamp } from "../../components/timestampUtils"; // Use passed formatTimestamp
+import { formatTimestamp } from "../../components/timestampUtils";
 import EmojiPicker from "emoji-picker-react";
 import LeaveChatButton from "../LeaveChatButton";
 
@@ -17,6 +17,10 @@ function PrivateChatSplitView({
   combinedPrivateChat,
   typingUsers,
   privateMessagesEndRef,
+  chatBoxRef,
+  isLoadingMessages,
+  hasMoreMessages,
+  loadMoreMessages,
   showEmojiPicker,
   setShowEmojiPicker,
   newPrivateMessage,
@@ -45,7 +49,21 @@ function PrivateChatSplitView({
     }
   }, [chatId, activeChatId, joinPrivateChat]);
 
-  // Local emoji handler
+  // Handle scroll to load more private messages
+  useEffect(() => {
+    const chatBox = chatBoxRef.current;
+    if (!chatBox) return;
+
+    const handleScroll = () => {
+      if (chatBox.scrollTop === 0 && hasMoreMessages && !isLoadingMessages) {
+        loadMoreMessages();
+      }
+    };
+
+    chatBox.addEventListener("scroll", handleScroll);
+    return () => chatBox.removeEventListener("scroll", handleScroll);
+  }, [hasMoreMessages, isLoadingMessages, loadMoreMessages, chatBoxRef]);
+
   const onEmojiClick = (emojiData) => {
     setNewPrivateMessage(newPrivateMessage + emojiData.emoji);
     setShowEmojiPicker(false);
@@ -142,17 +160,24 @@ function PrivateChatSplitView({
                   <p>{selectedTherapist.profile}</p>
                 </div>
               )}
-              <div className="chat-box" role="log" aria-live="polite">
-                {combinedPrivateChat.map((msg) => (
-                  <ChatMessage
-                    key={msg.id}
-                    msg={msg}
-                    toggleReaction={toggleReaction}
-                    deleteMessage={(msgId) => deleteMessage(msgId, 'private')}
-                    therapistInfo={therapistInfo}
-                    handleTherapistClick={handleTherapistClick}
-                  />
-                ))}
+              <div className="chat-box" ref={chatBoxRef} role="log" aria-live="polite">
+                {isLoadingMessages ? (
+                  <p>Loading messages...</p>
+                ) : combinedPrivateChat.length === 0 ? (
+                  <p className="no-message">No messages in this chat yet.</p>
+                ) : (
+                  combinedPrivateChat.map((msg) => (
+                    <div className="message" key={msg.id}>
+                      <ChatMessage
+                        msg={msg}
+                        toggleReaction={toggleReaction}
+                        deleteMessage={(msgId) => deleteMessage(msgId, 'private')}
+                        therapistInfo={therapistInfo}
+                        handleTherapistClick={handleTherapistClick}
+                      />
+                    </div>
+                  ))
+                )}
                 {typingUsers.length > 0 && (
                   <p className="typing-indicator">
                     {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
@@ -200,7 +225,12 @@ function PrivateChatSplitView({
                   }}
                   aria-label="Message input"
                 />
-                <button className="send-btn" onClick={() => sendPrivateMessage()} disabled={isSendingPrivate} aria-label="Send message">
+                <button
+                  className="send-btn"
+                  onClick={() => sendPrivateMessage()}
+                  disabled={isSendingPrivate}
+                  aria-label="Send message"
+                >
                   {isSendingPrivate ? "Sending..." : <i className="fa-solid fa-paper-plane"></i>}
                 </button>
               </div>

@@ -168,7 +168,7 @@ function TherapistDashboard() {
   useEffect(() => {
     privateMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [privateMessages, privateEvents]);
-  
+
   // Load more group messages (pagination)
   const loadMoreGroupMessages = useCallback(async () => {
     if (!activeGroupId || !hasMoreGroupMessages || isLoadingGroupMessages) return;
@@ -218,7 +218,7 @@ function TherapistDashboard() {
       setIsLoadingPrivateMessages(false);
     }
   }, [activeChatId, hasMorePrivateMessages, isLoadingPrivateMessages, privateMessages, showError]);
-  
+
   // Handle scroll to load more group messages
   useEffect(() => {
     const chatBox = groupChatBoxRef.current;
@@ -248,7 +248,6 @@ function TherapistDashboard() {
     chatBox.addEventListener("scroll", handleScroll);
     return () => chatBox.removeEventListener("scroll", handleScroll);
   }, [hasMorePrivateMessages, isLoadingPrivateMessages, loadMorePrivateMessages]);
-
 
   // Watch therapists online for availability indicator
   useEffect(() => {
@@ -322,7 +321,7 @@ function TherapistDashboard() {
       }
     );
     return () => unsubscribe();
-  }, [showError]);
+  }, [showError, participantNames]);
 
   // Watch group chat participants and messages for active group
   useEffect(() => {
@@ -1109,14 +1108,20 @@ function TherapistDashboard() {
     }
   };
 
-  // Combines use getTimestampMillis
+  // Combine messages and events for private chat
   const combinedPrivateChat = [...privateMessages, ...privateEvents].sort((a, b) => {
     return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
   });
 
-  const combinedGroupChat = [...messages, ...groupEvents].sort((a, b) => {
-    return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
-  });
+  // Combine messages and events for group chat, marking new messages
+  const combinedGroupChat = useMemo(() => {
+    return [...messages, ...groupEvents]
+      .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp))
+      .map((item) => ({
+        ...item,
+        isNew: lastSeenTimestamp && getTimestampMillis(item.timestamp) > lastSeenTimestamp,
+      }));
+  }, [messages, groupEvents, lastSeenTimestamp]);
 
   return (
     <div className="therapist-dashboard">
@@ -1188,6 +1193,7 @@ function TherapistDashboard() {
                 onEmojiClick={onEmojiClick}
                 isLoadingNames={isLoadingNames}
                 showError={showError}
+                lastSeenTimestamp={lastSeenTimestamp}
               />
             }
           />
