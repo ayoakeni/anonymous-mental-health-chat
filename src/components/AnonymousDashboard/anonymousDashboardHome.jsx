@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { collection, query, where, onSnapshot, limit } from "firebase/firestore";
+import { db, auth } from "../../utils/firebase";
 import MoodTracker from "../moodTracker";
 import "../../styles/anonymousDashboard.css";
 
@@ -24,11 +26,79 @@ const AnonymousDashboardHome = ({
   ];
   const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
 
+  // Mood history state
+  const [moodHistory, setMoodHistory] = useState([]);
+  const [moodHistoryLoading, setMoodHistoryLoading] = useState(true);
+  const [moodHistoryError, setMoodHistoryError] = useState(null);
+
+  // Mood options for mapping (consistent with MoodTracker.jsx)
+  const moodOptions = [
+    { value: "happy", label: "Happy", emoji: "😊" },
+    { value: "sad", label: "Sad", emoji: "😢" },
+    { value: "anxious", label: "Anxious", emoji: "😣" },
+    { value: "neutral", label: "Neutral", emoji: "😐" },
+    { value: "excited", label: "Excited", emoji: "😊" }
+  ];
+
+  // Fetch mood history
+  useEffect(() => {
+    const userId = auth.currentUser?.uid || "anonymous";
+    const q = query(
+      collection(db, "moods"),
+      where("userId", "==", userId),
+      limit(5) // Fetch last 5 moods
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const moods = snapshot.docs
+          .map(doc => doc.data())
+          .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+        setMoodHistory(moods);
+      } else {
+        setMoodHistory([]);
+      }
+      setMoodHistoryLoading(false);
+    }, (error) => {
+      console.error("Error fetching mood history:", error);
+      setMoodHistoryError("Failed to load mood history. Please try again.");
+      setMoodHistoryLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Helper function to format timestamp
+  const renderTimestamp = (timestamp) => {
+    if (!timestamp) return "Unknown time";
+    const formatted = formatTimestamp(timestamp);
+    if (typeof formatted === "object" && formatted.dateStr && formatted.timeStr) {
+      return (
+        <>
+          <span className="meta-date">{formatted.dateStr}</span>
+          <span className="meta-time">{formatted.timeStr}</span>
+        </>
+      );
+    }
+    return formatted || "Unknown time";
+  };
+
+  // Daily tasks state
+  const [tasks, setTasks] = useState([
+    { id: 1, text: "Drink a glass of water", completed: false },
+    { id: 2, text: "Take a 10-minute walk", completed: false },
+    { id: 3, text: "Practice deep breathing", completed: false }
+  ]);
+
+  const toggleTask = (id) => {
+    setTasks(tasks.map(task =>
+      task.id === id ? { ...task, completed: !task.completed } : task
+    ));
+  };
+
   return (
     <div className="dashboard">
       <div className="welcome-header">
         <h2>Welcome, <span className="highlight">{displayName || "Guest"}</span>!</h2>
-        <p className="subtext">Explore your chats or log your mood to start your journey.</p>
+        <p className="subtext">Explore your chats, log your mood, or try a daily task to support your well-being.</p>
       </div>
 
       <div className="dashboard-grid">
@@ -45,7 +115,6 @@ const AnonymousDashboardHome = ({
             <ul className="chat-list">
               {recentChats.map((chat) => {
                 const lastTs = chat.lastMessage?.timestamp;
-                const { dateStr, timeStr } = formatTimestamp(lastTs);
                 return (
                   <li key={chat.id} className="chat-card">
                     <Link
@@ -67,8 +136,7 @@ const AnonymousDashboardHome = ({
                       </div>
                       <div className="chat-card-meta">
                         <span className="message-timestamp">
-                          <span className="meta-date">{dateStr}</span>
-                          <span className="meta-time">{timeStr}</span>
+                          {renderTimestamp(lastTs)}
                         </span>
                         {(chat.unreadCount || chat.unreadCountForTherapist) > 0 && (
                           <span className="unread-badge">
@@ -84,6 +152,76 @@ const AnonymousDashboardHome = ({
           ) : (
             <p>No recent chats. Start a new conversation!</p>
           )}
+        </div>
+
+        {/* Mood History Card */}
+        <div className="dash-card mood-history-card">
+          <h3>Your Recent Moods</h3>
+          {moodHistoryLoading ? (
+            <p>Loading mood history...</p>
+          ) : moodHistoryError ? (
+            <p className="error">{moodHistoryError}</p>
+          ) : moodHistory.length > 0 ? (
+            <ul className="mood-history-list">
+              {moodHistory.map((mood, index) => {
+                const moodOption = moodOptions.find((m) => m.value === mood.mood) || { label: mood.mood, emoji: "❓" };
+                return (
+                  <li key={index} className="mood-history-item">
+                    <span className="mood-emoji">{moodOption.emoji}</span>
+                    <span className="mood-label">{moodOption.label}</span>
+                    <span className="mood-timestamp">{renderTimestamp(mood.timestamp)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p>No moods logged yet. Log a mood to get started!</p>
+          )}
+        </div>
+
+        {/* Daily Task Card */}
+        <div className="dash-card daily-task-card">
+          <h3>Daily Wellness Tasks</h3>
+          <ul className="task-list">
+            {tasks.map((task) => (
+              <li key={task.id} className="task-item">
+                <input
+                  type="checkbox"
+                  checked={task.completed}
+                  onChange={() => toggleTask(task.id)}
+                  className="task-checkbox"
+                />
+                <span className={`task-text ${task.completed ? "completed" : ""}`}>
+                  {task.text}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Resources Card */}
+        <div className="dash-card resources-card">
+          <h3>Mental Health Resources</h3>
+          <ul className="resource-list">
+            <li className="resource-item">
+              <a href="https://www.mentalhealth.gov" target="_blank" rel="noopener noreferrer">
+                MentalHealth.gov
+              </a>
+              <p>Learn about mental health and find support services.</p>
+            </li>
+            <li className="resource-item">
+              <a href="https://988lifeline.org" target="_blank" rel="noopener noreferrer">
+                988 Suicide & Crisis Lifeline
+              </a>
+              <p>24/7 support for crisis situations.</p>
+            </li>
+            <li className="resource-item">
+              <a href="https://www.mind.org.uk" target="_blank" rel="noopener noreferrer">
+                Mind UK
+              </a>
+              <p>Resources and advice for mental well-being.</p>
+            </li>
+          </ul>
         </div>
 
         {/* Motivational Quote Card */}

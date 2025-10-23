@@ -216,6 +216,18 @@
   cursor: not-allowed;
 }
 
+.anonymous-dashboard .mood-card .meta-date,
+.anonymous-dashboard .mood-card .meta-time {
+  font-size: 0.75rem;
+  color: var(--text-color);
+  opacity: 0.6;
+  display: inline-block;
+}
+
+.anonymous-dashboard .mood-card .meta-time {
+  margin-left: 4px;
+}
+
 .anonymous-dashboard .recent-chats .chat-list {
   list-style: none;
   padding: 0;
@@ -296,6 +308,18 @@
   opacity: 0.6;
 }
 
+.anonymous-dashboard .recent-chats .meta-date,
+.anonymous-dashboard .recent-chats .meta-time {
+  font-size: 0.75rem;
+  color: var(--text-color);
+  opacity: 0.6;
+  display: inline-block;
+}
+
+.anonymous-dashboard .recent-chats .meta-time {
+  margin-left: 4px;
+}
+
 .anonymous-dashboard .recent-chats .unread-badge {
   background: var(--badge-bg);
   color: white;
@@ -305,6 +329,113 @@
   border-radius: 12px;
   min-width: 20px;
   text-align: center;
+}
+
+.anonymous-dashboard .mood-history-card .mood-history-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.anonymous-dashboard .mood-history-card .mood-history-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  background: var(--highlight-bg);
+  border-radius: var(--border-radius);
+}
+
+.anonymous-dashboard .mood-history-card .mood-emoji {
+  font-size: 1.2rem;
+}
+
+.anonymous-dashboard .mood-history-card .mood-label {
+  font-size: 0.9rem;
+  color: var(--text-color);
+  flex: 1;
+}
+
+.anonymous-dashboard .mood-history-card .mood-timestamp {
+  font-size: 0.75rem;
+  color: var(--text-color);
+  opacity: 0.6;
+}
+
+.anonymous-dashboard .mood-history-card .error {
+  color: var(--error-color);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.anonymous-dashboard .daily-task-card .task-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.anonymous-dashboard .daily-task-card .task-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  background: var(--highlight-bg);
+  border-radius: var(--border-radius);
+}
+
+.anonymous-dashboard .daily-task-card .task-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.anonymous-dashboard .daily-task-card .task-text {
+  font-size: 0.9rem;
+  color: var(--text-color);
+}
+
+.anonymous-dashboard .daily-task-card .task-text.completed {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.anonymous-dashboard .resources-card .resource-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.anonymous-dashboard .resources-card .resource-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.anonymous-dashboard .resources-card .resource-item a {
+  color: var(--primary-color);
+  font-size: 1rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.anonymous-dashboard .resources-card .resource-item a:hover {
+  text-decoration: underline;
+}
+
+.anonymous-dashboard .resources-card .resource-item p {
+  font-size: 0.9rem;
+  color: var(--text-color);
+  opacity: 0.7;
+  margin: 0;
 }
 
 .anonymous-dashboard .quote-card .quote {
