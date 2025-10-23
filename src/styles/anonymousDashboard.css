@@ -130,6 +130,36 @@
   justify-content: center;
 }
 
+.anonymous-dashboard .mood-card .last-mood.error {
+  background: var(--error-color);
+  color: white;
+  padding: 12px;
+  border-radius: var(--border-radius);
+  text-align: center;
+}
+
+.anonymous-dashboard .mood-card .retry-button {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.3s ease;
+}
+
+.anonymous-dashboard .mood-card .retry-button:hover {
+  background: var(--accent-color);
+}
+
+.anonymous-dashboard .mood-card .retry-button:disabled {
+  background: var(--input-border);
+  cursor: not-allowed;
+}
+
 .anonymous-dashboard .mood-card .mood-button {
   background: var(--input-bg);
   border: 2px solid var(--input-border);
