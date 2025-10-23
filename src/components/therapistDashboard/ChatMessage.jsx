@@ -16,7 +16,20 @@ const ChatMessage = memo(({ msg, toggleReaction, deleteMessage, therapistInfo, h
   >
     <strong>{msg.displayName || msg.user || "Anonymous"}</strong>{" "}
     <div className="message-content-time">
+        {msg.role === "ai" ? (
+        <>
+          {msg.text.split("\n\n").map((part, index) => (
+            <span
+              key={index}
+              className={index === 0 ? "ai-user-quote" : "ai-response"}
+            >
+              {part}
+            </span>
+          ))}
+        </>
+      ) : (
       <span>{msg.text || msg.message}</span>
+      )}
       {msg.fileUrl && (
         <a
           href={msg.fileUrl}

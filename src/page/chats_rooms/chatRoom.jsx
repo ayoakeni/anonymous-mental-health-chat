@@ -492,7 +492,7 @@ function Chatroom() {
           const aiReply = await getAIResponse(cleanMessage, aiInputMessages);
           await runTransaction(db, async (transaction) => {
             transaction.set(doc(collection(db, `groupChats/${activeGroupId}/messages`)), {
-              text: `"${originalMessage}"\n\n${aiReply}`,
+              text: `You said: "${originalMessage}"\n\n${aiReply}`,
               fileUrl: null,
               userId: "AI_BOT",
               displayName: "AI Support",

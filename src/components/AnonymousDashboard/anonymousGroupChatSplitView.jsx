@@ -265,7 +265,7 @@ function AnonymousGroupChatSplitView({
       let messageText = newMessage;
       const isAiTrigger = newMessage.toLowerCase().includes("@ai");
       if (isAiTrigger) {
-        messageText = `"${newMessage.replace(/@ai/gi, "").trim()}"\n\n`;
+        messageText = `${displayName}: "${newMessage.replace(/@ai/gi, "").trim()}"\n\n`;
       }
 
       const groupRef = doc(db, "groupChats", activeGroupId);
@@ -309,7 +309,7 @@ function AnonymousGroupChatSplitView({
           await runTransaction(db, async (transaction) => {
             const messagesRef = collection(db, `groupChats/${activeGroupId}/messages`);
             transaction.set(doc(messagesRef), {
-              text: `"${userMessage}"\n\n${aiResponse}`,
+              text: `${displayName}: "${userMessage}"\n\n${aiResponse}`,
               role: "ai",
               displayName: "Support Assistant",
               timestamp: serverTimestamp(),
