@@ -21,7 +21,7 @@ import TherapistProfile from "../../components/TherapistProfile";
 import { useTypingStatus } from "../../components/useTypingStatus";
 import { getTimestampMillis, formatMessageTime } from "../../components/timestampUtils";
 import EmojiPicker from "emoji-picker-react";
-import "../../styles/chatroom.css";
+import "../chats_rooms/chatroom.css";
 
 function Chatroom() {
   const [messages, setMessages] = useState([]);

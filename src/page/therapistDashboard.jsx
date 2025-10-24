@@ -24,6 +24,7 @@ import Sidebar from "../components/sidebar";
 import { useTypingStatus } from "../components/useTypingStatus";
 import GroupChatSplitView from "../components/therapistDashboard/GroupChatSplitView";
 import PrivateChatSplitView from "../components/therapistDashboard/PrivateChatSplitView";
+import TherapistDashboardHome from "../components/therapistDashboard/therapistDashboardHome";
 import useNotificationSound from '../components/useNotificationSound';
 import { getTimestampMillis, formatTimestamp } from "../components/timestampUtils";
 import "../styles/therapistDashboard.css";
@@ -826,7 +827,7 @@ function TherapistDashboard() {
               aiOffered: true,
               aiActive: false,
               therapistJoinedOnce: false,
-              lastLeaveEvent: now,
+              lastJoinEvent: now,
               lastLeaveAiOffered: now,
               needsTherapist: false,
             });
@@ -1147,13 +1148,22 @@ function TherapistDashboard() {
           <Route
             path="/"
             element={
-              <div className="dashboard">
-                <div className="welcome-header">
-                  <h2>
-                    Welcome, <span className="highlight">{therapistInfo.name || "Therapist"}</span>!
-                  </h2>
-                </div>
-              </div>
+              <TherapistDashboardHome
+                therapistInfo={therapistInfo}
+                groupChats={groupChats}
+                privateChats={privateChats}
+                totalGroupUnread={totalGroupUnread}
+                privateUnreadCount={privateUnreadCount}
+                anonNames={anonNames}
+                formatTimestamp={formatTimestamp}
+                joinGroupChat={joinGroupChat}
+                joinPrivateChat={joinPrivateChat}
+                isLoadingChats={isLoadingChats}
+                isLoadingNames={isLoadingNames}
+                therapistsOnline={therapistsOnline}
+                therapistId={therapistId}
+                showError={showError}
+              />
             }
           />
           <Route

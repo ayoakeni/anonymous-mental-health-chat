@@ -24,7 +24,7 @@ import {
 } from "firebase/firestore";
 import { debounce } from "lodash";
 import EmojiPicker from "emoji-picker-react";
-import "../../styles/privateChat.css";
+import "../chats_rooms/privateChat.css";
 
 function PrivateChat({ chatId }) {
   const [messages, setMessages] = useState([]);

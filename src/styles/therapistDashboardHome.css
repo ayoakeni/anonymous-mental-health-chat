@@ -1,0 +1,365 @@
+:root {
+  --primary-color: #4a90e2;
+  --background-color: #f5f7fa;
+  --chat-bg: #ffffff;
+  --text-color: #333333;
+  --therapist-bg: #e6f0fa;
+  --user-bg: #d9e8ff;
+  --ai-bg: #f0f0f0;
+  --system-bg: #f9fafb;
+  --border-radius: 8px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --input-bg: #ffffff;
+  --input-border: #ccc;
+  --accent-color: #34c759;
+  --secondary-color: #ff9500;
+  --error-color: #ff3b30;
+  --badge-bg: #ef4444;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-color: #1e1e2f;
+    --chat-bg: #2a2a3b;
+    --text-color: #e0e0e0;
+    --therapist-bg: #3a4a6b;
+    --user-bg: #4a6b9b;
+    --ai-bg: #3b3b4b;
+    --system-bg: #2e2e4b;
+    --input-bg: #2a2a3b;
+    --chat-input-bg: #1e1e2f;
+    --input-border: #555;
+    --badge-bg: #f87171;
+  }
+}
+
+.dashboard-home{
+  flex: 1;
+  color: var(--text-color);
+  padding: 20px;
+  height: 100vh;
+  transition: margin-left 0.3s ease-in-out;
+  overflow-y: auto;
+}
+
+.dashboard-home .welcome-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.dashboard-home .welcome-header h2 {
+  font-size: 1.8rem;
+  color: var(--text-color);
+  margin: 0;
+}
+
+.dashboard-home .highlight {
+  color: var(--primary-color);
+}
+
+.dashboard-home .availability-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1rem;
+  color: var(--text-color);
+}
+
+.dashboard-home .availability-toggle input {
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+}
+
+.dashboard-home .quick-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.dashboard-home .stat-card {
+  background: var(--chat-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  padding: 15px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+
+.dashboard-home .stat-card h4 {
+  margin: 0 0 10px;
+  font-size: 1.2rem;
+  color: var(--text-color);
+}
+
+.dashboard-home .stat-card p {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--primary-color);
+  font-weight: bold;
+}
+
+.dashboard-home .quick-actions {
+  margin-bottom: 20px;
+}
+
+.dashboard-home .quick-actions h3 {
+  font-size: 1.4rem;
+  color: var(--text-color);
+  margin-bottom: 10px;
+}
+
+.dashboard-home .action-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dashboard-home .action-buttons button {
+  padding: 10px 20px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s ease;
+}
+
+.dashboard-home .action-buttons button:hover {
+  background: #357abd;
+}
+
+.dashboard-home .chat-summaries {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.dashboard-home .chat-section {
+  background: var(--chat-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  padding: 15px;
+  box-shadow: var(--shadow);
+}
+
+.dashboard-home .chat-section h3 {
+  font-size: 1.4rem;
+  color: var(--text-color);
+  margin: 0 0 10px;
+}
+
+.dashboard-home .chat-list-container {
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+.dashboard-home .chat-card {
+  padding: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: background 0.2s, filter 0.2s;
+  border-radius: var(--border-radius);
+}
+
+.dashboard-home .chat-card:hover {
+  background: var(--user-bg);
+  filter: brightness(100%);
+}
+
+.dashboard-home.chat-card.pending-chat {
+  border-left: 4px solid var(--accent-color);
+}
+
+.dashboard-home .chat-card-inner {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dashboard-home .chat-avater-content {
+  display: flex;
+  gap: 10px;
+}
+
+.dashboard-home .therapist-avatar {
+  display: inline-block;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: #fff;
+  text-align: center;
+  line-height: 50px;
+  font-size: 1.5rem;
+}
+
+.dashboard-home .chat-card-content {
+  display: flex;
+  flex-direction: column;
+  max-width: 179px;
+  gap: 7px;
+  height: fit-content;
+  white-space: nowrap;
+  margin-top: 5px;
+}
+
+.dashboard-home .chat-card-title {
+  font-size: 1rem;
+  font-weight: bold;
+  color: var(--text-color);
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.dashboard-home.chat-card-preview {
+  font-size: 0.9rem;
+  color: var(--text-color);
+  opacity: 0.7;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.dashboard-home .chat-card-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.dashboard-home .message-timestamp {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 0.8rem;
+  color: var(--text-color);
+  opacity: 0.6;
+}
+
+.dashboard-home .unread-badge {
+  background: var(--badge-bg);
+  color: white;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+}
+
+.dashboard-home .pending-indicator {
+  color: var(--accent-color);
+  font-weight: bold;
+}
+
+.dashboard-home .view-all {
+  display: block;
+  margin: 10px auto 0;
+  padding: 8px 15px;
+  background: var(--secondary-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.dashboard-home .view-all:hover {
+  background: #e68a00;
+}
+
+.dashboard-home .notifications-section {
+  background: var(--chat-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  padding: 15px;
+  box-shadow: var(--shadow);
+}
+
+.dashboard-home .notifications-section h3 {
+  font-size: 1.4rem;
+  color: var(--text-color);
+  margin: 0 0 10px;
+}
+
+.dashboard-home .notifications-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.dashboard-home .notification-item {
+  padding: 10px;
+  margin-bottom: 10px;
+  background: var(--system-bg);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.dashboard-home .notification-item:hover {
+  background: var(--user-bg);
+}
+
+.dashboard-home .notification-item.pending-chat {
+  border-left: 4px solid var(--accent-color);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboard-home .box {
+    margin-left: 0 !important;
+  }
+
+  .dashboard-home .chat-summaries {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-home .quick-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-home .action-buttons {
+    flex-direction: column;
+  }
+
+  .dashboard-home .action-buttons button {
+    width: 100%;
+  }
+
+  .dashboard-home .welcome-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .dashboard-home .chat-card-content {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-home .welcome-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .dashboard-home .stat-card p {
+    font-size: 1.2rem;
+  }
+
+  .dashboard-home .chat-section h3,
+  .dashboard-home .quick-actions h3,
+  .dashboard-home .notifications-section h3 {
+    font-size: 1.2rem;
+  }
+
+  .dashboard-home .therapist-avatar {
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    font-size: 1.2rem;
+  }
+}
