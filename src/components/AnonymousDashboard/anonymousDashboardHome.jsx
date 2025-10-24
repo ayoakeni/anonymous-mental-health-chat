@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { collection, query, where, onSnapshot, limit } from "firebase/firestore";
+import { collection, query, where, onSnapshot, limit, getDoc, doc } from "firebase/firestore";
 import { db, auth } from "../../utils/firebase";
 import MoodTracker from "../moodTracker";
+import TherapistProfile from "../TherapistProfile";
 import "../../styles/anonymousDashboard.css";
 
 const AnonymousDashboardHome = ({
@@ -35,6 +36,8 @@ const AnonymousDashboardHome = ({
   const [therapists, setTherapists] = useState([]);
   const [therapistsLoading, setTherapistsLoading] = useState(true);
   const [therapistsError, setTherapistsError] = useState(null);
+  const [selectedTherapist, setSelectedTherapist] = useState(null);
+  const modalRef = useRef(null);
 
   // Mood options for mapping (consistent with MoodTracker.jsx)
   const moodOptions = [
@@ -95,6 +98,40 @@ const AnonymousDashboardHome = ({
     });
     return () => unsubscribe();
   }, []);
+
+  // Handle clicks outside the modal to close it
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (modalRef.current && !modalRef.current.contains(event.target)) {
+        setSelectedTherapist(null);
+      }
+    };
+    if (selectedTherapist) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [selectedTherapist]);
+
+  // Handle therapist click to view profile
+  const handleTherapistClick = async (therapist) => {
+    try {
+      const therapistDoc = await getDoc(doc(db, "therapists", therapist.uid));
+      if (therapistDoc.exists()) {
+        setSelectedTherapist({
+          uid: therapist.uid,
+          ...therapistDoc.data(),
+          online: therapist.online
+        });
+      } else {
+        setTherapistsError("Therapist profile not found.");
+      }
+    } catch (error) {
+      console.error("Error fetching therapist profile:", error);
+      setTherapistsError("Failed to fetch therapist profile. Please try again.");
+    }
+  };
 
   // Helper function to format timestamp
   const renderTimestamp = (timestamp) => {
@@ -184,6 +221,21 @@ const AnonymousDashboardHome = ({
           )}
         </div>
 
+        {/* Therapist Profile Modal */}
+        {selectedTherapist && (
+          <div className="modal-backdrop">
+            <div className="modal" ref={modalRef}>
+              <TherapistProfile
+                therapist={selectedTherapist}
+                isOnline={selectedTherapist.online}
+                onBack={() => setSelectedTherapist(null)}
+                onStartChat={() => alert("Starting chat with therapist (feature coming soon)!")}
+                onBookAppointment={() => alert("Appointment booking coming soon!")}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Therapist List Card */}
         <div className="dash-card available-therapist-card">
           <h3>Available Therapists</h3>
@@ -197,6 +249,7 @@ const AnonymousDashboardHome = ({
                 <div
                   key={therapist.uid}
                   className={`available-therapist-item ${therapist.online ? "online" : ""}`}
+                  onClick={() => handleTherapistClick(therapist)}
                 >
                   <span className="available-therapist-avatar">
                     {therapist.name?.[0] || "T"}
