@@ -203,32 +203,37 @@ function AnonymousDashboard() {
   }, [showError]);
 
   // Check if mood popup should be shown
+  const checkMoodPopup = useCallback(() => {
+    const today = DateTime.now().setZone('Africa/Lagos').toISODate();
+    const lastDismissed = localStorage.getItem('moodPopupDismissedDate');
+    const remindLater = localStorage.getItem('moodPopupRemindLater');
+    if (remindLater && Date.now() < parseInt(remindLater)) {
+      return;
+    }
+
+    // Check if a mood was logged today
+    const hasMoodToday = moodHistory.some(mood => {
+      const moodDate = formatTimestamp(mood.timestamp)?.isoDate;
+      return moodDate === today;
+    });
+
+    // Show popup if no mood logged today and not dismissed today
+    if (!hasMoodToday && lastDismissed !== today) {
+      setShowMoodPopup(true);
+    } else {
+      setShowMoodPopup(false);
+    }
+  }, [moodHistory, formatTimestamp]);
+
+  // Initial check and periodic re-check for popup
   useEffect(() => {
-    const checkMoodPopup = () => {
-      const today = DateTime.now().setZone('Africa/Lagos').toISODate();
-      const lastDismissed = localStorage.getItem('moodPopupDismissedDate');
-      const remindLater = localStorage.getItem('moodPopupRemindLater');
-      if (remindLater && Date.now() < parseInt(remindLater)) return;
-
-      // Check if a mood was logged today
-      const hasMoodToday = moodHistory.some(mood => {
-        const moodDate = formatTimestamp(mood.timestamp)?.dateStr;
-        return moodDate === today;
-      });
-
-      // Show popup if no mood logged today and not dismissed today
-      if (!hasMoodToday && lastDismissed !== today) {
-        setShowMoodPopup(true);
-      } else {
-        setShowMoodPopup(false);
-      }
-    };
-
     if (!moodHistoryLoading) {
       checkMoodPopup();
+      const intervalId = setInterval(checkMoodPopup, 5000); // Check every 5 seconds
+      return () => clearInterval(intervalId); // Cleanup interval
     }
-  }, [moodHistory, moodHistoryLoading, formatTimestamp]);
-  
+  }, [moodHistoryLoading, checkMoodPopup]);
+
   // Handle mood popup dismissal
   const handleDismissMoodPopup = () => {
     const today = DateTime.now().setZone('Africa/Lagos').toISODate();
@@ -236,15 +241,16 @@ function AnonymousDashboard() {
     setShowMoodPopup(false);
   };
 
-  const lastMood = moodHistory[0]?.mood;
-  const prompt = lastMood === 'sad' ? 'Feeling down? Let’s check in today!' : 'How’s your mood today?';
-
   // Handle remind me later
   const handleRemindLater = () => {
-    localStorage.setItem('moodPopupRemindLater', Date.now() + 10 * 1000);
-    // localStorage.setItem('moodPopupRemindLater', Date.now() + 4 * 60 * 60 * 1000); // 4 hours
+    const remindTime = Date.now() + 4 * 60 * 60 * 1000; // 4 hours for production
+    localStorage.setItem('moodPopupRemindLater', remindTime);
     setShowMoodPopup(false);
   };
+
+  // Dynamic mood prompt
+  const lastMood = moodHistory[0]?.mood;
+  const prompt = lastMood === 'sad' ? 'Feeling down? Let’s check in today!' : 'How’s your mood today?';
 
   // Sync active chat IDs with URL params
   useEffect(() => {
