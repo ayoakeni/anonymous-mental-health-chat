@@ -98,7 +98,7 @@ const AnonymousDashboardHome = ({
 
   // Helper function to format timestamp
   const renderTimestamp = (timestamp) => {
-    if (!timestamp) return "Unknown time";
+    if (!timestamp) return "N/A";
     const formatted = formatTimestamp(timestamp);
     if (typeof formatted === "object" && formatted.dateStr && formatted.timeStr) {
       return (
@@ -108,7 +108,7 @@ const AnonymousDashboardHome = ({
         </>
       );
     }
-    return formatted || "Unknown time";
+    return formatted || "N/A";
   };
 
   // Daily tasks state

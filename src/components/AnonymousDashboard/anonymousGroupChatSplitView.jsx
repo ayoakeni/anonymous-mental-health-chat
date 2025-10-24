@@ -584,8 +584,8 @@ function AnonymousGroupChatSplitView({
                     <div className="chat-card-meta">
                       {lastTs ? (
                         <div className="message-timestamp">
-                          <span className="meta-date">{dateStr}</span>
-                          <span className="meta-time">{timeStr}</span>
+                          <span className="meta-date">{dateStr || "N/A"}</span>
+                          <span className="meta-time">{timeStr || "N/A"}</span>
                         </div>
                       ) : null}
                       {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
