@@ -17,6 +17,7 @@ import {
   runTransaction,
   getDocs,
   startAfter,
+  updateDoc,
 } from "firebase/firestore";
 import { debounce } from "lodash";
 import { signOut } from "firebase/auth";
@@ -28,6 +29,7 @@ import TherapistDashboardHome from "../components/therapistDashboard/therapistDa
 import useNotificationSound from '../components/useNotificationSound';
 import { getTimestampMillis, formatTimestamp } from "../components/timestampUtils";
 import "../styles/therapistDashboard.css";
+import "../styles/therapistDashboardNotification.css";
 
 function TherapistDashboard() {
   const [messages, setMessages] = useState([]);
@@ -78,6 +80,8 @@ function TherapistDashboard() {
   const [isErrorFading, setIsErrorFading] = useState(false);
   const [isLoadingNames, setIsLoadingNames] = useState(false);
   const [anonNames, setAnonNames] = useState({});
+  const [notificationFilter, setNotificationFilter] = useState("all"); // New state for notification filter
+  const [dismissedNotifications, setDismissedNotifications] = useState([]); // New state for dismissed notifications
   const errorTimeoutRef = useRef(null);
   const therapistId = auth.currentUser?.uid;
   const displayName = therapistInfo.name || "Unknown Therapist";
@@ -146,6 +150,22 @@ function TherapistDashboard() {
 
     return () => unsubs.forEach(unsub => unsub());
   }, [privateChats, therapistId]);
+
+  // Fetch dismissed notifications
+  useEffect(() => {
+    if (!therapistId) return;
+    const therapistRef = doc(db, "therapists", therapistId);
+    const unsub = onSnapshot(therapistRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setDismissedNotifications(data.dismissedNotifications || []);
+      }
+    }, (err) => {
+      console.error("Error fetching dismissed notifications:", err);
+      showError("Failed to load dismissed notifications.");
+    });
+    return () => unsub();
+  }, [therapistId, showError]);
 
   // Check authentication
   useEffect(() => {
@@ -804,6 +824,56 @@ function TherapistDashboard() {
     }
   };
 
+  // Mark notification as read
+  const markAsRead = async (chatId) => {
+    try {
+      const chatRef = doc(db, "privateChats", chatId);
+      await updateDoc(chatRef, { unreadCountForTherapist: 0 });
+    } catch (err) {
+      console.error("Error marking notification as read:", err);
+      showError("Failed to mark notification as read.");
+    }
+  };
+
+  // Mark all notifications as read
+  const markAllAsRead = async () => {
+    try {
+      const updates = privateChats
+        .filter((chat) => chat.unreadCountForTherapist > 0)
+        .map((chat) => updateDoc(doc(db, "privateChats", chat.id), { unreadCountForTherapist: 0 }));
+      await Promise.all(updates);
+    } catch (err) {
+      console.error("Error marking all notifications as read:", err);
+      showError("Failed to mark all notifications as read.");
+    }
+  };
+
+  // Dismiss notification
+  const dismissNotification = async (chatId) => {
+    try {
+      const therapistRef = doc(db, "therapists", therapistId);
+      await updateDoc(therapistRef, {
+        dismissedNotifications: arrayUnion(chatId),
+      });
+      setDismissedNotifications((prev) => [...prev, chatId]);
+    } catch (err) {
+      console.error("Error dismissing notification:", err);
+      showError("Failed to dismiss notification.");
+    }
+  };
+
+  // Reset dismissed notifications
+  const resetDismissed = async () => {
+    try {
+      const therapistRef = doc(db, "therapists", therapistId);
+      await updateDoc(therapistRef, { dismissedNotifications: [] });
+      setDismissedNotifications([]);
+    } catch (err) {
+      console.error("Error resetting dismissed notifications:", err);
+      showError("Failed to reset dismissed notifications.");
+    }
+  };
+
   // Logout
   const handleLogout = async () => {
     try {
@@ -830,6 +900,19 @@ function TherapistDashboard() {
               lastJoinEvent: now,
               lastLeaveAiOffered: now,
               needsTherapist: false,
+            });
+          }
+        }
+        if (activeGroupId) {
+          const groupChatRef = await transaction.get(doc(db, "groupChats", activeGroupId));
+          if (groupChatRef.exists()) {
+            transaction.update(groupChatRef, {
+              participants: arrayRemove(uid),
+            });
+            transaction.set(doc(collection(groupChatRef, "events")), {
+              type: "leave",
+              user: displayName,
+              timestamp: serverTimestamp(),
             });
           }
         }
@@ -1124,6 +1207,44 @@ function TherapistDashboard() {
       }));
   }, [messages, groupEvents, lastSeenTimestamp]);
 
+  // Filtered notifications based on filter state
+  const filteredNotifications = useMemo(() => {
+    let notifications = [];
+
+    // Private chat notifications
+    const privateChatNotifications = privateChats.map((chat) => ({
+      id: chat.id,
+      type: "private",
+      message: `New messages in Private Chat with ${anonNames[chat.id] || "Anonymous"} (${chat.unreadCountForTherapist})`,
+      timestamp: chat.lastUpdated,
+      unreadCount: chat.unreadCountForTherapist || 0,
+      isDismissed: dismissedNotifications.includes(chat.id),
+    }));
+
+    // Group chat notifications
+    const groupChatNotifications = groupChats
+      .filter((group) => group.unreadCount > 0)
+      .map((group) => ({
+        id: group.id,
+        type: "group",
+        message: `New messages in Group Chat ${group.id} (${group.unreadCount})`,
+        timestamp: group.lastMessage?.timestamp,
+        unreadCount: group.unreadCount || 0,
+        isDismissed: dismissedNotifications.includes(group.id),
+      }));
+
+    notifications = [...privateChatNotifications, ...groupChatNotifications].sort(
+      (a, b) => getTimestampMillis(b.timestamp) - getTimestampMillis(a.timestamp)
+    );
+
+    if (notificationFilter === "unread") {
+      return notifications.filter((notif) => notif.unreadCount > 0 && !notif.isDismissed);
+    } else if (notificationFilter === "dismissed") {
+      return notifications.filter((notif) => notif.isDismissed);
+    }
+    return notifications;
+  }, [privateChats, groupChats, anonNames, dismissedNotifications, notificationFilter]);
+
   return (
     <div className="therapist-dashboard">
       <Sidebar
@@ -1137,8 +1258,8 @@ function TherapistDashboard() {
           <div className={`error-toast ${isErrorFading ? 'fade-out' : ''}`}>
             {errorMsg}
             <button className="error-close-btn" 
-            onClick={closeError}
-            aria-label="Close error message"
+              onClick={closeError}
+              aria-label="Close error message"
             >
               <i className="fa-solid fa-times"></i>
             </button>
@@ -1270,24 +1391,83 @@ function TherapistDashboard() {
             path="/notifications"
             element={
               <div className="notifications">
-                <h3>Notifications</h3>
-                <ul>
-                  {privateChats
-                    .filter((chat) => chat.unreadCountForTherapist > 0)
-                    .map((chat) => (
-                      <li key={chat.id} className="notification-item" onClick={() => joinPrivateChat(chat.id)}>
-                        New messages in Private Chat {chat.id} ({chat.unreadCountForTherapist})
+                <div className="notifications-header">
+                  <h3>Notifications</h3>
+                  <div className="notification-controls">
+                    <select
+                      value={notificationFilter}
+                      onChange={(e) => setNotificationFilter(e.target.value)}
+                      className="notification-filter"
+                    >
+                      <option value="all">All Notifications</option>
+                      <option value="unread">Unread Only</option>
+                      <option value="dismissed">Dismissed</option>
+                    </select>
+                    <button
+                      onClick={markAllAsRead}
+                      disabled={privateChats.every((chat) => chat.unreadCountForTherapist === 0)}
+                      className="mark-all-read"
+                    >
+                      Mark All as Read
+                    </button>
+                    <button
+                      onClick={resetDismissed}
+                      disabled={dismissedNotifications.length === 0}
+                      className="reset-dismissed"
+                    >
+                      Reset Dismissed
+                    </button>
+                  </div>
+                </div>
+                <ul className="notification-list">
+                  {filteredNotifications.length > 0 ? (
+                    filteredNotifications.map((notif) => (
+                      <li
+                        key={notif.id}
+                        className={`notification-item ${notif.unreadCount > 0 ? "unread" : ""} ${
+                          notif.isDismissed ? "dismissed" : ""
+                        }`}
+                      >
+                        <div className="notification-content">
+                          <span className="notification-message">{notif.message}</span>
+                          <span className="notification-timestamp">
+                            {formatTimestamp(notif.timestamp)}
+                          </span>
+                        </div>
+                        <div className="notification-actions">
+                          {notif.unreadCount > 0 && !notif.isDismissed && (
+                            <button
+                              className="mark-read-btn"
+                              onClick={() => markAsRead(notif.id)}
+                              disabled={notif.type === "group"}
+                            >
+                              Mark as Read
+                            </button>
+                          )}
+                          {!notif.isDismissed && (
+                            <button
+                              className="dismiss-btn"
+                              onClick={() => dismissNotification(notif.id)}
+                            >
+                              Dismiss
+                            </button>
+                          )}
+                          <button
+                            className="view-btn"
+                            onClick={() =>
+                              notif.type === "private"
+                                ? joinPrivateChat(notif.id)
+                                : navigate(`/therapist-dashboard/group-chat/${notif.id}`)
+                            }
+                          >
+                            View
+                          </button>
+                        </div>
                       </li>
-                    ))}
-                  {groupChats.some((group) => group.unreadCount > 0) && (
-                    <li className="notification-item" onClick={() => navigate("/therapist-dashboard/group-chat")}>
-                      New messages in Group Chats
-                    </li>
+                    ))
+                  ) : (
+                    <li className="no-notifications">No notifications to display</li>
                   )}
-                  {privateChats.every((chat) => chat.unreadCountForTherapist === 0) &&
-                    groupChats.every((group) => group.unreadCount === 0) && (
-                      <li>No new notifications</li>
-                    )}
                 </ul>
               </div>
             }

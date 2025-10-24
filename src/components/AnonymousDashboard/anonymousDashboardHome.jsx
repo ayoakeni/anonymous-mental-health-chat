@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { collection, query, where, onSnapshot, limit, getDoc, doc } from "firebase/firestore";
 import { db, auth } from "../../utils/firebase";
-import MoodTracker from "../moodTracker";
+// import MoodTracker from "../moodTracker";
 import TherapistProfile from "../TherapistProfile";
 import "../../styles/anonymousDashboard.css";
 
@@ -170,10 +170,10 @@ const AnonymousDashboardHome = ({
 
       <div className="dashboard-grid">
         {/* Mood Tracker Card */}
-        <div className="dash-card mood-card">
+        {/* <div className="dash-card mood-card">
           <h3>How Are You Feeling?</h3>
           <MoodTracker formatTimestamp={formatTimestamp} />
-        </div>
+        </div> */}
 
         {/* Recent Chats Card */}
         <div className="dash-card recent-chats">
