@@ -31,6 +31,11 @@ const AnonymousDashboardHome = ({
   const [moodHistoryLoading, setMoodHistoryLoading] = useState(true);
   const [moodHistoryError, setMoodHistoryError] = useState(null);
 
+  // Therapist list state
+  const [therapists, setTherapists] = useState([]);
+  const [therapistsLoading, setTherapistsLoading] = useState(true);
+  const [therapistsError, setTherapistsError] = useState(null);
+
   // Mood options for mapping (consistent with MoodTracker.jsx)
   const moodOptions = [
     { value: "happy", label: "Happy", emoji: "😊" },
@@ -46,7 +51,7 @@ const AnonymousDashboardHome = ({
     const q = query(
       collection(db, "moods"),
       where("userId", "==", userId),
-      limit(5) // Fetch last 5 moods
+      limit(5)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       if (!snapshot.empty) {
@@ -62,6 +67,31 @@ const AnonymousDashboardHome = ({
       console.error("Error fetching mood history:", error);
       setMoodHistoryError("Failed to load mood history. Please try again.");
       setMoodHistoryLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch therapists
+  useEffect(() => {
+    const q = query(
+      collection(db, "therapistsOnline"),
+      limit(5)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const therapistData = snapshot.docs.map(doc => ({
+          uid: doc.id,
+          ...doc.data()
+        }));
+        setTherapists(therapistData);
+      } else {
+        setTherapists([]);
+      }
+      setTherapistsLoading(false);
+    }, (error) => {
+      console.error("Error fetching therapists:", error);
+      setTherapistsError("Failed to load therapists. Please try again.");
+      setTherapistsLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -98,7 +128,7 @@ const AnonymousDashboardHome = ({
     <div className="dashboard">
       <div className="welcome-header">
         <h2>Welcome, <span className="highlight">{displayName || "Guest"}</span>!</h2>
-        <p className="subtext">Explore your chats, log your mood, or try a daily task to support your well-being.</p>
+        <p className="subtext">Explore your chats, log your mood, try a daily task, or connect with a therapist.</p>
       </div>
 
       <div className="dashboard-grid">
@@ -118,7 +148,7 @@ const AnonymousDashboardHome = ({
                 return (
                   <li key={chat.id} className="chat-card">
                     <Link
-                      to={chat.type === "group" ? `/group-chat/${chat.id}` : `/private-chat/${chat.id}`}
+                      to={chat.type === "group" ? `group-chat/${chat.id}` : `private-chat/${chat.id}`}
                       className="chat-card-inner"
                     >
                       <div className="chat-avater-content">
@@ -151,6 +181,34 @@ const AnonymousDashboardHome = ({
             </ul>
           ) : (
             <p>No recent chats. Start a new conversation!</p>
+          )}
+        </div>
+
+        {/* Therapist List Card */}
+        <div className="dash-card available-therapist-card">
+          <h3>Available Therapists</h3>
+          {therapistsLoading ? (
+            <p>Loading therapists...</p>
+          ) : therapistsError ? (
+            <p className="error">{therapistsError}</p>
+          ) : therapists.length > 0 ? (
+            <div className="available-therapist-list">
+              {therapists.map((therapist) => (
+                <div
+                  key={therapist.uid}
+                  className={`available-therapist-item ${therapist.online ? "online" : ""}`}
+                >
+                  <span className="available-therapist-avatar">
+                    {therapist.name?.[0] || "T"}
+                  </span>
+                  <span className="available-therapist-name">
+                    {therapist.name || `Therapist ${therapist.uid.slice(0, 4)}`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p>No therapists available at the moment.</p>
           )}
         </div>
 
@@ -199,31 +257,6 @@ const AnonymousDashboardHome = ({
           </ul>
         </div>
 
-        {/* Resources Card */}
-        <div className="dash-card resources-card">
-          <h3>Mental Health Resources</h3>
-          <ul className="resource-list">
-            <li className="resource-item">
-              <a href="https://www.mentalhealth.gov" target="_blank" rel="noopener noreferrer">
-                MentalHealth.gov
-              </a>
-              <p>Learn about mental health and find support services.</p>
-            </li>
-            <li className="resource-item">
-              <a href="https://988lifeline.org" target="_blank" rel="noopener noreferrer">
-                988 Suicide & Crisis Lifeline
-              </a>
-              <p>24/7 support for crisis situations.</p>
-            </li>
-            <li className="resource-item">
-              <a href="https://www.mind.org.uk" target="_blank" rel="noopener noreferrer">
-                Mind UK
-              </a>
-              <p>Resources and advice for mental well-being.</p>
-            </li>
-          </ul>
-        </div>
-
         {/* Motivational Quote Card */}
         <div className="dash-card quote-card">
           <h3>Daily Inspiration</h3>
@@ -235,10 +268,10 @@ const AnonymousDashboardHome = ({
         <div className="dash-card quick-actions-card">
           <h3>Quick Actions</h3>
           <div className="quick-actions">
-            <Link to="/group-chat">
+            <Link to="group-chat">
               <button className="quick-action-btn">Join Group Chat</button>
             </Link>
-            <Link to="/private-chat">
+            <Link to="private-chat">
               <button className="quick-action-btn">Start Private Chat</button>
             </Link>
           </div>

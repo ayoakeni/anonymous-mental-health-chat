@@ -93,7 +93,7 @@
 
 .anonymous-dashboard .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 24px;
 }
 
@@ -117,10 +117,16 @@
   margin-bottom: 16px;
 }
 
+.anonymous-dashboard .mood-card {
+  height: fit-content;
+}
+
 .anonymous-dashboard .mood-card .mood-tracker {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-height: 182px;
+  overflow-y: auto;
 }
 
 .anonymous-dashboard .mood-card .mood-options {
@@ -228,10 +234,16 @@
   margin-left: 4px;
 }
 
+.anonymous-dashboard .recent-chats {
+  height: fit-content;
+}
+
 .anonymous-dashboard .recent-chats .chat-list {
   list-style: none;
   padding: 0;
   margin: 0;
+  max-height: 182px;
+  overflow-y: auto;
 }
 
 .anonymous-dashboard .recent-chats .chat-card {
@@ -331,6 +343,90 @@
   text-align: center;
 }
 
+.anonymous-dashboard ::-webkit-scrollbar {
+  width: 4px;
+}
+
+.anonymous-dashboard ::-webkit-scrollbar-track {
+  background: var(--system-bg);
+}
+
+.anonymous-dashboard ::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
+}
+
+.anonymous-dashboard .available-therapist-card .error {
+  color: var(--error-color);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.anonymous-dashboard .available-therapist-card {
+  height: fit-content;
+}
+
+.anonymous-dashboard .available-therapist-card .available-therapist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 182px;
+  overflow-y: auto;
+}
+
+.anonymous-dashboard .available-therapist-item {
+  white-space: nowrap;
+  width: 100%;
+  height: fit-content;
+  padding: 4px 7px;
+  background: var(--therapist-bg);
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+  color: var(--text-color);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.anonymous-dashboard .available-therapist-item.online {
+  border: 2px solid var(--accent-color);
+}
+
+.anonymous-dashboard .available-therapist-item.online::after {
+  content: "●";
+  color: #28a745;
+  margin-left: auto;
+  font-size: 0.6rem;
+}
+
+.anonymous-dashboard .available-therapist-item:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+.anonymous-dashboard .available-therapist-avatar {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: white;
+  text-align: center;
+  line-height: 24px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .anonymous-dashboard .available-therapist-item:hover {
+    background: #4a6b9b;
+  }
+}
+
+.anonymous-dashboard .mood-history-card {
+  height: fit-content;
+}
+
 .anonymous-dashboard .mood-history-card .mood-history-list {
   list-style: none;
   padding: 0;
@@ -338,6 +434,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: 182px;
+  overflow-y: auto;
 }
 
 .anonymous-dashboard .mood-history-card .mood-history-item {
@@ -371,6 +469,10 @@
   text-align: center;
 }
 
+.anonymous-dashboard .daily-task-card {
+  height: fit-content;
+}
+
 .anonymous-dashboard .daily-task-card .task-list {
   list-style: none;
   padding: 0;
@@ -378,6 +480,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: 182px;
+  overflow-y: auto;
 }
 
 .anonymous-dashboard .daily-task-card .task-item {
@@ -405,37 +509,8 @@
   opacity: 0.6;
 }
 
-.anonymous-dashboard .resources-card .resource-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.anonymous-dashboard .resources-card .resource-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.anonymous-dashboard .resources-card .resource-item a {
-  color: var(--primary-color);
-  font-size: 1rem;
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.anonymous-dashboard .resources-card .resource-item a:hover {
-  text-decoration: underline;
-}
-
-.anonymous-dashboard .resources-card .resource-item p {
-  font-size: 0.9rem;
-  color: var(--text-color);
-  opacity: 0.7;
-  margin: 0;
+.anonymous-dashboard .quote-card {
+  height: fit-content;
 }
 
 .anonymous-dashboard .quote-card .quote {
@@ -444,6 +519,8 @@
   color: var(--text-color);
   opacity: 0.8;
   margin: 12px 0;
+  max-height: 182px;
+  overflow-y: auto;
 }
 
 .anonymous-dashboard .quote-card .quote-author {
@@ -882,12 +959,20 @@
 .anonymous-dashboard .chat-message .message-reactions {
   display: none;
   position: absolute;
-  top: -20px;
-  right: 10px;
+  top: 0;
+  right: -77px;
   background: var(--chat-bg);
   padding: 5px;
   border-radius: var(--border-radius);
   box-shadow: var(--shadow);
+}
+
+.anonymous-dashboard .chat-message.user .message-reactions {
+  right: 146px;
+}
+
+.anonymous-dashboard .chat-message.system:hover .message-reactions {
+  display: none;
 }
 
 .anonymous-dashboard .chat-message:hover .message-reactions {
