@@ -17,9 +17,10 @@ import { useTypingStatus } from "../components/useTypingStatus";
 import useNotificationSound from "../components/useNotificationSound";
 import { formatTimestamp, getTimestampMillis } from "../components/timestampUtils";
 import Sidebar from "../components/sidebar";
-import AnonymousDashboardHome from "../components/AnonymousDashboard/anonymousDashboardHome"
+import AnonymousDashboardHome from "../components/AnonymousDashboard/anonymousDashboardHome";
 import AnonymousGroupChatSplitView from "../components/AnonymousDashboard/anonymousGroupChatSplitView";
 import AnonymousPrivateChatSplitView from "../components/AnonymousDashboard/anonymousPrivateChatSplitView";
+import MoodTracker from "../components/moodTracker";
 import "../styles/anonymousDashboard.css";
 
 function AnonymousDashboard() {
@@ -32,8 +33,12 @@ function AnonymousDashboard() {
   const [errorMsg, setErrorMsg] = useState(null);
   const [isErrorFading, setIsErrorFading] = useState(false);
   const [anonNames, setAnonNames] = useState({});
+  const [moodHistory, setMoodHistory] = useState([]);
+  const [moodHistoryLoading, setMoodHistoryLoading] = useState(true);
+  const [showMoodPopup, setShowMoodPopup] = useState(false);
   const playNotification = useNotificationSound();
   const errorTimeoutRef = useRef(null);
+  const moodModalRef = useRef(null);
   const navigate = useNavigate();
   const { groupId, chatId } = useParams();
   const userId = auth.currentUser?.uid;
@@ -170,6 +175,64 @@ function AnonymousDashboard() {
     return () => unsubs.forEach((unsub) => unsub());
   }, [privateChats, userId]);
 
+  // Fetch mood history
+  useEffect(() => {
+    const userId = auth.currentUser?.uid || "anonymous";
+    const q = query(
+      collection(db, "moods"),
+      where("userId", "==", userId),
+      limit(5)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const moods = snapshot.docs
+          .map(doc => doc.data())
+          .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+        setMoodHistory(moods);
+      } else {
+        setMoodHistory([]);
+      }
+      setMoodHistoryLoading(false);
+    }, (error) => {
+      console.error("Error fetching mood history:", error);
+      showError("Failed to load mood history. Please try again.");
+      setMoodHistoryLoading(false);
+    });
+    return () => unsubscribe();
+  }, [showError]);
+
+  // Check if mood popup should be shown
+  useEffect(() => {
+    const checkMoodPopup = () => {
+      const today = new Date().toISOString().split('T')[0]; // e.g., "2025-10-24"
+      const lastDismissed = localStorage.getItem('moodPopupDismissedDate');
+      
+      // Check if a mood was logged today
+      const hasMoodToday = moodHistory.some(mood => {
+        const moodDate = formatTimestamp(mood.timestamp)?.dateStr;
+        return moodDate === today;
+      });
+
+      // Show popup if no mood logged today and not dismissed today
+      if (!hasMoodToday && lastDismissed !== today) {
+        setShowMoodPopup(true);
+      } else {
+        setShowMoodPopup(false);
+      }
+    };
+
+    if (!moodHistoryLoading) {
+      checkMoodPopup();
+    }
+  }, [moodHistory, moodHistoryLoading, formatTimestamp]);
+
+  // Handle mood popup dismissal
+  const handleDismissMoodPopup = () => {
+    const today = new Date().toISOString().split('T')[0];
+    localStorage.setItem('moodPopupDismissedDate', today);
+    setShowMoodPopup(false);
+  };
+
   // Sync active chat IDs with URL params
   useEffect(() => {
     if (groupId && groupId !== activeGroupId) {
@@ -270,17 +333,36 @@ function AnonymousDashboard() {
             </button>
           </div>
         )}
+        {/* Daily Mood Popup */}
+        {showMoodPopup && (
+          <div className="modal-backdrop">
+            <div className="mood-modal mood-card" ref={moodModalRef}>
+              <h3 className="mood-modal-checkin">Daily Mood Check-In</h3>
+              <p className="mood-modal-question">How are you feeling today?</p>
+              <MoodTracker
+                formatTimestamp={formatTimestamp}
+                onMoodLogged={() => setShowMoodPopup(false)}
+              />
+              <button
+                className="dismiss-mood-button"
+                onClick={handleDismissMoodPopup}
+              >
+                Dismiss for Today
+              </button>
+            </div>
+          </div>
+        )}
         <Routes>
           <Route
             path="/"
             element={
-            <AnonymousDashboardHome
-              groupChats={groupChats}
-              privateChats={privateChats}
-              displayName={displayName}
-              anonNames={anonNames}
-              formatTimestamp={formatTimestamp}
-            />
+              <AnonymousDashboardHome
+                groupChats={groupChats}
+                privateChats={privateChats}
+                displayName={displayName}
+                anonNames={anonNames}
+                formatTimestamp={formatTimestamp}
+              />
             }
           />
           <Route

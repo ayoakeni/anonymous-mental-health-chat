@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { collection, setDoc, doc, query, where, onSnapshot, limit, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../utils/firebase";
 
-const MoodTracker = ({ formatTimestamp }) => {
+const MoodTracker = ({ formatTimestamp, onMoodLogged }) => {
   const [mood, setMood] = useState("");
   const [lastLoggedMood, setLastLoggedMood] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -85,6 +85,10 @@ const MoodTracker = ({ formatTimestamp }) => {
         setError(null);
         // Refetch moods after logging
         fetchLastMood();
+        // Trigger callback to close popup
+        if (onMoodLogged) {
+          onMoodLogged();
+        }
       } catch (error) {
         setError("Failed to log mood. Please try again.");
       }
