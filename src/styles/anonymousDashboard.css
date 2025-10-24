@@ -125,8 +125,9 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-height: 182px;
+  max-height: 185px;
   overflow-y: auto;
+  padding-top: 3px;
 }
 
 .anonymous-dashboard .mood-card .mood-options {
@@ -153,6 +154,8 @@
 .anonymous-dashboard .mood-card .mood-button:hover {
   background: var(--highlight-bg);
   border-color: var(--primary-color);
+  transform: scale(1.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .anonymous-dashboard .mood-card .mood-button.selected {
@@ -652,6 +655,24 @@
 
 .anonymous-dashboard .mood-modal .mood-tracker {
   margin-bottom: 16px;
+}
+
+.mood-modal .button-container {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.anonymous-dashboard .mood-modal .mood-tracker .mood-button:hover {
+  background: var(--therapist-bg);
+  border-color: var(--secondary-color);
+}
+
+.anonymous-dashboard .mood-modal .mood-tracker .mood-button.selected {
+  background: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
 }
 
 .anonymous-dashboard .mood-modal .dismiss-mood-button {

@@ -21,6 +21,7 @@ import AnonymousDashboardHome from "../components/AnonymousDashboard/anonymousDa
 import AnonymousGroupChatSplitView from "../components/AnonymousDashboard/anonymousGroupChatSplitView";
 import AnonymousPrivateChatSplitView from "../components/AnonymousDashboard/anonymousPrivateChatSplitView";
 import MoodTracker from "../components/moodTracker";
+import { DateTime } from 'luxon';
 import "../styles/anonymousDashboard.css";
 
 function AnonymousDashboard() {
@@ -204,9 +205,11 @@ function AnonymousDashboard() {
   // Check if mood popup should be shown
   useEffect(() => {
     const checkMoodPopup = () => {
-      const today = new Date().toISOString().split('T')[0]; // e.g., "2025-10-24"
+      const today = DateTime.now().setZone('Africa/Lagos').toISODate();
       const lastDismissed = localStorage.getItem('moodPopupDismissedDate');
-      
+      const remindLater = localStorage.getItem('moodPopupRemindLater');
+      if (remindLater && Date.now() < parseInt(remindLater)) return;
+
       // Check if a mood was logged today
       const hasMoodToday = moodHistory.some(mood => {
         const moodDate = formatTimestamp(mood.timestamp)?.dateStr;
@@ -225,11 +228,21 @@ function AnonymousDashboard() {
       checkMoodPopup();
     }
   }, [moodHistory, moodHistoryLoading, formatTimestamp]);
-
+  
   // Handle mood popup dismissal
   const handleDismissMoodPopup = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = DateTime.now().setZone('Africa/Lagos').toISODate();
     localStorage.setItem('moodPopupDismissedDate', today);
+    setShowMoodPopup(false);
+  };
+
+  const lastMood = moodHistory[0]?.mood;
+  const prompt = lastMood === 'sad' ? 'Feeling down? Let’s check in today!' : 'How’s your mood today?';
+
+  // Handle remind me later
+  const handleRemindLater = () => {
+    localStorage.setItem('moodPopupRemindLater', Date.now() + 10 * 1000);
+    // localStorage.setItem('moodPopupRemindLater', Date.now() + 4 * 60 * 60 * 1000); // 4 hours
     setShowMoodPopup(false);
   };
 
@@ -338,17 +351,25 @@ function AnonymousDashboard() {
           <div className="modal-backdrop">
             <div className="mood-modal mood-card" ref={moodModalRef}>
               <h3 className="mood-modal-checkin">Daily Mood Check-In</h3>
-              <p className="mood-modal-question">How are you feeling today?</p>
+              <p className="mood-modal-question">{prompt}</p>
               <MoodTracker
                 formatTimestamp={formatTimestamp}
                 onMoodLogged={() => setShowMoodPopup(false)}
               />
-              <button
-                className="dismiss-mood-button"
-                onClick={handleDismissMoodPopup}
-              >
-                Dismiss for Today
-              </button>
+              <div className="button-container">
+                <button
+                  className="dismiss-mood-button"
+                  onClick={handleDismissMoodPopup}
+                >
+                  Dismiss for Today
+                </button>
+                <button
+                  className="dismiss-mood-button"
+                  onClick={handleRemindLater}
+                >
+                  Remind Me Later
+                </button>
+              </div>
             </div>
           </div>
         )}
