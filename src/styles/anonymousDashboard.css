@@ -186,7 +186,6 @@
 }
 
 .anonymous-dashboard .mood-card .last-mood {
-  margin-top: 16px;
   padding: 12px;
   background: var(--highlight-bg);
   border-radius: var(--border-radius);
