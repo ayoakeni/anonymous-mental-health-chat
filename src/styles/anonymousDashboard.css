@@ -771,6 +771,10 @@
   overflow: hidden;
 }
 
+.anonymous-dashboard  .chat-card:last-child {
+  margin-bottom: 0;
+}
+
 .anonymous-dashboard .chat-card:hover {
   background: var(--highlight-bg);
   border-radius: var(--border-radius);
