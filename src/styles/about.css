@@ -28,13 +28,32 @@
 }
 
 /* Hero Section */
-.hero-section {
-  background: var(--gradient-bg);
+.hero-section-about {
+  background:  rgba(0, 0, 0, 0.6) url('../image/fog-mountains-with-hot-air-balloons.jpg') center/cover no-repeat;
+  background-blend-mode: overlay;
   color: #ffffff;
   text-align: center;
-  padding: 80px 20px;
+  padding: 100px 20px;
   position: relative;
   overflow: hidden;
+  animation: fadeIn 1s ease-in-out;
+}
+
+.hero-section-about::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, rgba(0, 0, 0, 0.2) 100%);
+  animation: pulse 10s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.2); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 0.3; }
 }
 
 .hero-content {
@@ -94,7 +113,7 @@
 }
 
 @media (max-width: 768px) {
-  .hero-section {
+  .hero-section-about {
     padding: 50px 15px;
   }
   .hero-title {

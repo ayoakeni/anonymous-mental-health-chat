@@ -4,7 +4,6 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "../utils/firebase";
 import Header from "../components/header";
-import MoodTracker from "../components/moodTracker"
 import "../styles/home.css";
 
 function Home() {
@@ -119,7 +118,6 @@ function Home() {
           </div>
         </div>
       </section>
-      <MoodTracker/>
       <section className="testimonials-section" aria-labelledby="testimonials-title">
         <h2 id="testimonials-title" className="testimonials-title">
           What Our Community Says
@@ -144,14 +142,6 @@ function Home() {
             <i className="fas fa-chevron-right"></i>
           </button>
         </div>
-      </section>
-
-      <section className="resources-section" aria-labelledby="resources-title">
-        <h2 id="resources-title" className="resources-title">Mental Health Resources</h2>
-        <ul className="resources-list">
-          <li><a href="https://www.nami.org" target="_blank" rel="noopener noreferrer">NAMI</a></li>
-          <li><a href="https://www.mentalhealth.gov" target="_blank" rel="noopener noreferrer">MentalHealth.gov</a></li>
-        </ul>
       </section>
       
       <section className="stories-section">

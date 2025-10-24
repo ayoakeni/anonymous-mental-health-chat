@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { db, auth } from "../utils/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
-import "../styles/home.css";
+import "../styles/header.css";
 
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

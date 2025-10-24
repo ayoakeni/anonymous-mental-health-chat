@@ -30,7 +30,7 @@ function About() {
     <div className="about-container">
       <Header />
       {/* Hero Section */}
-      <section className="hero-section">
+      <section className="hero-section-about">
         <div className="hero-content">
           <h1 className="hero-title">About Our Platform</h1>
           <p className="hero-subtitle">
