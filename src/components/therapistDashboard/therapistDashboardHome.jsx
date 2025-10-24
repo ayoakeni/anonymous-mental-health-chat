@@ -114,10 +114,10 @@ function TherapistDashboardHome({
                     <div className="chat-card-inner">
                       <div className="chat-avater-content">
                         <span className="therapist-avatar">
-                          {group.id[0].toUpperCase()}
+                          {group.name[0].toUpperCase()}
                         </span>
                         <div className="chat-card-content">
-                          <span className="chat-card-title">{group.id}</span>
+                          <span className="chat-card-title">{group.name}</span>
                           <span className="chat-card-preview">
                             {group.lastMessage?.text || "No messages yet"}
                           </span>

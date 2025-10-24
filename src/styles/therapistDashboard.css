@@ -790,17 +790,3 @@
 .therapist-dashboard .therapist-profile-card button:hover {
   background: #357abd;
 }
-
-.therapist-dashboard .notification-item {
-  padding: 10px;
-  margin-bottom: 5px;
-  background: var(--input-bg);
-  border: 1px solid var(--input-border);
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  color: var(--text-color);
-}
-
-.therapist-dashboard .notification-item:hover {
-  background: var(--therapist-bg);
-}

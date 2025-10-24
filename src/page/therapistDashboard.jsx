@@ -30,6 +30,7 @@ import useNotificationSound from '../components/useNotificationSound';
 import { getTimestampMillis, formatTimestamp } from "../components/timestampUtils";
 import "../styles/therapistDashboard.css";
 import "../styles/therapistDashboardNotification.css";
+import "../styles/therapistDashboardSetting.css";
 
 function TherapistDashboard() {
   const [messages, setMessages] = useState([]);
@@ -58,6 +59,17 @@ function TherapistDashboard() {
     position: "",
     profile: "",
     rating: 0,
+    notificationPreferences: {
+      emailNotifications: true,
+      soundNotifications: true,
+      desktopNotifications: false,
+      notificationFrequency: 'immediate',
+    },
+    chatSettings: {
+      autoJoinNewChats: false,
+      showTypingIndicator: true,
+      messagePreviewLength: 50,
+    },
   });
   const [privateMessages, setPrivateMessages] = useState([]);
   const [privateEvents, setPrivateEvents] = useState([]);
@@ -80,8 +92,8 @@ function TherapistDashboard() {
   const [isErrorFading, setIsErrorFading] = useState(false);
   const [isLoadingNames, setIsLoadingNames] = useState(false);
   const [anonNames, setAnonNames] = useState({});
-  const [notificationFilter, setNotificationFilter] = useState("all"); // New state for notification filter
-  const [dismissedNotifications, setDismissedNotifications] = useState([]); // New state for dismissed notifications
+  const [notificationFilter, setNotificationFilter] = useState("all");
+  const [dismissedNotifications, setDismissedNotifications] = useState([]);
   const errorTimeoutRef = useRef(null);
   const therapistId = auth.currentUser?.uid;
   const displayName = therapistInfo.name || "Unknown Therapist";
@@ -93,6 +105,14 @@ function TherapistDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { chatId } = useParams();
+
+  // Format timestamp for notifications
+  const formatNotificationTimestamp = (timestamp) => {
+    if (!timestamp) return "Unknown time";
+    const formatted = formatTimestamp(timestamp);
+    if (typeof formatted === "string") return formatted;
+    return `${formatted.dateStr} ${formatted.timeStr}` || "Unknown time";
+  };
 
   const closeError = useCallback(() => {
     setIsErrorFading(true);
@@ -641,7 +661,18 @@ function TherapistDashboard() {
       (snap) => {
         if (snap.exists()) {
           const data = snap.data();
-          setTherapistInfo(data);
+          setTherapistInfo({
+            ...therapistInfo,
+            ...data,
+            notificationPreferences: {
+              ...therapistInfo.notificationPreferences,
+              ...(data.notificationPreferences || {}),
+            },
+            chatSettings: {
+              ...therapistInfo.chatSettings,
+              ...(data.chatSettings || {}),
+            },
+          });
           setTherapistName(data.name || "Therapist");
         } else {
           const defaultInfo = {
@@ -650,6 +681,17 @@ function TherapistDashboard() {
             position: "",
             profile: "",
             rating: 0,
+            notificationPreferences: {
+              emailNotifications: true,
+              soundNotifications: true,
+              desktopNotifications: false,
+              notificationFrequency: 'immediate',
+            },
+            chatSettings: {
+              autoJoinNewChats: false,
+              showTypingIndicator: true,
+              messagePreviewLength: 50,
+            },
           };
           setTherapistInfo(defaultInfo);
           setTherapistName("Therapist");
@@ -874,7 +916,22 @@ function TherapistDashboard() {
     }
   };
 
-  // Logout
+  // Save settings
+  const saveSettings = async () => {
+    if (!therapistId) return;
+    try {
+      await setDoc(doc(db, "therapists", therapistId), {
+        notificationPreferences: therapistInfo.notificationPreferences,
+        chatSettings: therapistInfo.chatSettings,
+      }, { merge: true });
+      showError("Settings saved successfully!", false);
+    } catch (err) {
+      console.error("Error saving settings:", err);
+      showError("Failed to save settings. Please try again.");
+    }
+  };
+
+  // Handle logout
   const handleLogout = async () => {
     try {
       if (!auth.currentUser) return;
@@ -929,6 +986,17 @@ function TherapistDashboard() {
         position: "",
         profile: "",
         rating: 0,
+        notificationPreferences: {
+          emailNotifications: true,
+          soundNotifications: true,
+          desktopNotifications: false,
+          notificationFrequency: 'immediate',
+        },
+        chatSettings: {
+          autoJoinNewChats: false,
+          showTypingIndicator: true,
+          messagePreviewLength: 50,
+        },
       });
       setMessages([]);
       setPrivateChats([]);
@@ -940,19 +1008,6 @@ function TherapistDashboard() {
     } catch (err) {
       console.error("Logout error:", err);
       showError("Failed to logout. Please try again.");
-    }
-  };
-
-  // Save therapist profile
-  const saveProfile = async () => {
-    if (!therapistId) return;
-    try {
-      await setDoc(doc(db, "therapists", therapistId), therapistInfo, { merge: true });
-      alert("Profile saved successfully!");
-      setEditing(false);
-    } catch (err) {
-      console.error("Error saving profile:", err);
-      showError("Failed to save profile. Please try again.");
     }
   };
 
@@ -1227,7 +1282,7 @@ function TherapistDashboard() {
       .map((group) => ({
         id: group.id,
         type: "group",
-        message: `New messages in Group Chat ${group.id} (${group.unreadCount})`,
+        message: `New messages in Group Chat "${group.name}" (${group.unreadCount})`,
         timestamp: group.lastMessage?.timestamp,
         unreadCount: group.unreadCount || 0,
         isDismissed: dismissedNotifications.includes(group.id),
@@ -1244,6 +1299,27 @@ function TherapistDashboard() {
     }
     return notifications;
   }, [privateChats, groupChats, anonNames, dismissedNotifications, notificationFilter]);
+
+  // Handle settings changes
+  const handleNotificationChange = (key, value) => {
+    setTherapistInfo(prev => ({
+      ...prev,
+      notificationPreferences: {
+        ...prev.notificationPreferences,
+        [key]: value,
+      },
+    }));
+  };
+
+  const handleChatSettingsChange = (key, value) => {
+    setTherapistInfo(prev => ({
+      ...prev,
+      chatSettings: {
+        ...prev.chatSettings,
+        [key]: value,
+      },
+    }));
+  };
 
   return (
     <div className="therapist-dashboard">
@@ -1431,7 +1507,7 @@ function TherapistDashboard() {
                         <div className="notification-content">
                           <span className="notification-message">{notif.message}</span>
                           <span className="notification-timestamp">
-                            {formatTimestamp(notif.timestamp)}
+                            {formatNotificationTimestamp(notif.timestamp)}
                           </span>
                         </div>
                         <div className="notification-actions">
@@ -1545,7 +1621,96 @@ function TherapistDashboard() {
             element={
               <div className="settings">
                 <h3>Settings</h3>
-                <p>Adjust notification preferences and chat settings. (Feature coming soon)</p>
+                <div className="settings-container">
+                  <div className="settings-section">
+                    <h4>Notification Preferences</h4>
+                    <div className="settings-group">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={therapistInfo.notificationPreferences.emailNotifications}
+                          onChange={(e) => handleNotificationChange('emailNotifications', e.target.checked)}
+                        />
+                        Email Notifications
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={therapistInfo.notificationPreferences.soundNotifications}
+                          onChange={(e) => handleNotificationChange('soundNotifications', e.target.checked)}
+                        />
+                        Sound Notifications
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={therapistInfo.notificationPreferences.desktopNotifications}
+                          onChange={(e) => handleNotificationChange('desktopNotifications', e.target.checked)}
+                        />
+                        Desktop Notifications
+                      </label>
+                      <label>
+                        Notification Frequency:
+                        <select
+                          value={therapistInfo.notificationPreferences.notificationFrequency}
+                          onChange={(e) => handleNotificationChange('notificationFrequency', e.target.value)}
+                        >
+                          <option value="immediate">Immediate</option>
+                          <option value="hourly">Hourly Digest</option>
+                          <option value="daily">Daily Digest</option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="settings-section">
+                    <h4>Chat Settings</h4>
+                    <div className="settings-group">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={therapistInfo.chatSettings.autoJoinNewChats}
+                          onChange={(e) => handleChatSettingsChange('autoJoinNewChats', e.target.checked)}
+                        />
+                        Auto-join New Chats
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={therapistInfo.chatSettings.showTypingIndicator}
+                          onChange={(e) => handleChatSettingsChange('showTypingIndicator', e.target.checked)}
+                        />
+                        Show Typing Indicator
+                      </label>
+                      <label>
+                        Message Preview Length:
+                        <input
+                          type="number"
+                          min="20"
+                          max="100"
+                          value={therapistInfo.chatSettings.messagePreviewLength}
+                          onChange={(e) => handleChatSettingsChange('messagePreviewLength', parseInt(e.target.value) || 50)}
+                        />
+                        characters
+                      </label>
+                    </div>
+                  </div>
+                  <div className="settings-section">
+                    <h4>Account Management</h4>
+                    <div className="settings-group">
+                      <button onClick={() => navigate('/therapist-dashboard/profile')}>
+                        Edit Profile
+                      </button>
+                      <button onClick={handleLogout}>
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                  <div className="settings-actions">
+                    <button onClick={saveSettings} className="save-settings-btn">
+                      Save Settings
+                    </button>
+                  </div>
+                </div>
               </div>
             }
           />
