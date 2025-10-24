@@ -48,8 +48,7 @@
 .therapist-dashboard .appointments,
 .therapist-dashboard .clients,
 .therapist-dashboard .notifications,
-.therapist-dashboard .profile,
-.therapist-dashboard .settings {
+.therapist-dashboard .profile {
   flex: 1;
   color: var(--text-color);
   padding: 20px;

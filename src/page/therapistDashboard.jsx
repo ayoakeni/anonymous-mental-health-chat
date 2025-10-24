@@ -31,7 +31,6 @@ import { getTimestampMillis, formatTimestamp } from "../components/timestampUtil
 import "../styles/therapistDashboard.css";
 import "../styles/therapistDashboardNotification.css";
 import "../styles/therapistDashboardSetting.css";
-
 function TherapistDashboard() {
   const [messages, setMessages] = useState([]);
   const [groupEvents, setGroupEvents] = useState([]);
@@ -148,6 +147,25 @@ function TherapistDashboard() {
   const onEmojiClick = (emojiData) => {
     setReply(reply + emojiData.emoji);
     setShowEmojiPicker(false);
+  };
+
+  // Save profile changes
+  const saveProfile = async () => {
+    if (!therapistId) return;
+    try {
+      await setDoc(doc(db, "therapists", therapistId), {
+        name: therapistInfo.name,
+        gender: therapistInfo.gender,
+        position: therapistInfo.position,
+        profile: therapistInfo.profile,
+        rating: therapistInfo.rating,
+      }, { merge: true });
+      setEditing(false);
+      showError("Profile saved successfully!", false);
+    } catch (err) {
+      console.error("Error saving profile:", err);
+      showError("Failed to save profile. Please try again.");
+    }
   };
 
   // Fetch anonymous names for private chats
@@ -1621,96 +1639,96 @@ function TherapistDashboard() {
             element={
               <div className="settings">
                 <h3>Settings</h3>
-                <div className="settings-container">
-                  <div className="settings-section">
-                    <h4>Notification Preferences</h4>
-                    <div className="settings-group">
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={therapistInfo.notificationPreferences.emailNotifications}
-                          onChange={(e) => handleNotificationChange('emailNotifications', e.target.checked)}
-                        />
-                        Email Notifications
-                      </label>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={therapistInfo.notificationPreferences.soundNotifications}
-                          onChange={(e) => handleNotificationChange('soundNotifications', e.target.checked)}
-                        />
-                        Sound Notifications
-                      </label>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={therapistInfo.notificationPreferences.desktopNotifications}
-                          onChange={(e) => handleNotificationChange('desktopNotifications', e.target.checked)}
-                        />
-                        Desktop Notifications
-                      </label>
-                      <label>
-                        Notification Frequency:
-                        <select
-                          value={therapistInfo.notificationPreferences.notificationFrequency}
-                          onChange={(e) => handleNotificationChange('notificationFrequency', e.target.value)}
-                        >
-                          <option value="immediate">Immediate</option>
-                          <option value="hourly">Hourly Digest</option>
-                          <option value="daily">Daily Digest</option>
-                        </select>
-                      </label>
-                    </div>
+              <div className="settings-container">
+                <div className="settings-section">
+                  <h4>Notification Preferences</h4>
+                  <div className="settings-group">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={therapistInfo.notificationPreferences.emailNotifications}
+                        onChange={(e) => handleNotificationChange('emailNotifications', e.target.checked)}
+                      />
+                      Email Notifications
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={therapistInfo.notificationPreferences.soundNotifications}
+                        onChange={(e) => handleNotificationChange('soundNotifications', e.target.checked)}
+                      />
+                      Sound Notifications
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={therapistInfo.notificationPreferences.desktopNotifications}
+                        onChange={(e) => handleNotificationChange('desktopNotifications', e.target.checked)}
+                      />
+                      Desktop Notifications
+                    </label>
+                    <label>
+                      Notification Frequency:
+                      <select
+                        value={therapistInfo.notificationPreferences.notificationFrequency}
+                        onChange={(e) => handleNotificationChange('notificationFrequency', e.target.value)}
+                      >
+                        <option value="immediate">Immediate</option>
+                        <option value="hourly">Hourly Digest</option>
+                        <option value="daily">Daily Digest</option>
+                      </select>
+                    </label>
                   </div>
-                  <div className="settings-section">
-                    <h4>Chat Settings</h4>
-                    <div className="settings-group">
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={therapistInfo.chatSettings.autoJoinNewChats}
-                          onChange={(e) => handleChatSettingsChange('autoJoinNewChats', e.target.checked)}
-                        />
-                        Auto-join New Chats
-                      </label>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={therapistInfo.chatSettings.showTypingIndicator}
-                          onChange={(e) => handleChatSettingsChange('showTypingIndicator', e.target.checked)}
-                        />
-                        Show Typing Indicator
-                      </label>
-                      <label>
-                        Message Preview Length:
-                        <input
-                          type="number"
-                          min="20"
-                          max="100"
-                          value={therapistInfo.chatSettings.messagePreviewLength}
-                          onChange={(e) => handleChatSettingsChange('messagePreviewLength', parseInt(e.target.value) || 50)}
-                        />
-                        characters
-                      </label>
-                    </div>
+                </div>
+                <div className="settings-section">
+                  <h4>Chat Settings</h4>
+                  <div className="settings-group">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={therapistInfo.chatSettings.autoJoinNewChats}
+                        onChange={(e) => handleChatSettingsChange('autoJoinNewChats', e.target.checked)}
+                      />
+                      Auto-join New Chats
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={therapistInfo.chatSettings.showTypingIndicator}
+                        onChange={(e) => handleChatSettingsChange('showTypingIndicator', e.target.checked)}
+                      />
+                      Show Typing Indicator
+                    </label>
+                    <label>
+                      Message Preview Length:
+                      <input
+                        type="number"
+                        min="20"
+                        max="100"
+                        value={therapistInfo.chatSettings.messagePreviewLength}
+                        onChange={(e) => handleChatSettingsChange('messagePreviewLength', parseInt(e.target.value) || 50)}
+                      />
+                      characters
+                    </label>
                   </div>
-                  <div className="settings-section">
-                    <h4>Account Management</h4>
-                    <div className="settings-group">
-                      <button onClick={() => navigate('/therapist-dashboard/profile')}>
-                        Edit Profile
-                      </button>
-                      <button onClick={handleLogout}>
-                        Logout
-                      </button>
-                    </div>
-                  </div>
-                  <div className="settings-actions">
-                    <button onClick={saveSettings} className="save-settings-btn">
-                      Save Settings
+                </div>
+                <div className="settings-section">
+                  <h4>Account Management</h4>
+                  <div className="settings-group">
+                    <button onClick={() => navigate('/therapist-dashboard/profile')}>
+                      Edit Profile
+                    </button>
+                    <button onClick={handleLogout}>
+                      Logout
                     </button>
                   </div>
                 </div>
+                <div className="settings-actions">
+                  <button onClick={saveSettings} className="save-settings-btn">
+                    Save Settings
+                  </button>
+                </div>
+              </div>
               </div>
             }
           />
