@@ -44,7 +44,6 @@
   transition: margin-left 0.3s ease-in-out;
 }
 
-.therapist-dashboard .appointments,
 .therapist-dashboard .clients,
 .therapist-dashboard .notifications{
   flex: 1;

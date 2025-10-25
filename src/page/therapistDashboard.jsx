@@ -27,11 +27,13 @@ import GroupChatSplitView from "../components/therapistDashboard/GroupChatSplitV
 import PrivateChatSplitView from "../components/therapistDashboard/PrivateChatSplitView";
 import TherapistDashboardHome from "../components/therapistDashboard/therapistDashboardHome";
 import TherapistDashboardProfile from "../components/therapistDashboard/therapistDashboardProfile";
+import TherapistDashboardAppointment from "../components/therapistDashboard/therapistDashboardAppointment";
 import useNotificationSound from '../components/useNotificationSound';
 import { getTimestampMillis, formatTimestamp } from "../components/timestampUtils";
 import "../styles/therapistDashboard.css";
 import "../styles/therapistDashboardNotification.css";
 import "../styles/therapistDashboardSetting.css";
+
 function TherapistDashboard() {
   const [messages, setMessages] = useState([]);
   const [groupEvents, setGroupEvents] = useState([]);
@@ -94,6 +96,8 @@ function TherapistDashboard() {
   const [anonNames, setAnonNames] = useState({});
   const [notificationFilter, setNotificationFilter] = useState("all");
   const [dismissedNotifications, setDismissedNotifications] = useState([]);
+  const [appointments, setAppointments] = useState([]);
+  const [clients, setClients] = useState([]);
   const errorTimeoutRef = useRef(null);
   const therapistId = auth.currentUser?.uid;
   const isOnline = therapistsOnline.some(t => t.uid === therapistId && t.online);
@@ -150,7 +154,7 @@ function TherapistDashboard() {
     setReply(reply + emojiData.emoji);
     setShowEmojiPicker(false);
   };
-  
+
   // Toggle therapist availability
   const toggleAvailability = async () => {
     try {
@@ -221,6 +225,49 @@ function TherapistDashboard() {
     });
     return () => unsub();
   }, [therapistId, showError]);
+
+  // Fetch appointments
+  useEffect(() => {
+    if (!therapistId) return;
+    const q = query(
+      collection(db, "appointments"),
+      where("therapistId", "==", therapistId)
+    );
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const appts = snapshot.docs
+          .map((doc) => ({ id: doc.id, ...doc.data() }))
+          .sort((a, b) => a.time.localeCompare(b.time));
+        setAppointments(appts);
+      },
+      (err) => {
+        console.error("Error fetching appointments:", err);
+        showError("Failed to load appointments. Please try again.");
+      }
+    );
+    return () => unsubscribe();
+  }, [therapistId, showError]);
+
+  // Fetch clients for appointment creation
+  useEffect(() => {
+    const q = query(collection(db, "anonymousUsers"), limit(100));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const clientList = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          name: doc.data().anonymousName || `Anonymous_${doc.id.slice(0, 8)}`,
+        }));
+        setClients(clientList);
+      },
+      (err) => {
+        console.error("Error fetching clients:", err);
+        showError("Failed to load clients. Please try again.");
+      }
+    );
+    return () => unsubscribe();
+  }, [showError]);
 
   // Check authentication
   useEffect(() => {
@@ -1483,10 +1530,13 @@ function TherapistDashboard() {
           <Route
             path="/appointments"
             element={
-              <div className="appointments">
-                <h3>Appointments</h3>
-                <p>View and manage your appointments here. (Feature coming soon)</p>
-              </div>
+              <TherapistDashboardAppointment
+                therapistId={therapistId}
+                appointments={appointments}
+                clients={clients}
+                showError={showError}
+                formatTimestamp={formatTimestamp}
+              />
             }
           />
           <Route
@@ -1601,109 +1651,109 @@ function TherapistDashboard() {
             element={
               <div className="settings">
                 <h3>Settings</h3>
-              <div className="settings-container">
-                <div className="settings-section">
-                  <h4>Notification Preferences</h4>
-                  <div className="settings-group">
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={therapistInfo.notificationPreferences.emailNotifications}
-                        onChange={(e) => handleNotificationChange('emailNotifications', e.target.checked)}
-                      />
-                      Email Notifications
-                    </label>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={therapistInfo.notificationPreferences.soundNotifications}
-                        onChange={(e) => handleNotificationChange('soundNotifications', e.target.checked)}
-                      />
-                      Sound Notifications
-                    </label>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={therapistInfo.notificationPreferences.desktopNotifications}
-                        onChange={(e) => handleNotificationChange('desktopNotifications', e.target.checked)}
-                      />
-                      Desktop Notifications
-                    </label>
-                    <label>
-                      Notification Frequency:
-                      <select
-                        value={therapistInfo.notificationPreferences.notificationFrequency}
-                        onChange={(e) => handleNotificationChange('notificationFrequency', e.target.value)}
-                      >
-                        <option value="immediate">Immediate</option>
-                        <option value="hourly">Hourly Digest</option>
-                        <option value="daily">Daily Digest</option>
-                      </select>
-                    </label>
+                <div className="settings-container">
+                  <div className="settings-section">
+                    <h4>Notification Preferences</h4>
+                    <div className="settings-group">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={therapistInfo.notificationPreferences.emailNotifications}
+                          onChange={(e) => handleNotificationChange('emailNotifications', e.target.checked)}
+                        />
+                        Email Notifications
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={therapistInfo.notificationPreferences.soundNotifications}
+                          onChange={(e) => handleNotificationChange('soundNotifications', e.target.checked)}
+                        />
+                        Sound Notifications
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={therapistInfo.notificationPreferences.desktopNotifications}
+                          onChange={(e) => handleNotificationChange('desktopNotifications', e.target.checked)}
+                        />
+                        Desktop Notifications
+                      </label>
+                      <label>
+                        Notification Frequency:
+                        <select
+                          value={therapistInfo.notificationPreferences.notificationFrequency}
+                          onChange={(e) => handleNotificationChange('notificationFrequency', e.target.value)}
+                        >
+                          <option value="immediate">Immediate</option>
+                          <option value="hourly">Hourly Digest</option>
+                          <option value="daily">Daily Digest</option>
+                        </select>
+                      </label>
+                    </div>
                   </div>
-                </div>
-                <div className="settings-section">
-                  <h4>Chat Settings</h4>
-                  <div className="settings-group">
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={therapistInfo.chatSettings.autoJoinNewChats}
-                        onChange={(e) => handleChatSettingsChange('autoJoinNewChats', e.target.checked)}
-                      />
-                      Auto-join New Chats
-                    </label>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={therapistInfo.chatSettings.showTypingIndicator}
-                        onChange={(e) => handleChatSettingsChange('showTypingIndicator', e.target.checked)}
-                      />
-                      Show Typing Indicator
-                    </label>
-                    <label>
-                      Message Preview Length:
-                      <input
-                        type="number"
-                        min="20"
-                        max="100"
-                        value={therapistInfo.chatSettings.messagePreviewLength}
-                        onChange={(e) => handleChatSettingsChange('messagePreviewLength', parseInt(e.target.value) || 50)}
-                      />
-                      characters
-                    </label>
+                  <div className="settings-section">
+                    <h4>Chat Settings</h4>
+                    <div className="settings-group">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={therapistInfo.chatSettings.autoJoinNewChats}
+                          onChange={(e) => handleChatSettingsChange('autoJoinNewChats', e.target.checked)}
+                        />
+                        Auto-join New Chats
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={therapistInfo.chatSettings.showTypingIndicator}
+                          onChange={(e) => handleChatSettingsChange('showTypingIndicator', e.target.checked)}
+                        />
+                        Show Typing Indicator
+                      </label>
+                      <label>
+                        Message Preview Length:
+                        <input
+                          type="number"
+                          min="20"
+                          max="100"
+                          value={therapistInfo.chatSettings.messagePreviewLength}
+                          onChange={(e) => handleChatSettingsChange('messagePreviewLength', parseInt(e.target.value) || 50)}
+                        />
+                        characters
+                      </label>
+                    </div>
                   </div>
-                </div>
-                <div className="settings-section">
-                  <h4>Availability</h4>
-                  <div className="settings-group">
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={isOnline}
-                        onChange={toggleAvailability}
-                      />
-                      {isOnline ? "Online" : "Offline"}
-                    </label>
+                  <div className="settings-section">
+                    <h4>Availability</h4>
+                    <div className="settings-group">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={isOnline}
+                          onChange={toggleAvailability}
+                        />
+                        {isOnline ? "Online" : "Offline"}
+                      </label>
+                    </div>
                   </div>
-                </div>
-                <div className="settings-section">
-                  <h4>Account Management</h4>
-                  <div className="settings-group">
-                    <button onClick={() => navigate('/therapist-dashboard/profile')}>
-                      Edit Profile
+                  <div className="settings-section">
+                    <h4>Account Management</h4>
+                    <div className="settings-group">
+                      <button onClick={() => navigate('/therapist-dashboard/profile')}>
+                        Edit Profile
+                      </button>
+                      <button onClick={handleLogout}>
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                  <div className="settings-actions">
+                    <button onClick={saveSettings} className="save-settings-btn">
+                      Save Settings
                     </button>
-                    <button onClick={handleLogout}>
-                      Logout
-                    </button>
                   </div>
                 </div>
-                <div className="settings-actions">
-                  <button onClick={saveSettings} className="save-settings-btn">
-                    Save Settings
-                  </button>
-                </div>
-              </div>
               </div>
             }
           />
