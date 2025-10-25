@@ -243,7 +243,7 @@ function AnonymousDashboard() {
 
   // Handle remind me later
   const handleRemindLater = () => {
-    const remindTime = Date.now() + 4 * 60 * 60 * 1000; // 4 hours for production
+  const remindTime = Date.now() + 30 * 60 * 1000; // 30 minutes
     localStorage.setItem('moodPopupRemindLater', remindTime);
     setShowMoodPopup(false);
   };
