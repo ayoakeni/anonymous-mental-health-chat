@@ -355,7 +355,7 @@ function AnonymousDashboard() {
         {/* Daily Mood Popup */}
         {showMoodPopup && (
           <div className="modal-backdrop">
-            <div className="mood-modal mood-card" ref={moodModalRef}>
+            <div className="mood-modal" ref={moodModalRef}>
               <h3 className="mood-modal-checkin">Daily Mood Check-In</h3>
               <p className="mood-modal-question">{prompt}</p>
               <MoodTracker

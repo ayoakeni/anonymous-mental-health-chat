@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { db, Timestamp } from "../../utils/firebase";
 import { doc, setDoc, updateDoc, deleteDoc, collection } from "firebase/firestore";
 import "../../styles/therapistDashboardAppointment.css";
@@ -18,6 +18,8 @@ const TherapistDashboardAppointment = ({ therapistId, appointments, clients, sho
   });
   const [formErrors, setFormErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
+  const [isModalClosing, setIsModalClosing] = useState(false);
+  const modalRef = useRef(null);
 
   // Reset form when creating a new appointment
   useEffect(() => {
@@ -34,6 +36,24 @@ const TherapistDashboardAppointment = ({ therapistId, appointments, clients, sho
     setFormErrors({});
   }, [showForm, editingAppt]);
 
+  useEffect(() => {
+    if (showForm && modalRef.current) {
+      const firstInput = modalRef.current.querySelector("select, input");
+      firstInput?.focus();
+    }
+  }, [showForm]);
+
+  useEffect(() => {
+    if (showForm) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showForm]);
+
   // Populate form when editing an appointment
   useEffect(() => {
     if (editingAppt) {
@@ -49,6 +69,41 @@ const TherapistDashboardAppointment = ({ therapistId, appointments, clients, sho
       setShowForm(true);
     }
   }, [editingAppt]);
+
+  const closeModal = () => {
+    setIsModalClosing(true);
+    setTimeout(() => {
+      setShowForm(false);
+      setEditingAppt(null);
+      setFormErrors({});
+      setIsModalClosing(false);
+    }, 300);
+  };
+
+  // Handle modal close on outside click
+  useEffect(() => {
+  const handleOutsideClick = (e) => {
+    if (modalRef.current && !modalRef.current.contains(e.target)) {
+      closeModal();
+    }
+  };
+
+  const handleEscapeKey = (e) => {
+    if (e.key === "Escape") {
+      closeModal();
+    }
+  };
+
+  if (showForm) {
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscapeKey);
+  }
+
+  return () => {
+    document.removeEventListener("mousedown", handleOutsideClick);
+    document.removeEventListener("keydown", handleEscapeKey);
+  };
+}, [showForm]);
 
   // Validate form inputs
   const validateForm = () => {
@@ -183,107 +238,122 @@ const TherapistDashboardAppointment = ({ therapistId, appointments, clients, sho
             }}
             className="create-appointment-btn"
           >
+            <i className="fa-solid fa-plus" style={{ marginRight: "8px" }}></i>
             Create Appointment
           </button>
         </div>
       </div>
       {successMessage && <div className="success-message">{successMessage}</div>}
       {showForm && (
-        <div className="appointment-form-container">
-          <form onSubmit={handleSubmit} className="appointment-form">
-            <h4>{editingAppt ? "Edit Appointment" : "Create Appointment"}</h4>
-            <div className="form-group">
-              <label className="label">Client</label>
-              <select
-                name="clientId"
-                value={formData.clientId}
-                onChange={handleFormChange}
-                className={`input ${formErrors.clientId ? "input-error" : ""}`}
-              >
-                <option value="">Select Client</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}
-                  </option>
-                ))}
-              </select>
-              {formErrors.clientId && <span className="error">{formErrors.clientId}</span>}
-            </div>
-            <div className="form-group">
-              <label className="label">Date</label>
-              <input
-                type="date"
-                name="date"
-                value={formData.date}
-                onChange={handleFormChange}
-                className={`input ${formErrors.date ? "input-error" : ""}`}
-              />
-              {formErrors.date && <span className="error">{formErrors.date}</span>}
-            </div>
-            <div className="form-group">
-              <label className="label">Time</label>
-              <input
-                type="time"
-                name="time"
-                value={formData.time}
-                onChange={handleFormChange}
-                className={`input ${formErrors.time ? "input-error" : ""}`}
-              />
-              {formErrors.time && <span className="error">{formErrors.time}</span>}
-            </div>
-            <div className="form-group">
-              <label className="label">Duration (minutes)</label>
-              <input
-                type="number"
-                name="duration"
-                value={formData.duration}
-                onChange={handleFormChange}
-                min="15"
-                step="15"
-                className={`input ${formErrors.duration ? "input-error" : ""}`}
-              />
-              {formErrors.duration && <span className="error">{formErrors.duration}</span>}
-            </div>
-            <div className="form-group">
-              <label className="label">Notes</label>
-              <textarea
-                name="notes"
-                value={formData.notes}
-                onChange={handleFormChange}
-                className="input textarea"
-                rows="4"
-              />
-            </div>
-            <div className="form-group">
-              <label className="label">Status</label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleFormChange}
-                className="input"
-              >
-                <option value="Scheduled">Scheduled</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-            </div>
-            <div className="form-actions">
-              <button type="submit" className="save-btn">
-                {editingAppt ? "Update" : "Create"}
-              </button>
+        <div className={`modal-backdrop ${isModalClosing ? "fade-out" : ""}`}>
+          <div className={`modal ${isModalClosing ? "slide-out" : ""}`} ref={modalRef}>
+            <div className="modal-header">
+              <h4>{editingAppt ? "Edit Appointment" : "Create Appointment"}</h4>
               <button
                 type="button"
+                className="modal-close-btn"
                 onClick={() => {
-                  setShowForm(false);
-                  setEditingAppt(null);
-                  setFormErrors({});
+                  closeModal()
                 }}
-                className="cancel-btn"
+                aria-label="Close modal"
               >
-                Cancel
+                <i className="fa-solid fa-times"></i>
               </button>
             </div>
-          </form>
+            <form onSubmit={handleSubmit} className="appointment-form">
+              <div className="form-group">
+                <label className="label">Client</label>
+                <select
+                  name="clientId"
+                  value={formData.clientId}
+                  onChange={handleFormChange}
+                  className={`input ${formErrors.clientId ? "input-error" : ""}`}
+                >
+                  <option value="">Select Client</option>
+                  {clients.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.name}
+                    </option>
+                  ))}
+                </select>
+                {formErrors.clientId && <span className="error">{formErrors.clientId}</span>}
+              </div>
+              <div className="form-group">
+                <label className="label">Date</label>
+                <input
+                  type="date"
+                  name="date"
+                  value={formData.date}
+                  onChange={handleFormChange}
+                  className={`input ${formErrors.date ? "input-error" : ""}`}
+                />
+                {formErrors.date && <span className="error">{formErrors.date}</span>}
+              </div>
+              <div className="form-group">
+                <label className="label">Time</label>
+                <input
+                  type="time"
+                  name="time"
+                  value={formData.time}
+                  onChange={handleFormChange}
+                  className={`input ${formErrors.time ? "input-error" : ""}`}
+                />
+                {formErrors.time && <span className="error">{formErrors.time}</span>}
+              </div>
+              <div className="form-group">
+                <label className="label">Duration (minutes)</label>
+                <input
+                  type="number"
+                  name="duration"
+                  value={formData.duration}
+                  onChange={handleFormChange}
+                  min="15"
+                  step="15"
+                  className={`input ${formErrors.duration ? "input-error" : ""}`}
+                />
+                {formErrors.duration && <span className="error">{formErrors.duration}</span>}
+              </div>
+              <div className="form-group">
+                <label className="label">Notes</label>
+                <textarea
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleFormChange}
+                  className="input textarea"
+                  rows="4"
+                />
+              </div>
+              <div className="form-group">
+                <label className="label">Status</label>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleFormChange}
+                  className="input"
+                >
+                  <option value="Scheduled">Scheduled</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+              <div className="form-actions">
+                <button type="submit" className="save-btn">
+                  {editingAppt ? "Update" : "Create"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingAppt(null);
+                    setFormErrors({});
+                  }}
+                  className="cancel-btn"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
       <div className="appointments-list">

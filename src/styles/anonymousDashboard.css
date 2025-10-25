@@ -117,125 +117,6 @@
   margin-bottom: 16px;
 }
 
-.anonymous-dashboard .mood-card {
-  height: fit-content;
-}
-
-.anonymous-dashboard .mood-card .mood-tracker {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-height: 185px;
-  overflow-y: auto;
-  padding-top: 3px;
-}
-
-.anonymous-dashboard .mood-card .mood-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: center;
-}
-
-.anonymous-dashboard .mood-card .mood-button {
-  background: var(--input-bg);
-  border: 2px solid var(--input-border);
-  border-radius: 50%;
-  width: 48px;
-  height: 48px;
-  font-size: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.anonymous-dashboard .mood-card .mood-button:hover {
-  background: var(--highlight-bg);
-  border-color: var(--primary-color);
-  transform: scale(1.1);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.anonymous-dashboard .mood-card .mood-button.selected {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
-}
-
-.anonymous-dashboard .mood-card .log-mood-button {
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: var(--border-radius);
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: filter 0.3s ease;
-}
-
-.anonymous-dashboard .mood-card .log-mood-button:hover {
-  filter: brightness(80%);
-}
-
-.anonymous-dashboard .mood-card .log-mood-button:disabled {
-  background: var(--input-border);
-  cursor: not-allowed;
-}
-
-.anonymous-dashboard .mood-card .last-mood {
-  padding: 12px;
-  background: var(--highlight-bg);
-  border-radius: var(--border-radius);
-  font-size: 0.9rem;
-  color: var(--text-color);
-  text-align: center;
-}
-
-.anonymous-dashboard .mood-card .last-mood.error {
-  background: var(--error-color);
-  color: white;
-  padding: 12px;
-  border-radius: var(--border-radius);
-  text-align: center;
-}
-
-.anonymous-dashboard .mood-card .retry-button {
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: var(--border-radius);
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  margin-top: 8px;
-  transition: background 0.3s ease;
-}
-
-.anonymous-dashboard .mood-card .retry-button:hover {
-  background: var(--accent-color);
-}
-
-.anonymous-dashboard .mood-card .retry-button:disabled {
-  background: var(--input-border);
-  cursor: not-allowed;
-}
-
-.anonymous-dashboard .mood-card .meta-date,
-.anonymous-dashboard .mood-card .meta-time {
-  font-size: 0.75rem;
-  color: var(--text-color);
-  opacity: 0.6;
-  display: inline-block;
-}
-
-.anonymous-dashboard .mood-card .meta-time {
-  margin-left: 4px;
-}
-
 .anonymous-dashboard .recent-chats {
   height: fit-content;
 }
@@ -652,8 +533,121 @@
   margin-bottom: 16px;
 }
 
+.anonymous-dashboard .mood-modal {
+  height: fit-content;
+}
+
 .anonymous-dashboard .mood-modal .mood-tracker {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 185px;
+  overflow-y: auto;
+  padding-top: 3px;
   margin-bottom: 16px;
+}
+
+.anonymous-dashboard .mood-modal .mood-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+
+.anonymous-dashboard .mood-modal .mood-button {
+  background: var(--input-bg);
+  border: 2px solid var(--input-border);
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.anonymous-dashboard .mood-modal .mood-button:hover {
+  background: var(--therapist-bg);
+  border-color: var(--secondary-color);
+}
+
+.anonymous-dashboard .mood-modal .mood-button.selected {
+  background: var(--secondary-color);
+  color: white;
+  border-color: var(--secondary-color);
+}
+
+.anonymous-dashboard .mood-modal .log-mood-button {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: filter 0.3s ease;
+}
+
+.anonymous-dashboard .mood-modal .log-mood-button:hover {
+  filter: brightness(80%);
+}
+
+.anonymous-dashboard .mood-modal .log-mood-button:disabled {
+  background: var(--input-border);
+  cursor: not-allowed;
+}
+
+.anonymous-dashboard .mood-modal .last-mood {
+  padding: 12px;
+  background: var(--highlight-bg);
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+  color: var(--text-color);
+  text-align: center;
+}
+
+.anonymous-dashboard .mood-modal .last-mood.error {
+  background: var(--error-color);
+  color: white;
+  padding: 12px;
+  border-radius: var(--border-radius);
+  text-align: center;
+}
+
+.anonymous-dashboard .mood-modal .retry-button {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.3s ease;
+}
+
+.anonymous-dashboard .mood-modal .retry-button:hover {
+  background: var(--accent-color);
+}
+
+.anonymous-dashboard .mood-modal .retry-button:disabled {
+  background: var(--input-border);
+  cursor: not-allowed;
+}
+
+.anonymous-dashboard .mood-modal .meta-date,
+.anonymous-dashboard .mood-modal .meta-time {
+  font-size: 0.75rem;
+  color: var(--text-color);
+  opacity: 0.6;
+  display: inline-block;
+}
+
+.anonymous-dashboard .mood-modal .meta-time {
+  margin-left: 4px;
 }
 
 .mood-modal .button-container {
@@ -661,17 +655,6 @@
   gap: 10px;
   justify-content: center;
   flex-wrap: wrap;
-}
-
-.anonymous-dashboard .mood-modal .mood-tracker .mood-button:hover {
-  background: var(--therapist-bg);
-  border-color: var(--secondary-color);
-}
-
-.anonymous-dashboard .mood-modal .mood-tracker .mood-button.selected {
-  background: var(--secondary-color);
-  color: white;
-  border-color: var(--secondary-color);
 }
 
 .anonymous-dashboard .mood-modal .dismiss-mood-button {
@@ -731,11 +714,10 @@
 
 .anonymous-dashboard .chat-list-container {
   overflow-y: auto;
-  flex: 1;
   display: flex;
   flex-direction: column;
   margin: 0 15px;
-  min-height: 300px;
+  height: fit-content;
 }
 
 .anonymous-dashboard .chat-list-container::-webkit-scrollbar {
@@ -846,12 +828,13 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
 }
 
 .anonymous-dashboard .chat-card-meta .message-timestamp {
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   font-size: 0.7rem;
   color: var(--text-color);
   font-weight: 600;
@@ -869,7 +852,7 @@
   font-weight: bold;
   padding: 2px 6px;
   border-radius: 12px;
-  min-width: 18px;
+  width: fit-content;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
@@ -1427,6 +1410,10 @@
     max-width: 100%;
     max-height: 50vh;
     border: none;
+  }
+
+  .therapist-dashboard .chat-list-container {
+    max-width: 100%;
   }
 
   .anonymous-dashboard .chat-box-container {

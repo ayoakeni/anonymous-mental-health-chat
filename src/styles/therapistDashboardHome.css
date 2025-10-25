@@ -131,6 +131,7 @@
   border: 1px solid var(--input-border);
   border-radius: var(--border-radius);
   padding: 15px;
+  height: fit-content;
   box-shadow: var(--shadow);
 }
 
