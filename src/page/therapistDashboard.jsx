@@ -96,6 +96,7 @@ function TherapistDashboard() {
   const [dismissedNotifications, setDismissedNotifications] = useState([]);
   const errorTimeoutRef = useRef(null);
   const therapistId = auth.currentUser?.uid;
+  const isOnline = therapistsOnline.some(t => t.uid === therapistId && t.online);
   const displayName = therapistInfo.name || "Unknown Therapist";
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
   const messagesEndRef = useRef(null);
@@ -148,6 +149,21 @@ function TherapistDashboard() {
   const onEmojiClick = (emojiData) => {
     setReply(reply + emojiData.emoji);
     setShowEmojiPicker(false);
+  };
+  
+  // Toggle therapist availability
+  const toggleAvailability = async () => {
+    try {
+      const therapistRef = doc(db, "therapistsOnline", therapistId);
+      await setDoc(therapistRef, {
+        name: therapistInfo.name || "Therapist",
+        online: !isOnline,
+        lastSeen: serverTimestamp(),
+      }, { merge: true });
+    } catch (err) {
+      console.error("Error toggling availability:", err);
+      showError("Failed to update availability. Please try again.");
+    }
   };
 
   // Save profile changes
@@ -1576,6 +1592,7 @@ function TherapistDashboard() {
                 setEditing={setEditing}
                 setTherapistInfo={setTherapistInfo}
                 saveProfile={saveProfile}
+                therapistId={therapistId}
               />
             }
           />
@@ -1654,6 +1671,19 @@ function TherapistDashboard() {
                         onChange={(e) => handleChatSettingsChange('messagePreviewLength', parseInt(e.target.value) || 50)}
                       />
                       characters
+                    </label>
+                  </div>
+                </div>
+                <div className="settings-section">
+                  <h4>Availability</h4>
+                  <div className="settings-group">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={isOnline}
+                        onChange={toggleAvailability}
+                      />
+                      {isOnline ? "Online" : "Offline"}
                     </label>
                   </div>
                 </div>

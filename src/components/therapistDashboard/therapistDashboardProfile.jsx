@@ -1,12 +1,16 @@
 import React, { useState, useRef } from 'react';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../../utils/firebase';
 import "../../styles/therapistDashboardProfile.css";
 
-const TherapistDashboardProfile = ({ therapistInfo, editing, setEditing, setTherapistInfo, saveProfile }) => {
+const TherapistDashboardProfile = ({ therapistInfo, editing, setEditing, setTherapistInfo, saveProfile, therapistId }) => {
   const [profileImage, setProfileImage] = useState(therapistInfo.profileImage || null);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
   const fileInputRef = useRef(null);
+  const storage = getStorage();
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -40,13 +44,46 @@ const TherapistDashboardProfile = ({ therapistInfo, editing, setEditing, setTher
 
   const handleSave = async () => {
     if (!validateForm()) return;
+    if (!therapistId) {
+      setErrors((prev) => ({ ...prev, general: 'User ID is missing. Please try again.' }));
+      return;
+    }
+
     setIsSaving(true);
     try {
-      await saveProfile();
+      let fileUrl = therapistInfo.profileImage;
+      if (fileUrl && fileUrl.startsWith('data:')) {
+        // Convert base64 to blob
+        const response = await fetch(fileUrl);
+        const blob = await response.blob();
+        const storageRef = ref(storage, `therapists/${therapistId}/profile.jpg`);
+        await uploadBytes(storageRef, blob);
+        fileUrl = await getDownloadURL(storageRef);
+        setTherapistInfo((prev) => ({ ...prev, profileImage: fileUrl }));
+      }
+
+      // Update Firestore with profile data
+      await setDoc(
+        doc(db, 'therapists', therapistId),
+        {
+          name: therapistInfo.name,
+          gender: therapistInfo.gender,
+          position: therapistInfo.position,
+          profile: therapistInfo.profile,
+          rating: therapistInfo.rating,
+          profileImage: fileUrl,
+        },
+        { merge: true }
+      );
+
       setSuccessMessage('Profile saved successfully!');
       setTimeout(() => setSuccessMessage(''), 3000);
       setEditing(false);
+
+      // Call parent saveProfile for any additional logic
+      await saveProfile();
     } catch (err) {
+      console.error('Error saving profile:', err);
       setErrors((prev) => ({ ...prev, general: 'Failed to save profile. Please try again.' }));
     } finally {
       setIsSaving(false);

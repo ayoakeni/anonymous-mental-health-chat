@@ -16,27 +16,8 @@ function TherapistDashboardHome({
   joinPrivateChat,
   isLoadingChats,
   isLoadingNames,
-  therapistsOnline,
-  therapistId,
-  showError,
 }) {
   const navigate = useNavigate();
-  const isOnline = therapistsOnline.some(t => t.uid === therapistId && t.online);
-
-  // Toggle therapist availability
-  const toggleAvailability = async () => {
-    try {
-      const therapistRef = doc(db, "therapistsOnline", therapistId);
-      await setDoc(therapistRef, {
-        name: therapistInfo.name || "Therapist",
-        online: !isOnline,
-        lastSeen: serverTimestamp(),
-      }, { merge: true });
-    } catch (err) {
-      console.error("Error toggling availability:", err);
-      showError("Failed to update availability. Please try again.");
-    }
-  };
 
   // Count pending chats (needsTherapist: true)
   const pendingChats = privateChats.filter(chat => chat.needsTherapist).length;
@@ -47,16 +28,6 @@ function TherapistDashboardHome({
         <h2>
           Welcome, <span className="highlight">{therapistInfo.name || "Therapist"}</span>!
         </h2>
-        <div className="availability-toggle">
-          <label>
-            <input
-              type="checkbox"
-              checked={isOnline}
-              onChange={toggleAvailability}
-            />
-            {isOnline ? "Online" : "Offline"}
-          </label>
-        </div>
       </div>
 
       {/* Quick Stats */}
