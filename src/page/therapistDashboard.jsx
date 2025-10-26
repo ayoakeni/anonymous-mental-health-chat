@@ -443,9 +443,25 @@ function TherapistDashboard() {
     return () => unsubscribe();
   }, [showError, participantNames]);
 
+  useEffect(() => {
+    // Reset state when route changes
+    setMessages([]);
+    setPrivateMessages([]);
+    setGroupEvents([]);
+    setPrivateEvents([]);
+    setActiveChatId(null);
+    setActiveGroupId(null);
+    setChatError(null);
+  }, [location.pathname]);
+
   // Watch group chat participants and messages for active group
   useEffect(() => {
-    if (!activeGroupId) return;
+    if (!activeGroupId) {
+      setMessages([]);
+      setGroupEvents([]);
+      return;
+    }
+
     const groupRef = doc(db, "groupChats", activeGroupId);
     const messagesQuery = query(collection(groupRef, "messages"), orderBy("timestamp", "desc"), limit(50));
     const eventsQuery = query(collection(groupRef, "events"), orderBy("timestamp"), limit(50));
@@ -489,6 +505,9 @@ function TherapistDashboard() {
       unsubParticipants();
       unsubMessages();
       unsubEvents();
+      setMessages([]); // Reset messages on cleanup
+      setGroupEvents([]); // Reset events on cleanup
+      prevGroupMessagesRef.current = []; // Clear previous messages
     };
   }, [activeGroupId, isGroupChatOpen, therapistId, playNotification, showError]);
 
@@ -508,6 +527,7 @@ function TherapistDashboard() {
 
   // Validate and sync activeChatId with URL param
   useEffect(() => {
+    // Reset state when chatId changes or route is not private chat
     if (!chatId || !location.pathname.startsWith("/therapist-dashboard/private-chat/")) {
       setActiveChatId(null);
       setPrivateMessages([]);
@@ -520,9 +540,11 @@ function TherapistDashboard() {
     const validateChat = async () => {
       setIsValidatingChat(true);
       setChatError(null);
+      setPrivateMessages([]); // Reset messages to avoid stale data
+      setPrivateEvents([]);   // Reset events
       try {
         const chatRef = doc(db, "privateChats", chatId);
-        let chatSnap = await getDoc(chatRef);
+        const chatSnap = await getDoc(chatRef);
 
         if (!chatSnap.exists()) {
           console.log("Chat document does not exist:", chatId);
@@ -532,9 +554,9 @@ function TherapistDashboard() {
           return;
         }
 
-        let chatData = chatSnap.data();
-        let isParticipant = chatData.participants?.includes(therapistId);
-        let needsTherapist = chatData.needsTherapist === true;
+        const chatData = chatSnap.data();
+        const isParticipant = chatData.participants?.includes(therapistId);
+        const needsTherapist = chatData.needsTherapist === true;
 
         if (!isParticipant && !needsTherapist) {
           const eventsQuery = query(
@@ -547,21 +569,19 @@ function TherapistDashboard() {
           const eventsSnap = await getDocs(eventsQuery);
           const recentJoin = eventsSnap.docs.length > 0;
           const recentJoinTime = recentJoin ? eventsSnap.docs[0].data().timestamp?.toMillis() : 0;
-          const isRecentJoin = recentJoin && (Date.now() - recentJoinTime) < 10000;
+          const isRecentJoin = recentJoin && Date.now() - recentJoinTime < 10000;
 
           if (!isRecentJoin) {
             await new Promise((resolve) => setTimeout(resolve, 3000));
-            chatSnap = await getDoc(chatRef);
-            if (!chatSnap.exists()) {
+            const updatedChatSnap = await getDoc(chatRef);
+            if (!updatedChatSnap.exists()) {
               setChatError("This chat no longer exists.");
               setActiveChatId(null);
               navigate("/therapist-dashboard/private-chat");
               return;
             }
-            chatData = chatSnap.data();
-            isParticipant = chatData.participants?.includes(therapistId);
-            needsTherapist = chatData.needsTherapist;
-            if (!isParticipant && !needsTherapist) {
+            const updatedChatData = updatedChatSnap.data();
+            if (!updatedChatData.participants?.includes(therapistId) && !updatedChatData.needsTherapist) {
               setChatError("You do not have permission to access this chat.");
               setActiveChatId(null);
               navigate("/therapist-dashboard/private-chat");
@@ -582,7 +602,7 @@ function TherapistDashboard() {
     };
 
     validateChat();
-  }, [location.pathname, chatId, therapistId, navigate, displayName]);
+  }, [chatId, location.pathname, therapistId, navigate, displayName]);
 
   // Load private chats with retry
   useEffect(() => {
@@ -648,11 +668,18 @@ function TherapistDashboard() {
 
   // Watch private chat messages
   useEffect(() => {
-    if (!activeChatId) return;
+    if (!activeChatId) {
+      setPrivateMessages([]);
+      setPrivateEvents([]);
+      return;
+    }
+
     const chatRef = doc(db, "privateChats", activeChatId);
-    const q = query(collection(chatRef, "messages"), orderBy("timestamp", "desc"), limit(50));
+    const messagesQuery = query(collection(chatRef, "messages"), orderBy("timestamp", "desc"), limit(50));
+    const eventsQuery = query(collection(chatRef, "events"), orderBy("timestamp"), limit(50));
+
     const unsubscribeMessages = onSnapshot(
-      q,
+      messagesQuery,
       (snapshot) => {
         const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
         const newMsgs = msgs.filter(
@@ -681,7 +708,26 @@ function TherapistDashboard() {
         setIsLoadingPrivateMessages(false);
       }
     );
-    return () => unsubscribeMessages();
+
+    const unsubscribeEvents = onSnapshot(
+      eventsQuery,
+      (snapshot) => {
+        const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setPrivateEvents(evts);
+      },
+      (err) => {
+        console.error("Error fetching private events:", err);
+        setChatError("Failed to load private events. Please try again.");
+      }
+    );
+
+    return () => {
+      unsubscribeMessages();
+      unsubscribeEvents();
+      setPrivateMessages([]); // Reset messages on cleanup
+      setPrivateEvents([]);   // Reset events on cleanup
+      prevPrivateMessagesRef.current = []; // Clear previous messages
+    };
   }, [activeChatId, playNotification, showError]);
 
   // Watch private chat events
@@ -1451,7 +1497,7 @@ function TherapistDashboard() {
             </button>
           </div>
         )}
-        <Routes>
+        <Routes key={location.pathname}>
           <Route
             path="/"
             element={
