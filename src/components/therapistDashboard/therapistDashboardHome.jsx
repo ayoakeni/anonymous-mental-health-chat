@@ -1,7 +1,5 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../../utils/firebase";
 import "../../styles/therapistDashboardHome.css";
 
 function TherapistDashboardHome({
@@ -28,6 +26,15 @@ function TherapistDashboardHome({
         <h2>
           Welcome, <span className="highlight">{therapistInfo.name || "Therapist"}</span>!
         </h2>
+        <div className="avatarWrapper">
+          {therapistInfo.profileImage ? (
+            <img src={therapistInfo.profileImage} alt="Profile" className="avatar" />
+          ) : (
+            <div className="avatarPlaceholder">
+              {therapistInfo.name ? therapistInfo.name[0].toUpperCase() : 'T'}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Quick Stats */}
