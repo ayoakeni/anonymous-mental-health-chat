@@ -72,6 +72,9 @@ function TherapistDashboard() {
       showTypingIndicator: true,
       messagePreviewLength: 50,
     },
+    availability: {
+      toggleAvailability: true,
+    },
   });
   const [privateMessages, setPrivateMessages] = useState([]);
   const [privateEvents, setPrivateEvents] = useState([]);
@@ -159,14 +162,23 @@ function TherapistDashboard() {
   const toggleAvailability = async () => {
     try {
       const therapistRef = doc(db, "therapists", therapistId);
+      const newOnlineStatus = !isOnline;
       await setDoc(
         therapistRef,
         {
-          online: !isOnline,
+          online: newOnlineStatus,
           lastSeen: serverTimestamp(),
         },
         { merge: true }
       );
+      // Update local state to reflect the change immediately
+      setTherapistInfo(prev => ({
+        ...prev,
+        availability: {
+          ...prev.availability,
+          online: newOnlineStatus,
+        },
+      }));
     } catch (err) {
       console.error("Error toggling availability:", err);
       showError("Failed to update availability. Please try again.");
@@ -765,10 +777,14 @@ function TherapistDashboard() {
               ...therapistInfo.chatSettings,
               ...(data.chatSettings || {}),
             },
+            availability: {
+              ...therapistInfo.availability,
+              online: data.online || false,
+            },
           });
           setTherapistName(data.name || "Therapist");
         } else {
-          const defaultInfo = {
+          setTherapistInfo({
             name: "New Therapist",
             gender: "",
             position: "",
@@ -778,15 +794,17 @@ function TherapistDashboard() {
               emailNotifications: true,
               soundNotifications: true,
               desktopNotifications: false,
-              notificationFrequency: 'immediate',
+              notificationFrequency: "immediate",
             },
             chatSettings: {
               autoJoinNewChats: false,
               showTypingIndicator: true,
               messagePreviewLength: 50,
             },
-          };
-          setTherapistInfo(defaultInfo);
+            availability: {
+              online: false,
+            },
+          });
           setTherapistName("Therapist");
         }
       },
@@ -1016,6 +1034,7 @@ function TherapistDashboard() {
       await setDoc(doc(db, "therapists", therapistId), {
         notificationPreferences: therapistInfo.notificationPreferences,
         chatSettings: therapistInfo.chatSettings,
+        online: therapistInfo.availability.online,
       }, { merge: true });
       showError("Settings saved successfully!", false);
     } catch (err) {
@@ -1092,6 +1111,9 @@ function TherapistDashboard() {
           autoJoinNewChats: false,
           showTypingIndicator: true,
           messagePreviewLength: 50,
+        },
+        availability: {
+          toggleAvailability: true,
         },
       });
       setMessages([]);
@@ -1415,6 +1437,17 @@ function TherapistDashboard() {
         [key]: value,
       },
     }));
+  };
+
+  const handleAvailabilityChange = (online, value) => {
+    setTherapistInfo(prev => ({
+      ...prev,
+      availability: {
+        ...prev.availability,
+        [online]: value,
+      },
+    }));
+    toggleAvailability();
   };
 
   return (
@@ -1745,10 +1778,13 @@ function TherapistDashboard() {
                       <label>
                         <input
                           type="checkbox"
-                          checked={isOnline}
-                          onChange={toggleAvailability}
+                          checked={therapistInfo.availability.online || false}
+                          onChange={(e) => {
+                            handleAvailabilityChange('online', e.target.checked);
+                            toggleAvailability();
+                          }}
                         />
-                        {isOnline ? "Online" : "Offline"}
+                        {therapistInfo.availability.online ? "Online" : "Offline"}
                       </label>
                     </div>
                   </div>
