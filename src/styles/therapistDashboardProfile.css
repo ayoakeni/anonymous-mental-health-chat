@@ -108,7 +108,7 @@
   height: 120px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid var(--primary-color);
+  border: 3px solid var(--input-border);
   transition: transform 0.3s ease;
 }
 
@@ -127,7 +127,12 @@
   font-size: 2.5rem;
   color: var(--text-color);
   font-weight: 600;
-  border: 3px solid var(--primary-color);
+  border: 3px solid var(--input-border);
+}
+
+.profileContainer .avatar.online,
+.profileContainer .avatarPlaceholder.online {
+  border: 3px solid var(--accent-color);
 }
 
 .profileContainer .uploadButton {

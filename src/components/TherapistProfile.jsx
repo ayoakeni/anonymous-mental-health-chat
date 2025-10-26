@@ -8,7 +8,7 @@ function TherapistProfile({ therapist, onBack, onStartChat, onBookAppointment, i
 
   useEffect(() => {
     if (!therapist?.uid) return;
-    const therapistRef = doc(db, "therapistsOnline", therapist.uid);
+    const therapistRef = doc(db, "therapists", therapist.uid);
     const unsubscribe = onSnapshot(therapistRef, (snap) => {
       if (snap.exists()) {
         setRealTimeOnline(snap.data().online || false);
@@ -29,7 +29,15 @@ function TherapistProfile({ therapist, onBack, onStartChat, onBookAppointment, i
       <button className="close-button" onClick={onBack}>
         <i className="fa-solid fa-times"></i>
       </button>
-      <div className="avatar">{therapist.name?.[0] || "T"}</div>
+      <div className="avatarWrapper">
+        {therapist.profileImage ? (
+          <img src={therapist.profileImage} alt={therapist.name} className={`avatar ${therapist.online ? "online" : ""}`} />
+        ) : (
+          <div className={`avatarPlaceholder ${therapist.online ? "online" : ""}`}>
+            {therapist.name ? therapist.name[0].toUpperCase() : 'T'}
+          </div>
+        )}
+      </div>
       <h3>{therapist.name}{" "}
         <span className={`status ${realTimeOnline ? "online" : "offline"}`}>
           ● {realTimeOnline ? "Online" : "Offline"}

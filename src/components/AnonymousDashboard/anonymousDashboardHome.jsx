@@ -76,7 +76,7 @@ const AnonymousDashboardHome = ({
   // Fetch therapists
   useEffect(() => {
     const q = query(
-      collection(db, "therapistsOnline"),
+      collection(db, "therapists"),
       limit(5)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -244,12 +244,16 @@ const AnonymousDashboardHome = ({
                   className={`available-therapist-item ${therapist.online ? "online" : ""}`}
                   onClick={() => handleTherapistClick(therapist)}
                 >
-                  <span className="available-therapist-avatar">
-                    {therapist.name?.[0] || "T"}
-                  </span>
+                  {therapist.profileImage ? (
+                    <img src={therapist.profileImage} alt={therapist.name} className={`avatar ${therapist.online ? "online" : ""}`} />
+                  ) : (
+                    <div className={`avatarPlaceholder ${therapist.online ? "online" : ""}`}>
+                      {therapist.name ? therapist.name[0].toUpperCase() : 'T'}
+                    </div>
+                  )}
                   <span className="available-therapist-name">
                     {therapist.name || `Therapist ${therapist.uid.slice(0, 4)}`}
-                  </span>
+                  </span> 
                 </div>
               ))}
             </div>

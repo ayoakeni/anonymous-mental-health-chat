@@ -215,7 +215,7 @@ function Chatroom() {
 
   // Track therapists online
   useEffect(() => {
-    const q = query(collection(db, "therapistsOnline"), limit(50));
+    const q = query(collection(db, "therapists"), limit(50));
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {

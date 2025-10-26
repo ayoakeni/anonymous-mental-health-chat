@@ -158,12 +158,15 @@ function TherapistDashboard() {
   // Toggle therapist availability
   const toggleAvailability = async () => {
     try {
-      const therapistRef = doc(db, "therapistsOnline", therapistId);
-      await setDoc(therapistRef, {
-        name: therapistInfo.name || "Therapist",
-        online: !isOnline,
-        lastSeen: serverTimestamp(),
-      }, { merge: true });
+      const therapistRef = doc(db, "therapists", therapistId);
+      await setDoc(
+        therapistRef,
+        {
+          online: !isOnline,
+          lastSeen: serverTimestamp(),
+        },
+        { merge: true }
+      );
     } catch (err) {
       console.error("Error toggling availability:", err);
       showError("Failed to update availability. Please try again.");
@@ -374,18 +377,26 @@ function TherapistDashboard() {
 
   // Watch therapists online for availability indicator
   useEffect(() => {
-    const q = query(collection(db, "therapistsOnline"), limit(50));
-    const unsub = onSnapshot(q, (snap) => {
-      const onlineTherapists = snap.docs
-        .map((d) => ({ uid: d.id, ...d.data() }))
-        .filter((t) => t.online);
-      setTherapistsOnline(onlineTherapists);
-      setIsTherapistAvailable(onlineTherapists.length > 0);
-      setActiveTherapists(onlineTherapists.map((t) => t.name || "Therapist"));
-    }, (err) => {
-      console.error("Error fetching therapists online:", err);
-      showError("Failed to fetch therapist status. Please try again.");
-    });
+    const q = query(
+      collection(db, "therapists"),
+      where("online", "==", true),
+      limit(50)
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const onlineTherapists = snap.docs
+          .map((d) => ({ uid: d.id, ...d.data() }))
+          .filter((t) => t.online);
+        setTherapistsOnline(onlineTherapists);
+        setIsTherapistAvailable(onlineTherapists.length > 0);
+        setActiveTherapists(onlineTherapists.map((t) => t.name || "Therapist"));
+      },
+      (err) => {
+        console.error("Error fetching therapists online:", err);
+        showError("Failed to fetch therapist status. Please try again.");
+      }
+    );
     return () => unsub();
   }, [showError]);
 
@@ -1018,7 +1029,7 @@ function TherapistDashboard() {
     try {
       if (!auth.currentUser) return;
       const uid = auth.currentUser.uid;
-      const therapistRef = doc(db, "therapistsOnline", uid);
+      const therapistRef = doc(db, "therapists", uid);
       await runTransaction(db, async (transaction) => {
         if (activeChatId) {
           const chatRef = await transaction.get(doc(db, "privateChats", activeChatId));
@@ -1055,11 +1066,14 @@ function TherapistDashboard() {
             });
           }
         }
-        transaction.set(therapistRef, {
-          name: displayName || auth.currentUser.email,
-          online: false,
-          lastSeen: serverTimestamp(),
-        });
+        transaction.set(
+          therapistRef,
+          {
+            online: false,
+            lastSeen: serverTimestamp(),
+          },
+          { merge: true }
+        );
       });
       await signOut(auth);
       setTherapistInfo({
@@ -1072,7 +1086,7 @@ function TherapistDashboard() {
           emailNotifications: true,
           soundNotifications: true,
           desktopNotifications: false,
-          notificationFrequency: 'immediate',
+          notificationFrequency: "immediate",
         },
         chatSettings: {
           autoJoinNewChats: false,
@@ -1643,6 +1657,7 @@ function TherapistDashboard() {
                 setTherapistInfo={setTherapistInfo}
                 saveProfile={saveProfile}
                 therapistId={therapistId}
+                isOnline={isOnline}
               />
             }
           />

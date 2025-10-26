@@ -4,6 +4,7 @@ import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import "../styles/therapistLogin.css";
+
 function TherapistLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,27 +33,31 @@ function TherapistLogin() {
       if (!user) return; // Not logged in
 
       const uid = user.uid;
-      const therapistRef = doc(db, "therapistsOnline", uid);
+      const therapistRef = doc(db, "therapists", uid);
 
       const updatePresence = async (online) => {
         try {
-          const profileSnap = await getDoc(doc(db, "therapists", uid));
+          const profileSnap = await getDoc(therapistRef);
           const therapistName = profileSnap.exists()
             ? profileSnap.data().name
             : user.email; // Fallback
 
-          await setDoc(therapistRef, {
-            name: therapistName,
-            online,
-            lastSeen: serverTimestamp(),
-          });
+          await setDoc(
+            therapistRef,
+            {
+              name: therapistName,
+              online,
+              lastSeen: serverTimestamp(),
+            },
+            { merge: true } // Use merge to avoid overwriting other fields
+          );
         } catch (err) {
           console.error("Error setting therapist presence:", err);
         }
       };
 
       // Mark therapist online
-      updatePresence(true);
+      await updatePresence(true);
 
       // Redirect therapist after successful login
       navigate("/therapist-dashboard/");

@@ -97,7 +97,7 @@ function PrivateChat({ chatId }) {
   // Watch therapist presence
   useEffect(() => {
     if (!chatId) return;
-    const q = query(collection(db, "therapistsOnline"), limit(50));
+    const q = query(collection(db, "therapists"), limit(50));
     const unsub = onSnapshot(q, (snap) => {
       const onlineTherapists = snap.docs
         .map((d) => ({ uid: d.id, ...d.data() }))

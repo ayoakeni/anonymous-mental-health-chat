@@ -269,6 +269,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  border: 2px solid var(--input-border);
+  cursor: pointer;
 }
 
 .anonymous-dashboard .available-therapist-item.online {
@@ -287,17 +289,38 @@
   color: white;
 }
 
-.anonymous-dashboard .available-therapist-avatar {
-  display: inline-block;
+.anonymous-dashboard .available-therapist-item .avatar {
   width: 24px;
   height: 24px;
   border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--input-border);
+  transition: transform 0.3s ease;
+}
+
+.anonymous-dashboard .available-therapist-item .avatar:hover {
+  transform: scale(1.05);
+}
+
+.anonymous-dashboard .available-therapist-item .avatarPlaceholder {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-color);
   background: var(--primary-color);
-  color: white;
   text-align: center;
   line-height: 24px;
   font-size: 0.8rem;
   font-weight: 600;
+  border: 2px solid var(--input-border);
+}
+
+.anonymous-dashboard .available-therapist-item .avatar.online,
+.anonymous-dashboard .available-therapist-item .avatarPlaceholder.online {
+  border: 2px solid var(--accent-color);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1221,12 +1244,16 @@
 }
 
 .anonymous-dashboard .therapist-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   white-space: nowrap;
   max-width: 140px;
   height: fit-content;
   padding: 4px 7px;
   background: var(--therapist-bg);
   border-radius: var(--border-radius);
+  border: 2px solid var(--input-border);
   font-size: 0.7rem;
   color: var(--text-color);
   cursor: pointer;
@@ -1238,17 +1265,38 @@
   color: white;
 }
 
-.anonymous-dashboard .therapist-avatar {
-  display: inline-block;
-  width: 23px;
-  height: 23px;
+.anonymous-dashboard .therapist-item .avatar {
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--input-border);
+  transition: transform 0.3s ease;
+}
+
+.anonymous-dashboard .therapist-item .avatar:hover {
+  transform: scale(1.05);
+}
+
+.anonymous-dashboard .therapist-item .avatarPlaceholder {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-color);
   background: var(--primary-color);
-  color: #fff;
   text-align: center;
-  line-height: 23px;
-  margin-right: 3px;
-  font-size: 0.7rem;
+  line-height: 24px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 2px solid var(--input-border);
+}
+
+.anonymous-dashboard .therapist-item .avatar.online,
+.anonymous-dashboard .therapist-item .avatarPlaceholder.online {
+  border: 2px solid var(--accent-color);
 }
 
 .anonymous-dashboard .therapist-item.online {

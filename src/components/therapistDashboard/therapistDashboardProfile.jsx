@@ -4,7 +4,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../utils/firebase';
 import "../../styles/therapistDashboardProfile.css";
 
-const TherapistDashboardProfile = ({ therapistInfo, editing, setEditing, setTherapistInfo, saveProfile, therapistId }) => {
+const TherapistDashboardProfile = ({ therapistInfo, editing, setEditing, setTherapistInfo, saveProfile, therapistId, isOnline }) => {
   const [profileImage, setProfileImage] = useState(therapistInfo.profileImage || null);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState({});
@@ -99,10 +99,10 @@ const TherapistDashboardProfile = ({ therapistInfo, editing, setEditing, setTher
           <div className="editForm">
             <div className="avatarSection">
               <div className="avatarWrapper">
-                {profileImage ? (
-                  <img src={profileImage} alt={therapistInfo.name} className="avatar" />
+                {therapistInfo.profileImage ? (
+                  <img src={therapistInfo.profileImage} alt={therapistInfo.name} className={`avatar ${isOnline ? "online" : ""}`} />
                 ) : (
-                  <div className="avatarPlaceholder">
+                  <div className={`avatarPlaceholder ${isOnline ? "online" : ""}`}>
                     {therapistInfo.name ? therapistInfo.name[0].toUpperCase() : 'T'}
                   </div>
                 )}
@@ -197,9 +197,9 @@ const TherapistDashboardProfile = ({ therapistInfo, editing, setEditing, setTher
             <div className="avatarSection">
               <div className="avatarWrapper">
                 {therapistInfo.profileImage ? (
-                  <img src={therapistInfo.profileImage} alt="Profile" className="avatar" />
+                  <img src={therapistInfo.profileImage} alt={therapistInfo.name} className={`avatar ${isOnline ? "online" : ""}`} />
                 ) : (
-                  <div className="avatarPlaceholder">
+                  <div className={`avatarPlaceholder ${isOnline ? "online" : ""}`}>
                     {therapistInfo.name ? therapistInfo.name[0].toUpperCase() : 'T'}
                   </div>
                 )}

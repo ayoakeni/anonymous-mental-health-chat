@@ -71,7 +71,7 @@ const ClientDashboard = ({ clientId, showError, formatTimestamp }) => {
         ids.map(async (id) => {
           const therapistRef = doc(db, "therapists", id);
           const therapistSnap = await getDoc(therapistRef);
-          const onlineRef = doc(db, "therapistsOnline", id);
+          const onlineRef = doc(db, "therapists", id);
           const onlineSnap = await getDoc(onlineRef);
           return {
             id,

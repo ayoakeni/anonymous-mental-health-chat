@@ -119,7 +119,7 @@ function AnonymousGroupChatSplitView({
   
   // Fetch online therapists with default name
   useEffect(() => {
-    const q = query(collection(db, "therapistsOnline"), limit(50));
+    const q = query(collection(db, "therapists"), limit(50));
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
@@ -652,8 +652,16 @@ function AnonymousGroupChatSplitView({
                     data-fullname={therapist.name}
                     onClick={() => handleTherapistClick({ userId: therapist.uid, role: "therapist" })}
                   >
-                    <span className="therapist-avatar">{therapist.name?.[0] || "T"}</span>
-                    {therapist.name?.slice(0, 9) || "Unknown"}
+                    {therapist.profileImage ? (
+                      <img src={therapist.profileImage} alt={therapist.name} className={`avatar ${therapist.online ? "online" : ""}`} />
+                    ) : (
+                      <div className={`avatarPlaceholder ${therapist.online ? "online" : ""}`}>
+                        {therapist.name ? therapist.name[0].toUpperCase() : 'T'}
+                      </div>
+                    )}
+                    <span className="therapist-name">
+                      {therapist.name || `Therapist ${therapist.uid.slice(0, 4)}`}
+                    </span> 
                   </div>
                 ))}
               </div>

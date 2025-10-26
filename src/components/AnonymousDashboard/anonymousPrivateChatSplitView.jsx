@@ -118,7 +118,7 @@ function AnonymousPrivateChatSplitView({
   // Watch therapist presence
   useEffect(() => {
     if (!activeChatId) return;
-    const q = query(collection(db, "therapistsOnline"), limit(50));
+    const q = query(collection(db, "therapists"), limit(50));
     const unsub = onSnapshot(
       q,
       (snap) => {
