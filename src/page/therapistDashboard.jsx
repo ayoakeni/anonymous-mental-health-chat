@@ -73,7 +73,7 @@ function TherapistDashboard() {
       messagePreviewLength: 50,
     },
     availability: {
-      toggleAvailability: true,
+      online: false,
     },
   });
   const [privateMessages, setPrivateMessages] = useState([]);
@@ -102,6 +102,7 @@ function TherapistDashboard() {
   const [appointments, setAppointments] = useState([]);
   const [clients, setClients] = useState([]);
   const errorTimeoutRef = useRef(null);
+  const [isSaving, setIsSaving] = useState(false);
   const therapistId = auth.currentUser?.uid;
   const isOnline = therapistsOnline.some(t => t.uid === therapistId && t.online);
   const displayName = therapistInfo.name || "Unknown Therapist";
@@ -156,33 +157,6 @@ function TherapistDashboard() {
   const onEmojiClick = (emojiData) => {
     setReply(reply + emojiData.emoji);
     setShowEmojiPicker(false);
-  };
-
-  // Toggle therapist availability
-  const toggleAvailability = async () => {
-    try {
-      const therapistRef = doc(db, "therapists", therapistId);
-      const newOnlineStatus = !isOnline;
-      await setDoc(
-        therapistRef,
-        {
-          online: newOnlineStatus,
-          lastSeen: serverTimestamp(),
-        },
-        { merge: true }
-      );
-      // Update local state to reflect the change immediately
-      setTherapistInfo(prev => ({
-        ...prev,
-        availability: {
-          ...prev.availability,
-          online: newOnlineStatus,
-        },
-      }));
-    } catch (err) {
-      console.error("Error toggling availability:", err);
-      showError("Failed to update availability. Please try again.");
-    }
   };
 
   // Save profile changes
@@ -1030,16 +1004,21 @@ function TherapistDashboard() {
   // Save settings
   const saveSettings = async () => {
     if (!therapistId) return;
+    setIsSaving(true);
     try {
-      await setDoc(doc(db, "therapists", therapistId), {
+      const settingsData = {
         notificationPreferences: therapistInfo.notificationPreferences,
         chatSettings: therapistInfo.chatSettings,
         online: therapistInfo.availability.online,
-      }, { merge: true });
+      };
+      console.log("Saving settings to Firestore:", settingsData);
+      await setDoc(doc(db, "therapists", therapistId), settingsData, { merge: true });
       showError("Settings saved successfully!", false);
     } catch (err) {
       console.error("Error saving settings:", err);
       showError("Failed to save settings. Please try again.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1439,15 +1418,15 @@ function TherapistDashboard() {
     }));
   };
 
-  const handleAvailabilityChange = (online, value) => {
+  // Handle availability change
+  const handleAvailabilityChange = (value) => {
     setTherapistInfo(prev => ({
       ...prev,
       availability: {
         ...prev.availability,
-        [online]: value,
+        online: value,
       },
     }));
-    toggleAvailability();
   };
 
   return (
@@ -1779,10 +1758,7 @@ function TherapistDashboard() {
                         <input
                           type="checkbox"
                           checked={therapistInfo.availability.online || false}
-                          onChange={(e) => {
-                            handleAvailabilityChange('online', e.target.checked);
-                            toggleAvailability();
-                          }}
+                          onChange={(e) => handleAvailabilityChange(e.target.checked)}
                         />
                         {therapistInfo.availability.online ? "Online" : "Offline"}
                       </label>
@@ -1800,8 +1776,12 @@ function TherapistDashboard() {
                     </div>
                   </div>
                   <div className="settings-actions">
-                    <button onClick={saveSettings} className="save-settings-btn">
-                      Save Settings
+                    <button
+                      onClick={saveSettings}
+                      className="save-settings-btn"
+                      disabled={isSaving}
+                    >
+                      {isSaving ? "Saving..." : "Save Settings"}
                     </button>
                   </div>
                 </div>

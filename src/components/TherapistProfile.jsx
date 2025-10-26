@@ -31,9 +31,9 @@ function TherapistProfile({ therapist, onBack, onStartChat, onBookAppointment, i
       </button>
       <div className="avatarWrapper">
         {therapist.profileImage ? (
-          <img src={therapist.profileImage} alt={therapist.name} className={`avatar ${therapist.online ? "online" : ""}`} />
+          <img src={therapist.profileImage} alt={therapist.name} className={`avatar ${realTimeOnline ? "online" : ""}`} />
         ) : (
-          <div className={`avatarPlaceholder ${therapist.online ? "online" : ""}`}>
+          <div className={`avatarPlaceholder ${realTimeOnline ? "online" : ""}`}>
             {therapist.name ? therapist.name[0].toUpperCase() : 'T'}
           </div>
         )}
@@ -70,7 +70,7 @@ function TherapistProfile({ therapist, onBack, onStartChat, onBookAppointment, i
         <button
           className="action-button chat-button"
           onClick={onStartChat}
-          // disabled={!realTimeOnline}
+          disabled={!realTimeOnline}
         >
           Start Private Chat
         </button>
