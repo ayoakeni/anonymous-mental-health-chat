@@ -100,7 +100,7 @@ const TherapistDashboardProfile = ({ therapistInfo, editing, setEditing, setTher
             <div className="avatarSection">
               <div className="avatarWrapper">
                 {profileImage ? (
-                  <img src={profileImage} alt="Profile" className="avatar" />
+                  <img src={profileImage} alt={therapistInfo.name} className="avatar" />
                 ) : (
                   <div className="avatarPlaceholder">
                     {therapistInfo.name ? therapistInfo.name[0].toUpperCase() : 'T'}

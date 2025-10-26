@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import "../../styles/therapistDashboardHome.css";
 
 function TherapistDashboardHome({
@@ -27,13 +28,15 @@ function TherapistDashboardHome({
           Welcome, <span className="highlight">{therapistInfo.name || "Therapist"}</span>!
         </h2>
         <div className="avatarWrapper">
-          {therapistInfo.profileImage ? (
-            <img src={therapistInfo.profileImage} alt="Profile" className="avatar" />
-          ) : (
-            <div className="avatarPlaceholder">
-              {therapistInfo.name ? therapistInfo.name[0].toUpperCase() : 'T'}
-            </div>
-          )}
+          <Link element="button" to="/therapist-dashboard/profile">
+            {therapistInfo.profileImage ? (
+              <img src={therapistInfo} alt={therapistInfo.name} className={`avatar ${therapistInfo.online ? "online" : ""}`} />
+            ) : (
+              <div className={`avatarPlaceholder ${therapistInfo.online ? "online" : ""}`}>
+                {therapistInfo.name ? therapistInfo.name[0].toUpperCase() : 'T'}
+              </div>
+            )}
+          </Link>
         </div>
       </div>
 
