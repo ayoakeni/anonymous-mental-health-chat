@@ -5,6 +5,7 @@ import "../styles/therapistProfile.css";
 
 function TherapistProfile({ therapist, onBack, onStartChat, onBookAppointment, isOnline }) {
   const [realTimeOnline, setRealTimeOnline] = useState(isOnline);
+  const [allowPrivateChats, setAllowPrivateChats] = useState(true);
 
   useEffect(() => {
     if (!therapist?.uid) return;
@@ -12,6 +13,7 @@ function TherapistProfile({ therapist, onBack, onStartChat, onBookAppointment, i
     const unsubscribe = onSnapshot(therapistRef, (snap) => {
       if (snap.exists()) {
         setRealTimeOnline(snap.data().online || false);
+        setAllowPrivateChats(snap.data().chatSettings?.allowPrivateChats ?? true);
       }
     }, (err) => {
       console.error("Error fetching therapist online status:", err);
@@ -70,7 +72,8 @@ function TherapistProfile({ therapist, onBack, onStartChat, onBookAppointment, i
         <button
           className="action-button chat-button"
           onClick={onStartChat}
-          disabled={!realTimeOnline}
+          disabled={!allowPrivateChats}
+          title={!allowPrivateChats ? "This therapist has disabled private chats" : ""}
         >
           Start Private Chat
         </button>

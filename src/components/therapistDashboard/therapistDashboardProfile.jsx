@@ -5,7 +5,6 @@ import { db } from '../../utils/firebase';
 import "../../styles/therapistDashboardProfile.css";
 
 const TherapistDashboardProfile = ({ therapistInfo, editing, setEditing, setTherapistInfo, saveProfile, therapistId, isOnline }) => {
-  const [profileImage, setProfileImage] = useState(therapistInfo.profileImage || null);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
@@ -25,7 +24,6 @@ const TherapistDashboardProfile = ({ therapistInfo, editing, setEditing, setTher
       }
       const reader = new FileReader();
       reader.onload = () => {
-        setProfileImage(reader.result);
         setTherapistInfo((prev) => ({ ...prev, profileImage: reader.result }));
         setErrors((prev) => ({ ...prev, profileImage: '' }));
       };

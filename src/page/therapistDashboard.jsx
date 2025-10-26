@@ -71,6 +71,7 @@ function TherapistDashboard() {
       autoJoinNewChats: false,
       showTypingIndicator: true,
       messagePreviewLength: 50,
+      allowPrivateChats: true,
     },
     availability: {
       online: false,
@@ -171,7 +172,6 @@ function TherapistDashboard() {
         rating: therapistInfo.rating,
       }, { merge: true });
       setEditing(false);
-      showError("Profile saved successfully!", false);
     } catch (err) {
       console.error("Error saving profile:", err);
       showError("Failed to save profile. Please try again.");
@@ -750,6 +750,7 @@ function TherapistDashboard() {
             chatSettings: {
               ...therapistInfo.chatSettings,
               ...(data.chatSettings || {}),
+              allowPrivateChats: data.chatSettings?.allowPrivateChats ?? true,
             },
             availability: {
               ...therapistInfo.availability,
@@ -774,6 +775,7 @@ function TherapistDashboard() {
               autoJoinNewChats: false,
               showTypingIndicator: true,
               messagePreviewLength: 50,
+              allowPrivateChats: true,
             },
             availability: {
               online: false,
@@ -1737,6 +1739,14 @@ function TherapistDashboard() {
                           onChange={(e) => handleChatSettingsChange('showTypingIndicator', e.target.checked)}
                         />
                         Show Typing Indicator
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={therapistInfo.chatSettings.allowPrivateChats}
+                          onChange={(e) => handleChatSettingsChange('allowPrivateChats', e.target.checked)}
+                        />
+                        Allow Starting Private Chats
                       </label>
                       <label>
                         Message Preview Length:
