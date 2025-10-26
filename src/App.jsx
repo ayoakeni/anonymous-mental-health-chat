@@ -8,6 +8,7 @@ import TherapistDashboard from "./page/therapistDashboard";
 import AnonymousDashboard from "./page/anonymousDashboard";
 import Chatroom from "./page/chats_rooms/chatRoom";
 import "./styles/App.css";
+import ClientDashboard from "./page/clientDashboard";
 
 function ProtectedRoute({ children, requireTherapist = false }) {
   const location = useLocation();
@@ -62,6 +63,7 @@ function App() {
       <Route path="/chat-room/" element={<Chatroom />} />
       <Route path="/" element={<Home />} />
       <Route path="/about" element={<About />} />
+      <Route path="/client-dashboard/" element={<ClientDashboard />} />
       <Route path="/therapist-login" element={<TherapistLogin />} />
       <Route
         path="/therapist-dashboard/*"
