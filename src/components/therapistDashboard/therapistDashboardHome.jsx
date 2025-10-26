@@ -30,9 +30,9 @@ function TherapistDashboardHome({
         <div className="avatarWrapper">
           <Link element="button" to="/therapist-dashboard/profile">
             {therapistInfo.profileImage ? (
-              <img src={therapistInfo} alt={therapistInfo.name} className={`avatar ${therapistInfo.online ? "online" : ""}`} />
+              <img src={therapistInfo} alt={therapistInfo.name} className={`avatar ${therapist.online ? "online" : ""}`} />
             ) : (
-              <div className={`avatarPlaceholder ${therapistInfo.online ? "online" : ""}`}>
+              <div className={`avatarPlaceholder ${therapist.online ? "online" : ""}`}>
                 {therapistInfo.name ? therapistInfo.name[0].toUpperCase() : 'T'}
               </div>
             )}
