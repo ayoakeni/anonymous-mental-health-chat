@@ -1,5 +1,4 @@
-// src/hooks/useNotificationSound.js
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import Notification from '../sounds/notification.mp3';
 
 const useNotificationSound = () => {
@@ -18,11 +17,11 @@ const useNotificationSound = () => {
     return () => {
       sound.removeEventListener('canplaythrough', onCanPlay);
       sound.pause();
-      sound.src = '';
+      sound.src = ''; // Free up resources
     };
   }, []);
 
-  // Unlock audio on first user gesture (bypasses autoplay blocks)
+  // Unlock audio on first user gesture (bypasses autoplay restrictions)
   useEffect(() => {
     const unlock = () => {
       const silent = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='); // Silent base64
@@ -30,8 +29,11 @@ const useNotificationSound = () => {
         unlockedRef.current = true;
         document.removeEventListener('click', unlock);
         document.removeEventListener('touchstart', unlock);
-      }).catch(() => {});
+      }).catch(() => {
+        // Suppress errors for silent audio (e.g., user hasn't interacted yet)
+      });
     };
+
     document.addEventListener('click', unlock);
     document.addEventListener('touchstart', unlock); // For mobile
 
@@ -41,15 +43,15 @@ const useNotificationSound = () => {
     };
   }, []);
 
-  // Play sound if unlocked and audio ready
-  const playIfNew = () => {
+  // Memoized function to play sound if unlocked and audio is ready
+  const playNotification = useCallback(() => {
     if (audio && unlockedRef.current) {
-      audio.currentTime = 0; // Rewind
-      audio.play().catch((err) => console.warn('Sound play failed (possibly muted tab):', err));
+      audio.currentTime = 0; // Rewind to start
+      audio.play().catch((err) => console.warn('Failed to play notification sound:', err));
     }
-  };
+  }, [audio]);
 
-  return playIfNew;
+  return playNotification;
 };
 
 export default useNotificationSound;

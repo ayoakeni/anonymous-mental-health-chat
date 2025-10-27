@@ -2,6 +2,8 @@
   flex: 1;
   color: var(--text-color);
   padding: 20px;
+  max-width: 1000px;
+  margin: auto;
   height: 100vh;
   transition: margin-left 0.3s ease-in-out;
 }
