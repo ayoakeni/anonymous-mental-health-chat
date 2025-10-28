@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import ChatMessage from "./ChatMessage";
 import { formatTimestamp } from "../../components/timestampUtils";
@@ -42,20 +42,17 @@ function PrivateChatSplitView({
   showError,
 }) {
   const { chatId } = useParams();
+  const isUserAtBottom = useRef(true);
 
-  useEffect(() => {
-    if (chatId && chatId !== activeChatId) {
-      joinPrivateChat(chatId);
-    }
-  }, [chatId, activeChatId, joinPrivateChat]);
-
-  // Handle scroll to load more private messages
+  // Track if user is at the bottom of the chat
   useEffect(() => {
     const chatBox = chatBoxRef.current;
     if (!chatBox) return;
 
     const handleScroll = () => {
-      if (chatBox.scrollTop === 0 && hasMoreMessages && !isLoadingMessages) {
+      const { scrollTop, scrollHeight, clientHeight } = chatBox;
+      isUserAtBottom.current = scrollHeight - scrollTop <= clientHeight + 50; // 50px buffer
+      if (scrollTop === 0 && hasMoreMessages && !isLoadingMessages) {
         loadMoreMessages();
       }
     };
@@ -64,19 +61,36 @@ function PrivateChatSplitView({
     return () => chatBox.removeEventListener("scroll", handleScroll);
   }, [hasMoreMessages, isLoadingMessages, loadMoreMessages, chatBoxRef]);
 
-  const onEmojiClick = (emojiData) => {
-    setNewPrivateMessage(newPrivateMessage + emojiData.emoji);
+  // Auto-scroll only if user is at the bottom
+  useEffect(() => {
+    if (isUserAtBottom.current && privateMessagesEndRef.current) {
+      privateMessagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [combinedPrivateChat]);
+
+  // Join private chat when chatId changes
+  useEffect(() => {
+    if (chatId && chatId !== activeChatId) {
+      joinPrivateChat(chatId);
+    }
+  }, [chatId, activeChatId, joinPrivateChat]);
+
+  const onEmojiClick = useCallback((emojiData) => {
+    setNewPrivateMessage((prev) => prev + emojiData.emoji);
     setShowEmojiPicker(false);
-  };
+  }, [setNewPrivateMessage, setShowEmojiPicker]);
 
   // File validation helper
-  const handleFileChange = (file) => {
-    if (file && (file.size > 5 * 1024 * 1024 || !['image/', 'application/pdf'].some(type => file.type.startsWith(type)))) {
-      showError("Invalid file: too large or unsupported type");
-      return;
-    }
-    sendPrivateMessage(file);
-  };
+  const handleFileChange = useCallback(
+    (file) => {
+      if (file && (file.size > 5 * 1024 * 1024 || !["image/", "application/pdf"].some((type) => file.type.startsWith(type)))) {
+        showError("Invalid file: too large or unsupported type");
+        return;
+      }
+      sendPrivateMessage(file);
+    },
+    [sendPrivateMessage, showError]
+  );
 
   return (
     <div className="split-chat-container">
@@ -90,7 +104,7 @@ function PrivateChatSplitView({
           ) : (
             privateChats.map((chat) => {
               const lastTs = chat.lastUpdated;
-              const { dateStr, timeStr } = formatTimestamp(lastTs);
+              const { dateStr, timeStr } = formatTimestamp(lastTs || null);
               const anonName = anonNames[chat.id] || "Loading...";
               return (
                 <div
@@ -167,11 +181,11 @@ function PrivateChatSplitView({
                   <p className="no-message">No messages in this chat yet.</p>
                 ) : (
                   combinedPrivateChat.map((msg) => (
-                    <div className="message" key={msg.id}>
+                    <div className="message" key={`${msg.id}-${msg.type || "message"}`}>
                       <ChatMessage
                         msg={msg}
                         toggleReaction={toggleReaction}
-                        deleteMessage={(msgId) => deleteMessage(msgId, 'private')}
+                        deleteMessage={(msgId) => deleteMessage(msgId, "private")}
                         therapistInfo={therapistInfo}
                         handleTherapistClick={handleTherapistClick}
                       />

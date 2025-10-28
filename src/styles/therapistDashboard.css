@@ -511,6 +511,8 @@
 
 .therapist-dashboard .message {
   padding: 5px;
+  margin-bottom: 10px;
+  transition: background-color 0.2s ease;
 }
 
 .therapist-dashboard .chat-message {
@@ -634,6 +636,7 @@
   opacity: 0.7;
   font-size: 0.9rem;
   margin: 5px 0;
+  min-height: 20px;
 }
 
 .therapist-dashboard .chat-input {

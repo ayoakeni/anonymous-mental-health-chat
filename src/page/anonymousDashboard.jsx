@@ -94,12 +94,12 @@ function AnonymousDashboard() {
       try {
         await loginAnonymously();
         if (!auth.currentUser) {
-          navigate("/chat-room");
+          navigate("/");
         }
       } catch (err) {
         console.error("Error during anonymous login:", err);
         showError("Failed to authenticate. Please try again.");
-        navigate("/chat-room");
+        navigate("/");
       }
     };
     initializeAuth();
