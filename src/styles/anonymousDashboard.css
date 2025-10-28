@@ -364,6 +364,8 @@
 }
 
 .anonymous-dashboard .mood-history-card .mood-timestamp {
+  display: flex;
+  gap: 3px;
   font-size: 0.75rem;
   color: var(--text-color);
   opacity: 0.6;
@@ -1239,8 +1241,22 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  max-width: 300px;
   max-height: 60px;
   overflow-x: auto;
+}
+
+.anonymous-dashboard .therapist-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.anonymous-dashboard .therapist-list::-webkit-scrollbar-track {
+  background: var(--background-color);
+}
+
+.anonymous-dashboard .therapist-list::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
 }
 
 .anonymous-dashboard .therapist-item {
@@ -1287,7 +1303,6 @@
   justify-content: center;
   color: var(--text-color);
   background: var(--primary-color);
-  text-align: center;
   line-height: 24px;
   font-size: 0.8rem;
   font-weight: 600;

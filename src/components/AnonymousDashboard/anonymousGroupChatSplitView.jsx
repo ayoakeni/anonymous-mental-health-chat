@@ -126,7 +126,7 @@ function AnonymousGroupChatSplitView({
         const onlineList = snapshot.docs.map((doc) => ({
           uid: doc.id,
           ...doc.data(),
-          name: doc.data().name || `Therapist_${doc.id.slice(0, 8)}`,
+          name: doc.data().name || `Therapist_${doc.id.slice(0, 3)}`,
         }));
         setTherapistsOnline(onlineList);
       },
