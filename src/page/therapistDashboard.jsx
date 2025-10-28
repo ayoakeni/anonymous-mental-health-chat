@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation, Routes, Route, useParams } from "react-router-dom";
+import { db, auth, Timestamp, storage, ref, uploadBytes, getDownloadURL } from "../utils/firebase";
 import {
   collection,
   query,
@@ -18,7 +19,6 @@ import {
   startAfter,
   updateDoc,
 } from "firebase/firestore";
-import { db, auth, Timestamp, storage, ref, uploadBytes, getDownloadURL } from "../utils/firebase";
 import { debounce } from "lodash";
 import { signOut } from "firebase/auth";
 import Sidebar from "../components/sidebar";
@@ -35,7 +35,6 @@ import "../styles/therapistDashboardNotification.css";
 import "../styles/therapistDashboardSetting.css";
 
 function TherapistDashboard() {
-  // ==================== STATE ====================
   const [messages, setMessages] = useState([]);
   const [groupEvents, setGroupEvents] = useState([]);
   const [groupChats, setGroupChats] = useState([]);
@@ -105,7 +104,6 @@ function TherapistDashboard() {
   const [clients, setClients] = useState([]);
   const errorTimeoutRef = useRef(null);
   const [isSaving, setIsSaving] = useState(false);
-
   const therapistId = auth.currentUser?.uid;
   const isOnline = therapistsOnline.some(t => t.uid === therapistId && t.online);
   const displayName = therapistInfo.name || "Unknown Therapist";
@@ -114,12 +112,11 @@ function TherapistDashboard() {
   const privateMessagesEndRef = useRef(null);
   const groupChatBoxRef = useRef(null);
   const privateChatBoxRef = useRef(null);
-
   const navigate = useNavigate();
   const location = useLocation();
-  const params = useParams();
+  const { chatId } = useParams();
 
-  // ==================== UTILS ====================
+  // Format timestamp for notifications
   const formatNotificationTimestamp = (timestamp) => {
     if (!timestamp) return "Unknown time";
     const formatted = formatTimestamp(timestamp);
@@ -162,159 +159,6 @@ function TherapistDashboard() {
     setReply(reply + emojiData.emoji);
     setShowEmojiPicker(false);
   };
-
-  // ==================== JOIN FUNCTIONS (MUST BE DEFINED FIRST) ====================
-  const joinGroupChat = useCallback(async (groupId) => {
-    if (!auth.currentUser) return;
-    try {
-      const groupRef = doc(db, "groupChats", groupId);
-      const groupSnap = await getDoc(groupRef);
-      if (!groupSnap.exists()) {
-        throw new Error("Group chat does not exist");
-      }
-      const lastMsgsTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
-      await runTransaction(db, async (transaction) => {
-        transaction.update(groupRef, {
-          participants: arrayUnion(auth.currentUser.uid),
-          unreadCount: 0
-        });
-        transaction.set(
-          doc(db, "therapists", therapistId),
-          { lastSeenGroupChat: serverTimestamp() },
-          { merge: true }
-        );
-      });
-      setLastSeenTimestamp(lastMsgsTime);
-      setIsGroupChatOpen(true);
-      setInGroupChat(true);
-      setActiveGroupId(groupId);
-      navigate(`/therapist-dashboard/group-chat/${groupId}`);
-    } catch (err) {
-      console.error("Error joining group chat:", err);
-      showError("Failed to join group chat. Please try again.");
-    }
-  }, [therapistId, messages, navigate, showError]);
-
-  const joinPrivateChat = useCallback(async (chatId) => {
-    if (!auth.currentUser) return;
-    const chatRef = doc(db, "privateChats", chatId);
-    const uid = auth.currentUser.uid;
-    try {
-      await runTransaction(db, async (transaction) => {
-        const chatSnap = await transaction.get(chatRef);
-        if (!chatSnap.exists()) {
-          transaction.set(chatRef, {
-            participants: [uid],
-            lastMessage: "",
-            lastUpdated: serverTimestamp(),
-            unreadCountForTherapist: 0,
-            aiActive: false,
-            aiOffered: false,
-            therapistJoinedOnce: true,
-            lastJoinEvent: Date.now(),
-            needsTherapist: false,
-          });
-          transaction.set(doc(collection(chatRef, "events")), {
-            type: "join",
-            user: displayName,
-            text: `A therapist "${displayName}" has joined. You can now continue your conversation with them.`,
-            role: "system",
-            timestamp: serverTimestamp(),
-          });
-        } else {
-          const chatData = chatSnap.data();
-          if (!chatData.participants.includes(uid)) {
-            transaction.update(chatRef, {
-              participants: arrayUnion(uid),
-              therapistJoinedOnce: true,
-              aiOffered: false,
-              aiActive: false,
-              unreadCountForTherapist: 0,
-              lastJoinEvent: Date.now(),
-              needsTherapist: false,
-            });
-            transaction.set(doc(collection(chatRef, "events")), {
-              type: "join",
-              user: displayName,
-              text: `A therapist "${displayName}" has joined. You can now continue your conversation with them.`,
-              role: "system",
-              timestamp: serverTimestamp(),
-            });
-          } else {
-            transaction.update(chatRef, {
-              unreadCountForTherapist: 0,
-              needsTherapist: false,
-            });
-          }
-        }
-      });
-      setActiveChatId(chatId);
-      setChatError(null);
-      navigate(`/therapist-dashboard/private-chat/${chatId}`);
-    } catch (err) {
-      console.error("Error joining private chat:", err);
-      setChatError("Failed to join private chat. Please try again.");
-      setActiveChatId(null);
-      navigate("/therapist-dashboard/private-chat");
-    }
-  }, [therapistId, displayName, navigate, showError]);
-
-  // ==================== URL SYNC & VALIDATION (NOW SAFE) ====================
-  useEffect(() => {
-    const { groupId, chatId } = params;
-
-    if (groupId && groupId !== activeGroupId) {
-      setActiveGroupId(groupId);
-      setActiveChatId(null);
-      joinGroupChat(groupId);
-    } else if (chatId && chatId !== activeChatId) {
-      setIsValidatingChat(true);
-      setChatError(null);
-      const validateChat = async () => {
-        try {
-          const chatRef = doc(db, "privateChats", chatId);
-          const chatSnap = await getDoc(chatRef);
-
-          if (!chatSnap.exists()) {
-            setChatError("This chat no longer exists.");
-            setActiveChatId(null);
-            navigate("/therapist-dashboard/private-chat");
-            return;
-          }
-
-          const chatData = chatSnap.data();
-          const isParticipant = chatData.participants?.includes(therapistId);
-          const needsTherapist = chatData.needsTherapist === true;
-
-          if (!isParticipant && !needsTherapist) {
-            setChatError("You do not have permission to access this chat.");
-            setActiveChatId(null);
-            navigate("/therapist-dashboard/private-chat");
-            return;
-          }
-
-          setActiveChatId(chatId);
-          setActiveGroupId(null);
-          joinPrivateChat(chatId);
-        } catch (err) {
-          console.error("Error validating chat:", err);
-          setChatError("Failed to load chat. Please try again.");
-          setActiveChatId(null);
-          navigate("/therapist-dashboard/private-chat");
-        } finally {
-          setIsValidatingChat(false);
-        }
-      };
-      validateChat();
-    } else {
-      setActiveGroupId(null);
-      setActiveChatId(null);
-      setChatError(null);
-      setIsValidatingChat(false);
-    }
-  }, [location.pathname, params, therapistId, navigate, activeGroupId, activeChatId, joinGroupChat, joinPrivateChat]);
-
-  // ==================== OTHER EFFECTS & FUNCTIONS BELOW ====================
 
   // Save profile changes
   const saveProfile = async () => {
@@ -394,7 +238,7 @@ function TherapistDashboard() {
     return () => unsubscribe();
   }, [therapistId, showError]);
 
-  // Fetch clients
+  // Fetch clients for appointment creation
   useEffect(() => {
     const q = query(collection(db, "anonymousUsers"), limit(100));
     const unsubscribe = onSnapshot(
@@ -417,6 +261,7 @@ function TherapistDashboard() {
   // Check authentication
   useEffect(() => {
     if (!auth.currentUser) {
+      console.log("No user logged in, redirecting to login");
       navigate("/therapist-login");
     }
   }, [navigate]);
@@ -436,7 +281,7 @@ function TherapistDashboard() {
     privateMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [privateMessages, privateEvents]);
 
-  // Load more group messages
+  // Load more group messages (pagination)
   const loadMoreGroupMessages = useCallback(async () => {
     if (!activeGroupId || !hasMoreGroupMessages || isLoadingGroupMessages) return;
     setIsLoadingGroupMessages(true);
@@ -461,7 +306,7 @@ function TherapistDashboard() {
     }
   }, [activeGroupId, hasMoreGroupMessages, isLoadingGroupMessages, messages, showError]);
 
-  // Load more private messages
+  // Load more private messages (pagination)
   const loadMorePrivateMessages = useCallback(async () => {
     if (!activeChatId || !hasMorePrivateMessages || isLoadingPrivateMessages) return;
     setIsLoadingPrivateMessages(true);
@@ -486,32 +331,37 @@ function TherapistDashboard() {
     }
   }, [activeChatId, hasMorePrivateMessages, isLoadingPrivateMessages, privateMessages, showError]);
 
-  // Scroll to load more
+  // Handle scroll to load more group messages
   useEffect(() => {
     const chatBox = groupChatBoxRef.current;
     if (!chatBox) return;
+
     const handleScroll = () => {
       if (chatBox.scrollTop === 0 && hasMoreGroupMessages && !isLoadingGroupMessages) {
         loadMoreGroupMessages();
       }
     };
+
     chatBox.addEventListener("scroll", handleScroll);
     return () => chatBox.removeEventListener("scroll", handleScroll);
   }, [hasMoreGroupMessages, isLoadingGroupMessages, loadMoreGroupMessages]);
 
+  // Handle scroll to load more private messages
   useEffect(() => {
     const chatBox = privateChatBoxRef.current;
     if (!chatBox) return;
+
     const handleScroll = () => {
       if (chatBox.scrollTop === 0 && hasMorePrivateMessages && !isLoadingPrivateMessages) {
         loadMorePrivateMessages();
       }
     };
+
     chatBox.addEventListener("scroll", handleScroll);
     return () => chatBox.removeEventListener("scroll", handleScroll);
   }, [hasMorePrivateMessages, isLoadingPrivateMessages, loadMorePrivateMessages]);
 
-  // Watch therapists online
+  // Watch therapists online for availability indicator
   useEffect(() => {
     const q = query(
       collection(db, "therapists"),
@@ -536,7 +386,7 @@ function TherapistDashboard() {
     return () => unsub();
   }, [showError]);
 
-  // Fetch group chats
+  // Fetch all group chats
   useEffect(() => {
     const q = query(collection(db, "groupChats"), limit(50));
     const unsubscribe = onSnapshot(
@@ -593,7 +443,7 @@ function TherapistDashboard() {
     return () => unsubscribe();
   }, [showError, participantNames]);
 
-  // Watch group messages
+  // Watch group chat participants and messages for active group
   useEffect(() => {
     if (!activeGroupId) return;
     const groupRef = doc(db, "groupChats", activeGroupId);
@@ -639,13 +489,9 @@ function TherapistDashboard() {
       unsubParticipants();
       unsubMessages();
       unsubEvents();
-      setMessages([]);
-      setGroupEvents([]);
-      setParticipants([]);
     };
   }, [activeGroupId, isGroupChatOpen, therapistId, playNotification, showError]);
 
-  // Participants dropdown
   useEffect(() => {
     const handleClickOutside = (event) => {
       const participantList = document.querySelector(".participant-list");
@@ -653,13 +499,95 @@ function TherapistDashboard() {
         setIsParticipantsOpen(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
-  // Load private chats
+  // Validate and sync activeChatId with URL param
+  useEffect(() => {
+    if (!chatId || !location.pathname.startsWith("/therapist-dashboard/private-chat/")) {
+      setActiveChatId(null);
+      setPrivateMessages([]);
+      setPrivateEvents([]);
+      setChatError(null);
+      setIsValidatingChat(false);
+      return;
+    }
+
+    const validateChat = async () => {
+      setIsValidatingChat(true);
+      setChatError(null);
+      try {
+        const chatRef = doc(db, "privateChats", chatId);
+        let chatSnap = await getDoc(chatRef);
+
+        if (!chatSnap.exists()) {
+          console.log("Chat document does not exist:", chatId);
+          setChatError("This chat no longer exists.");
+          setActiveChatId(null);
+          navigate("/therapist-dashboard/private-chat");
+          return;
+        }
+
+        let chatData = chatSnap.data();
+        let isParticipant = chatData.participants?.includes(therapistId);
+        let needsTherapist = chatData.needsTherapist === true;
+
+        if (!isParticipant && !needsTherapist) {
+          const eventsQuery = query(
+            collection(chatRef, "events"),
+            where("type", "==", "join"),
+            where("user", "==", displayName),
+            orderBy("timestamp", "desc"),
+            limit(1)
+          );
+          const eventsSnap = await getDocs(eventsQuery);
+          const recentJoin = eventsSnap.docs.length > 0;
+          const recentJoinTime = recentJoin ? eventsSnap.docs[0].data().timestamp?.toMillis() : 0;
+          const isRecentJoin = recentJoin && (Date.now() - recentJoinTime) < 10000;
+
+          if (!isRecentJoin) {
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+            chatSnap = await getDoc(chatRef);
+            if (!chatSnap.exists()) {
+              setChatError("This chat no longer exists.");
+              setActiveChatId(null);
+              navigate("/therapist-dashboard/private-chat");
+              return;
+            }
+            chatData = chatSnap.data();
+            isParticipant = chatData.participants?.includes(therapistId);
+            needsTherapist = chatData.needsTherapist;
+            if (!isParticipant && !needsTherapist) {
+              setChatError("You do not have permission to access this chat.");
+              setActiveChatId(null);
+              navigate("/therapist-dashboard/private-chat");
+              return;
+            }
+          }
+        }
+
+        setActiveChatId(chatId);
+      } catch (err) {
+        console.error("Error validating chat:", err);
+        setChatError("Failed to load chat. Please try again.");
+        setActiveChatId(null);
+        navigate("/therapist-dashboard/private-chat");
+      } finally {
+        setIsValidatingChat(false);
+      }
+    };
+
+    validateChat();
+  }, [location.pathname, chatId, therapistId, navigate, displayName]);
+
+  // Load private chats with retry
   useEffect(() => {
     if (!therapistId) {
+      console.log("No therapistId, skipping private chats subscription");
       setIsLoadingChats(false);
       return;
     }
@@ -689,9 +617,10 @@ function TherapistDashboard() {
         console.error("Error fetching private chats (participant):", err);
         if (retryCount < maxRetries) {
           retryCount++;
+          console.log(`Retrying private chats subscription (${retryCount}/${maxRetries})...`);
           setTimeout(trySubscribe, 2000 * retryCount);
         } else {
-          showError("Failed to load private chats after retries.");
+          showError("Failed to load private chats after retries. Please try again.");
         }
       });
       const unsubscribe2 = onSnapshot(q2, (snapshot) => {
@@ -717,7 +646,7 @@ function TherapistDashboard() {
     return () => unsubscribe();
   }, [therapistId, showError]);
 
-  // Watch private messages
+  // Watch private chat messages
   useEffect(() => {
     if (!activeChatId) return;
     const chatRef = doc(db, "privateChats", activeChatId);
@@ -743,21 +672,22 @@ function TherapistDashboard() {
           }
         }).catch((err) => {
           console.error("Error resetting unread count:", err);
-          showError("Failed to reset unread count.");
+          showError("Failed to reset unread count. Please try again.");
         });
       },
       (err) => {
         console.error("Error fetching private messages:", err);
-        setChatError("Failed to load private messages.");
+        setChatError("Failed to load private messages. Please try again.");
         setIsLoadingPrivateMessages(false);
       }
     );
     return () => unsubscribeMessages();
   }, [activeChatId, playNotification, showError]);
 
-  // Watch private events
+  // Watch private chat events
   useEffect(() => {
-    if (!activeChatId) return;
+    if (!activeChatId) 
+      return;
     const chatRef = doc(db, "privateChats", activeChatId);
     const q = query(collection(chatRef, "events"), orderBy("timestamp"), limit(50));
     const unsubscribeEvents = onSnapshot(
@@ -768,13 +698,13 @@ function TherapistDashboard() {
       },
       (err) => {
         console.error("Error fetching private events:", err);
-        setChatError("Failed to load private events.");
+        setChatError("Failed to load private events. Please try again.");
       }
     );
     return () => unsubscribeEvents();
   }, [activeChatId]);
 
-  // Fetch last seen
+  // Fetch last seen timestamp
   useEffect(() => {
     if (!therapistId) return;
     const fetchLastSeen = async () => {
@@ -797,7 +727,7 @@ function TherapistDashboard() {
     };
     fetchLastSeen().catch((err) => {
       console.error("Error fetching last seen:", err);
-      showError("Failed to fetch last seen timestamp.");
+      showError("Failed to fetch last seen timestamp. Please try again.");
     });
   }, [therapistId, showError]);
 
@@ -856,13 +786,13 @@ function TherapistDashboard() {
       },
       (err) => {
         console.error("Error fetching therapist profile:", err);
-        showError("Failed to fetch therapist profile.");
+        showError("Failed to fetch therapist profile. Please try again.");
       }
     );
     return () => unsubscribe();
   }, [therapistId, showError]);
 
-  // Tab close detection
+  // Tab close vs refresh detection
   useEffect(() => {
     if (!auth.currentUser) return;
     let isReloading = false;
@@ -904,7 +834,7 @@ function TherapistDashboard() {
         });
       } catch (err) {
         console.error("Error auto-leaving chats:", err);
-        showError("Failed to auto-leave chats.");
+        showError("Failed to auto-leave chats. Please try again.");
       }
     }, 1000);
     const handleBeforeUnload = () => {
@@ -924,7 +854,7 @@ function TherapistDashboard() {
     };
   }, [activeChatId, activeGroupId, displayName, showError]);
 
-  // Send group message
+  // Send message to group chat with file support
   const sendReply = async (file = null) => {
     if (!reply.trim() && !file) return;
     if (!activeGroupId) return;
@@ -969,11 +899,11 @@ function TherapistDashboard() {
       setShowEmojiPicker(false);
     } catch (err) {
       console.error("Error sending group message:", err);
-      showError("Failed to send group message.");
+      showError("Failed to send group message. Please try again.");
     }
   };
 
-  // Toggle reaction
+  // Toggle reaction on message
   const toggleReaction = async (msgId, reactionType) => {
     if (!auth.currentUser || !activeGroupId) return;
     const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
@@ -992,7 +922,7 @@ function TherapistDashboard() {
       });
     } catch (err) {
       console.error("Error toggling reaction:", err);
-      showError("Failed to update reaction.");
+      showError("Failed to update reaction. Please try again.");
     }
   };
 
@@ -1019,21 +949,22 @@ function TherapistDashboard() {
       });
     } catch (err) {
       console.error("Error deleting message:", err);
-      showError("Failed to delete message.");
+      showError("Failed to delete message. Please try again.");
     }
   };
 
-  // Notification actions
+  // Mark notification as read
   const markAsRead = async (chatId) => {
     try {
       const chatRef = doc(db, "privateChats", chatId);
       await updateDoc(chatRef, { unreadCountForTherapist: 0 });
     } catch (err) {
-      console.error("Error marking as read:", err);
-      showError("Failed to mark as read.");
+      console.error("Error marking notification as read:", err);
+      showError("Failed to mark notification as read.");
     }
   };
 
+  // Mark all notifications as read
   const markAllAsRead = async () => {
     try {
       const updates = privateChats
@@ -1041,11 +972,12 @@ function TherapistDashboard() {
         .map((chat) => updateDoc(doc(db, "privateChats", chat.id), { unreadCountForTherapist: 0 }));
       await Promise.all(updates);
     } catch (err) {
-      console.error("Error marking all as read:", err);
-      showError("Failed to mark all as read.");
+      console.error("Error marking all notifications as read:", err);
+      showError("Failed to mark all notifications as read.");
     }
   };
 
+  // Dismiss notification
   const dismissNotification = async (chatId) => {
     try {
       const therapistRef = doc(db, "therapists", therapistId);
@@ -1054,19 +986,20 @@ function TherapistDashboard() {
       });
       setDismissedNotifications((prev) => [...prev, chatId]);
     } catch (err) {
-      console.error("Error dismissing:", err);
-      showError("Failed to dismiss.");
+      console.error("Error dismissing notification:", err);
+      showError("Failed to dismiss notification.");
     }
   };
 
+  // Reset dismissed notifications
   const resetDismissed = async () => {
     try {
       const therapistRef = doc(db, "therapists", therapistId);
       await updateDoc(therapistRef, { dismissedNotifications: [] });
       setDismissedNotifications([]);
     } catch (err) {
-      console.error("Error resetting dismissed:", err);
-      showError("Failed to reset.");
+      console.error("Error resetting dismissed notifications:", err);
+      showError("Failed to reset dismissed notifications.");
     }
   };
 
@@ -1080,17 +1013,18 @@ function TherapistDashboard() {
         chatSettings: therapistInfo.chatSettings,
         online: therapistInfo.availability.online,
       };
+      console.log("Saving settings to Firestore:", settingsData);
       await setDoc(doc(db, "therapists", therapistId), settingsData, { merge: true });
-      showError("Settings saved!", false);
+      showError("Settings saved successfully!", false);
     } catch (err) {
       console.error("Error saving settings:", err);
-      showError("Failed to save settings.");
+      showError("Failed to save settings. Please try again.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Logout
+  // Handle logout
   const handleLogout = async () => {
     try {
       if (!auth.currentUser) return;
@@ -1142,14 +1076,73 @@ function TherapistDashboard() {
         );
       });
       await signOut(auth);
+      setTherapistInfo({
+        name: "",
+        gender: "",
+        position: "",
+        profile: "",
+        rating: 0,
+        notificationPreferences: {
+          emailNotifications: true,
+          soundNotifications: true,
+          desktopNotifications: false,
+          notificationFrequency: "immediate",
+        },
+        chatSettings: {
+          autoJoinNewChats: false,
+          showTypingIndicator: true,
+          messagePreviewLength: 50,
+        },
+        availability: {
+          toggleAvailability: true,
+        },
+      });
+      setMessages([]);
+      setPrivateChats([]);
+      setActiveChatId(null);
+      setActiveGroupId(null);
+      setPrivateMessages([]);
+      setPrivateEvents([]);
       navigate("/therapist-login");
     } catch (err) {
       console.error("Logout error:", err);
-      showError("Failed to logout.");
+      showError("Failed to logout. Please try again.");
     }
   };
 
-  // Leave group
+  // Join group chat
+  const joinGroupChat = async (groupId) => {
+    if (!auth.currentUser) return;
+    try {
+      const groupRef = doc(db, "groupChats", groupId);
+      const groupSnap = await getDoc(groupRef);
+      if (!groupSnap.exists()) {
+        throw new Error("Group chat does not exist");
+      }
+      const lastMsgsTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
+      await runTransaction(db, async (transaction) => {
+        transaction.update(groupRef, { 
+          participants: arrayUnion(auth.currentUser.uid),
+          unreadCount: 0
+        });
+        transaction.set(
+          doc(db, "therapists", therapistId),
+          { lastSeenGroupChat: serverTimestamp() },
+          { merge: true }
+        );
+      });
+      setLastSeenTimestamp(lastMsgsTime);
+      setIsGroupChatOpen(true);
+      setInGroupChat(true);
+      setActiveGroupId(groupId);
+      navigate(`/therapist-dashboard/group-chat/${groupId}`);
+    } catch (err) {
+      console.error("Error joining group chat:", err);
+      showError("Failed to join group chat. Please try again.");
+    }
+  };
+
+  // Leave group chat
   const leaveGroupChat = async () => {
     if (!auth.currentUser || !activeGroupId) return;
     try {
@@ -1174,12 +1167,77 @@ function TherapistDashboard() {
       setActiveGroupId(null);
       navigate("/therapist-dashboard/group-chat");
     } catch (err) {
-      console.error("Error leaving group:", err);
-      showError("Failed to leave group.");
+      console.error("Error leaving group chat:", err);
+      showError("Failed to leave group chat. Please try again.");
     }
   };
 
-  // Leave private
+  // Join private chat
+  const joinPrivateChat = async (chatId) => {
+    if (!auth.currentUser) return;
+    const chatRef = doc(db, "privateChats", chatId);
+    const uid = auth.currentUser.uid;
+    try {
+      await runTransaction(db, async (transaction) => {
+        const chatSnap = await transaction.get(chatRef);
+        if (!chatSnap.exists()) {
+          transaction.set(chatRef, {
+            participants: [uid],
+            lastMessage: "",
+            lastUpdated: serverTimestamp(),
+            unreadCountForTherapist: 0,
+            aiActive: false,
+            aiOffered: false,
+            therapistJoinedOnce: true,
+            lastJoinEvent: Date.now(),
+            needsTherapist: false,
+          });
+          transaction.set(doc(collection(chatRef, "events")), {
+            type: "join",
+            user: displayName,
+            text: `A therapist "${displayName}" has joined. You can now continue your conversation with them.`,
+            role: "system",
+            timestamp: serverTimestamp(),
+          });
+        } else {
+          const chatData = chatSnap.data();
+          if (!chatData.participants.includes(uid)) {
+            transaction.update(chatRef, {
+              participants: arrayUnion(uid),
+              therapistJoinedOnce: true,
+              aiOffered: false,
+              aiActive: false,
+              unreadCountForTherapist: 0,
+              lastJoinEvent: Date.now(),
+              needsTherapist: false,
+            });
+            transaction.set(doc(collection(chatRef, "events")), {
+              type: "join",
+              user: displayName,
+              text: `A therapist "${displayName}" has joined. You can now continue your conversation with them.`,
+              role: "system",
+              timestamp: serverTimestamp(),
+            });
+          } else {
+            transaction.update(chatRef, {
+              unreadCountForTherapist: 0,
+              needsTherapist: false,
+            });
+          }
+        }
+      });
+      setActiveChatId(chatId);
+      setChatError(null);
+      navigate(`/therapist-dashboard/private-chat/${chatId}`);
+    } catch (err) {
+      console.error("Error joining private chat:", err);
+      setChatError("Failed to join private chat. Please try again.");
+      setActiveChatId(null);
+      navigate("/therapist-dashboard/private-chat");
+    }
+  };
+
+  // Leave private chat
   const leavePrivateChat = async () => {
     if (!activeChatId || !auth.currentUser) return;
     try {
@@ -1212,20 +1270,24 @@ function TherapistDashboard() {
       navigate("/therapist-dashboard/private-chat");
     } catch (err) {
       console.error("Error leaving private chat:", err);
-      setChatError("Failed to leave chat.");
+      if (err.message === "Chat document does not exist") {
+        setChatError("This chat no longer exists.");
+      } else {
+        setChatError("Failed to leave chat. Please try again.");
+      }
       setActiveChatId(null);
       navigate("/therapist-dashboard/private-chat");
     }
   };
 
-  // Send private message
+  // Send private chat message
   const sendPrivateMessage = async (file = null) => {
     const text = newPrivateMessage.trim();
     if (!text && !file) return;
     if (!activeChatId || !auth.currentUser) return;
-
+    
     if (file && (file.size > 5 * 1024 * 1024 || !['image/', 'application/pdf'].some(type => file.type.startsWith(type)))) {
-      showError("Invalid file");
+      showError("Invalid file: too large or unsupported type");
       return;
     }
 
@@ -1261,7 +1323,7 @@ function TherapistDashboard() {
       setNewPrivateMessage("");
     } catch (err) {
       console.error("Error sending private message:", err);
-      showError(err.message === "Chat document does not exist" ? "Chat no longer exists." : "Failed to send.");
+      showError(err.message === "Chat document does not exist" ? "This chat no longer exists." : "Failed to send message.");
       setActiveChatId(null);
       navigate("/therapist-dashboard/private-chat");
     } finally {
@@ -1269,26 +1331,27 @@ function TherapistDashboard() {
     }
   };
 
-  // Therapist profile click
+  // Handle therapist profile click
   const handleTherapistClick = async (msg) => {
     if (msg.role !== "therapist") {
-      showError("Cannot view profile: Not a therapist.");
+      showError("Cannot view profile: Not a therapist message.");
       return;
     }
     try {
       const snap = await getDoc(doc(db, "therapists", msg.userId));
       if (snap.exists()) setSelectedTherapist(snap.data());
     } catch (err) {
-      console.error("Error fetching therapist:", err);
-      showError("Failed to fetch profile.");
+      console.error("Error fetching therapist profile:", err);
+      showError("Failed to fetch therapist profile. Please try again.");
     }
   };
 
-  // Combined chat data
+  // Combine messages and events for private chat
   const combinedPrivateChat = [...privateMessages, ...privateEvents].sort((a, b) => {
     return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
   });
 
+  // Combine messages and events for group chat, marking new messages
   const combinedGroupChat = useMemo(() => {
     return [...messages, ...groupEvents]
       .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp))
@@ -1302,6 +1365,7 @@ function TherapistDashboard() {
   const filteredNotifications = useMemo(() => {
     let notifications = [];
 
+    // Private chat notifications
     const privateChatNotifications = privateChats.map((chat) => ({
       id: chat.id,
       type: "private",
@@ -1335,7 +1399,7 @@ function TherapistDashboard() {
     return notifications;
   }, [privateChats, groupChats, anonNames, dismissedNotifications, notificationFilter]);
 
-  // Settings handlers
+  // Handle settings changes
   const handleNotificationChange = (key, value) => {
     setTherapistInfo(prev => ({
       ...prev,
@@ -1367,7 +1431,6 @@ function TherapistDashboard() {
     }));
   };
 
-  // ==================== RENDER ====================
   return (
     <div className="therapist-dashboard">
       <Sidebar
@@ -1380,7 +1443,10 @@ function TherapistDashboard() {
         {errorMsg && (
           <div className={`error-toast ${isErrorFading ? 'fade-out' : ''}`}>
             {errorMsg}
-            <button className="error-close-btn" onClick={closeError}>
+            <button className="error-close-btn" 
+              onClick={closeError}
+              aria-label="Close error message"
+            >
               <i className="fa-solid fa-times"></i>
             </button>
           </div>
@@ -1408,7 +1474,7 @@ function TherapistDashboard() {
             }
           />
           <Route
-            path="group-chat"
+            path="/group-chat/*"
             element={
               <GroupChatSplitView
                 groupChats={groupChats}
@@ -1449,48 +1515,7 @@ function TherapistDashboard() {
             }
           />
           <Route
-            path="group-chat/:groupId"
-            element={
-              <GroupChatSplitView
-                groupChats={groupChats}
-                activeGroupId={activeGroupId}
-                isGroupChatOpen={isGroupChatOpen}
-                inGroupChat={inGroupChat}
-                therapistsOnline={therapistsOnline}
-                participants={participants}
-                isParticipantsOpen={isParticipantsOpen}
-                setIsParticipantsOpen={setIsParticipantsOpen}
-                participantNames={participantNames}
-                combinedGroupChat={combinedGroupChat}
-                typingUsers={typingUsers}
-                messagesEndRef={messagesEndRef}
-                chatBoxRef={groupChatBoxRef}
-                isLoadingMessages={isLoadingGroupMessages}
-                hasMoreMessages={hasMoreGroupMessages}
-                loadMoreMessages={loadMoreGroupMessages}
-                showEmojiPicker={showEmojiPicker}
-                setShowEmojiPicker={setShowEmojiPicker}
-                reply={reply}
-                setReply={setReply}
-                handleTyping={handleTyping}
-                sendReply={sendReply}
-                joinGroupChat={joinGroupChat}
-                leaveGroupChat={leaveGroupChat}
-                therapistInfo={therapistInfo}
-                toggleReaction={toggleReaction}
-                deleteMessage={deleteMessage}
-                handleTherapistClick={handleTherapistClick}
-                isLoadingChats={isLoadingChats}
-                formatTimestamp={formatTimestamp}
-                onEmojiClick={onEmojiClick}
-                isLoadingNames={isLoadingNames}
-                showError={showError}
-                lastSeenTimestamp={lastSeenTimestamp}
-              />
-            }
-          />
-          <Route
-            path="private-chat"
+            path="/private-chat/*"
             element={
               <PrivateChatSplitView
                 privateChats={privateChats}
@@ -1531,48 +1556,7 @@ function TherapistDashboard() {
             }
           />
           <Route
-            path="private-chat/:chatId"
-            element={
-              <PrivateChatSplitView
-                privateChats={privateChats}
-                activeChatId={activeChatId}
-                isValidatingChat={isValidatingChat}
-                chatError={chatError}
-                isTherapistAvailable={isTherapistAvailable}
-                activeTherapists={activeTherapists}
-                selectedTherapist={selectedTherapist}
-                setSelectedTherapist={setSelectedTherapist}
-                combinedPrivateChat={combinedPrivateChat}
-                typingUsers={typingUsers}
-                privateMessagesEndRef={privateMessagesEndRef}
-                chatBoxRef={privateChatBoxRef}
-                isLoadingMessages={isLoadingPrivateMessages}
-                hasMoreMessages={hasMorePrivateMessages}
-                loadMoreMessages={loadMorePrivateMessages}
-                showEmojiPicker={showEmojiPicker}
-                setShowEmojiPicker={setShowEmojiPicker}
-                newPrivateMessage={newPrivateMessage}
-                setNewPrivateMessage={setNewPrivateMessage}
-                handleTyping={handleTyping}
-                sendPrivateMessage={sendPrivateMessage}
-                isSendingPrivate={isSendingPrivate}
-                joinPrivateChat={joinPrivateChat}
-                leavePrivateChat={leavePrivateChat}
-                handleTherapistClick={handleTherapistClick}
-                navigate={navigate}
-                therapistInfo={therapistInfo}
-                toggleReaction={toggleReaction}
-                deleteMessage={deleteMessage}
-                isLoadingChats={isLoadingChats}
-                formatTimestamp={formatTimestamp}
-                onEmojiClick={onEmojiClick}
-                anonNames={anonNames}
-                showError={showError}
-              />
-            }
-          />
-          <Route
-            path="appointments"
+            path="/appointments"
             element={
               <TherapistDashboardAppointment
                 therapistId={therapistId}
@@ -1584,7 +1568,7 @@ function TherapistDashboard() {
             }
           />
           <Route
-            path="clients"
+            path="/clients"
             element={
               <div className="clients">
                 <h3>Clients</h3>
@@ -1593,7 +1577,7 @@ function TherapistDashboard() {
             }
           />
           <Route
-            path="notifications"
+            path="/notifications"
             element={
               <div className="notifications">
                 <div className="notifications-header">
@@ -1678,7 +1662,7 @@ function TherapistDashboard() {
             }
           />
           <Route
-            path="profile"
+            path="/profile"
             element={
               <TherapistDashboardProfile
                 therapistInfo={therapistInfo}
@@ -1692,7 +1676,7 @@ function TherapistDashboard() {
             }
           />
           <Route
-            path="settings"
+            path="/settings"
             element={
               <div className="settings">
                 <h3>Settings</h3>
