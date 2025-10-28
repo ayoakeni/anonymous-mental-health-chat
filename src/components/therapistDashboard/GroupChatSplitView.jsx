@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import ChatMessage from "./ChatMessage";
 import { formatTimestamp } from "../../components/timestampUtils";
@@ -35,49 +35,19 @@ function GroupChatSplitView({
   onEmojiClick: parentOnEmojiClick,
   isLoadingNames,
   lastSeenTimestamp,
-  isLoadingMessages,
-  hasMoreMessages,
-  loadMoreMessages,
 }) {
   const { groupId } = useParams();
-  const chatBoxRef = useRef(null);
-  const isUserAtBottom = useRef(true);
 
-  // Track if user is at the bottom of the chat
-  useEffect(() => {
-    const chatBox = chatBoxRef.current;
-    if (!chatBox) return;
-
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = chatBox;
-      isUserAtBottom.current = scrollHeight - scrollTop <= clientHeight + 50; // 50px buffer
-      if (scrollTop === 0 && hasMoreMessages && !isLoadingMessages) {
-        loadMoreMessages();
-      }
-    };
-
-    chatBox.addEventListener("scroll", handleScroll);
-    return () => chatBox.removeEventListener("scroll", handleScroll);
-  }, [hasMoreMessages, isLoadingMessages, loadMoreMessages]);
-
-  // Auto-scroll only if user is at the bottom
-  useEffect(() => {
-    if (isUserAtBottom.current && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [combinedGroupChat]);
-
-  // Join group chat when groupId changes
   useEffect(() => {
     if (groupId && groupId !== activeGroupId) {
       joinGroupChat(groupId);
     }
   }, [groupId, activeGroupId, joinGroupChat]);
 
-  const onEmojiClick = useCallback((emojiData) => {
-    setReply((prev) => prev + emojiData.emoji);
+  const onEmojiClick = (emojiData) => {
+    setReply(reply + emojiData.emoji);
     setShowEmojiPicker(false);
-  }, [setReply, setShowEmojiPicker]);
+  };
 
   return (
     <div className="split-chat-container">
@@ -91,7 +61,7 @@ function GroupChatSplitView({
           ) : (
             groupChats.map((group) => {
               const lastTs = group.lastMessage?.timestamp;
-              const { dateStr, timeStr } = formatTimestamp(lastTs || null);
+              const { dateStr, timeStr } = formatTimestamp(lastTs);
               return (
                 <div
                   key={group.id}
@@ -180,14 +150,12 @@ function GroupChatSplitView({
                 {combinedGroupChat.find((msg) => msg.pinned)?.text || "Welcome to the group chat!"}
               </div>
             )}
-            <div className="chat-box" ref={chatBoxRef} role="log" aria-live="polite">
-              {isLoadingMessages ? (
-                <p>Loading messages...</p>
-              ) : combinedGroupChat.length === 0 ? (
+            <div className="chat-box" role="log" aria-live="polite">
+              {combinedGroupChat.length === 0 ? (
                 <p className="no-message">No messages in this group yet.</p>
               ) : (
                 combinedGroupChat.map((msg, index) => (
-                  <React.Fragment key={`${msg.id}-${msg.type || "message"}`}>
+                  <React.Fragment key={msg.id}>
                     {msg.isNew && index > 0 && !combinedGroupChat[index - 1].isNew && (
                       <div className="new-messages-divider">New Messages</div>
                     )}
@@ -195,7 +163,7 @@ function GroupChatSplitView({
                       <ChatMessage
                         msg={msg}
                         toggleReaction={toggleReaction}
-                        deleteMessage={(msgId) => deleteMessage(msgId, "group")}
+                        deleteMessage={(msgId) => deleteMessage(msgId, 'group')}
                         therapistInfo={therapistInfo}
                         handleTherapistClick={handleTherapistClick}
                       />
