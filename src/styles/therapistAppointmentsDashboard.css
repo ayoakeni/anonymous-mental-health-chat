@@ -1,0 +1,294 @@
+:root {
+  --primary-color: #4a90e2;
+  --background-color: #f5f7fa;
+  --chat-bg: #ffffff;
+  --text-color: #333333;
+  --therapist-bg: #e6f0fa;
+  --user-bg: #d9e8ff;
+  --ai-bg: #f0f0f0;
+  --system-bg: #f9fafb;
+  --border-radius: 8px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --input-bg: #ffffff;
+  --input-border: #d1d5db;
+  --accent-color: #34c759;
+  --secondary-color: #ff9500;
+  --error-color: #ff3b30;
+  --badge-bg: #ef4444;
+  --highlight-bg: #f3f4f6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-color: #1e1e2f;
+    --chat-bg: #2a2a3b;
+    --text-color: #e0e0e0;
+    --therapist-bg: #3a4a6b;
+    --user-bg: #4a6b9b;
+    --ai-bg: #3b3b4b;
+    --system-bg: #2e2e4b;
+    --input-bg: #2a2a3b;
+    --input-border: #555;
+    --badge-bg: #f87171;
+    --highlight-bg: #374151;
+  }
+}
+
+/* Layout */
+.appointments-panel {
+  background: var(--chat-bg);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+  max-width: 100%;
+}
+
+.appointments-panel .appointments-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.appointments-panel .appointments-header h3 {
+  margin: 0;
+  font-size: 1.6rem;
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.appointments-panel .appointments-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.appointments-panel .appointment-filter,
+.appointments-panel .create-appointment-btn {
+  padding: 0.6rem 1rem;
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.appointments-panel .appointment-filter {
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-color);
+}
+
+.appointments-panel .create-appointment-btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  box-shadow: var(--shadow);
+}
+
+.appointments-panel .create-appointment-btn:hover {
+  background: #357abd;
+  transform: translateY(-1px);
+}
+
+/* Success */
+.appointments-panel .success-message {
+  background: var(--accent-color);
+  color: white;
+  padding: 0.75rem 1rem;
+  border-radius: var(--border-radius);
+  margin-bottom: 1rem;
+  font-weight: 500;
+  animation: fadeInOut 3s ease-in-out;
+}
+
+/* Table */
+.appointments-panel .appointments-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--chat-bg);
+  box-shadow: var(--shadow);
+  font-size: 0.95rem;
+}
+
+.appointments-panel .appointments-table th,
+.appointments-panel .appointments-table td {
+  color: var(--text-color);
+  padding: 0.9rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--input-border);
+}
+
+.appointments-panel .appointments-table th {
+  background: var(--system-bg);
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.appointments-panel .appointments-table tr:hover {
+  background: var(--therapist-bg);
+}
+
+.appointments-panel .pending-row {
+  background: var(--highlight-bg) !important;
+  font-weight: 500;
+}
+
+.appointments-panel .status-pending { color: var(--secondary-color); }
+.appointments-panel .status-confirmed { color: var(--primary-color); }
+.status-completed { color: var(--accent-color); }
+.appointments-panel .status-cancelled,
+.appointments-panel .status-rejected { color: var(--error-color); }
+
+/* Action Buttons */
+.appointments-panel .action-btn,
+.appointments-panel .btn-accept,
+.appointments-panel .btn-reject {
+  padding: 0.5rem 0.8rem;
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-right: 0.4rem;
+  transition: all 0.2s;
+}
+
+.appointments-panel .btn-accept { background: var(--accent-color); color: white; }
+.appointments-panel .btn-reject { background: var(--error-color); color: white; }
+.appointments-panel .edit-btn { background: var(--primary-color); color: white; }
+.appointments-panel .cancel-btn { background: var(--secondary-color); color: white; }
+.appointments-panel .complete-btn { background: #2e7d32; color: white; }
+.appointments-panel .delete-btn { background: var(--error-color); color: white; }
+
+.appointments-panel .action-btn:hover { transform: translateY(-1px); }
+
+/* Modal */
+.appointments-panel .modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s;
+}
+
+.appointments-panel .modal {
+  background: var(--chat-bg);
+  border-radius: var(--border-radius);
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  animation: slideIn 0.3s;
+}
+
+.appointments-panel .modal-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--input-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.appointments-panel .modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--text-color);
+}
+
+.appointments-panel .appointment-form {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+}
+
+.appointments-panel .form-group .label {
+  font-weight: 500;
+  margin-bottom: 0.4rem;
+  color: var(--text-color);
+}
+
+.appointments-panel .input, .appointments-panel .textarea {
+  padding: 0.7rem;
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  background: var(--input-bg);
+  color: var(--text-color);
+  font-size: 0.95rem;
+}
+
+.appointments-panel .input:focus, .appointments-panel .textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(74,144,226,0.2);
+}
+
+.appointments-panel .input-error { border-color: var(--error-color); }
+.appointments-panel .error { color: var(--error-color); font-size: 0.8rem; margin-top: 0.3rem; }
+
+.appointments-panel .form-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.appointments-panel .readonly-reason {
+  padding: 0.7rem;
+  background: var(--system-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  color: var(--text-color);
+  font-size: 0.95rem;
+  min-height: 60px;
+  white-space: pre-wrap;
+  opacity: 0.85;
+}
+
+.appointments-panel .save-btn, .appointments-panel .cancel-btn {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: var(--border-radius);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.appointments-panel .save-btn { background: var(--accent-color); color: white; }
+.appointments-panel .cancel-btn { background: var(--secondary-color); color: white; }
+
+/* Animations */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeInOut { 0%,100% { opacity: 0; } 10%,90% { opacity: 1; } }
+
+/* Rejection Modal */
+.appointments-panel .reject-modal {
+  max-width: 420px;
+}
+
+.appointments-panel .reject-modal .modal-body {
+  padding: 1rem 1.5rem 0;
+}
+
+.appointments-panel .reject-modal .form-actions {
+  padding: 0 1.5rem 1.5rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .appointments-panel .appointments-header { flex-direction: column; align-items: stretch; }
+  .appointments-panel .appointments-controls { width: 100%; }
+  .appointments-panel .appointment-filter, .create-appointment-btn { width: 100%; }
+  .appointments-panel .appointments-table { font-size: 0.85rem; }
+  .appointments-panel .action-btn { padding: 0.4rem 0.6rem; font-size: 0.75rem; }
+}

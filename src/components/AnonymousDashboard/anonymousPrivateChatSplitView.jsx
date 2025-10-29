@@ -673,15 +673,11 @@ function AnonymousPrivateChatSplitView({
               ) : (
                 combinedPrivateChat.map((msg) => (
                   <div key={msg.id}>
-                    {msg.type === "ai-offer" && chatData?.aiOffered && !aiEnabled && msg.role === "system" ? (
+                    {msg.type === "ai-offer" && chatData?.aiOffered && !aiEnabled ? (
                       <div className="ai-offer">
                         <p className="chat-message system"><em>{msg.text}</em></p>
-                        <button onClick={() => handleAiChoice("yes")} disabled={isSending || aiTyping}>
-                          Yes
-                        </button>
-                        <button onClick={() => handleAiChoice("no")} disabled={isSending || aiTyping}>
-                          No
-                        </button>
+                        <button onClick={() => handleAiChoice("yes")} disabled={isSending}>Yes</button>
+                        <button onClick={() => handleAiChoice("no")} disabled={isSending}>No</button>
                       </div>
                     ) : (
                       <ChatMessage

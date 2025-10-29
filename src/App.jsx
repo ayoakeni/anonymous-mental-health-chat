@@ -1,5 +1,7 @@
+// src/App.js
+import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./utils/firebase";
 import Home from "./page/home";
 import About from "./page/about";
@@ -7,50 +9,38 @@ import TherapistLogin from "./login/therapist_login";
 import TherapistDashboard from "./page/therapistDashboard";
 import AnonymousDashboard from "./page/anonymousDashboard";
 import Chatroom from "./page/chats_rooms/chatRoom";
-import "./styles/App.css";
 import ClientDashboard from "./page/clientDashboard";
+import "./styles/App.css";
 
 function ProtectedRoute({ children, requireTherapist = false }) {
-  const location = useLocation();
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isTherapist, setIsTherapist] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        setIsAuthenticated(true);
-        setIsTherapist(!!user.email);
-      } else {
-        setIsAuthenticated(false);
-        setIsTherapist(false);
-      }
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, []);
 
   if (loading) {
     return (
-      <div className="loaderbox" role="status" aria-label="Loading application">
+      <div className="loaderbox" role="status" aria-label="Loading...">
         <span className="loader">
-          <img
-            src="/anonymous-logo.png"
-            alt="Loading Anonymous Mental Health Support Application"
-            className="loader-logo-image"
-          />
+          <img src="/anonymous-logo.png" alt="Loading" className="loader-logo-image" />
         </span>
       </div>
     );
   }
 
-  if (requireTherapist && !isTherapist) {
-    return <Navigate to="/therapist-login" state={{ from: location }} replace />;
+  if (!user) {
+    return <Navigate to="/" state={{ from: location }} replace />;
   }
 
-  if (!isAuthenticated && !requireTherapist) {
-    return <Navigate to="/anonymous-dashboard/*" state={{ from: location }} replace />;
+  if (requireTherapist && !user.email) {
+    return <Navigate to="/therapist-login" state={{ from: location }} replace />;
   }
 
   return children;
@@ -59,12 +49,13 @@ function ProtectedRoute({ children, requireTherapist = false }) {
 function App() {
   return (
     <Routes>
-      <Route path="/chat-room/:chatId" element={<Chatroom />} />
-      <Route path="/chat-room/" element={<Chatroom />} />
       <Route path="/" element={<Home />} />
       <Route path="/about" element={<About />} />
-      <Route path="/client-dashboard/" element={<ClientDashboard />} />
+      <Route path="/client-dashboard/*" element={<ClientDashboard />} />
       <Route path="/therapist-login" element={<TherapistLogin />} />
+      <Route path="/chat-room/:chatId" element={<Chatroom />} />
+      <Route path="/chat-room/" element={<Chatroom />} />
+
       <Route
         path="/therapist-dashboard/*"
         element={

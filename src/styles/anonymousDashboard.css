@@ -1456,6 +1456,556 @@
   background: var(--primary-color);
 }
 
+/* src/styles/appointmentBooking.css */
+.appointment-modal {
+  background: var(--chat-bg);
+  color: var(--text-color);
+  padding: 2rem;
+  border-radius: var(--border-radius);
+  max-width: 480px;
+  width: 90%;
+  margin: 0 auto;
+  position: relative;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--input-border);
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-color);
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.close-btn:hover {
+  opacity: 1;
+}
+
+.appointment-modal h3 {
+  margin: 0 0 1.5rem;
+  color: var(--primary-color);
+  text-align: center;
+  font-weight: 600;
+}
+
+/* Form Group */
+.form-group {
+  margin-bottom: 1.2rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--text-color);
+  font-size: 0.95rem;
+}
+
+.form-group input[type="date"],
+.form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  color: var(--text-color);
+  transition: border 0.2s;
+}
+
+.form-group input[type="date"]:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+/* Time Slots */
+.time-slots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+}
+
+.time-slot {
+  padding: 0.75rem 0.5rem;
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  background: var(--highlight-bg);
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-align: center;
+  position: relative;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.time-slot:hover:not(.booked) {
+  background: var(--user-bg);
+  border-color: var(--primary-color);
+}
+
+.time-slot.selected {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  font-weight: 600;
+}
+
+.time-slot.booked {
+  background: var(--system-bg);
+  color: #999;
+  cursor: not-allowed;
+  border-color: var(--input-border);
+  position: relative;
+}
+
+.booked-tag {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 0.55rem;
+  background: var(--error-color);
+  color: white;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* Submit Button */
+.submit-btn {
+  width: 100%;
+  padding: 0.9rem;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background 0.2s;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #2bb650;
+}
+
+.submit-btn:disabled {
+  background: #95a5a6;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Error & Success */
+.error-text {
+  color: var(--error-color);
+  font-size: 0.9rem;
+  margin: 0.5rem 0 0;
+  text-align: center;
+  font-weight: 500;
+}
+
+.success-message {
+  text-align: center;
+  color: var(--accent-color);
+  font-weight: 600;
+  padding: 1rem;
+}
+
+.success-message p {
+  margin: 0.5rem 0;
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  .appointment-modal {
+    border-color: #444;
+  }
+
+  .time-slot:hover:not(.booked) {
+    background: var(--therapist-bg);
+  }
+}
+
+/* === APPOINTMENTS LIST CARD === */
+.appointments-list {
+  background: var(--chat-bg);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+.appointments-list h3 {
+  margin: 0 0 1.2rem;
+  color: var(--primary-color);
+  font-weight: 600;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.appointments-list h3 i {
+  color: var(--secondary-color);
+}
+
+/* === EMPTY STATE === */
+.appointments-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--text-color);
+  opacity: 0.7;
+  font-style: italic;
+}
+
+/* === APPOINTMENT ITEM === */
+.appointment-item {
+  background: var(--highlight-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.appointment-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  border-color: var(--primary-color);
+}
+
+.appointment-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--primary-color);
+  opacity: 0.3;
+}
+
+/* appointmentsList.css */
+.appointments-list {
+  padding: 1rem;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* View Toggle */
+.view-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.view-toggle button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--input-border);
+  background: var(--card-bg);
+  color: var(--text-color);
+  border-radius: 0.5rem;
+  font-weight: 600;
+}
+.view-toggle button.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+/* Appointment Item */
+.appointment-item {
+  background: var(--card-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  transition: all 0.2s;
+}
+.appointment-item:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.appointment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.appointment-name {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-color);
+}
+.appointment-datetime {
+  font-size: 0.9rem;
+  color: var(--secondary-color);
+  white-space: nowrap;
+}
+
+.appointment-reason {
+  margin: 0.6rem 0;
+  font-size: 0.93rem;
+  line-height: 1.5;
+  opacity: 0.9;
+}
+.appointment-reason em {
+  font-style: italic;
+}
+
+.appointment-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+.appointment-status {
+  padding: 0.35rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.action-btn {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.reschedule-btn {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #bbdefb;
+}
+.cancel-btn {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
+}
+
+/* Calendar */
+.calendar-view {
+  background: var(--card-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.calendar-header button {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--text-color);
+}
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+}
+.calendar-day-header {
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--secondary-color);
+}
+.calendar-day {
+  min-height: 80px;
+  border: 1px solid var(--input-border);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  position: relative;
+}
+.calendar-day.today {
+  background: var(--primary-color);
+  color: white;
+}
+.day-number {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.has-appt {
+  background: #e8f5e8;
+}
+.calendar-appt {
+  font-size: 0.7rem;
+  background: #4caf50;
+  color: white;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.3rem;
+  margin-top: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal {
+  background: var(--card-bg);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+.modal h4 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+.form-group {
+  margin-bottom: 1rem;
+}
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 0.7rem;
+  border: 1px solid var(--input-border);
+  border-radius: 0.5rem;
+  font-size: 1rem;
+}
+.time-slots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+.time-slot {
+  padding: 0.7rem;
+  border: 1px solid var(--input-border);
+  border-radius: 0.5rem;
+  text-align: center;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.time-slot.selected {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+.time-slot.booked {
+  background: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.form-actions button {
+  flex: 1;
+  padding: 0.7rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+}
+.form-actions button:first-child {
+  background: var(--primary-color);
+  color: white;
+}
+.cancel-btn {
+  background: #f0f0f0;
+  color: #333;
+}
+
+/* Rating Modal */
+.rating-modal {
+  max-width: 380px;
+  text-align: center;
+}
+.star-rating {
+  margin: 1rem 0;
+}
+.star {
+  font-size: 2rem;
+  background: none;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+}
+.star.filled {
+  color: #ffc107;
+}
+
+/* Client Rating */
+.client-rating {
+  font-size: 0.9rem;
+  color: #666;
+  margin-top: 0.5rem;
+}
+
+/* Rate Button */
+.rate-btn {
+  background: #e8f5e8;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  border-radius: 0.5rem;
+}
+
+/* Rating Display */
+.rating-display {
+  font-size: 1.1rem;
+  color: #ffc107;
+}
+
+/* Notification Toast */
+.notification-toast {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  background: #333;
+  color: white;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  z-index: 2000;
+  animation: slideIn 0.3s ease;
+}
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  .has-appt { background: #1a3a1a; }
+  .calendar-appt { background: #2e7d32; }
+}
+
 @media (max-width: 768px) {
   .anonymous-dashboard .box.open {
     margin-left: 65px;

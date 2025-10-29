@@ -27,7 +27,7 @@ import GroupChatSplitView from "../components/therapistDashboard/GroupChatSplitV
 import PrivateChatSplitView from "../components/therapistDashboard/PrivateChatSplitView";
 import TherapistDashboardHome from "../components/therapistDashboard/therapistDashboardHome";
 import TherapistDashboardProfile from "../components/therapistDashboard/therapistDashboardProfile";
-import TherapistDashboardAppointment from "../components/therapistDashboard/therapistDashboardAppointment";
+import TherapistAppointmentsDashboard from "../components/therapistDashboard/therapistAppointmentDashboard";
 import useNotificationSound from '../components/useNotificationSound';
 import { getTimestampMillis, formatTimestamp } from "../components/timestampUtils";
 import "../styles/therapistDashboard.css";
@@ -260,10 +260,13 @@ function TherapistDashboard() {
 
   // Check authentication
   useEffect(() => {
-    if (!auth.currentUser) {
-      console.log("No user logged in, redirecting to login");
-      navigate("/therapist-login");
-    }
+    const uid = auth.currentUser?.uid;
+    if (!uid) return navigate("/therapist-login");
+
+    const unsub = onSnapshot(doc(db, "therapists", uid), (snap) => {
+      setTherapistInfo(snap.exists() ? snap.data() : { name: "Therapist" });
+    });
+    return unsub;
   }, [navigate]);
 
   // Toggle sidebar
@@ -1558,22 +1561,13 @@ function TherapistDashboard() {
           <Route
             path="/appointments"
             element={
-              <TherapistDashboardAppointment
+              <TherapistAppointmentsDashboard
                 therapistId={therapistId}
                 appointments={appointments}
                 clients={clients}
                 showError={showError}
                 formatTimestamp={formatTimestamp}
               />
-            }
-          />
-          <Route
-            path="/clients"
-            element={
-              <div className="clients">
-                <h3>Clients</h3>
-                <p>Manage your client list and view client details. (Feature coming soon)</p>
-              </div>
             }
           />
           <Route

@@ -222,8 +222,8 @@ const AnonymousDashboardHome = ({
                 therapist={selectedTherapist}
                 isOnline={selectedTherapist.online}
                 onBack={() => setSelectedTherapist(null)}
-                onStartChat={() => alert("Starting chat with therapist (feature coming soon)!")}
-                onBookAppointment={() => alert("Appointment booking coming soon!")}
+                onStartChat={undefined}
+                onBookAppointment={undefined}
               />
             </div>
           </div>

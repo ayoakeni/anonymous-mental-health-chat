@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
-import { useNavigate, Routes, Route, useParams } from "react-router-dom";
+import { useNavigate, Routes, Route, useParams, useLocation } from "react-router-dom";
 import { db, auth } from "../utils/firebase";
 import {
   collection,
@@ -20,6 +20,7 @@ import Sidebar from "../components/sidebar";
 import AnonymousDashboardHome from "../components/AnonymousDashboard/anonymousDashboardHome";
 import AnonymousGroupChatSplitView from "../components/AnonymousDashboard/anonymousGroupChatSplitView";
 import AnonymousPrivateChatSplitView from "../components/AnonymousDashboard/anonymousPrivateChatSplitView";
+import AppointmentsList from "../components/AnonymousDashboard/anonymousAppointmentList";
 import MoodTracker from "../components/moodTracker";
 import { DateTime } from 'luxon';
 import "../styles/anonymousDashboard.css";
@@ -41,6 +42,7 @@ function AnonymousDashboard() {
   const errorTimeoutRef = useRef(null);
   const moodModalRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const { groupId, chatId } = useParams();
   const userId = auth.currentUser?.uid;
   const displayName = getAnonName();
@@ -179,28 +181,14 @@ function AnonymousDashboard() {
   // Fetch mood history
   useEffect(() => {
     const userId = auth.currentUser?.uid || "anonymous";
-    const q = query(
-      collection(db, "moods"),
-      where("userId", "==", userId),
-      limit(5)
-    );
+    const q = query(collection(db, "moods"), where("userId", "==", userId), limit(5));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        const moods = snapshot.docs
-          .map(doc => doc.data())
-          .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-        setMoodHistory(moods);
-      } else {
-        setMoodHistory([]);
-      }
+      const moods = snapshot.docs.map(d => d.data()).sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+      setMoodHistory(moods);
       setMoodHistoryLoading(false);
-    }, (error) => {
-      console.error("Error fetching mood history:", error);
-      showError("Failed to load mood history. Please try again.");
-      setMoodHistoryLoading(false);
-    });
+    }, () => setMoodHistoryLoading(false));
     return () => unsubscribe();
-  }, [showError]);
+  }, []);
 
   // Check if mood popup should be shown
   const checkMoodPopup = useCallback(() => {
@@ -220,31 +208,27 @@ function AnonymousDashboard() {
     // Show popup if no mood logged today and not dismissed today
     if (!hasMoodToday && lastDismissed !== today) {
       setShowMoodPopup(true);
-    } else {
-      setShowMoodPopup(false);
     }
-  }, [moodHistory, formatTimestamp]);
+  }, [moodHistory]);
 
   // Initial check and periodic re-check for popup
   useEffect(() => {
     if (!moodHistoryLoading) {
       checkMoodPopup();
-      const intervalId = setInterval(checkMoodPopup, 5000); // Check every 5 seconds
-      return () => clearInterval(intervalId); // Cleanup interval
+      const id = setInterval(checkMoodPopup, 10000);
+      return () => clearInterval(id);
     }
   }, [moodHistoryLoading, checkMoodPopup]);
 
   // Handle mood popup dismissal
   const handleDismissMoodPopup = () => {
-    const today = DateTime.now().setZone('Africa/Lagos').toISODate();
-    localStorage.setItem('moodPopupDismissedDate', today);
+    localStorage.setItem('moodPopupDismissedDate', DateTime.now().setZone('Africa/Lagos').toISODate());
     setShowMoodPopup(false);
   };
 
   // Handle remind me later
   const handleRemindLater = () => {
-  const remindTime = Date.now() + 30 * 60 * 1000; // 30 minutes
-    localStorage.setItem('moodPopupRemindLater', remindTime);
+    localStorage.setItem('moodPopupRemindLater', Date.now() + 30 * 60 * 1000);
     setShowMoodPopup(false);
   };
 
@@ -252,15 +236,27 @@ function AnonymousDashboard() {
   const lastMood = moodHistory[0]?.mood;
   const prompt = lastMood === 'sad' ? 'Feeling down? Let’s check in today!' : 'How’s your mood today?';
 
-  // Sync active chat IDs with URL params
+  // Sync URL ↔ active chat
   useEffect(() => {
-    if (groupId && groupId !== activeGroupId) {
-      setActiveGroupId(groupId);
+    if (groupId && groupId !== activeGroupId) setActiveGroupId(groupId);
+    if (chatId && chatId !== activeChatId) setActiveChatId(chatId);
+  }, [groupId, chatId]);
+
+  useEffect(() => {
+    if (activeGroupId && !location.pathname.includes(activeGroupId)) {
+      navigate(`/anonymous-dashboard/group-chat/${activeGroupId}`, { replace: true });
+    } else if (!activeGroupId && location.pathname.includes('/group-chat/')) {
+      navigate('/anonymous-dashboard/group-chat', { replace: true });
     }
-    if (chatId && chatId !== activeChatId) {
-      setActiveChatId(chatId);
+  }, [activeGroupId, navigate, location]);
+
+  useEffect(() => {
+    if (activeChatId && !location.pathname.includes(activeChatId)) {
+      navigate(`/anonymous-dashboard/private-chat/${activeChatId}`, { replace: true });
+    } else if (!activeChatId && location.pathname.includes('/private-chat/')) {
+      navigate('/anonymous-dashboard/private-chat', { replace: true });
     }
-  }, [groupId, chatId, activeGroupId, activeChatId]);
+  }, [activeChatId, navigate, location]);
 
   // Handle sidebar toggle
   const handleToggleSidebar = () => {
@@ -428,6 +424,7 @@ function AnonymousDashboard() {
               />
             }
           />
+          <Route path="/appointments-list" element={<AppointmentsList />} />
         </Routes>
       </div>
     </div>

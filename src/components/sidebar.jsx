@@ -65,30 +65,19 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout, isAnonymous =
             {privateUnreadCount > 0 && <span className="badge">{privateUnreadCount}</span>}
           </span>
         </Link>
+        <Link data-tooltip="Appointments" to={isAnonymous ? "/anonymous-dashboard/appointments-list" : "/therapist-dashboard/appointments"}>
+          <span
+            role="button"
+            aria-label="Appointments"
+            tabIndex="0"
+            className={`iconBadge ${location.pathname === (isAnonymous ? '/anonymous-dashboard/appointments-list' : '/therapist-dashboard/appointments') ? 'active' : ''}`}
+          >
+            <i className="fas fa-calendar"></i>
+            {isOpen && <span className="link-text">Appointments</span>}
+          </span>
+        </Link>
         {!isAnonymous && (
           <>
-            <Link data-tooltip="Appointments" to="/therapist-dashboard/appointments">
-              <span
-                role="button"
-                aria-label="Appointments"
-                tabIndex="0"
-                className={`iconBadge ${location.pathname === '/therapist-dashboard/appointments' ? 'active' : ''}`}
-              >
-                <i className="fas fa-calendar"></i>
-                {isOpen && <span className="link-text">Appointments</span>}
-              </span>
-            </Link>
-            <Link data-tooltip="Clients" to="/therapist-dashboard/clients">
-              <span
-                role="button"
-                aria-label="Clients"
-                tabIndex="0"
-                className={`iconBadge ${location.pathname === '/therapist-dashboard/clients' ? 'active' : ''}`}
-              >
-                <i className="fas fa-user-friends"></i>
-                {isOpen && <span className="link-text">Clients</span>}
-              </span>
-            </Link>
             <Link data-tooltip="Notification" to="/therapist-dashboard/notifications">
               <span
                 role="button"

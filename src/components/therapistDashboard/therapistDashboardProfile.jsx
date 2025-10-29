@@ -167,19 +167,19 @@ const TherapistDashboardProfile = ({ therapistInfo, editing, setEditing, setTher
               />
             </div>
             <div className="formGroup">
-              <label className="label">Rating</label>
-              <input
-                type="number"
-                placeholder="Rating (0-5)"
-                value={therapistInfo.rating}
-                onChange={(e) =>
-                  setTherapistInfo((prev) => ({ ...prev, rating: parseFloat(e.target.value) || 0 }))
-                }
-                min={0}
-                max={5}
-                step={0.1}
-                className="input"
-              />
+              <label className="label">Average Rating</label>
+              <div className="rating-display">
+                {therapistInfo.rating > 0 ? (
+                  <>
+                    {'★'.repeat(Math.floor(therapistInfo.rating))}
+                    {therapistInfo.rating % 1 >= 0.5 && '☆'}
+                    <strong> {therapistInfo.rating.toFixed(1)}</strong>
+                    {therapistInfo.totalRatings > 0 && ` (${therapistInfo.totalRatings} reviews)`}
+                  </>
+                ) : (
+                  "No ratings yet"
+                )}
+              </div>
             </div>
             <div className="buttonGroup">
               <button onClick={handleSave} className="saveButton" disabled={isSaving}>

@@ -3,7 +3,7 @@ import { getAuth } from "firebase/auth";
 import { getFirestore, Timestamp, serverTimestamp, doc, setDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getAI, GoogleAIBackend } from "firebase/ai";
-
+import { getMessaging } from "firebase/messaging";
 const firebaseConfig = {
   apiKey: "AIzaSyDbms1wjGNePw8V_SP9OJdNm4TBnSbp_YI",
   authDomain: "login-authentication-e4113.firebaseapp.com",
@@ -15,10 +15,25 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const storage = getStorage(app)
+
+// Initialize services
 const db = getFirestore(app);
 const auth = getAuth(app);
+const storage = getStorage(app);
+const messaging = getMessaging(app);
 
-export { db, auth, doc, setDoc, Timestamp, serverTimestamp, storage, ref, uploadBytes, getDownloadURL };
+export { 
+  db, 
+  auth, 
+  doc, 
+  setDoc, 
+  Timestamp, 
+  serverTimestamp, 
+  storage, 
+  ref, 
+  uploadBytes, 
+  getDownloadURL,
+  messaging
+};
 
 export const ai = getAI(app, { backend: new GoogleAIBackend() });
