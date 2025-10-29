@@ -105,7 +105,7 @@ function TherapistDashboard() {
   const errorTimeoutRef = useRef(null);
   const [isSaving, setIsSaving] = useState(false);
   const therapistId = auth.currentUser?.uid;
-  const isOnline = therapistsOnline.some(t => t.uid === therapistId && t.online);
+  const isOnline = !!therapistsOnline.find(t => t?.uid === therapistId)?.online;
   const displayName = therapistInfo.name || "Unknown Therapist";
   const { typingUsers, handleTyping } = useTypingStatus(displayName);
   const messagesEndRef = useRef(null);
@@ -375,11 +375,20 @@ function TherapistDashboard() {
       q,
       (snap) => {
         const onlineTherapists = snap.docs
-          .map((d) => ({ uid: d.id, ...d.data() }))
-          .filter((t) => t.online);
+          .map((d) => {
+            const data = d.data();
+            if (!data) return null;
+            return {
+              uid: d.id,
+              name: data.name || "Therapist",
+              online: data.online === true,
+            };
+          })
+          .filter((t) => t !== null && t.online === true);
+
         setTherapistsOnline(onlineTherapists);
         setIsTherapistAvailable(onlineTherapists.length > 0);
-        setActiveTherapists(onlineTherapists.map((t) => t.name || "Therapist"));
+        setActiveTherapists(onlineTherapists.map((t) => t.name));
       },
       (err) => {
         console.error("Error fetching therapists online:", err);
@@ -793,7 +802,7 @@ function TherapistDashboard() {
       }
     );
     return () => unsubscribe();
-  }, [therapistId, showError]);
+  }, [therapistId, therapistInfo, showError]);
 
   // Tab close vs refresh detection
   useEffect(() => {

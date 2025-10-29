@@ -240,7 +240,7 @@ function AnonymousDashboard() {
   useEffect(() => {
     if (groupId && groupId !== activeGroupId) setActiveGroupId(groupId);
     if (chatId && chatId !== activeChatId) setActiveChatId(chatId);
-  }, [groupId, chatId]);
+  }, [groupId, activeGroupId, chatId, activeChatId]);
 
   useEffect(() => {
     if (activeGroupId && !location.pathname.includes(activeGroupId)) {

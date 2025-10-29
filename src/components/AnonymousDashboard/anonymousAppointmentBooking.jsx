@@ -100,74 +100,76 @@ function AppointmentBooking({ therapist, onClose }) {
   if (!therapist) return null;
 
   return (
-    <div className="modal-backdrop">
-      <div className="appointment-modal">
-        <button className="close-btn" onClick={onClose}>×</button>
+    <div className="appointment-booking-wrapper">
+      <div className="modal-backdrop">
+        <div className="appointment-modal">
+          <button className="close-btn" onClick={onClose}>×</button>
 
-        <h3>Book with {therapist.name}</h3>
+          <h3>Book with {therapist.name}</h3>
 
-        {success ? (
-          <div className="success-message">
-            <p>Appointment requested!</p>
-            <p>Redirecting...</p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>Select Date</label>
-              <input
-                type="date"
-                min={minDate}
-                max={maxDate}
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                required
-              />
+          {success ? (
+            <div className="success-message">
+              <p>Appointment requested!</p>
+              <p>Redirecting...</p>
             </div>
-
-            <div className="form-group">
-              <label>Select Time</label>
-              <div className="time-slots">
-                {TIME_SLOTS.map((time) => {
-                  const disabled = !selectedDate || isSlotBooked(selectedDate, time);
-                  return (
-                    <button
-                      key={time}
-                      type="button"
-                      className={`time-slot ${selectedTime === time ? "selected" : ""} ${disabled ? "booked" : ""}`}
-                      onClick={() => !disabled && setSelectedTime(time)}
-                      disabled={disabled}
-                    >
-                      {time}
-                      {disabled && <span className="booked-tag">Booked</span>}
-                    </button>
-                  );
-                })}
+          ) : (
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label>Select Date</label>
+                <input
+                  type="date"
+                  min={minDate}
+                  max={maxDate}
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  required
+                />
               </div>
-            </div>
 
-            <div className="form-group">
-              <label>Reason for Appointment</label>
-              <textarea
-                rows="3"
-                placeholder="Briefly describe why you'd like to talk..."
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                required
-              />
-            </div>
+              <div className="form-group">
+                <label>Select Time</label>
+                <div className="time-slots">
+                  {TIME_SLOTS.map((time) => {
+                    const disabled = !selectedDate || isSlotBooked(selectedDate, time);
+                    return (
+                      <button
+                        key={time}
+                        type="button"
+                        className={`time-slot ${selectedTime === time ? "selected" : ""} ${disabled ? "booked" : ""}`}
+                        onClick={() => !disabled && setSelectedTime(time)}
+                        disabled={disabled}
+                      >
+                        {time}
+                        {disabled && <span className="booked-tag">Booked</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-            {error && <p className="error-text">{error}</p>}
+              <div className="form-group">
+                <label>Reason for Appointment</label>
+                <textarea
+                  rows="3"
+                  placeholder="Briefly describe why you'd like to talk..."
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  required
+                />
+              </div>
 
-            <button
-              type="submit"
-              className="submit-btn"
-              disabled={isSubmitting || !selectedDate || !selectedTime}
-            >
-              {isSubmitting ? "Booking..." : "Request Appointment"}
-            </button>
-          </form>
-        )}
+              {error && <p className="error-text">{error}</p>}
+
+              <button
+                type="submit"
+                className="submit-btn"
+                disabled={isSubmitting || !selectedDate || !selectedTime}
+              >
+                {isSubmitting ? "Booking..." : "Request Appointment"}
+              </button>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

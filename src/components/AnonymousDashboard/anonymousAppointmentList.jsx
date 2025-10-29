@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { db, auth, messaging } from "../../utils/firebase";
 import {
   collection,
@@ -18,14 +18,29 @@ import { requestForToken, onMessageListener } from "../../utils/pushNotification
 function AppointmentsList() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState("list"); // "list" or "calendar"
+  const [view, setView] = useState("list");
   const [selectedMonth, setSelectedMonth] = useState(new Date());
-  const [showReschedule, setShowReschedule] = useState(null);
+  const [showReschedule, setShowReschedule] = useState(null); // { appt }
+  const [rescheduleData, setRescheduleData] = useState(null); // { appt, date, time }
+  const [submittingReschedule, setSubmittingReschedule] = useState(false);
   const [showRating, setShowRating] = useState(null); // { appt, rating, comment }
+  const [showRatingConfirm, setShowRatingConfirm] = useState(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(null); // { id, therapistName }
   const [notification, setNotification] = useState(null);
+  const [toast, setToast] = useState(null);
   const clientUid = auth.currentUser?.uid;
 
-  // === 1. Fetch Appointments + Therapist Name ===
+  // === Toast Helper ===
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => {
+      const toastEl = document.querySelector('.appointments-list-wrapper__toast');
+      if (toastEl) toastEl.classList.add('fade-out');
+      setTimeout(() => setToast(null), 400);
+    }, 3600);
+  };
+
+  // === 1. Fetch Appointments ===
   useEffect(() => {
     if (!clientUid) return;
 
@@ -60,7 +75,7 @@ function AppointmentsList() {
     return unsub;
   }, [clientUid]);
 
-  // === 2. Push Notifications Setup ===
+  // === 2. Push Notifications ===
   useEffect(() => {
     if (!messaging) return;
 
@@ -77,27 +92,67 @@ function AppointmentsList() {
     return unsubscribe;
   }, []);
 
-  // === 3. Cancel Appointment ===
-  const handleCancel = async (apptId) => {
-    if (!window.confirm("Cancel this appointment?")) return;
+  // === 3. Cancel Flow ===
+  const initiateCancel = (apptId, therapistName) => {
+    setShowCancelConfirm({ id: apptId, therapistName });
+  };
+
+  const confirmCancel = async () => {
+    const { id } = showCancelConfirm;
     try {
-      await updateDoc(doc(db, "appointments", apptId), {
+      await updateDoc(doc(db, "appointments", id), {
         status: "cancelled",
         cancelledAt: serverTimestamp(),
       });
-      alert("Appointment cancelled.");
+      showToast("success", "Appointment cancelled.");
+      setShowCancelConfirm(null);
     } catch (err) {
-      alert("Failed to cancel.");
+      showToast("error", "Failed to cancel appointment.");
     }
   };
 
-  // === 4. Reschedule Modal ===
+  // === 4. Reschedule Flow (Lifted to Parent) ===
+  const initiateReschedule = (appt, date, time) => {
+    if (!date || !time) return showToast("error", "Please select date and time.");
+    setRescheduleData({ appt, date, time });
+  };
+
+  const confirmReschedule = async () => {
+    if (!rescheduleData) return;
+    setSubmittingReschedule(true);
+    try {
+      const { appt, date, time } = rescheduleData;
+      const reason = appt.reason;
+      const newId = `${clientUid}_${appt.therapistUid}_${date}_${time.replace(":", "")}`;
+
+      await setDoc(doc(db, "appointments", newId), {
+        clientType: "anonymous",
+        clientUid,
+        therapistUid: appt.therapistUid,
+        date,
+        time,
+        reason,
+        status: "pending",
+        rescheduledFrom: appt.id,
+        createdAt: serverTimestamp(),
+      });
+      await deleteDoc(doc(db, "appointments", appt.id));
+
+      showToast("success", "Appointment rescheduled!");
+      setRescheduleData(null);
+      setShowReschedule(null);
+    } catch (err) {
+      console.error(err);
+      showToast("error", "Failed to reschedule.");
+    } finally {
+      setSubmittingReschedule(false);
+    }
+  };
+
   const RescheduleModal = ({ appt, onClose }) => {
     const [date, setDate] = useState("");
     const [time, setTime] = useState("");
-    const [reason] = useState(appt.reason);
     const [bookedSlots, setBookedSlots] = useState({});
-    const [submitting, setSubmitting] = useState(false);
 
     const TIME_SLOTS = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"];
     const minDate = format(new Date(), "yyyy-MM-dd");
@@ -113,7 +168,7 @@ function AppointmentsList() {
         const booked = {};
         snap.docs.forEach((d) => {
           const data = d.data();
-          if (data.id !== appt.id) {
+          if (d.id !== appt.id) {
             booked[`${data.date}_${data.time}`] = true;
           }
         });
@@ -122,53 +177,30 @@ function AppointmentsList() {
       return unsub;
     }, [appt]);
 
-    const handleReschedule = async () => {
-      if (!date || !time) return alert("Select date and time.");
+    const handleReschedule = () => {
       const key = `${date}_${time}`;
-      if (bookedSlots[key]) return alert("Slot already booked.");
-
-      setSubmitting(true);
-      try {
-        const newId = `${clientUid}_${appt.therapistUid}_${date}_${time.replace(":", "")}`;
-        await setDoc(doc(db, "appointments", newId), {
-          clientType: "anonymous",
-          clientUid,
-          therapistUid: appt.therapistUid,
-          date,
-          time,
-          reason,
-          status: "pending",
-          rescheduledFrom: appt.id,
-          createdAt: serverTimestamp(),
-        });
-        await deleteDoc(doc(db, "appointments", appt.id));
-        alert("Rescheduled!");
-        onClose();
-      } catch (err) {
-        alert("Failed.");
-      } finally {
-        setSubmitting(false);
-      }
+      if (bookedSlots[key]) return showToast("error", "This slot is already booked.");
+      initiateReschedule(appt, date, time);
     };
 
     return (
-      <div className="modal-backdrop" onClick={onClose}>
-        <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="appointments-list-wrapper__modal-backdrop" onClick={onClose}>
+        <div className="appointments-list-wrapper__modal" onClick={(e) => e.stopPropagation()}>
           <h4>Reschedule with {appt.therapistName}</h4>
-          <div className="form-group">
+          <div className="appointments-list-wrapper__form-group">
             <label>Date</label>
             <input type="date" min={minDate} max={maxDate} value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
-          <div className="form-group">
+          <div className="appointments-list-wrapper__form-group">
             <label>Time</label>
-            <div className="time-slots">
+            <div className="appointments-list-wrapper__time-slots">
               {TIME_SLOTS.map((t) => {
                 const disabled = !date || bookedSlots[`${date}_${t}`];
                 return (
                   <button
                     key={t}
                     type="button"
-                    className={`time-slot ${time === t ? "selected" : ""} ${disabled ? "booked" : ""}`}
+                    className={`appointments-list-wrapper__time-slot ${time === t ? "selected" : ""} ${disabled ? "booked" : ""}`}
                     onClick={() => !disabled && setTime(t)}
                     disabled={disabled}
                   >
@@ -178,35 +210,37 @@ function AppointmentsList() {
               })}
             </div>
           </div>
-          <div className="form-actions">
-            <button onClick={handleReschedule} disabled={submitting}>
-              {submitting ? "Saving..." : "Reschedule"}
+          <div className="appointments-list-wrapper__form-actions">
+            <button onClick={handleReschedule} disabled={submittingReschedule}>
+              {submittingReschedule ? "Saving..." : "Reschedule"}
             </button>
-            <button onClick={onClose} className="cancel-btn">Cancel</button>
+            <button onClick={onClose} className="appointments-list-wrapper__cancel-btn">Cancel</button>
           </div>
         </div>
       </div>
     );
   };
 
-  // === 5. Submit Rating ===
-  const submitRating = async () => {
-    if (!showRating?.appt || showRating.rating < 1) return;
+  // === 5. Rating Flow ===
+  const initiateRating = (appt) => {
+    setShowRating({ appt, rating: 5, comment: "" });
+  };
 
+  const confirmRating = async () => {
+    const { appt, rating, comment } = showRatingConfirm;
     try {
-      const apptRef = doc(db, "appointments", showRating.appt.id);
+      const apptRef = doc(db, "appointments", appt.id);
       await updateDoc(apptRef, {
-        clientRating: showRating.rating,
-        clientComment: showRating.comment?.trim() || null,
+        clientRating: rating,
+        clientComment: comment?.trim() || null,
         ratedAt: serverTimestamp(),
       });
 
-      // Update therapist average
-      const therapistRef = doc(db, "therapists", showRating.appt.therapistUid);
+      const therapistRef = doc(db, "therapists", appt.therapistUid);
       const therapistSnap = await getDoc(therapistRef);
       if (therapistSnap.exists()) {
         const data = therapistSnap.data();
-        const ratings = (data.ratings || []).concat([{ rating: showRating.rating, comment: showRating.comment }]);
+        const ratings = (data.ratings || []).concat([{ rating, comment }]);
         const avg = ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length;
 
         await updateDoc(therapistRef, {
@@ -216,10 +250,11 @@ function AppointmentsList() {
         });
       }
 
-      alert("Thank you for your feedback!");
+      showToast("success", "Thank you for your feedback!");
+      setShowRatingConfirm(null);
       setShowRating(null);
     } catch (err) {
-      alert("Failed to submit rating.");
+      showToast("error", "Failed to submit rating.");
     }
   };
 
@@ -234,28 +269,28 @@ function AppointmentsList() {
     };
 
     return (
-      <div className="calendar-view">
-        <div className="calendar-header">
+      <div className="appointments-list-wrapper__calendar-view">
+        <div className="appointments-list-wrapper__calendar-header">
           <button onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1))}>Prev</button>
           <h4>{format(selectedMonth, "MMMM yyyy")}</h4>
           <button onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1))}>Next</button>
         </div>
-        <div className="calendar-grid">
+        <div className="appointments-list-wrapper__calendar-grid">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-            <div key={d} className="calendar-day-header">{d}</div>
+            <div key={d} className="appointments-list-wrapper__calendar-day-header">{d}</div>
           ))}
           {days.map((day) => {
             const dayAppts = getAppointmentsForDay(day);
             return (
               <div
                 key={day}
-                className={`calendar-day ${dayAppts.length > 0 ? "has-appt" : ""} ${
+                className={`appointments-list-wrapper__calendar-day ${dayAppts.length > 0 ? "has-appt" : ""} ${
                   format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") ? "today" : ""
                 }`}
               >
-                <div className="day-number">{format(day, "d")}</div>
+                <div className="appointments-list-wrapper__day-number">{format(day, "d")}</div>
                 {dayAppts.map((appt) => (
-                  <div key={appt.id} className="calendar-appt">
+                  <div key={appt.id} className="appointments-list-wrapper__calendar-appt">
                     {appt.time} - {appt.therapistName}
                   </div>
                 ))}
@@ -267,13 +302,84 @@ function AppointmentsList() {
     );
   };
 
+  // === Confirmation Modals ===
+  const CancelConfirmModal = () => {
+    if (!showCancelConfirm) return null;
+    return (
+      <div className="appointments-list-wrapper__modal-backdrop" onClick={() => setShowCancelConfirm(null)}>
+        <div className="appointments-list-wrapper__modal" onClick={(e) => e.stopPropagation()}>
+          <h4>Cancel Appointment?</h4>
+          <p>Are you sure you want to cancel your session with <strong>{showCancelConfirm.therapistName}</strong>?</p>
+          <div className="appointments-list-wrapper__form-actions">
+            <button onClick={confirmCancel} className="appointments-list-wrapper__danger-btn">Yes, Cancel</button>
+            <button onClick={() => setShowCancelConfirm(null)} className="appointments-list-wrapper__cancel-btn">No, Keep It</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const RescheduleConfirmModal = () => {
+    if (!rescheduleData) return null;
+    const { appt, date, time } = rescheduleData;
+    return (
+      <div className="appointments-list-wrapper__modal-backdrop" onClick={() => setRescheduleData(null)}>
+        <div className="appointments-list-wrapper__modal" onClick={(e) => e.stopPropagation()}>
+          <h4>Confirm Reschedule</h4>
+          <p>
+            Move your appointment with <strong>{appt.therapistName}</strong> to:
+            <br />
+            <strong>{format(new Date(date), "MMM d, yyyy")} at {time}</strong>
+          </p>
+          <div className="appointments-list-wrapper__form-actions">
+            <button onClick={confirmReschedule} disabled={submittingReschedule} className="appointments-list-wrapper__save-btn">
+              {submittingReschedule ? "Saving..." : "Yes, Reschedule"}
+            </button>
+            <button onClick={() => setRescheduleData(null)} className="appointments-list-wrapper__cancel-btn">Go Back</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const RatingConfirmModal = () => {
+    if (!showRatingConfirm) return null;
+    const { appt, rating, comment } = showRatingConfirm;
+    return (
+      <div className="appointments-list-wrapper__modal-backdrop" onClick={() => setShowRatingConfirm(null)}>
+        <div className="appointments-list-wrapper__modal" onClick={(e) => e.stopPropagation()}>
+          <h4>Submit Your Rating?</h4>
+          <p>
+            You rated your session with <strong>{appt.therapistName}</strong>:
+            <br />
+            <strong>{'★'.repeat(rating)}{'☆'.repeat(5 - rating)}</strong>
+            {comment && (
+              <>
+                <br />
+                <em>"{comment}"</em>
+              </>
+            )}
+          </p>
+          <div className="appointments-list-wrapper__form-actions">
+            <button onClick={confirmRating} className="appointments-list-wrapper__save-btn">Submit Rating</button>
+            <button onClick={() => setShowRatingConfirm(null)} className="appointments-list-wrapper__cancel-btn">Edit</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // === UI ===
-  if (loading) return <div className="appointments-list"><p>Loading...</p></div>;
+  if (loading) return (
+    <div className="appointments-list-wrapper">
+      <p>Loading...</p>
+    </div>
+  );
 
   if (appointments.length === 0) {
     return (
-      <div className="appointments-list">
-        <div className="appointments-empty">
+      <div className="appointments-list-wrapper">
+        <div className="appointments-list-wrapper__empty">
           <p>No appointments yet.</p>
         </div>
       </div>
@@ -292,23 +398,26 @@ function AppointmentsList() {
   };
 
   return (
-    <div className="appointments-list">
+    <div className="appointments-list-wrapper">
+      {/* Toast Messages */}
+      {toast && (
+        <div className={`appointments-list-wrapper__toast ${toast.type}`}>
+          {toast.message}
+        </div>
+      )}
+
       {/* Notification Toast */}
       {notification && (
-        <div className="notification-toast">
+        <div className="appointments-list-wrapper__notification-toast">
           <strong>{notification.title}</strong>
           <p>{notification.body}</p>
         </div>
       )}
 
       {/* View Toggle */}
-      <div className="view-toggle">
-        <button className={view === "list" ? "active" : ""} onClick={() => setView("list")}>
-          List
-        </button>
-        <button className={view === "calendar" ? "active" : ""} onClick={() => setView("calendar")}>
-          Calendar
-        </button>
+      <div className="appointments-list-wrapper__view-toggle">
+        <button className={view === "list" ? "active" : ""} onClick={() => setView("list")}>List</button>
+        <button className={view === "calendar" ? "active" : ""} onClick={() => setView("calendar")}>Calendar</button>
       </div>
 
       {/* Calendar View */}
@@ -319,29 +428,32 @@ function AppointmentsList() {
         <>
           <h3>Your Appointments</h3>
           {appointments.map((appt) => (
-            <div key={appt.id} className="appointment-item">
-              <div className="appointment-header">
-                <div className="appointment-name">{appt.therapistName}</div>
-                <div className="appointment-datetime">
+            <div key={appt.id} className="appointments-list-wrapper__appointment-item">
+              <div className="appointments-list-wrapper__appointment-header">
+                <div className="appointments-list-wrapper__appointment-name">{appt.therapistName}</div>
+                <div className="appointments-list-wrapper__appointment-datetime">
                   {format(new Date(appt.date), "MMM d, yyyy")} at {appt.time}
                 </div>
               </div>
-              <p className="appointment-reason">
+              <p className="appointments-list-wrapper__appointment-reason">
                 <em>"{appt.reason || "No reason given"}"</em>
               </p>
 
-              <div className="appointment-footer">
-                <span className={`appointment-status ${getStatusColor(appt.status)}`}>
+              <div className="appointments-list-wrapper__appointment-footer">
+                <span className={`appointments-list-wrapper__appointment-status ${getStatusColor(appt.status)}`}>
                   {appt.status.charAt(0).toUpperCase() + appt.status.slice(1)}
                 </span>
 
                 {/* Cancel / Reschedule */}
                 {["pending", "confirmed"].includes(appt.status) && (
                   <>
-                    <button onClick={() => setShowReschedule(appt)} className="action-btn reschedule-btn">
+                    <button onClick={() => setShowReschedule(appt)} className="appointments-list-wrapper__action-btn appointments-list-wrapper__reschedule-btn">
                       Reschedule
                     </button>
-                    <button onClick={() => handleCancel(appt.id)} className="action-btn cancel-btn">
+                    <button
+                      onClick={() => initiateCancel(appt.id, appt.therapistName)}
+                      className="appointments-list-wrapper__action-btn appointments-list-wrapper__cancel-btn"
+                    >
                       Cancel
                     </button>
                   </>
@@ -350,15 +462,15 @@ function AppointmentsList() {
                 {/* Rate Session */}
                 {appt.status === "completed" && !appt.clientRating && (
                   <button
-                    onClick={() => setShowRating({ appt, rating: 5, comment: "" })}
-                    className="action-btn rate-btn"
+                    onClick={() => initiateRating(appt)}
+                    className="appointments-list-wrapper__action-btn appointments-list-wrapper__rate-btn"
                   >
                     Rate Session
                   </button>
                 )}
 
                 {appt.clientRating && (
-                  <div className="client-rating">
+                  <div className="appointments-list-wrapper__client-rating">
                     You rated: {'★'.repeat(appt.clientRating)}{'☆'.repeat(5 - appt.clientRating)}
                   </div>
                 )}
@@ -368,24 +480,21 @@ function AppointmentsList() {
         </>
       )}
 
-      {/* Reschedule Modal */}
-      {showReschedule && (
-        <RescheduleModal appt={showReschedule} onClose={() => setShowReschedule(null)} />
-      )}
-
-      {/* Rating Modal */}
+      {/* Modals */}
+      {showReschedule && <RescheduleModal appt={showReschedule} onClose={() => setShowReschedule(null)} />}
+      
       {showRating && (
-        <div className="modal-backdrop" onClick={() => setShowRating(null)}>
-          <div className="modal rating-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="appointments-list-wrapper__modal-backdrop" onClick={() => setShowRating(null)}>
+          <div className="appointments-list-wrapper__modal appointments-list-wrapper__rating-modal" onClick={(e) => e.stopPropagation()}>
             <h4>Rate Your Session</h4>
             <p>With <strong>{showRating.appt.therapistName}</strong></p>
 
-            <div className="star-rating">
+            <div className="appointments-list-wrapper__star-rating">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
-                  className={`star ${star <= showRating.rating ? "filled" : ""}`}
-                  onClick={() => setShowRating((prev) => ({ ...prev, rating: star }))}
+                  className={`appointments-list-wrapper__star ${star <= showRating.rating ? "filled" : ""}`}
+                  onClick={() => setShowRating(prev => ({ ...prev, rating: star }))}
                 >
                   Star
                 </button>
@@ -395,22 +504,30 @@ function AppointmentsList() {
             <textarea
               placeholder="Optional: Share your thoughts..."
               value={showRating.comment}
-              onChange={(e) => setShowRating((prev) => ({ ...prev, comment: e.target.value }))}
+              onChange={(e) => setShowRating(prev => ({ ...prev, comment: e.target.value }))}
               rows="3"
-              className="input"
+              className="appointments-list-wrapper__input"
             />
 
-            <div className="form-actions">
-              <button onClick={submitRating} className="save-btn">
+            <div className="appointments-list-wrapper__form-actions">
+              <button
+                onClick={() => setShowRatingConfirm(showRating)}
+                className="appointments-list-wrapper__save-btn"
+              >
                 Submit Rating
               </button>
-              <button onClick={() => setShowRating(null)} className="cancel-btn">
+              <button onClick={() => setShowRating(null)} className="appointments-list-wrapper__cancel-btn">
                 Cancel
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Confirmation Modals */}
+      <CancelConfirmModal />
+      <RescheduleConfirmModal />
+      <RatingConfirmModal />
     </div>
   );
 }

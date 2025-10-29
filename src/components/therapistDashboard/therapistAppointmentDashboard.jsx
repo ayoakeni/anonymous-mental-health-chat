@@ -11,7 +11,6 @@ import {
   setDoc,
   serverTimestamp,
   getDoc,
-  addDoc,
   Timestamp,
 } from "firebase/firestore";
 import "../../styles/therapistAppointmentsDashboard.css";

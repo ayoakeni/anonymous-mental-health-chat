@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { db, auth } from "../utils/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
@@ -9,6 +9,7 @@ function Header() {
   const [onlineUsers, setOnlineUsers] = useState(0);
   const [therapistsOnline, setTherapistsOnline] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const liveIndicatorRef = useRef(null);
   const [isDarkMode, setIsDarkMode] = useState(
     window.matchMedia("(prefers-color-scheme: dark)").matches
   );
@@ -24,10 +25,23 @@ function Header() {
 
   useEffect(() => {
     const handleScroll = () => {
-      document.querySelector(".header").classList.toggle("scrolled", window.scrollY > 50);
+      const header = document.querySelector(".header");
+      if (header) {
+        header.classList.toggle("scrolled", window.scrollY > 50);
+      }
     };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+
+    // Use requestAnimationFrame to ensure DOM is ready
+    const raf = requestAnimationFrame(() => {
+      window.addEventListener("scroll", handleScroll);
+      // Trigger once immediately
+      handleScroll();
+    });
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
   // Fetch online users count from Firestore
@@ -37,13 +51,19 @@ function Header() {
       (snapshot) => {
         const count = snapshot.docs.length;
         const therapists = snapshot.docs.filter((doc) =>
-          doc.data().role === "therapist").length;
+          doc.data().role === "therapist"
+        ).length;
         setOnlineUsers(count);
         setTherapistsOnline(therapists);
-        const indicator = document.querySelector(".live-indicator");
-        if (indicator) {
-          indicator.classList.add("updated");
-          setTimeout(() => indicator.classList.remove("updated"), 500);
+
+        // Use ref instead of querySelector
+        if (liveIndicatorRef.current) {
+          liveIndicatorRef.current.classList.add("updated");
+          setTimeout(() => {
+            if (liveIndicatorRef.current) {
+              liveIndicatorRef.current.classList.remove("updated");
+            }
+          }, 500);
         }
       },
       (error) => {
@@ -134,6 +154,7 @@ function Header() {
             <i className={isDarkMode ? "fas fa-sun" : "fas fa-moon"}></i>
           </button>
           <div
+            ref={liveIndicatorRef}
             className="live-indicator"
             title={`${onlineUsers} users online (${therapistsOnline} therapists, ${onlineUsers - therapistsOnline} peers)`}
             role="status"
