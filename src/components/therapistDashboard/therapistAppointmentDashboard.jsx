@@ -217,7 +217,7 @@ const TherapistAppointmentsDashboard = () => {
         time: formData.time,
         duration: parseInt(formData.duration),
         notes: formData.notes,
-        reason: editingAppt ? formData.reason : "", // preserve original
+        reason: editingAppt ? formData.reason : "",
         status: formData.status,
         updatedAt: Timestamp.now(),
       };
@@ -293,7 +293,15 @@ const TherapistAppointmentsDashboard = () => {
     ? appointments
     : appointments.filter((a) => a.status === filter);
 
-  if (loading) return <div className="dash-card">Loading...</div>;
+  // === LOADING STATE ===
+  if (loading) {
+    return (
+      <div className="dash-card-spin">
+        <div className="spinner"></div>
+        <p>Loading appointments...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="appointments-panel">
@@ -326,14 +334,14 @@ const TherapistAppointmentsDashboard = () => {
 
       {successMessage && <div className="success-message">{successMessage}</div>}
 
-      {/* === MODAL === */}
+      {/* === CREATE / EDIT MODAL === */}
       {showForm && (
         <div className={`modal-backdrop ${isModalClosing ? "fade-out" : ""}`}>
           <div className={`modal ${isModalClosing ? "slide-out" : ""}`} ref={modalRef}>
             <div className="modal-header">
               <h4>{editingAppt ? "Edit" : "Create"} Appointment</h4>
               <button className="modal-close-btn" onClick={closeModal} aria-label="Close">
-                X
+                <i class="fas fa-times"></i>
               </button>
             </div>
             <form onSubmit={handleSubmit} className="appointment-form">
@@ -348,7 +356,7 @@ const TherapistAppointmentsDashboard = () => {
                 >
                   <option value="">Select a client</option>
                   {anonymousUsers.map((user) => (
-                    <option key={user} value={user}>
+                    <option key={user.id} value={user.id}>
                       {user.displayName}
                     </option>
                   ))}
@@ -394,7 +402,7 @@ const TherapistAppointmentsDashboard = () => {
                 {formErrors.duration && <span className="error">{formErrors.duration}</span>}
               </div>
 
-              {/* Read-only Reason */}
+              {/* READ-ONLY REASON */}
               {editingAppt && (
                 <div className="form-group">
                   <label className="label">Client's Original Reason</label>
@@ -459,7 +467,7 @@ const TherapistAppointmentsDashboard = () => {
                 onClick={() => setShowRejectModal(null)}
                 aria-label="Close"
               >
-                X
+                <i class="fas fa-times"></i>
               </button>
             </div>
 
@@ -491,7 +499,6 @@ const TherapistAppointmentsDashboard = () => {
                   setShowRejectModal(null);
                 }}
                 className="save-btn"
-                style={{ background: "var(--error-color)" }}
               >
                 Reject Appointment
               </button>

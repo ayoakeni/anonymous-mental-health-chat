@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { db, auth, messaging } from "../../utils/firebase";
+import { db, auth } from "../../utils/firebase";
 import {
   collection,
   query,
@@ -13,34 +13,39 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns";
-import { requestForToken, onMessageListener } from "../../utils/pushNotifications";
+import NotificationHandler from "../notificationHandler";
+import { onMessageListener } from "../../utils/requestForToken";
 
 function AppointmentsList() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("list");
   const [selectedMonth, setSelectedMonth] = useState(new Date());
-  const [showReschedule, setShowReschedule] = useState(null); // { appt }
-  const [rescheduleData, setRescheduleData] = useState(null); // { appt, date, time }
+  const [showReschedule, setShowReschedule] = useState(null);
+  const [rescheduleData, setRescheduleData] = useState(null);
   const [submittingReschedule, setSubmittingReschedule] = useState(false);
-  const [showRating, setShowRating] = useState(null); // { appt, rating, comment }
+  const [showRating, setShowRating] = useState(null);
   const [showRatingConfirm, setShowRatingConfirm] = useState(null);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(null); // { id, therapistName }
-  const [notification, setNotification] = useState(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(null);
   const [toast, setToast] = useState(null);
+
   const clientUid = auth.currentUser?.uid;
 
-  // === Toast Helper ===
+  /* --------------------------------------------------------------
+     TOAST HELPER
+  -------------------------------------------------------------- */
   const showToast = (type, message) => {
     setToast({ type, message });
     setTimeout(() => {
-      const toastEl = document.querySelector('.appointments-list-wrapper__toast');
-      if (toastEl) toastEl.classList.add('fade-out');
+      const el = document.querySelector(".appointments-list-wrapper__toast");
+      if (el) el.classList.add("fade-out");
       setTimeout(() => setToast(null), 400);
     }, 3600);
   };
 
-  // === 1. Fetch Appointments ===
+  /* --------------------------------------------------------------
+     FETCH APPOINTMENTS
+  -------------------------------------------------------------- */
   useEffect(() => {
     if (!clientUid) return;
 
@@ -64,8 +69,8 @@ function AppointmentsList() {
         })
       );
 
-      const sorted = data.sort((a, b) =>
-        new Date(`${a.date} ${a.time}`) - new Date(`${b.date} ${b.time}`)
+      const sorted = data.sort(
+        (a, b) => new Date(`${a.date} ${a.time}`) - new Date(`${b.date} ${b.time}`)
       );
 
       setAppointments(sorted);
@@ -75,24 +80,24 @@ function AppointmentsList() {
     return unsub;
   }, [clientUid]);
 
-  // === 2. Push Notifications ===
+/* --------------------------------------------------------------
+     FOREGROUND PUSH NOTIFICATIONS – **every** message
+  -------------------------------------------------------------- */
   useEffect(() => {
-    if (!messaging) return;
-
-    requestForToken();
-
-    const unsubscribe = onMessageListener().then((payload) => {
-      setNotification({
-        title: payload.notification?.title,
-        body: payload.notification?.body,
-      });
-      setTimeout(() => setNotification(null), 5000);
+    const unsubscribe = onMessageListener((payload) => {
+      if (payload?.notification) {
+        const { title, body } = payload.notification;
+        showToast("info", `${title}: ${body}`);
+      }
     });
 
+    // Cleanup when component unmounts
     return unsubscribe;
-  }, []);
+  }, []);   // <-- runs once, listener stays alive
 
-  // === 3. Cancel Flow ===
+  /* --------------------------------------------------------------
+     CANCEL FLOW
+  -------------------------------------------------------------- */
   const initiateCancel = (apptId, therapistName) => {
     setShowCancelConfirm({ id: apptId, therapistName });
   };
@@ -111,7 +116,9 @@ function AppointmentsList() {
     }
   };
 
-  // === 4. Reschedule Flow (Lifted to Parent) ===
+  /* --------------------------------------------------------------
+     RESCHEDULE FLOW
+  -------------------------------------------------------------- */
   const initiateReschedule = (appt, date, time) => {
     if (!date || !time) return showToast("error", "Please select date and time.");
     setRescheduleData({ appt, date, time });
@@ -122,7 +129,6 @@ function AppointmentsList() {
     setSubmittingReschedule(true);
     try {
       const { appt, date, time } = rescheduleData;
-      const reason = appt.reason;
       const newId = `${clientUid}_${appt.therapistUid}_${date}_${time.replace(":", "")}`;
 
       await setDoc(doc(db, "appointments", newId), {
@@ -131,7 +137,7 @@ function AppointmentsList() {
         therapistUid: appt.therapistUid,
         date,
         time,
-        reason,
+        reason: appt.reason,
         status: "pending",
         rescheduledFrom: appt.id,
         createdAt: serverTimestamp(),
@@ -149,6 +155,9 @@ function AppointmentsList() {
     }
   };
 
+  /* --------------------------------------------------------------
+     RESCHEDULE MODAL
+  -------------------------------------------------------------- */
   const RescheduleModal = ({ appt, onClose }) => {
     const [date, setDate] = useState("");
     const [time, setTime] = useState("");
@@ -221,7 +230,9 @@ function AppointmentsList() {
     );
   };
 
-  // === 5. Rating Flow ===
+  /* --------------------------------------------------------------
+     RATING FLOW
+  -------------------------------------------------------------- */
   const initiateRating = (appt) => {
     setShowRating({ appt, rating: 5, comment: "" });
   };
@@ -258,7 +269,9 @@ function AppointmentsList() {
     }
   };
 
-  // === 6. Calendar View ===
+  /* --------------------------------------------------------------
+     CALENDAR VIEW
+  -------------------------------------------------------------- */
   const CalendarView = () => {
     const start = startOfMonth(selectedMonth);
     const end = endOfMonth(selectedMonth);
@@ -302,7 +315,9 @@ function AppointmentsList() {
     );
   };
 
-  // === Confirmation Modals ===
+  /* --------------------------------------------------------------
+     CONFIRMATION MODALS
+  -------------------------------------------------------------- */
   const CancelConfirmModal = () => {
     if (!showCancelConfirm) return null;
     return (
@@ -369,12 +384,17 @@ function AppointmentsList() {
     );
   };
 
-  // === UI ===
-  if (loading) return (
-    <div className="appointments-list-wrapper">
-      <p>Loading...</p>
-    </div>
-  );
+  /* --------------------------------------------------------------
+     RENDER
+  -------------------------------------------------------------- */
+  if (loading) {
+    return (
+      <div className="dash-spinner">
+        <div className="spinner"></div>
+        <p>Loading appointments...</p>
+      </div>
+    );
+  }
 
   if (appointments.length === 0) {
     return (
@@ -399,21 +419,14 @@ function AppointmentsList() {
 
   return (
     <div className="appointments-list-wrapper">
-      {/* Toast Messages */}
+      {/* Notification Handler */}
+      <NotificationHandler />
+
       {toast && (
         <div className={`appointments-list-wrapper__toast ${toast.type}`}>
           {toast.message}
         </div>
       )}
-
-      {/* Notification Toast */}
-      {notification && (
-        <div className="appointments-list-wrapper__notification-toast">
-          <strong>{notification.title}</strong>
-          <p>{notification.body}</p>
-        </div>
-      )}
-
       {/* View Toggle */}
       <div className="appointments-list-wrapper__view-toggle">
         <button className={view === "list" ? "active" : ""} onClick={() => setView("list")}>List</button>
@@ -447,7 +460,10 @@ function AppointmentsList() {
                 {/* Cancel / Reschedule */}
                 {["pending", "confirmed"].includes(appt.status) && (
                   <>
-                    <button onClick={() => setShowReschedule(appt)} className="appointments-list-wrapper__action-btn appointments-list-wrapper__reschedule-btn">
+                    <button
+                      onClick={() => setShowReschedule(appt)}
+                      className="appointments-list-wrapper__action-btn appointments-list-wrapper__reschedule-btn"
+                    >
                       Reschedule
                     </button>
                     <button
@@ -482,7 +498,7 @@ function AppointmentsList() {
 
       {/* Modals */}
       {showReschedule && <RescheduleModal appt={showReschedule} onClose={() => setShowReschedule(null)} />}
-      
+
       {showRating && (
         <div className="appointments-list-wrapper__modal-backdrop" onClick={() => setShowRating(null)}>
           <div className="appointments-list-wrapper__modal appointments-list-wrapper__rating-modal" onClick={(e) => e.stopPropagation()}>
@@ -494,17 +510,17 @@ function AppointmentsList() {
                 <button
                   key={star}
                   className={`appointments-list-wrapper__star ${star <= showRating.rating ? "filled" : ""}`}
-                  onClick={() => setShowRating(prev => ({ ...prev, rating: star }))}
+                  onClick={() => setShowRating((prev) => ({ ...prev, rating: star }))}
                 >
-                  Star
+                  ★
                 </button>
               ))}
             </div>
-
+            
             <textarea
               placeholder="Optional: Share your thoughts..."
               value={showRating.comment}
-              onChange={(e) => setShowRating(prev => ({ ...prev, comment: e.target.value }))}
+              onChange={(e) => setShowRating((prev) => ({ ...prev, comment: e.target.value }))}
               rows="3"
               className="appointments-list-wrapper__input"
             />

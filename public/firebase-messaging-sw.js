@@ -1,8 +1,7 @@
-// public/firebase-messaging-sw.js
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getMessaging, onBackgroundMessage } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging.js";
+importScripts("https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js");
 
-const firebaseApp = initializeApp({
+firebase.initializeApp({
   apiKey: "AIzaSyDbms1wjGNePw8V_SP9OJdNm4TBnSbp_YI",
   authDomain: "login-authentication-e4113.firebaseapp.com",
   databaseURL: "https://login-authentication-e4113-default-rtdb.firebaseio.com",
@@ -12,16 +11,24 @@ const firebaseApp = initializeApp({
   appId: "1:914208076072:web:996aeb751f454bbb5da01d"
 });
 
-const messaging = getMessaging(firebaseApp);
+const messaging = firebase.messaging();
 
-onBackgroundMessage(messaging, (payload) => {
-  console.log('[SW] Received background message:', payload);
-
-  const notificationTitle = payload.notification?.title || 'Notification';
-  const notificationOptions = {
-    body: payload.notification?.body || 'You have a new message',
-    icon: '/logo192.png'
+messaging.onBackgroundMessage((payload) => {
+  const title = payload.notification?.title || "Notification";
+  const options = {
+    body: payload.notification?.body,
+    icon: "/anonymous-logo.png",
+    badge: "/badge.png",
+    data: payload.data
   };
+  self.registration.showNotification(title, options);
+});
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+// CLICK TO OPEN DASHBOARD
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "https://yoursite.com/client-dashboard";
+  event.waitUntil(
+    clients.openWindow(url)
+  );
 });

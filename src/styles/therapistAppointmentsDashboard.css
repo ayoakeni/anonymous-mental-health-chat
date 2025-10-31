@@ -1,4 +1,3 @@
-/* src/styles/therapistAppointmentsDashboard.css */
 :root {
   --primary-color: #4a90e2;
   --background-color: #f5f7fa;
@@ -40,7 +39,6 @@
   background: var(--chat-bg);
   border-radius: var(--border-radius);
   padding: 1.5rem;
-  box-shadow: var(--shadow);
   max-width: 100%;
 }
 
@@ -116,6 +114,7 @@
 
 .appointments-table th,
 .appointments-table td {
+  color: var(--text-color);
   padding: 0.9rem 1rem;
   text-align: left;
   border-bottom: 1px solid var(--input-border);
@@ -136,11 +135,15 @@
   font-weight: 500;
 }
 
-.status-pending { color: var(--secondary-color); }
-.status-confirmed { color: var(--primary-color); }
-.status-completed { color: var(--accent-color); }
-.status-cancelled,
-.status-rejected { color: var(--error-color); }
+.appointments-table td.status-pending { color: var(--secondary-color); }
+.appointments-table td.status-confirmed { color: var(--primary-color); }
+.appointments-table td.status-completed { color: var(--accent-color); }
+.appointments-table td.status-cancelled,
+.appointments-table td.status-rejected { color: var(--error-color); }
+
+.appointments-table td[class^="status-"] {
+  font-weight: 600;
+}
 
 /* Action Buttons */
 .action-btn,
@@ -196,12 +199,20 @@
   align-items: center;
 }
 
+.modal-header h4 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
 .modal-close-btn {
   background: none;
   border: none;
   font-size: 1.2rem;
   cursor: pointer;
   color: var(--text-color);
+  font-weight: bold;
 }
 
 .appointment-form {
@@ -254,6 +265,74 @@
 .save-btn { background: var(--accent-color); color: white; }
 .cancel-btn { background: var(--secondary-color); color: white; }
 
+/* Read-only reason box */
+.readonly-reason {
+  padding: 0.7rem;
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  background: var(--input-bg);
+  color: var(--text-color);
+  font-size: 0.95rem;
+  white-space: pre-wrap;
+  min-height: 3rem;
+}
+
+/* Rejection Modal */
+.reject-modal .save-btn {
+  background: var(--error-color) !important;
+  color: white;
+}
+
+.modal-body {
+  padding: 0 1.5rem 1rem;
+}
+
+.modal-body p {
+  margin: 0 0 1rem;
+  color: var(--text-color);
+  font-size: 0.95rem;
+}
+
+/* Empty & Loading States */
+.no-appointments {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  font-style: italic;
+  color: var(--text-color);
+  opacity: 0.75;
+  font-size: 1rem;
+}
+
+.dash-card-spin {
+  text-align: center;
+  padding: 3rem 1rem;
+  font-size: 1.1rem;
+  color: var(--text-color);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.dash-card-spin .spinner {
+  width: 32px;
+  height: 32px;
+  border: 4px solid var(--input-border);
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.dash-card-spin p {
+  margin: 0;
+  font-size: 1rem;
+}
+
 /* Animations */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -261,9 +340,27 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .appointments-header { flex-direction: column; align-items: stretch; }
-  .appointments-controls { width: 100%; }
-  .appointment-filter, .create-appointment-btn { width: 100%; }
-  .appointments-table { font-size: 0.85rem; }
-  .action-btn { padding: 0.4rem 0.6rem; font-size: 0.75rem; }
+  .appointments-header { 
+    flex-direction: column; 
+    align-items: stretch; 
+  }
+  .appointments-controls { 
+    width: 100%; 
+    flex-direction: column;
+  }
+  .appointment-filter, 
+  .create-appointment-btn { 
+    width: 100%; 
+  }
+  .appointments-table { 
+    font-size: 0.85rem; 
+  }
+  .action-btn { 
+    padding: 0.4rem 0.6rem; 
+    font-size: 0.75rem; 
+    margin-bottom: 0.3rem;
+  }
+  .action-btn:last-child {
+    margin-right: 0;
+  }
 }

@@ -1,8 +1,8 @@
-// src/App.js
 import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./utils/firebase";
+import NotificationHandler from "./components/notificationHandler";
 import Home from "./page/home";
 import About from "./page/about";
 import TherapistLogin from "./login/therapist_login";
@@ -48,31 +48,34 @@ function ProtectedRoute({ children, requireTherapist = false }) {
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/about" element={<About />} />
-      <Route path="/client-dashboard/*" element={<ClientDashboard />} />
-      <Route path="/therapist-login" element={<TherapistLogin />} />
-      <Route path="/chat-room/:chatId" element={<Chatroom />} />
-      <Route path="/chat-room/" element={<Chatroom />} />
+    <>
+      <NotificationHandler />
+      <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/client-dashboard/*" element={<ClientDashboard />} />
+          <Route path="/therapist-login" element={<TherapistLogin />} />
+        <Route path="/chat-room/:chatId" element={<Chatroom />} />
+        <Route path="/chat-room/" element={<Chatroom />} />
 
-      <Route
-        path="/therapist-dashboard/*"
-        element={
-          <ProtectedRoute requireTherapist={true}>
-            <TherapistDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/anonymous-dashboard/*"
-        element={
-          <ProtectedRoute>
-            <AnonymousDashboard />
-          </ProtectedRoute>
-        }
-      />
-    </Routes>
+        <Route
+          path="/therapist-dashboard/*"
+          element={
+            <ProtectedRoute requireTherapist={true}>
+              <TherapistDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/anonymous-dashboard/*"
+          element={
+            <ProtectedRoute>
+              <AnonymousDashboard />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </>
   );
 }
 
