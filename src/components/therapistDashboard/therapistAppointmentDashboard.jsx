@@ -47,7 +47,7 @@ const TherapistAppointmentsDashboard = () => {
     const unsub = onSnapshot(q, (snap) => {
       const users = snap.docs.map((d) => ({
         id: d.id,
-        displayName: d.data().displayName || "Unknown User",
+        displayName: d.data().anonymousName || "Unknown User",
       }));
       setAnonymousUsers(users.sort((a, b) => a.displayName.localeCompare(b.displayName)));
     });
@@ -71,7 +71,7 @@ const TherapistAppointmentsDashboard = () => {
           if (appt.clientType === "anonymous" && appt.clientUid) {
             const anonSnap = await getDoc(doc(db, "anonymousUsers", appt.clientUid));
             if (anonSnap.exists()) {
-              appt.clientName = anonSnap.data().displayName || "Unknown User";
+              appt.clientName = anonSnap.data().anonymousName || "Unknown User";
             } else {
               appt.clientName = "Deleted User";
             }

@@ -92,19 +92,28 @@ function AnonymousDashboard() {
 
   // Authenticate anonymous user
   useEffect(() => {
+    let isMounted = true;
+
     const initializeAuth = async () => {
       try {
         await loginAnonymously();
-        if (!auth.currentUser) {
+        if (isMounted && !auth.currentUser) {
           navigate("/");
         }
       } catch (err) {
-        console.error("Error during anonymous login:", err);
-        showError("Failed to authenticate. Please try again.");
-        navigate("/");
+        if (isMounted) {
+          console.error("Anonymous login failed:", err);
+          showError("Authentication failed. Please refresh.");
+          navigate("/");
+        }
       }
     };
+
     initializeAuth();
+
+    return () => {
+      isMounted = false;
+    };
   }, [navigate, showError]);
 
   // Fetch group chats

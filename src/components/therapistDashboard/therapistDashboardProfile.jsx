@@ -4,109 +4,133 @@ import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../utils/firebase';
 import "../../styles/therapistDashboardProfile.css";
 
-const TherapistDashboardProfile = ({ therapistInfo, editing, setEditing, setTherapistInfo, saveProfile, therapistId, isOnline }) => {
+const TherapistDashboardProfile = ({
+  therapistInfo,
+  editing,
+  setEditing,
+  setTherapistInfo,
+  saveProfile,
+  therapistId,
+  isOnline
+}) => {
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
   const fileInputRef = useRef(null);
   const storage = getStorage();
 
+  /* ------------------------------------------------------------------ */
+  /* 1. Image upload – keep the preview in state (base64)               */
+  /* ------------------------------------------------------------------ */
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        setErrors((prev) => ({ ...prev, profileImage: 'Image size must be less than 2MB' }));
-        return;
-      }
-      if (!['image/jpeg', 'image/png'].includes(file.type)) {
-        setErrors((prev) => ({ ...prev, profileImage: 'Only JPEG or PNG images are allowed' }));
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        setTherapistInfo((prev) => ({ ...prev, profileImage: reader.result }));
-        setErrors((prev) => ({ ...prev, profileImage: '' }));
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setErrors(p => ({ ...p, profileImage: 'Image size must be < 2 MB' }));
+      return;
     }
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-    if (!therapistInfo.name.trim()) newErrors.name = 'Name is required';
-    if (!therapistInfo.gender) newErrors.gender = 'Gender is required';
-    if (!therapistInfo.position.trim()) newErrors.position = 'Position is required';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSave = async () => {
-    if (!validateForm()) return;
-    if (!therapistId) {
-      setErrors((prev) => ({ ...prev, general: 'User ID is missing. Please try again.' }));
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      setErrors(p => ({ ...p, profileImage: 'Only JPEG/PNG allowed' }));
       return;
     }
 
+    const reader = new FileReader();
+    reader.onload = () => {
+      setTherapistInfo(p => ({ ...p, profileImage: reader.result }));
+      setErrors(p => ({ ...p, profileImage: '' }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* 2. Form validation                                                 */
+  /* ------------------------------------------------------------------ */
+  const validateForm = () => {
+    const err = {};
+    if (!therapistInfo.name?.trim()) err.name = 'Name is required';
+    if (!therapistInfo.gender) err.gender = 'Gender is required';
+    if (!therapistInfo.position?.trim()) err.position = 'Position is required';
+    setErrors(err);
+    return Object.keys(err).length === 0;
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* 3. Save – upload image if needed, then write Firestore (no undef)  */
+  /* ------------------------------------------------------------------ */
+  const handleSave = async () => {
+    if (!validateForm() || !therapistId) return;
+
     setIsSaving(true);
     try {
-      let fileUrl = therapistInfo.profileImage;
-      if (fileUrl && fileUrl.startsWith('data:')) {
-        // Convert base64 to blob
-        const response = await fetch(fileUrl);
-        const blob = await response.blob();
+      let imageUrl = therapistInfo.profileImage ?? '';
+
+      // If the image is a data-URL (new upload) → push to Storage
+      if (imageUrl && imageUrl.startsWith('data:')) {
+        const resp = await fetch(imageUrl);
+        const blob = await resp.blob();
         const storageRef = ref(storage, `therapists/${therapistId}/profile.jpg`);
         await uploadBytes(storageRef, blob);
-        fileUrl = await getDownloadURL(storageRef);
-        setTherapistInfo((prev) => ({ ...prev, profileImage: fileUrl }));
+        imageUrl = await getDownloadURL(storageRef);
+        setTherapistInfo(p => ({ ...p, profileImage: imageUrl }));
       }
 
-      // Update Firestore with profile data
-      await setDoc(
-        doc(db, 'therapists', therapistId),
-        {
-          name: therapistInfo.name,
-          gender: therapistInfo.gender,
-          position: therapistInfo.position,
-          profile: therapistInfo.profile,
-          rating: therapistInfo.rating,
-          profileImage: fileUrl,
-        },
-        { merge: true }
-      );
+      // ---- ONLY defined fields go to Firestore ----
+      const payload = {
+        name: therapistInfo.name?.trim() ?? '',
+        gender: therapistInfo.gender ?? '',
+        position: therapistInfo.position?.trim() ?? '',
+        profile: therapistInfo.profile?.trim() ?? '',
+        rating: Number(therapistInfo.rating) || 0,   // guarantee a number
+        ...(imageUrl && { profileImage: imageUrl })
+      };
+
+      await setDoc(doc(db, 'therapists', therapistId), payload, { merge: true });
 
       setSuccessMessage('Profile saved successfully!');
       setTimeout(() => setSuccessMessage(''), 3000);
       setEditing(false);
 
-      // Call parent saveProfile for any additional logic
-      await saveProfile();
+      // Let the parent know (it may have extra logic)
+      await saveProfile?.();
     } catch (err) {
       console.error('Error saving profile:', err);
-      setErrors((prev) => ({ ...prev, general: 'Failed to save profile. Please try again.' }));
+      setErrors(p => ({ ...p, general: 'Failed to save profile.' }));
     } finally {
       setIsSaving(false);
     }
   };
 
+  /* ------------------------------------------------------------------ */
+  /* 4. Render – every input has a guaranteed value                     */
+  /* ------------------------------------------------------------------ */
   return (
     <div className="profileContainer">
       {successMessage && <div className="successMessage">{successMessage}</div>}
       {errors.general && <div className="errorMessage">{errors.general}</div>}
+
       <div className="profileCard">
         {editing ? (
+          /* ------------------- EDIT MODE ------------------- */
           <div className="editForm">
+            {/* ----- Avatar ----- */}
             <div className="avatarSection">
               <div className="avatarWrapper">
                 {therapistInfo.profileImage ? (
-                  <img src={therapistInfo.profileImage} alt={therapistInfo.name} className={`avatar ${isOnline ? "online" : ""}`} />
+                  <img
+                    src={therapistInfo.profileImage}
+                    alt={therapistInfo.name ?? 'Therapist'}
+                    className={`avatar ${isOnline ? 'online' : ''}`}
+                  />
                 ) : (
-                  <div className={`avatarPlaceholder ${isOnline ? "online" : ""}`}>
-                    {therapistInfo.name ? therapistInfo.name[0].toUpperCase() : 'T'}
+                  <div className={`avatarPlaceholder ${isOnline ? 'online' : ''}`}>
+                    {(therapistInfo.name?.[0] ?? 'T').toUpperCase()}
                   </div>
                 )}
                 <button
+                  type="button"
                   className="uploadButton"
-                  onClick={() => fileInputRef.current.click()}
+                  onClick={() => fileInputRef.current?.click()}
                 >
                   Upload Image
                 </button>
@@ -116,26 +140,31 @@ const TherapistDashboardProfile = ({ therapistInfo, editing, setEditing, setTher
                   accept="image/jpeg,image/png"
                   onChange={handleImageUpload}
                   className="fileInput"
+                  style={{ display: 'none' }}
                 />
                 {errors.profileImage && <span className="error">{errors.profileImage}</span>}
               </div>
             </div>
+
+            {/* ----- Name ----- */}
             <div className="formGroup">
               <label className="label">Name</label>
               <input
                 type="text"
                 placeholder="Enter your name"
-                value={therapistInfo.name}
-                onChange={(e) => setTherapistInfo((prev) => ({ ...prev, name: e.target.value }))}
+                value={therapistInfo.name ?? ''}
+                onChange={e => setTherapistInfo(p => ({ ...p, name: e.target.value }))}
                 className={`input ${errors.name ? 'inputError' : ''}`}
               />
               {errors.name && <span className="error">{errors.name}</span>}
             </div>
+
+            {/* ----- Gender ----- */}
             <div className="formGroup">
               <label className="label">Gender</label>
               <select
-                value={therapistInfo.gender}
-                onChange={(e) => setTherapistInfo((prev) => ({ ...prev, gender: e.target.value }))}
+                value={therapistInfo.gender ?? ''}
+                onChange={e => setTherapistInfo(p => ({ ...p, gender: e.target.value }))}
                 className={`input ${errors.gender ? 'inputError' : ''}`}
               >
                 <option value="">Select Gender</option>
@@ -146,63 +175,81 @@ const TherapistDashboardProfile = ({ therapistInfo, editing, setEditing, setTher
               </select>
               {errors.gender && <span className="error">{errors.gender}</span>}
             </div>
+
+            {/* ----- Position ----- */}
             <div className="formGroup">
               <label className="label">Position</label>
               <input
                 type="text"
                 placeholder="Enter your position"
-                value={therapistInfo.position}
-                onChange={(e) => setTherapistInfo((prev) => ({ ...prev, position: e.target.value }))}
+                value={therapistInfo.position ?? ''}
+                onChange={e => setTherapistInfo(p => ({ ...p, position: e.target.value }))}
                 className={`input ${errors.position ? 'inputError' : ''}`}
               />
               {errors.position && <span className="error">{errors.position}</span>}
             </div>
+
+            {/* ----- Description ----- */}
             <div className="formGroup">
               <label className="label">Profile Description</label>
               <textarea
                 placeholder="Enter your profile description"
-                value={therapistInfo.profile}
-                onChange={(e) => setTherapistInfo((prev) => ({ ...prev, profile: e.target.value }))}
+                value={therapistInfo.profile ?? ''}
+                onChange={e => setTherapistInfo(p => ({ ...p, profile: e.target.value }))}
                 className="textarea"
               />
             </div>
+
+            {/* ----- Rating (read-only) ----- */}
             <div className="formGroup">
               <label className="label">Average Rating</label>
               <div className="rating-display">
-                {therapistInfo.rating > 0 ? (
+                {(therapistInfo.rating ?? 0) > 0 ? (
                   <>
-                    {'★'.repeat(Math.floor(therapistInfo.rating))}
-                    {therapistInfo.rating % 1 >= 0.5 && '☆'}
-                    <strong> {therapistInfo.rating.toFixed(1)}</strong>
-                    {therapistInfo.totalRatings > 0 && ` (${therapistInfo.totalRatings} reviews)`}
+                    {'★'.repeat(Math.floor(therapistInfo.rating ?? 0))}
+                    {(therapistInfo.rating ?? 0) % 1 >= 0.5 && '☆'}
+                    <strong> {(therapistInfo.rating ?? 0).toFixed(1)}</strong>
                   </>
                 ) : (
-                  "No ratings yet"
+                  'No ratings yet'
                 )}
               </div>
             </div>
+
+            {/* ----- Buttons ----- */}
             <div className="buttonGroup">
               <button onClick={handleSave} className="saveButton" disabled={isSaving}>
                 {isSaving ? 'Saving...' : 'Save'}
               </button>
-              <button onClick={() => setEditing(false)} className="cancelButton" disabled={isSaving}>
+              <button
+                onClick={() => setEditing(false)}
+                className="cancelButton"
+                disabled={isSaving}
+              >
                 Cancel
               </button>
             </div>
           </div>
         ) : (
+          /* ------------------- VIEW MODE ------------------- */
           <div className="viewMode">
+            {/* Avatar */}
             <div className="avatarSection">
               <div className="avatarWrapper">
                 {therapistInfo.profileImage ? (
-                  <img src={therapistInfo.profileImage} alt={therapistInfo.name} className={`avatar ${isOnline ? "online" : ""}`} />
+                  <img
+                    src={therapistInfo.profileImage}
+                    alt={therapistInfo.name ?? 'Therapist'}
+                    className={`avatar ${isOnline ? 'online' : ''}`}
+                  />
                 ) : (
-                  <div className={`avatarPlaceholder ${isOnline ? "online" : ""}`}>
-                    {therapistInfo.name ? therapistInfo.name[0].toUpperCase() : 'T'}
+                  <div className={`avatarPlaceholder ${isOnline ? 'online' : ''}`}>
+                    {(therapistInfo.name?.[0] ?? 'T').toUpperCase()}
                   </div>
                 )}
               </div>
             </div>
+
             <div className="profileField">
               <span className="fieldLabel">Name:</span>
               <span className="fieldValue">{therapistInfo.name || 'Not set'}</span>
@@ -222,17 +269,18 @@ const TherapistDashboardProfile = ({ therapistInfo, editing, setEditing, setTher
             <div className="profileField">
               <span className="fieldLabel">Rating:</span>
               <span className="rating">
-                {therapistInfo.rating > 0 ? (
+                {(therapistInfo.rating ?? 0) > 0 ? (
                   <>
-                    {'★'.repeat(Math.floor(therapistInfo.rating))}
-                    {therapistInfo.rating % 1 >= 0.5 && '☆'}
-                    <span className="ratingValue">({therapistInfo.rating.toFixed(1)})</span>
+                    {'★'.repeat(Math.floor(therapistInfo.rating ?? 0))}
+                    {(therapistInfo.rating ?? 0) % 1 >= 0.5 && '☆'}
+                    <span className="ratingValue">({(therapistInfo.rating ?? 0).toFixed(1)})</span>
                   </>
                 ) : (
                   'No rating'
                 )}
               </span>
             </div>
+
             <button onClick={() => setEditing(true)} className="editButton">
               Edit Profile
             </button>
