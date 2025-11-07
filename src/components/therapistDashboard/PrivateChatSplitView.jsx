@@ -110,7 +110,10 @@ function PrivateChatSplitView({
                 <div
                   key={chat.id}
                   className={`chat-card ${activeChatId === chat.id ? "selected" : ""}`}
-                  onClick={() => joinPrivateChat(chat.id)}
+                  onClick={() => {
+                    navigate(`/therapist-dashboard/private-chat/${chat.id}`);
+                    joinPrivateChat(chat.id);
+                  }}
                 >
                   <div className="chat-card-inner">
                     <div className="chat-avater-content">

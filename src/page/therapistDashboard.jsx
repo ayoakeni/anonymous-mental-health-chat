@@ -1,26 +1,12 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { useNavigate, useLocation, Routes, Route, useParams } from "react-router-dom";
-import { db, auth, Timestamp, storage, ref, uploadBytes, getDownloadURL } from "../utils/firebase";
+import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import {
-  collection,
-  query,
-  orderBy,
-  onSnapshot,
-  serverTimestamp,
-  doc,
-  arrayUnion,
-  arrayRemove,
-  getDoc,
-  setDoc,
-  where,
-  limit,
-  runTransaction,
-  getDocs,
-  startAfter,
-  updateDoc,
-} from "firebase/firestore";
-import { debounce } from "lodash";
-import { signOut } from "firebase/auth";
+  useNavigate,
+  useLocation,
+  Routes,
+  Route,
+  useParams,
+} from "react-router-dom";
+import { auth } from "../utils/firebase";
 import Sidebar from "../components/sidebar";
 import { useTypingStatus } from "../components/useTypingStatus";
 import GroupChatSplitView from "../components/therapistDashboard/GroupChatSplitView";
@@ -28,1550 +14,293 @@ import PrivateChatSplitView from "../components/therapistDashboard/PrivateChatSp
 import TherapistDashboardHome from "../components/therapistDashboard/therapistDashboardHome";
 import TherapistDashboardProfile from "../components/therapistDashboard/therapistDashboardProfile";
 import TherapistAppointmentsDashboard from "../components/therapistDashboard/therapistAppointmentDashboard";
-import useNotificationSound from '../components/useNotificationSound';
+import TherapistDashboardSetting from "../components/therapistDashboard/therapistDashboardSetting";
+import useNotificationSound from "../components/useNotificationSound";
 import { getTimestampMillis, formatTimestamp } from "../components/timestampUtils";
-import "../styles/therapistDashboard.css";
-import "../styles/therapistDashboardNotification.css";
-import "../styles/therapistDashboardSetting.css";
+
+import { useTherapistProfile } from "../hooks/useTherapistProfile";
+import { useGroupChats } from "../hooks/useGroupChats";
+import { usePrivateChats } from "../hooks/usePrivateChats";
+import { useActiveGroupChat } from "../hooks/useActiveGroupChat";
+import { useActivePrivateChat } from "../hooks/useActivePrivateChat";
+import { useParticipantNames } from "../hooks/useParticipantNames";
+import { useAnonNames } from "../hooks/useAnonNames";
+import { useAppointments } from "../hooks/useAppointments";
+import { useOnlineTherapists } from "../hooks/useOnlineTherapists";
+import { useNotifications } from "../hooks/useNotifications";
 
 function TherapistDashboard() {
-  const [messages, setMessages] = useState([]);
-  const [groupEvents, setGroupEvents] = useState([]);
-  const [groupChats, setGroupChats] = useState([]);
-  const [reply, setReply] = useState("");
-  const [privateChats, setPrivateChats] = useState([]);
-  const [isGroupChatOpen, setIsGroupChatOpen] = useState(false);
-  const [isLoadingGroupMessages, setIsLoadingGroupMessages] = useState(false);
-  const [hasMoreGroupMessages, setHasMoreGroupMessages] = useState(true);
-  const [isLoadingPrivateMessages, setIsLoadingPrivateMessages] = useState(false);
-  const [hasMorePrivateMessages, setHasMorePrivateMessages] = useState(true);
-  const playNotification = useNotificationSound();
-  const prevPrivateMessagesRef = useRef([]);
-  const prevGroupMessagesRef = useRef([]);
-  const [inGroupChat, setInGroupChat] = useState(false);
-  const totalGroupUnread = useMemo(() => groupChats.reduce((sum, group) => sum + (group.unreadCount || 0), 0), [groupChats]);
-  const privateUnreadCount = useMemo(() => privateChats.reduce((sum, chat) => sum + (chat.unreadCountForTherapist || 0), 0), [privateChats]);
-  const [lastSeenTimestamp, setLastSeenTimestamp] = useState(null);
-  const [activeChatId, setActiveChatId] = useState(null);
-  const [activeGroupId, setActiveGroupId] = useState(null);
-  const [editing, setEditing] = useState(false);
-  const [therapistInfo, setTherapistInfo] = useState({
-    name: "",
-    gender: "",
-    position: "",
-    profile: "",
-    rating: 0,
-    notificationPreferences: {
-      emailNotifications: true,
-      soundNotifications: true,
-      desktopNotifications: false,
-      notificationFrequency: 'immediate',
-    },
-    chatSettings: {
-      autoJoinNewChats: false,
-      showTypingIndicator: true,
-      messagePreviewLength: 50,
-      allowPrivateChats: true,
-    },
-    availability: {
-      online: false,
-    },
-  });
-  const [privateMessages, setPrivateMessages] = useState([]);
-  const [privateEvents, setPrivateEvents] = useState([]);
-  const [isTherapistAvailable, setIsTherapistAvailable] = useState(false);
-  const [activeTherapists, setActiveTherapists] = useState([]);
-  const [newPrivateMessage, setNewPrivateMessage] = useState("");
-  const [isSendingPrivate, setIsSendingPrivate] = useState(false);
-  const [selectedTherapist, setSelectedTherapist] = useState(null);
-  const [therapistName, setTherapistName] = useState("Therapist");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isLoadingChats, setIsLoadingChats] = useState(true);
-  const [isValidatingChat, setIsValidatingChat] = useState(false);
-  const [chatError, setChatError] = useState(null);
-  const [participants, setParticipants] = useState([]);
-  const [participantNames, setParticipantNames] = useState({});
-  const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [therapistsOnline, setTherapistsOnline] = useState([]);
-  const [errorMsg, setErrorMsg] = useState(null);
-  const [isErrorFading, setIsErrorFading] = useState(false);
-  const [isLoadingNames, setIsLoadingNames] = useState(false);
-  const [anonNames, setAnonNames] = useState({});
-  const [notificationFilter, setNotificationFilter] = useState("all");
-  const [dismissedNotifications, setDismissedNotifications] = useState([]);
-  const [appointments, setAppointments] = useState([]);
-  const [clients, setClients] = useState([]);
-  const errorTimeoutRef = useRef(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const therapistId = auth.currentUser?.uid;
-  const isOnline = !!therapistsOnline.find(t => t?.uid === therapistId)?.online;
-  const displayName = therapistInfo.name || "Unknown Therapist";
-  const { typingUsers, handleTyping } = useTypingStatus(displayName);
-  const messagesEndRef = useRef(null);
-  const privateMessagesEndRef = useRef(null);
-  const groupChatBoxRef = useRef(null);
-  const privateChatBoxRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { chatId } = useParams();
+const { groupId, chatId } = useParams();
 
-  // Format timestamp for notifications
-  const formatNotificationTimestamp = (timestamp) => {
-    if (!timestamp) return "Unknown time";
-    const formatted = formatTimestamp(timestamp);
-    if (typeof formatted === "string") return formatted;
-    return `${formatted.dateStr} ${formatted.timeStr}` || "Unknown time";
-  };
+  // UI state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [activeGroupId, setActiveGroupId] = useState(null);
+  const [activeChatId, setActiveChatId] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [reply, setReply] = useState("");
+  const [newPrivateMessage, setNewPrivateMessage] = useState("");
+  const [notificationFilter, setNotificationFilter] = useState("all");
+  const [editing, setEditing] = useState(false);
+  const [selectedTherapist, setSelectedTherapist] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const privateMessagesEndRef = useRef(null);
+  const groupMessagesEndRef = useRef(null);
+  const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
 
-  const closeError = useCallback(() => {
-    setIsErrorFading(true);
-    setTimeout(() => {
-      setErrorMsg(null);
-      setIsErrorFading(false);
-      if (errorTimeoutRef.current) {
-        clearTimeout(errorTimeoutRef.current);
-        errorTimeoutRef.current = null;
-      }
-    }, 300);
+  const playNotification = useNotificationSound();
+  const errorTimeout = useRef(null);
+
+  const showError = useCallback((msg, auto = true) => {
+    if (errorTimeout.current) clearTimeout(errorTimeout.current);
+    console.error(msg);
+    if (auto) errorTimeout.current = setTimeout(() => {}, 5000);
   }, []);
 
-  const showError = useCallback((msg, autoDismiss = true) => {
-    if (errorTimeoutRef.current) {
-      clearTimeout(errorTimeoutRef.current);
-    }
-    setErrorMsg(msg);
-    setIsErrorFading(false);
-    if (msg && autoDismiss) {
-      errorTimeoutRef.current = setTimeout(() => {
-        closeError();
-      }, 5000);
-    }
-  }, [closeError]);
+  const therapistId = auth.currentUser?.uid;
 
-  useEffect(() => {
-    return () => {
-      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
-    };
-  }, []);
+  // ────── CORE HOOKS ──────
+  const {
+    info: therapistInfo,
+    therapistName,
+    setInfo,
+    saveProfile,
+    saveSettings: profileSaveSettings,
+    logout,
+  } = useTherapistProfile(navigate, showError);
 
-  const onEmojiClick = (emojiData) => {
-    setReply(reply + emojiData.emoji);
-    setShowEmojiPicker(false);
-  };
+  const { groupChats, isLoadingGroupChats } = useGroupChats(showError);
+  const { privateChats, isLoadingPrivateChats } = usePrivateChats(showError);
 
-  // Save profile changes
-  const saveProfile = async () => {
-    if (!therapistId) return;
-    try {
-      await setDoc(doc(db, "therapists", therapistId), {
-        name: therapistInfo.name,
-        gender: therapistInfo.gender,
-        position: therapistInfo.position,
-        profile: therapistInfo.profile,
-        rating: therapistInfo.rating,
-      }, { merge: true });
-      setEditing(false);
-    } catch (err) {
-      console.error("Error saving profile:", err);
-      showError("Failed to save profile. Please try again.");
-    }
-  };
+  const {
+    messages: groupMsgs,
+    events: groupEvts,
+    participants,
+    inChat: inGroup,
+    join: joinGroup,
+    leave: leaveGroup,
+    sendMessage: sendGroupMsg,
+    toggleReaction: toggleGroupReaction,
+    deleteMessage: deleteGroupMsg,
+    loadMore: loadMoreGroup,
+    hasMore: groupHasMore,
+    loading: groupLoading,
+  } = useActiveGroupChat(
+    activeGroupId,
+    therapistId,
+    therapistName,
+    playNotification,
+    showError
+  );
 
-  // Fetch anonymous names for private chats
-  useEffect(() => {
-    if (privateChats.length === 0 || !therapistId) return;
+  const {
+    messages: privMsgs,
+    events: privEvts,
+    join: joinPrivate,
+    leave: leavePrivate,
+    sendMessage: sendPrivMsg,
+    toggleReaction: togglePrivReaction,
+    deleteMessage: deletePrivMsg,
+    loadMore: loadMorePrivate,
+    hasMore: privHasMore,
+    loading: privLoading,
+    chatError,
+    validating,
+  } = useActivePrivateChat(
+    activeChatId,
+    therapistId,
+    therapistName,
+    playNotification,
+    showError,
+    navigate
+  );
 
-    const unsubs = privateChats.map((chat) => {
-      const userUid = chat.participants?.find(uid => uid && uid !== therapistId);
-      if (!userUid) return () => {};
+  const participantNames = useParticipantNames(
+    groupChats.flatMap((g) => g.participants || [])
+  );
+  const anonNames = useAnonNames(privateChats, therapistId);
 
-      const anonRef = doc(db, "anonymousUsers", userUid);
-      return onSnapshot(anonRef, (snap) => {
-        const anonData = snap.exists() ? snap.data() : null;
-        setAnonNames(prev => ({ ...prev, [chat.id]: anonData?.anonymousName?.trim() || "Anonymous" }));
-      }, (err) => {
-        console.error("Error listening to anon name:", err);
-        setAnonNames(prev => ({ ...prev, [chat.id]: "Anonymous" }));
-      });
-    });
+  // APPOINTMENTS
+  const appointmentsData = useAppointments(therapistId, showError);
+  const appointments = appointmentsData.appointments ?? [];
+  const clients = appointmentsData.clients ?? [];
 
-    return () => unsubs.forEach(unsub => unsub());
-  }, [privateChats, therapistId]);
+  const { onlineTherapists, isTherapistAvailable } = useOnlineTherapists(showError);
 
-  // Fetch dismissed notifications
-  useEffect(() => {
-    if (!therapistId) return;
-    const therapistRef = doc(db, "therapists", therapistId);
-    const unsub = onSnapshot(therapistRef, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        setDismissedNotifications(data.dismissedNotifications || []);
-      }
-    }, (err) => {
-      console.error("Error fetching dismissed notifications:", err);
-      showError("Failed to load dismissed notifications.");
-    });
-    return () => unsub();
-  }, [therapistId, showError]);
+  const {
+    notifications: filteredNotifications,
+    markAsRead,
+    markAllAsRead,
+    dismiss,
+    resetDismissed,
+  } = useNotifications(privateChats, groupChats, anonNames, showError);
 
-  // Fetch appointments
-  useEffect(() => {
-    if (!therapistId) return;
-    const q = query(
-      collection(db, "appointments"),
-      where("therapistId", "==", therapistId)
-    );
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const appts = snapshot.docs
-          .map((doc) => ({ id: doc.id, ...doc.data() }))
-          .sort((a, b) => a.time.localeCompare(b.time));
-        setAppointments(appts);
-      },
-      (err) => {
-        console.error("Error fetching appointments:", err);
-        showError("Failed to load appointments. Please try again.");
-      }
-    );
-    return () => unsubscribe();
-  }, [therapistId, showError]);
+  const { typingUsers, handleTyping } = useTypingStatus(therapistName);
 
-  // Fetch clients for appointment creation
-  useEffect(() => {
-    const q = query(collection(db, "anonymousUsers"), limit(100));
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const clientList = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          name: doc.data().anonymousName || `Anonymous_${doc.id.slice(0, 8)}`,
-        }));
-        setClients(clientList);
-      },
-      (err) => {
-        console.error("Error fetching clients:", err);
-        showError("Failed to load clients. Please try again.");
-      }
-    );
-    return () => unsubscribe();
-  }, [showError]);
-
-  // Check authentication
-  useEffect(() => {
-    const uid = auth.currentUser?.uid;
-    if (!uid) return navigate("/therapist-login");
-
-    const unsub = onSnapshot(doc(db, "therapists", uid), (snap) => {
-      setTherapistInfo(snap.exists() ? snap.data() : { name: "Therapist" });
-    });
-    return unsub;
-  }, [navigate]);
-
-  // Toggle sidebar
-  const handleToggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
-
-  // Auto scroll group chat
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, groupEvents]);
-
-  // Auto scroll private chat
-  useEffect(() => {
-    privateMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [privateMessages, privateEvents]);
-
-  // Load more group messages (pagination)
-  const loadMoreGroupMessages = useCallback(async () => {
-    if (!activeGroupId || !hasMoreGroupMessages || isLoadingGroupMessages) return;
-    setIsLoadingGroupMessages(true);
-    try {
-      const groupRef = doc(db, "groupChats", activeGroupId);
-      const lastVisibleMsg = messages[messages.length - 1];
-      const nextQuery = query(
-        collection(groupRef, "messages"),
-        orderBy("timestamp", "desc"),
-        startAfter(lastVisibleMsg?.timestamp),
-        limit(50)
-      );
-      const snapshot = await getDocs(nextQuery);
-      const newMessages = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setMessages((prev) => [...newMessages, ...prev]);
-      setHasMoreGroupMessages(snapshot.docs.length === 50);
-    } catch (err) {
-      console.error("Error loading more group messages:", err);
-      showError("Failed to load more group messages. Please try again.");
-    } finally {
-      setIsLoadingGroupMessages(false);
-    }
-  }, [activeGroupId, hasMoreGroupMessages, isLoadingGroupMessages, messages, showError]);
-
-  // Load more private messages (pagination)
-  const loadMorePrivateMessages = useCallback(async () => {
-    if (!activeChatId || !hasMorePrivateMessages || isLoadingPrivateMessages) return;
-    setIsLoadingPrivateMessages(true);
-    try {
-      const chatRef = doc(db, "privateChats", activeChatId);
-      const lastVisibleMsg = privateMessages[privateMessages.length - 1];
-      const nextQuery = query(
-        collection(chatRef, "messages"),
-        orderBy("timestamp", "desc"),
-        startAfter(lastVisibleMsg?.timestamp),
-        limit(50)
-      );
-      const snapshot = await getDocs(nextQuery);
-      const newMessages = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setPrivateMessages((prev) => [...newMessages, ...prev]);
-      setHasMorePrivateMessages(snapshot.docs.length === 50);
-    } catch (err) {
-      console.error("Error loading more private messages:", err);
-      showError("Failed to load more private messages. Please try again.");
-    } finally {
-      setIsLoadingPrivateMessages(false);
-    }
-  }, [activeChatId, hasMorePrivateMessages, isLoadingPrivateMessages, privateMessages, showError]);
-
-  // Handle scroll to load more group messages
-  useEffect(() => {
-    const chatBox = groupChatBoxRef.current;
-    if (!chatBox) return;
-
-    const handleScroll = () => {
-      if (chatBox.scrollTop === 0 && hasMoreGroupMessages && !isLoadingGroupMessages) {
-        loadMoreGroupMessages();
-      }
-    };
-
-    chatBox.addEventListener("scroll", handleScroll);
-    return () => chatBox.removeEventListener("scroll", handleScroll);
-  }, [hasMoreGroupMessages, isLoadingGroupMessages, loadMoreGroupMessages]);
-
-  // Handle scroll to load more private messages
-  useEffect(() => {
-    const chatBox = privateChatBoxRef.current;
-    if (!chatBox) return;
-
-    const handleScroll = () => {
-      if (chatBox.scrollTop === 0 && hasMorePrivateMessages && !isLoadingPrivateMessages) {
-        loadMorePrivateMessages();
-      }
-    };
-
-    chatBox.addEventListener("scroll", handleScroll);
-    return () => chatBox.removeEventListener("scroll", handleScroll);
-  }, [hasMorePrivateMessages, isLoadingPrivateMessages, loadMorePrivateMessages]);
-
-  // Watch therapists online for availability indicator
-  useEffect(() => {
-    const q = query(
-      collection(db, "therapists"),
-      where("online", "==", true),
-      limit(50)
-    );
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const onlineTherapists = snap.docs
-          .map((d) => {
-            const data = d.data();
-            if (!data) return null;
-            return {
-              uid: d.id,
-              name: data.name || "Therapist",
-              online: data.online === true,
-            };
-          })
-          .filter((t) => t !== null && t.online === true);
-
-        setTherapistsOnline(onlineTherapists);
-        setIsTherapistAvailable(onlineTherapists.length > 0);
-        setActiveTherapists(onlineTherapists.map((t) => t.name));
-      },
-      (err) => {
-        console.error("Error fetching therapists online:", err);
-        showError("Failed to fetch therapist status. Please try again.");
-      }
-    );
-    return () => unsub();
-  }, [showError]);
-
-  // Fetch all group chats
-  useEffect(() => {
-    const q = query(collection(db, "groupChats"), limit(50));
-    const unsubscribe = onSnapshot(
-      q,
-      async (snapshot) => {
-        const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        setGroupChats(chats);
-        setIsLoadingChats(false);
-
-        const allParticipants = chats.flatMap(group => group.participants || []);
-        const uniqueParticipants = [...new Set(allParticipants)];
-        setIsLoadingNames(true);
-        const names = { ...participantNames };
-
-        const unsubscribes = uniqueParticipants.map((uid) => {
-          const therapistRef = doc(db, "therapists", uid);
-          const anonRef = doc(db, "anonymousUsers", uid);
-
-          return onSnapshot(therapistRef, (therapistSnap) => {
-            if (therapistSnap.exists()) {
-              names[uid] = therapistSnap.data().name || `Therapist_${uid.slice(0, 8)}`;
-              setParticipantNames({ ...names });
-              setIsLoadingNames(false);
-            } else {
-              onSnapshot(anonRef, (anonSnap) => {
-                names[uid] = anonSnap.exists()
-                  ? anonSnap.data().anonymousName || `Anonymous_${uid.slice(0, 8)}`
-                  : `Anonymous_${uid.slice(0, 8)}`;
-                setParticipantNames({ ...names });
-                setIsLoadingNames(false);
-              }, (err) => {
-                console.error(`Error fetching anonymous name for ${uid}:`, err);
-                names[uid] = `Anonymous_${uid.slice(0, 8)}`;
-                setParticipantNames({ ...names });
-                setIsLoadingNames(false);
-              });
-            }
-          }, (err) => {
-            console.error(`Error fetching therapist name for ${uid}:`, err);
-            names[uid] = `Anonymous_${uid.slice(0, 8)}`;
-            setParticipantNames({ ...names });
-            setIsLoadingNames(false);
-          });
-        });
-
-        return () => unsubscribes.forEach(unsub => unsub());
-      },
-      (err) => {
-        console.error("Error fetching group chats:", err);
-        showError("Failed to load group chats. Please try again.");
-        setIsLoadingChats(false);
-      }
-    );
-    return () => unsubscribe();
-  }, [showError, participantNames]);
-
-  // Watch group chat participants and messages for active group
-  useEffect(() => {
-    if (!activeGroupId) return;
-    const groupRef = doc(db, "groupChats", activeGroupId);
-    const messagesQuery = query(collection(groupRef, "messages"), orderBy("timestamp", "desc"), limit(50));
-    const eventsQuery = query(collection(groupRef, "events"), orderBy("timestamp"), limit(50));
-
-    const unsubParticipants = onSnapshot(groupRef, (snap) => {
-      if (snap.exists()) {
-        setParticipants(snap.data().participants || []);
-        const isParticipant = snap.data().participants?.includes(therapistId);
-        setInGroupChat(isParticipant);
-        setIsGroupChatOpen(isParticipant && isGroupChatOpen);
-      }
-    });
-
-    const unsubMessages = onSnapshot(messagesQuery, (snapshot) => {
-      const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      const newMsgs = msgs.filter(
-        (msg) => !prevGroupMessagesRef.current.some((prev) => prev.id === msg.id)
-      );
-      setMessages(msgs);
-      prevGroupMessagesRef.current = msgs;
-      setHasMoreGroupMessages(snapshot.docs.length === 50);
-      setIsLoadingGroupMessages(false);
-      if (newMsgs.length > 0) {
-        playNotification();
-      }
-    }, (err) => {
-      console.error("Error fetching group messages:", err);
-      showError("Failed to load group messages. Please try again.");
-      setIsLoadingGroupMessages(false);
-    });
-
-    const unsubEvents = onSnapshot(eventsQuery, (snapshot) => {
-      const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setGroupEvents(evts);
-    }, (err) => {
-      console.error("Error fetching group events:", err);
-      showError("Failed to load group events. Please try again.");
-    });
-
-    return () => {
-      unsubParticipants();
-      unsubMessages();
-      unsubEvents();
-    };
-  }, [activeGroupId, isGroupChatOpen, therapistId, playNotification, showError]);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      const participantList = document.querySelector(".participant-list");
-      if (participantList && !participantList.contains(event.target)) {
-        setIsParticipantsOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  // Validate and sync activeChatId with URL param
-  useEffect(() => {
-    if (!chatId || !location.pathname.startsWith("/therapist-dashboard/private-chat/")) {
-      setActiveChatId(null);
-      setPrivateMessages([]);
-      setPrivateEvents([]);
-      setChatError(null);
-      setIsValidatingChat(false);
-      return;
-    }
-
-    const validateChat = async () => {
-      setIsValidatingChat(true);
-      setChatError(null);
-      try {
-        const chatRef = doc(db, "privateChats", chatId);
-        let chatSnap = await getDoc(chatRef);
-
-        if (!chatSnap.exists()) {
-          console.log("Chat document does not exist:", chatId);
-          setChatError("This chat no longer exists.");
-          setActiveChatId(null);
-          navigate("/therapist-dashboard/private-chat");
-          return;
-        }
-
-        let chatData = chatSnap.data();
-        let isParticipant = chatData.participants?.includes(therapistId);
-        let needsTherapist = chatData.needsTherapist === true;
-
-        if (!isParticipant && !needsTherapist) {
-          const eventsQuery = query(
-            collection(chatRef, "events"),
-            where("type", "==", "join"),
-            where("user", "==", displayName),
-            orderBy("timestamp", "desc"),
-            limit(1)
-          );
-          const eventsSnap = await getDocs(eventsQuery);
-          const recentJoin = eventsSnap.docs.length > 0;
-          const recentJoinTime = recentJoin ? eventsSnap.docs[0].data().timestamp?.toMillis() : 0;
-          const isRecentJoin = recentJoin && (Date.now() - recentJoinTime) < 10000;
-
-          if (!isRecentJoin) {
-            await new Promise((resolve) => setTimeout(resolve, 3000));
-            chatSnap = await getDoc(chatRef);
-            if (!chatSnap.exists()) {
-              setChatError("This chat no longer exists.");
-              setActiveChatId(null);
-              navigate("/therapist-dashboard/private-chat");
-              return;
-            }
-            chatData = chatSnap.data();
-            isParticipant = chatData.participants?.includes(therapistId);
-            needsTherapist = chatData.needsTherapist;
-            if (!isParticipant && !needsTherapist) {
-              setChatError("You do not have permission to access this chat.");
-              setActiveChatId(null);
-              navigate("/therapist-dashboard/private-chat");
-              return;
-            }
-          }
-        }
-
-        setActiveChatId(chatId);
-      } catch (err) {
-        console.error("Error validating chat:", err);
-        setChatError("Failed to load chat. Please try again.");
-        setActiveChatId(null);
-        navigate("/therapist-dashboard/private-chat");
-      } finally {
-        setIsValidatingChat(false);
-      }
-    };
-
-    validateChat();
-  }, [location.pathname, chatId, therapistId, navigate, displayName]);
-
-  // Load private chats with retry
-  useEffect(() => {
-    if (!therapistId) {
-      console.log("No therapistId, skipping private chats subscription");
-      setIsLoadingChats(false);
-      return;
-    }
-    let retryCount = 0;
-    const maxRetries = 3;
-    const trySubscribe = () => {
-      const q1 = query(
-        collection(db, "privateChats"),
-        where("participants", "array-contains", therapistId),
-        limit(50)
-      );
-      const q2 = query(
-        collection(db, "privateChats"),
-        where("needsTherapist", "==", true),
-        limit(50)
-      );
-      const unsubscribe1 = onSnapshot(q1, (snapshot) => {
-        const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        setPrivateChats((prev) => {
-          const allChats = [...chats, ...prev];
-          const uniqueChats = [...new Set(allChats.map((c) => c.id))].map((id) =>
-            allChats.find((c) => c.id === id)
-          );
-          return uniqueChats;
-        });
-      }, (err) => {
-        console.error("Error fetching private chats (participant):", err);
-        if (retryCount < maxRetries) {
-          retryCount++;
-          console.log(`Retrying private chats subscription (${retryCount}/${maxRetries})...`);
-          setTimeout(trySubscribe, 2000 * retryCount);
-        } else {
-          showError("Failed to load private chats after retries. Please try again.");
-        }
-      });
-      const unsubscribe2 = onSnapshot(q2, (snapshot) => {
-        const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        setPrivateChats((prev) => {
-          const allChats = [...chats, ...prev];
-          const uniqueChats = [...new Set(allChats.map((c) => c.id))].map((id) =>
-            allChats.find((c) => c.id === id)
-          );
-          return uniqueChats;
-        });
-        setIsLoadingChats(false);
-      }, (err) => {
-        console.error("Error fetching private chats (needsTherapist):", err);
-        setIsLoadingChats(false);
-      });
-      return () => {
-        unsubscribe1();
-        unsubscribe2();
-      };
-    };
-    const unsubscribe = trySubscribe();
-    return () => unsubscribe();
-  }, [therapistId, showError]);
-
-  // Watch private chat messages
-  useEffect(() => {
-    if (!activeChatId) return;
-    const chatRef = doc(db, "privateChats", activeChatId);
-    const q = query(collection(chatRef, "messages"), orderBy("timestamp", "desc"), limit(50));
-    const unsubscribeMessages = onSnapshot(
-      q,
-      (snapshot) => {
-        const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        const newMsgs = msgs.filter(
-          (msg) => !prevPrivateMessagesRef.current.some((prev) => prev.id === msg.id)
-        );
-        setPrivateMessages(msgs);
-        prevPrivateMessagesRef.current = msgs;
-        setHasMorePrivateMessages(snapshot.docs.length === 50);
-        setIsLoadingPrivateMessages(false);
-        if (newMsgs.length > 0) {
-          playNotification();
-        }
-        runTransaction(db, async (transaction) => {
-          const chatSnap = await transaction.get(chatRef);
-          if (chatSnap.exists()) {
-            transaction.update(chatRef, { unreadCountForTherapist: 0 });
-          }
-        }).catch((err) => {
-          console.error("Error resetting unread count:", err);
-          showError("Failed to reset unread count. Please try again.");
-        });
-      },
-      (err) => {
-        console.error("Error fetching private messages:", err);
-        setChatError("Failed to load private messages. Please try again.");
-        setIsLoadingPrivateMessages(false);
-      }
-    );
-    return () => unsubscribeMessages();
-  }, [activeChatId, playNotification, showError]);
-
-  // Watch private chat events
-  useEffect(() => {
-    if (!activeChatId) 
-      return;
-    const chatRef = doc(db, "privateChats", activeChatId);
-    const q = query(collection(chatRef, "events"), orderBy("timestamp"), limit(50));
-    const unsubscribeEvents = onSnapshot(
-      q,
-      (snapshot) => {
-        const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        setPrivateEvents(evts);
-      },
-      (err) => {
-        console.error("Error fetching private events:", err);
-        setChatError("Failed to load private events. Please try again.");
-      }
-    );
-    return () => unsubscribeEvents();
-  }, [activeChatId]);
-
-  // Fetch last seen timestamp
-  useEffect(() => {
-    if (!therapistId) return;
-    const fetchLastSeen = async () => {
-      const docRef = doc(db, "therapists", therapistId);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const lastSeenGroupChat = snap.data().lastSeenGroupChat;
-        let lastSeen;
-        if (lastSeenGroupChat instanceof Timestamp) {
-          lastSeen = lastSeenGroupChat.toMillis();
-        } else if (typeof lastSeenGroupChat === "number") {
-          lastSeen = lastSeenGroupChat;
-        } else {
-          lastSeen = Date.now();
-        }
-        setLastSeenTimestamp(lastSeen);
-      } else {
-        setLastSeenTimestamp(Date.now());
-      }
-    };
-    fetchLastSeen().catch((err) => {
-      console.error("Error fetching last seen:", err);
-      showError("Failed to fetch last seen timestamp. Please try again.");
-    });
-  }, [therapistId, showError]);
-
-  // Fetch therapist profile
-  useEffect(() => {
-    if (!therapistId) return;
-    const therapistRef = doc(db, "therapists", therapistId);
-    const unsubscribe = onSnapshot(
-      therapistRef,
-      (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          setTherapistInfo({
-            ...therapistInfo,
-            ...data,
-            notificationPreferences: {
-              ...therapistInfo.notificationPreferences,
-              ...(data.notificationPreferences || {}),
-            },
-            chatSettings: {
-              ...therapistInfo.chatSettings,
-              ...(data.chatSettings || {}),
-              allowPrivateChats: data.chatSettings?.allowPrivateChats ?? true,
-            },
-            availability: {
-              ...therapistInfo.availability,
-              online: data.online || false,
-            },
-          });
-          setTherapistName(data.name || "Therapist");
-        } else {
-          setTherapistInfo({
-            name: "New Therapist",
-            gender: "",
-            position: "",
-            profile: "",
-            rating: 0,
-            notificationPreferences: {
-              emailNotifications: true,
-              soundNotifications: true,
-              desktopNotifications: false,
-              notificationFrequency: "immediate",
-            },
-            chatSettings: {
-              autoJoinNewChats: false,
-              showTypingIndicator: true,
-              messagePreviewLength: 50,
-              allowPrivateChats: true,
-            },
-            availability: {
-              online: false,
-            },
-          });
-          setTherapistName("Therapist");
-        }
-      },
-      (err) => {
-        console.error("Error fetching therapist profile:", err);
-        showError("Failed to fetch therapist profile. Please try again.");
-      }
-    );
-    return () => unsubscribe();
-  }, [therapistId, therapistInfo, showError]);
-
-  // Tab close vs refresh detection
-  useEffect(() => {
-    if (!auth.currentUser) return;
-    let isReloading = false;
-    const debouncedLeave = debounce(async () => {
-      if (isReloading) return;
-      const uid = auth.currentUser.uid;
-      try {
-        await runTransaction(db, async (transaction) => {
-          if (activeChatId) {
-            const privateChatRef = await transaction.get(doc(db, "privateChats", activeChatId));
-            if (privateChatRef.exists()) {
-              transaction.update(privateChatRef, {
-                participants: arrayRemove(uid),
-                aiOffered: false,
-                needsTherapist: false,
-              });
-              transaction.set(doc(collection(privateChatRef, "events")), {
-                type: "leave",
-                user: displayName,
-                text: `${displayName} left the chat.`,
-                role: "system",
-                timestamp: serverTimestamp(),
-              });
-            }
-          }
-          if (activeGroupId) {
-            const groupChatRef = await transaction.get(doc(db, "groupChats", activeGroupId));
-            if (groupChatRef.exists()) {
-              transaction.update(groupChatRef, {
-                participants: arrayRemove(uid),
-              });
-              transaction.set(doc(collection(groupChatRef, "events")), {
-                type: "leave",
-                user: displayName,
-                timestamp: serverTimestamp(),
-              });
-            }
-          }
-        });
-      } catch (err) {
-        console.error("Error auto-leaving chats:", err);
-        showError("Failed to auto-leave chats. Please try again.");
-      }
-    }, 1000);
-    const handleBeforeUnload = () => {
-      debouncedLeave();
-    };
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        isReloading = true;
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    window.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      window.removeEventListener("visibilitychange", handleVisibilityChange);
-      debouncedLeave.cancel();
-    };
-  }, [activeChatId, activeGroupId, displayName, showError]);
-
-  // Send message to group chat with file support
-  const sendReply = async (file = null) => {
-    if (!reply.trim() && !file) return;
-    if (!activeGroupId) return;
-    if (file && (file.size > 5 * 1024 * 1024 || !['image/', 'application/pdf'].some(type => file.type.startsWith(type)))) {
-      showError("Invalid file: too large or unsupported type");
-      return;
-    }
-    try {
-      let fileUrl = "";
-      if (file) {
-        const storageRef = ref(storage, `groupChats/${activeGroupId}/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file);
-        fileUrl = await getDownloadURL(storageRef);
-      }
-      await runTransaction(db, async (transaction) => {
-        const messagesRef = collection(db, `groupChats/${activeGroupId}/messages`);
-        const typingDoc = doc(db, "typingStatus", auth.currentUser.uid);
-        transaction.set(doc(messagesRef), {
-          text: reply || "",
-          fileUrl: fileUrl || null,
-          userId: auth.currentUser.uid,
-          displayName: therapistInfo.name,
-          role: "therapist",
-          timestamp: serverTimestamp(),
-          pinned: false,
-          reactions: {},
-        });
-        transaction.set(typingDoc, {
-          typing: false,
-          name: therapistInfo.name || "Therapist",
-          timestamp: serverTimestamp(),
-        });
-        transaction.update(doc(db, "groupChats", activeGroupId), {
-          lastMessage: {
-            text: reply || "Attachment",
-            displayName: therapistInfo.name,
-            timestamp: serverTimestamp(),
-          },
-        });
-      });
-      setReply("");
-      setShowEmojiPicker(false);
-    } catch (err) {
-      console.error("Error sending group message:", err);
-      showError("Failed to send group message. Please try again.");
-    }
-  };
-
-  // Toggle reaction on message
-  const toggleReaction = async (msgId, reactionType) => {
-    if (!auth.currentUser || !activeGroupId) return;
-    const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
-    try {
-      await runTransaction(db, async (transaction) => {
-        const msgSnap = await transaction.get(msgRef);
-        if (!msgSnap.exists()) return;
-        const reactions = msgSnap.data().reactions || {};
-        const userId = auth.currentUser.uid;
-        const currentReactions = reactions[reactionType] || [];
-        const updatedReactions = currentReactions.includes(userId)
-          ? currentReactions.filter((id) => id !== userId)
-          : [...currentReactions, userId];
-        const updated = { ...reactions, [reactionType]: updatedReactions };
-        transaction.update(msgRef, { reactions: updated });
-      });
-    } catch (err) {
-      console.error("Error toggling reaction:", err);
-      showError("Failed to update reaction. Please try again.");
-    }
-  };
-
-  // Delete message
-  const deleteMessage = async (msgId, chatType = "group") => {
-    if (therapistInfo.role !== "therapist") return;
-    const activeId = chatType === "private" ? activeChatId : activeGroupId;
-    if (!activeId) return;
-
-    try {
-      await runTransaction(db, async (transaction) => {
-        const messagesPath = `${chatType === "private" ? "privateChats" : "groupChats"}/${activeId}/messages`;
-        const msgRef = doc(db, messagesPath, msgId);
-        transaction.delete(msgRef);
-
-        const eventsPath = `${chatType === "private" ? "privateChats" : "groupChats"}/${activeId}/events`;
-        transaction.set(doc(collection(db, eventsPath)), {
-          type: "delete",
-          user: therapistInfo.name,
-          text: `Message deleted by ${therapistInfo.name}`,
-          role: "system",
-          timestamp: serverTimestamp(),
-        });
-      });
-    } catch (err) {
-      console.error("Error deleting message:", err);
-      showError("Failed to delete message. Please try again.");
-    }
-  };
-
-  // Mark notification as read
-  const markAsRead = async (chatId) => {
-    try {
-      const chatRef = doc(db, "privateChats", chatId);
-      await updateDoc(chatRef, { unreadCountForTherapist: 0 });
-    } catch (err) {
-      console.error("Error marking notification as read:", err);
-      showError("Failed to mark notification as read.");
-    }
-  };
-
-  // Mark all notifications as read
-  const markAllAsRead = async () => {
-    try {
-      const updates = privateChats
-        .filter((chat) => chat.unreadCountForTherapist > 0)
-        .map((chat) => updateDoc(doc(db, "privateChats", chat.id), { unreadCountForTherapist: 0 }));
-      await Promise.all(updates);
-    } catch (err) {
-      console.error("Error marking all notifications as read:", err);
-      showError("Failed to mark all notifications as read.");
-    }
-  };
-
-  // Dismiss notification
-  const dismissNotification = async (chatId) => {
-    try {
-      const therapistRef = doc(db, "therapists", therapistId);
-      await updateDoc(therapistRef, {
-        dismissedNotifications: arrayUnion(chatId),
-      });
-      setDismissedNotifications((prev) => [...prev, chatId]);
-    } catch (err) {
-      console.error("Error dismissing notification:", err);
-      showError("Failed to dismiss notification.");
-    }
-  };
-
-  // Reset dismissed notifications
-  const resetDismissed = async () => {
-    try {
-      const therapistRef = doc(db, "therapists", therapistId);
-      await updateDoc(therapistRef, { dismissedNotifications: [] });
-      setDismissedNotifications([]);
-    } catch (err) {
-      console.error("Error resetting dismissed notifications:", err);
-      showError("Failed to reset dismissed notifications.");
-    }
-  };
-
-  // Save settings
+  // ────── SAVE SETTINGS WITH LOADER ──────
   const saveSettings = async () => {
-    if (!therapistId) return;
     setIsSaving(true);
     try {
-      const settingsData = {
-        notificationPreferences: therapistInfo.notificationPreferences,
-        chatSettings: therapistInfo.chatSettings,
-        online: therapistInfo.availability.online,
-      };
-      console.log("Saving settings to Firestore:", settingsData);
-      await setDoc(doc(db, "therapists", therapistId), settingsData, { merge: true });
-      showError("Settings saved successfully!", false);
-    } catch (err) {
-      console.error("Error saving settings:", err);
-      showError("Failed to save settings. Please try again.");
+      await profileSaveSettings();
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Handle logout
-  const handleLogout = async () => {
-    try {
-      if (!auth.currentUser) return;
-      const uid = auth.currentUser.uid;
-      const therapistRef = doc(db, "therapists", uid);
-      await runTransaction(db, async (transaction) => {
-        if (activeChatId) {
-          const chatRef = await transaction.get(doc(db, "privateChats", activeChatId));
-          if (chatRef.exists()) {
-            const now = Date.now();
-            transaction.set(doc(collection(chatRef, "events")), {
-              type: "leave",
-              user: displayName,
-              text: `${displayName} left the chat.`,
-              role: "system",
-              timestamp: serverTimestamp(),
-            });
-            transaction.update(chatRef, {
-              participants: arrayRemove(uid),
-              aiOffered: true,
-              aiActive: false,
-              therapistJoinedOnce: false,
-              lastJoinEvent: now,
-              lastLeaveAiOffered: now,
-              needsTherapist: false,
-            });
-          }
-        }
-        if (activeGroupId) {
-          const groupChatRef = await transaction.get(doc(db, "groupChats", activeGroupId));
-          if (groupChatRef.exists()) {
-            transaction.update(groupChatRef, {
-              participants: arrayRemove(uid),
-            });
-            transaction.set(doc(collection(groupChatRef, "events")), {
-              type: "leave",
-              user: displayName,
-              timestamp: serverTimestamp(),
-            });
-          }
-        }
-        transaction.set(
-          therapistRef,
-          {
-            online: false,
-            lastSeen: serverTimestamp(),
-          },
-          { merge: true }
-        );
-      });
-      await signOut(auth);
-      setTherapistInfo({
-        name: "",
-        gender: "",
-        position: "",
-        profile: "",
-        rating: 0,
-        notificationPreferences: {
-          emailNotifications: true,
-          soundNotifications: true,
-          desktopNotifications: false,
-          notificationFrequency: "immediate",
-        },
-        chatSettings: {
-          autoJoinNewChats: false,
-          showTypingIndicator: true,
-          messagePreviewLength: 50,
-        },
-        availability: {
-          toggleAvailability: true,
-        },
-      });
-      setMessages([]);
-      setPrivateChats([]);
-      setActiveChatId(null);
+  // ────── URL ↔ ACTIVE CHAT SYNC ──────
+  useEffect(() => {
+    const path = location.pathname;
+
+    // Group chat
+    if (path.startsWith("/therapist-dashboard/group-chat/")) {
+      const gid = groupId || path.split("/").pop();
+      if (gid && gid !== activeGroupId) {
+        setActiveGroupId(gid);
+      }
+    } else {
       setActiveGroupId(null);
-      setPrivateMessages([]);
-      setPrivateEvents([]);
-      navigate("/therapist-login");
-    } catch (err) {
-      console.error("Logout error:", err);
-      showError("Failed to logout. Please try again.");
     }
-  };
 
-  // Join group chat
-  const joinGroupChat = async (groupId) => {
-    if (!auth.currentUser) return;
-    try {
-      const groupRef = doc(db, "groupChats", groupId);
-      const groupSnap = await getDoc(groupRef);
-      if (!groupSnap.exists()) {
-        throw new Error("Group chat does not exist");
+    // Private chat
+    if (path.startsWith("/therapist-dashboard/private-chat/")) {
+      if (chatId && chatId !== activeChatId) {
+        setActiveChatId(chatId);
       }
-      const lastMsgsTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
-      await runTransaction(db, async (transaction) => {
-        transaction.update(groupRef, { 
-          participants: arrayUnion(auth.currentUser.uid),
-          unreadCount: 0
-        });
-        transaction.set(
-          doc(db, "therapists", therapistId),
-          { lastSeenGroupChat: serverTimestamp() },
-          { merge: true }
-        );
-      });
-      setLastSeenTimestamp(lastMsgsTime);
-      setIsGroupChatOpen(true);
-      setInGroupChat(true);
-      setActiveGroupId(groupId);
-      navigate(`/therapist-dashboard/group-chat/${groupId}`);
-    } catch (err) {
-      console.error("Error joining group chat:", err);
-      showError("Failed to join group chat. Please try again.");
-    }
-  };
-
-  // Leave group chat
-  const leaveGroupChat = async () => {
-    if (!auth.currentUser || !activeGroupId) return;
-    try {
-      const groupRef = doc(db, "groupChats", activeGroupId);
-      const lastMsgTime = messages[messages.length - 1]?.timestamp?.toMillis() || Date.now();
-      await runTransaction(db, async (transaction) => {
-        transaction.update(groupRef, { participants: arrayRemove(auth.currentUser.uid) });
-        transaction.set(
-          doc(db, "therapists", therapistId),
-          { lastSeenGroupChat: serverTimestamp() },
-          { merge: true }
-        );
-        transaction.set(doc(collection(groupRef, "events")), {
-          type: "leave",
-          user: displayName,
-          timestamp: serverTimestamp(),
-        });
-      });
-      setIsGroupChatOpen(false);
-      setInGroupChat(false);
-      setLastSeenTimestamp(lastMsgTime);
-      setActiveGroupId(null);
-      navigate("/therapist-dashboard/group-chat");
-    } catch (err) {
-      console.error("Error leaving group chat:", err);
-      showError("Failed to leave group chat. Please try again.");
-    }
-  };
-
-  // Join private chat
-  const joinPrivateChat = async (chatId) => {
-    if (!auth.currentUser) return;
-    const chatRef = doc(db, "privateChats", chatId);
-    const uid = auth.currentUser.uid;
-    try {
-      await runTransaction(db, async (transaction) => {
-        const chatSnap = await transaction.get(chatRef);
-        if (!chatSnap.exists()) {
-          transaction.set(chatRef, {
-            participants: [uid],
-            lastMessage: "",
-            lastUpdated: serverTimestamp(),
-            unreadCountForTherapist: 0,
-            aiActive: false,
-            aiOffered: false,
-            therapistJoinedOnce: true,
-            lastJoinEvent: Date.now(),
-            needsTherapist: false,
-          });
-          transaction.set(doc(collection(chatRef, "events")), {
-            type: "join",
-            user: displayName,
-            text: `A therapist "${displayName}" has joined. You can now continue your conversation with them.`,
-            role: "system",
-            timestamp: serverTimestamp(),
-          });
-        } else {
-          const chatData = chatSnap.data();
-          if (!chatData.participants.includes(uid)) {
-            transaction.update(chatRef, {
-              participants: arrayUnion(uid),
-              therapistJoinedOnce: true,
-              aiOffered: false,
-              aiActive: false,
-              unreadCountForTherapist: 0,
-              lastJoinEvent: Date.now(),
-              needsTherapist: false,
-            });
-            transaction.set(doc(collection(chatRef, "events")), {
-              type: "join",
-              user: displayName,
-              text: `A therapist "${displayName}" has joined. You can now continue your conversation with them.`,
-              role: "system",
-              timestamp: serverTimestamp(),
-            });
-          } else {
-            transaction.update(chatRef, {
-              unreadCountForTherapist: 0,
-              needsTherapist: false,
-            });
-          }
-        }
-      });
-      setActiveChatId(chatId);
-      setChatError(null);
-      navigate(`/therapist-dashboard/private-chat/${chatId}`);
-    } catch (err) {
-      console.error("Error joining private chat:", err);
-      setChatError("Failed to join private chat. Please try again.");
+    } else {
       setActiveChatId(null);
-      navigate("/therapist-dashboard/private-chat");
     }
-  };
+  }, [location.pathname, groupId, chatId, joinGroup, activeGroupId, activeChatId]);
 
-  // Leave private chat
-  const leavePrivateChat = async () => {
-    if (!activeChatId || !auth.currentUser) return;
-    try {
-      const chatRef = doc(db, "privateChats", activeChatId);
-      await runTransaction(db, async (transaction) => {
-        const chatSnap = await transaction.get(chatRef);
-        if (!chatSnap.exists()) throw new Error("Chat document does not exist");
-        const now = Date.now();
-        transaction.set(doc(collection(chatRef, "events")), {
-          type: "leave",
-          user: displayName,
-          text: `${displayName} left the chat.`,
-          role: "system",
-          timestamp: serverTimestamp(),
-        });
-        transaction.update(chatRef, {
-          participants: arrayRemove(auth.currentUser.uid),
-          aiOffered: true,
-          aiActive: false,
-          therapistJoinedOnce: false,
-          lastLeaveEvent: now,
-          lastLeaveAiOffered: now,
-          needsTherapist: false,
-        });
-      });
-      setActiveChatId(null);
-      setPrivateMessages([]);
-      setPrivateEvents([]);
-      setChatError(null);
-      navigate("/therapist-dashboard/private-chat");
-    } catch (err) {
-      console.error("Error leaving private chat:", err);
-      if (err.message === "Chat document does not exist") {
-        setChatError("This chat no longer exists.");
-      } else {
-        setChatError("Failed to leave chat. Please try again.");
-      }
-      setActiveChatId(null);
-      navigate("/therapist-dashboard/private-chat");
-    }
-  };
+  // ────── UNREAD COUNTS ──────
+  const totalGroupUnread = useMemo(
+    () => groupChats.reduce((s, g) => s + (g.unreadCount || 0), 0),
+    [groupChats]
+  );
+  const privateUnread = useMemo(
+    () =>
+      privateChats.reduce(
+        (s, c) => s + (c.unreadCountForTherapist || 0),
+        0
+      ),
+    [privateChats]
+  );
 
-  // Send private chat message
-  const sendPrivateMessage = async (file = null) => {
-    const text = newPrivateMessage.trim();
-    if (!text && !file) return;
-    if (!activeChatId || !auth.currentUser) return;
-    
-    if (file && (file.size > 5 * 1024 * 1024 || !['image/', 'application/pdf'].some(type => file.type.startsWith(type)))) {
-      showError("Invalid file: too large or unsupported type");
-      return;
-    }
-
-    setIsSendingPrivate(true);
-    try {
-      let fileUrl = "";
-      if (file) {
-        const storageRef = ref(storage, `privateChats/${activeChatId}/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file);
-        fileUrl = await getDownloadURL(storageRef);
-      }
-
-      await runTransaction(db, async (transaction) => {
-        const chatRef = doc(db, "privateChats", activeChatId);
-        const chatSnap = await transaction.get(chatRef);
-        if (!chatSnap.exists()) throw new Error("Chat document does not exist");
-
-        transaction.set(doc(collection(chatRef, "messages")), {
-          text: text || "",
-          fileUrl: fileUrl || null,
-          userId: auth.currentUser.uid,
-          displayName: therapistName,
-          role: "therapist",
-          timestamp: serverTimestamp(),
-        });
-        transaction.update(chatRef, {
-          lastMessage: text || "Attachment",
-          lastUpdated: serverTimestamp(),
-          unreadCountForTherapist: 0,
-          needsTherapist: false,
-        });
-      });
-      setNewPrivateMessage("");
-    } catch (err) {
-      console.error("Error sending private message:", err);
-      showError(err.message === "Chat document does not exist" ? "This chat no longer exists." : "Failed to send message.");
-      setActiveChatId(null);
-      navigate("/therapist-dashboard/private-chat");
-    } finally {
-      setIsSendingPrivate(false);
-    }
-  };
-
-  // Handle therapist profile click
-  const handleTherapistClick = async (msg) => {
-    if (msg.role !== "therapist") {
-      showError("Cannot view profile: Not a therapist message.");
-      return;
-    }
-    try {
-      const snap = await getDoc(doc(db, "therapists", msg.userId));
-      if (snap.exists()) setSelectedTherapist(snap.data());
-    } catch (err) {
-      console.error("Error fetching therapist profile:", err);
-      showError("Failed to fetch therapist profile. Please try again.");
-    }
-  };
-
-  // Combine messages and events for private chat
-  const combinedPrivateChat = [...privateMessages, ...privateEvents].sort((a, b) => {
-    return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
-  });
-
-  // Combine messages and events for group chat, marking new messages
+  // ────── COMBINED CHAT DATA ──────
   const combinedGroupChat = useMemo(() => {
-    return [...messages, ...groupEvents]
-      .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp))
-      .map((item) => ({
-        ...item,
-        isNew: lastSeenTimestamp && getTimestampMillis(item.timestamp) > lastSeenTimestamp,
-      }));
-  }, [messages, groupEvents, lastSeenTimestamp]);
-
-  // Filtered notifications based on filter state
-  const filteredNotifications = useMemo(() => {
-    let notifications = [];
-
-    // Private chat notifications
-    const privateChatNotifications = privateChats.map((chat) => ({
-      id: chat.id,
-      type: "private",
-      message: `New messages in Private Chat with ${anonNames[chat.id] || "Anonymous"} (${chat.unreadCountForTherapist})`,
-      timestamp: chat.lastUpdated,
-      unreadCount: chat.unreadCountForTherapist || 0,
-      isDismissed: dismissedNotifications.includes(chat.id),
-    }));
-
-    // Group chat notifications
-    const groupChatNotifications = groupChats
-      .filter((group) => group.unreadCount > 0)
-      .map((group) => ({
-        id: group.id,
-        type: "group",
-        message: `New messages in Group Chat "${group.name}" (${group.unreadCount})`,
-        timestamp: group.lastMessage?.timestamp,
-        unreadCount: group.unreadCount || 0,
-        isDismissed: dismissedNotifications.includes(group.id),
-      }));
-
-    notifications = [...privateChatNotifications, ...groupChatNotifications].sort(
-      (a, b) => getTimestampMillis(b.timestamp) - getTimestampMillis(a.timestamp)
+    return [...groupMsgs, ...groupEvts].sort(
+      (a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp)
     );
+  }, [groupMsgs, groupEvts]);
 
-    if (notificationFilter === "unread") {
-      return notifications.filter((notif) => notif.unreadCount > 0 && !notif.isDismissed);
-    } else if (notificationFilter === "dismissed") {
-      return notifications.filter((notif) => notif.isDismissed);
-    }
-    return notifications;
-  }, [privateChats, groupChats, anonNames, dismissedNotifications, notificationFilter]);
+  const combinedPrivateChat = useMemo(() => {
+    return [...privMsgs, ...privEvts].sort(
+      (a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp)
+    );
+  }, [privMsgs, privEvts]);
 
-  // Handle settings changes
-  const handleNotificationChange = (key, value) => {
-    setTherapistInfo(prev => ({
-      ...prev,
-      notificationPreferences: {
-        ...prev.notificationPreferences,
-        [key]: value,
-      },
-    }));
+  // ────── PROPS FOR CHILD VIEWS ──────
+  const homeProps = {
+    therapistInfo,
+    groupChats,
+    privateChats,
+    totalGroupUnread,
+    privateUnreadCount: privateUnread,
+    anonNames,
+    formatTimestamp,
+    joinGroupChat: joinGroup,
+    joinPrivateChat: joinPrivate,
+    isLoadingChats: isLoadingGroupChats || isLoadingPrivateChats,
+    isLoadingNames: false,
   };
 
-  const handleChatSettingsChange = (key, value) => {
-    setTherapistInfo(prev => ({
-      ...prev,
-      chatSettings: {
-        ...prev.chatSettings,
-        [key]: value,
-      },
-    }));
+  const groupProps = {
+    groupChats,
+    activeGroupId,
+    isGroupChatOpen: !!activeGroupId,
+    inGroupChat: inGroup,
+    therapistsOnline: onlineTherapists,
+    participants,
+    participantNames,
+    isParticipantsOpen,
+    setIsParticipantsOpen,
+    combinedGroupChat,
+    typingUsers,
+    chatBoxRef: useRef(null),
+    isLoadingMessages: groupLoading,
+    hasMoreMessages: groupHasMore,
+    loadMoreMessages: loadMoreGroup,
+    showEmojiPicker,
+    setShowEmojiPicker,
+    reply,
+    setReply,
+    handleTyping,
+    sendReply: sendGroupMsg,
+    joinGroupChat: joinGroup,
+    leaveGroupChat: leaveGroup,
+    therapistInfo,
+    toggleReaction: toggleGroupReaction,
+    deleteMessage: deleteGroupMsg,
+    formatTimestamp,
+    onEmojiClick: (e) => setReply((p) => p + e.emoji),
+    showError,
+    groupMessagesEndRef,
+    navigate,
   };
 
-  // Handle availability change
-  const handleAvailabilityChange = (value) => {
-    setTherapistInfo(prev => ({
-      ...prev,
-      availability: {
-        ...prev.availability,
-        online: value,
-      },
-    }));
+  const privateProps = {
+    privateChats,
+    activeChatId,
+    isValidatingChat: validating,
+    chatError,
+    isTherapistAvailable,
+    activeTherapists: onlineTherapists.map((t) => t.name),
+    selectedTherapist,
+    setSelectedTherapist,
+    combinedPrivateChat,
+    typingUsers,
+    chatBoxRef: useRef(null),
+    isLoadingMessages: privLoading,
+    hasMoreMessages: privHasMore,
+    loadMoreMessages: loadMorePrivate,
+    showEmojiPicker,
+    setShowEmojiPicker,
+    newPrivateMessage,
+    setNewPrivateMessage,
+    handleTyping,
+    sendPrivateMessage: sendPrivMsg,
+    isSendingPrivate: false,
+    joinPrivateChat: joinPrivate,
+    leavePrivateChat: leavePrivate,
+    navigate,
+    therapistInfo,
+    toggleReaction: togglePrivReaction,
+    deleteMessage: deletePrivMsg,
+    isLoadingChats: isLoadingPrivateChats,
+    formatTimestamp,
+    onEmojiClick: (e) => setNewPrivateMessage((p) => p + e.emoji),
+    anonNames,
+    showError,
+    privateMessagesEndRef,
   };
 
   return (
     <div className="therapist-dashboard">
       <Sidebar
         groupUnreadCount={totalGroupUnread}
-        privateUnreadCount={privateUnreadCount}
-        onLogout={handleLogout}
-        onToggle={handleToggleSidebar}
+        privateUnreadCount={privateUnread}
+        onLogout={() => logout(activeChatId, activeGroupId, therapistName)}
+        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
       />
       <div className={`box ${isSidebarOpen ? "open" : "closed"}`}>
-        {errorMsg && (
-          <div className={`error-toast ${isErrorFading ? 'fade-out' : ''}`}>
-            {errorMsg}
-            <button className="error-close-btn" 
-              onClick={closeError}
-              aria-label="Close error message"
-            >
-              <i className="fa-solid fa-times"></i>
-            </button>
-          </div>
-        )}
         <Routes>
-          <Route
-            path="/"
-            element={
-              <TherapistDashboardHome
-                therapistInfo={therapistInfo}
-                groupChats={groupChats}
-                privateChats={privateChats}
-                totalGroupUnread={totalGroupUnread}
-                privateUnreadCount={privateUnreadCount}
-                anonNames={anonNames}
-                formatTimestamp={formatTimestamp}
-                joinGroupChat={joinGroupChat}
-                joinPrivateChat={joinPrivateChat}
-                isLoadingChats={isLoadingChats}
-                isLoadingNames={isLoadingNames}
-                therapistsOnline={therapistsOnline}
-                therapistId={therapistId}
-                showError={showError}
-              />
-            }
-          />
-          <Route
-            path="/group-chat/*"
-            element={
-              <GroupChatSplitView
-                groupChats={groupChats}
-                activeGroupId={activeGroupId}
-                isGroupChatOpen={isGroupChatOpen}
-                inGroupChat={inGroupChat}
-                therapistsOnline={therapistsOnline}
-                participants={participants}
-                isParticipantsOpen={isParticipantsOpen}
-                setIsParticipantsOpen={setIsParticipantsOpen}
-                participantNames={participantNames}
-                combinedGroupChat={combinedGroupChat}
-                typingUsers={typingUsers}
-                messagesEndRef={messagesEndRef}
-                chatBoxRef={groupChatBoxRef}
-                isLoadingMessages={isLoadingGroupMessages}
-                hasMoreMessages={hasMoreGroupMessages}
-                loadMoreMessages={loadMoreGroupMessages}
-                showEmojiPicker={showEmojiPicker}
-                setShowEmojiPicker={setShowEmojiPicker}
-                reply={reply}
-                setReply={setReply}
-                handleTyping={handleTyping}
-                sendReply={sendReply}
-                joinGroupChat={joinGroupChat}
-                leaveGroupChat={leaveGroupChat}
-                therapistInfo={therapistInfo}
-                toggleReaction={toggleReaction}
-                deleteMessage={deleteMessage}
-                handleTherapistClick={handleTherapistClick}
-                isLoadingChats={isLoadingChats}
-                formatTimestamp={formatTimestamp}
-                onEmojiClick={onEmojiClick}
-                isLoadingNames={isLoadingNames}
-                showError={showError}
-                lastSeenTimestamp={lastSeenTimestamp}
-              />
-            }
-          />
-          <Route
-            path="/private-chat/*"
-            element={
-              <PrivateChatSplitView
-                privateChats={privateChats}
-                activeChatId={activeChatId}
-                isValidatingChat={isValidatingChat}
-                chatError={chatError}
-                isTherapistAvailable={isTherapistAvailable}
-                activeTherapists={activeTherapists}
-                selectedTherapist={selectedTherapist}
-                setSelectedTherapist={setSelectedTherapist}
-                combinedPrivateChat={combinedPrivateChat}
-                typingUsers={typingUsers}
-                privateMessagesEndRef={privateMessagesEndRef}
-                chatBoxRef={privateChatBoxRef}
-                isLoadingMessages={isLoadingPrivateMessages}
-                hasMoreMessages={hasMorePrivateMessages}
-                loadMoreMessages={loadMorePrivateMessages}
-                showEmojiPicker={showEmojiPicker}
-                setShowEmojiPicker={setShowEmojiPicker}
-                newPrivateMessage={newPrivateMessage}
-                setNewPrivateMessage={setNewPrivateMessage}
-                handleTyping={handleTyping}
-                sendPrivateMessage={sendPrivateMessage}
-                isSendingPrivate={isSendingPrivate}
-                joinPrivateChat={joinPrivateChat}
-                leavePrivateChat={leavePrivateChat}
-                handleTherapistClick={handleTherapistClick}
-                navigate={navigate}
-                therapistInfo={therapistInfo}
-                toggleReaction={toggleReaction}
-                deleteMessage={deleteMessage}
-                isLoadingChats={isLoadingChats}
-                formatTimestamp={formatTimestamp}
-                onEmojiClick={onEmojiClick}
-                anonNames={anonNames}
-                showError={showError}
-              />
-            }
-          />
+          <Route path="/" element={<TherapistDashboardHome {...homeProps} />} />
+          <Route path="/group-chat/*" element={<GroupChatSplitView {...groupProps} />} />
+          <Route path="/private-chat/*" element={<PrivateChatSplitView {...privateProps} />} />
           <Route
             path="/appointments"
             element={
               <TherapistAppointmentsDashboard
-                therapistId={therapistId}
                 appointments={appointments}
                 clients={clients}
                 showError={showError}
@@ -1585,81 +314,39 @@ function TherapistDashboard() {
               <div className="notifications">
                 <div className="notifications-header">
                   <h3>Notifications</h3>
-                  <div className="notification-controls">
-                    <select
-                      value={notificationFilter}
-                      onChange={(e) => setNotificationFilter(e.target.value)}
-                      className="notification-filter"
-                    >
-                      <option value="all">All Notifications</option>
-                      <option value="unread">Unread Only</option>
-                      <option value="dismissed">Dismissed</option>
-                    </select>
-                    <button
-                      onClick={markAllAsRead}
-                      disabled={privateChats.every((chat) => chat.unreadCountForTherapist === 0)}
-                      className="mark-all-read"
-                    >
-                      Mark All as Read
-                    </button>
-                    <button
-                      onClick={resetDismissed}
-                      disabled={dismissedNotifications.length === 0}
-                      className="reset-dismissed"
-                    >
-                      Reset Dismissed
-                    </button>
-                  </div>
+                  <select
+                    value={notificationFilter}
+                    onChange={(e) => setNotificationFilter(e.target.value)}
+                  >
+                    <option value="all">All</option>
+                    <option value="unread">Unread</option>
+                    <option value="dismissed">Dismissed</option>
+                  </select>
+                  <button onClick={markAllAsRead}>Mark All Read</button>
+                  <button onClick={resetDismissed}>Reset</button>
                 </div>
-                <ul className="notification-list">
-                  {filteredNotifications.length > 0 ? (
-                    filteredNotifications.map((notif) => (
-                      <li
-                        key={notif.id}
-                        className={`notification-item ${notif.unreadCount > 0 ? "unread" : ""} ${
-                          notif.isDismissed ? "dismissed" : ""
-                        }`}
+                <ul>
+                  {filteredNotifications.map((notif) => (
+                    <li
+                      key={notif.id}
+                      className={notif.unreadCount > 0 ? "unread" : ""}
+                    >
+                      <span>{notif.message}</span>
+                      <button
+                        onClick={() =>
+                          notif.type === "private"
+                            ? joinPrivate(notif.id)
+                            : navigate(`/therapist-dashboard/group-chat/${notif.id}`)
+                        }
                       >
-                        <div className="notification-content">
-                          <span className="notification-message">{notif.message}</span>
-                          <span className="notification-timestamp">
-                            {formatNotificationTimestamp(notif.timestamp)}
-                          </span>
-                        </div>
-                        <div className="notification-actions">
-                          {notif.unreadCount > 0 && !notif.isDismissed && (
-                            <button
-                              className="mark-read-btn"
-                              onClick={() => markAsRead(notif.id)}
-                              disabled={notif.type === "group"}
-                            >
-                              Mark as Read
-                            </button>
-                          )}
-                          {!notif.isDismissed && (
-                            <button
-                              className="dismiss-btn"
-                              onClick={() => dismissNotification(notif.id)}
-                            >
-                              Dismiss
-                            </button>
-                          )}
-                          <button
-                            className="view-btn"
-                            onClick={() =>
-                              notif.type === "private"
-                                ? joinPrivateChat(notif.id)
-                                : navigate(`/therapist-dashboard/group-chat/${notif.id}`)
-                            }
-                          >
-                            View
-                          </button>
-                        </div>
-                      </li>
-                    ))
-                  ) : (
-                    <li className="no-notifications">No notifications to display</li>
-                  )}
+                        View
+                      </button>
+                      {notif.type === "private" && (
+                        <button onClick={() => markAsRead(notif.id)}>Read</button>
+                      )}
+                      <button onClick={() => dismiss(notif.id)}>Dismiss</button>
+                    </li>
+                  ))}
                 </ul>
               </div>
             }
@@ -1671,134 +358,24 @@ function TherapistDashboard() {
                 therapistInfo={therapistInfo}
                 editing={editing}
                 setEditing={setEditing}
-                setTherapistInfo={setTherapistInfo}
+                setTherapistInfo={setInfo}
                 saveProfile={saveProfile}
                 therapistId={therapistId}
-                isOnline={isOnline}
+                isOnline={therapistInfo.availability?.online}
               />
             }
           />
           <Route
             path="/settings"
             element={
-              <div className="settings">
-                <h3>Settings</h3>
-                <div className="settings-container">
-                  <div className="settings-section">
-                    <h4>Notification Preferences</h4>
-                    <div className="settings-group">
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={therapistInfo.notificationPreferences.emailNotifications}
-                          onChange={(e) => handleNotificationChange('emailNotifications', e.target.checked)}
-                        />
-                        Email Notifications
-                      </label>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={therapistInfo.notificationPreferences.soundNotifications}
-                          onChange={(e) => handleNotificationChange('soundNotifications', e.target.checked)}
-                        />
-                        Sound Notifications
-                      </label>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={therapistInfo.notificationPreferences.desktopNotifications}
-                          onChange={(e) => handleNotificationChange('desktopNotifications', e.target.checked)}
-                        />
-                        Desktop Notifications
-                      </label>
-                      <label>
-                        Notification Frequency:
-                        <select
-                          value={therapistInfo.notificationPreferences.notificationFrequency}
-                          onChange={(e) => handleNotificationChange('notificationFrequency', e.target.value)}
-                        >
-                          <option value="immediate">Immediate</option>
-                          <option value="hourly">Hourly Digest</option>
-                          <option value="daily">Daily Digest</option>
-                        </select>
-                      </label>
-                    </div>
-                  </div>
-                  <div className="settings-section">
-                    <h4>Chat Settings</h4>
-                    <div className="settings-group">
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={therapistInfo.chatSettings.autoJoinNewChats}
-                          onChange={(e) => handleChatSettingsChange('autoJoinNewChats', e.target.checked)}
-                        />
-                        Auto-join New Chats
-                      </label>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={therapistInfo.chatSettings.showTypingIndicator}
-                          onChange={(e) => handleChatSettingsChange('showTypingIndicator', e.target.checked)}
-                        />
-                        Show Typing Indicator
-                      </label>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={therapistInfo.chatSettings.allowPrivateChats}
-                          onChange={(e) => handleChatSettingsChange('allowPrivateChats', e.target.checked)}
-                        />
-                        Allow Starting Private Chats
-                      </label>
-                      <label>
-                        Message Preview Length:
-                        <input
-                          type="number"
-                          min="20"
-                          max="100"
-                          value={therapistInfo.chatSettings.messagePreviewLength}
-                          onChange={(e) => handleChatSettingsChange('messagePreviewLength', parseInt(e.target.value) || 50)}
-                        />
-                        characters
-                      </label>
-                    </div>
-                  </div>
-                  <div className="settings-section">
-                    <h4>Availability</h4>
-                    <div className="settings-group">
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={therapistInfo.availability.online || false}
-                          onChange={(e) => handleAvailabilityChange(e.target.checked)}
-                        />
-                        {therapistInfo.availability.online ? "Online" : "Offline"}
-                      </label>
-                    </div>
-                  </div>
-                  <div className="settings-section">
-                    <h4>Account Management</h4>
-                    <div className="settings-group">
-                      <button onClick={() => navigate('/therapist-dashboard/profile')}>
-                        Edit Profile
-                      </button>
-                      <button onClick={handleLogout}>
-                        Logout
-                      </button>
-                    </div>
-                  </div>
-                  <div className="settings-actions">
-                    <button
-                      onClick={saveSettings}
-                      className="save-settings-btn"
-                      disabled={isSaving}
-                    >
-                      {isSaving ? "Saving..." : "Save Settings"}
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <TherapistDashboardSetting
+                therapistInfo={therapistInfo}
+                setTherapistInfo={setInfo}
+                saveSettings={saveSettings}
+                isSaving={isSaving}
+                navigate={navigate}
+                handleLogout={() => logout(activeChatId, activeGroupId, therapistName)}
+              />
             }
           />
         </Routes>

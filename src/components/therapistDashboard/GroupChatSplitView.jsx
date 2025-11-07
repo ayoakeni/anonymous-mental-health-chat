@@ -17,7 +17,7 @@ function GroupChatSplitView({
   participantNames,
   combinedGroupChat,
   typingUsers,
-  messagesEndRef,
+  groupMessagesEndRef,
   showEmojiPicker,
   setShowEmojiPicker,
   reply,
@@ -38,6 +38,7 @@ function GroupChatSplitView({
   isLoadingMessages,
   hasMoreMessages,
   loadMoreMessages,
+  navigate,
 }) {
   const { groupId } = useParams();
   const chatBoxRef = useRef(null);
@@ -50,7 +51,7 @@ function GroupChatSplitView({
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = chatBox;
-      isUserAtBottom.current = scrollHeight - scrollTop <= clientHeight + 50; // 50px buffer
+      isUserAtBottom.current = scrollHeight - scrollTop <= clientHeight + 50;
       if (scrollTop === 0 && hasMoreMessages && !isLoadingMessages) {
         loadMoreMessages();
       }
@@ -62,8 +63,8 @@ function GroupChatSplitView({
 
   // Auto-scroll only if user is at the bottom
   useEffect(() => {
-    if (isUserAtBottom.current && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (isUserAtBottom.current && groupMessagesEndRef.current) {
+      groupMessagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [combinedGroupChat]);
 
@@ -96,7 +97,10 @@ function GroupChatSplitView({
                 <div
                   key={group.id}
                   className={`chat-card ${activeGroupId === group.id ? "selected" : ""}`}
-                  onClick={() => joinGroupChat(group.id)}
+                  onClick={() => {
+                    navigate(`/therapist-dashboard/group-chat/${group.id}`);
+                    joinGroupChat(group.id);
+                  }}
                 >
                   <div className="chat-card-inner">
                     <div className="chat-avater-content">
@@ -208,7 +212,7 @@ function GroupChatSplitView({
                   {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
                 </p>
               )}
-              <div ref={messagesEndRef} />
+              <div ref={groupMessagesEndRef} />
             </div>
             <div className="chat-input">
               <button
@@ -223,7 +227,13 @@ function GroupChatSplitView({
                 type="file"
                 id="group-file-upload"
                 style={{ display: "none" }}
-                onChange={(e) => sendReply(e.target.files[0])}
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    sendReply("", file);
+                    setReply("");
+                  }
+                }}
                 aria-label="Upload file"
               />
               <button
@@ -245,12 +255,22 @@ function GroupChatSplitView({
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    sendReply();
+                    if (reply.trim()) {
+                      sendReply(reply);
+                      setReply("");
+                    }
                   }
                 }}
                 aria-label="Message input"
               />
-              <button className="send-btn" onClick={() => sendReply()} aria-label="Send message">
+              <button className="send-btn" 
+                onClick={() => {
+                  if (reply.trim()) {
+                    sendReply(reply);
+                    setReply("");
+                  }
+                }}
+                aria-label="Send message">
                 <i className="fa-solid fa-paper-plane"></i>
               </button>
             </div>

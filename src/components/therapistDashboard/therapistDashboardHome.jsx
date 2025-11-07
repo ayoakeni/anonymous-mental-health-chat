@@ -90,7 +90,10 @@ function TherapistDashboardHome({
                   <div
                     key={group.id}
                     className="chat-card"
-                    onClick={() => joinGroupChat(group.id)}
+                    onClick={() => {
+                      navigate(`/therapist-dashboard/group-chat/${group.id}`);
+                      joinGroupChat(group.id);
+                    }}
                   >
                     <div className="chat-card-inner">
                       <div className="chat-avater-content">
@@ -146,7 +149,10 @@ function TherapistDashboardHome({
                   <div
                     key={chat.id}
                     className={`chat-card ${chat.needsTherapist ? "pending-chat" : ""}`}
-                    onClick={() => joinPrivateChat(chat.id)}
+                    onClick={() => {
+                      navigate(`/therapist-dashboard/private-chat/${chat.id}`);
+                      joinPrivateChat(chat.id);
+                    }}
                   >
                     <div className="chat-card-inner">
                       <div className="chat-avater-content">
