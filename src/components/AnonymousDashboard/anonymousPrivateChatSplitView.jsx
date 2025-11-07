@@ -10,6 +10,7 @@ import {
   doc,
   arrayUnion,
   arrayRemove,
+  deleteField,
   runTransaction,
   limit,
   getDoc,
@@ -226,6 +227,7 @@ function AnonymousPrivateChatSplitView({
   // Join private chat
   const joinPrivateChat = async (chatId) => {
     if (!userId) return;
+
     try {
       const chatRef = doc(db, "privateChats", chatId);
       await runTransaction(db, async (transaction) => {
@@ -240,39 +242,51 @@ function AnonymousPrivateChatSplitView({
             aiOffered: false,
             therapistJoinedOnce: false,
             needsTherapist: true,
+            leftBy: {},
           });
         } else {
-          const chatData = chatSnap.data();
-          if (!chatData.participants.includes(userId)) {
+          const data = chatSnap.data();
+          const wasLeft = data.leftBy?.[userId];
+
+          transaction.update(chatRef, {
+            // If previously left, remove the flag
+            ...(wasLeft && { [`leftBy.${userId}`]: deleteField() }),
+            needsTherapist: true,
+          });
+
+          if (!data.participants.includes(userId)) {
             transaction.update(chatRef, {
               participants: arrayUnion(userId),
-              needsTherapist: true,
             });
           }
         }
       });
+
+      setActiveChatId(chatId);
       navigate(`/anonymous-dashboard/private-chat/${chatId}`);
     } catch (err) {
       console.error("Error joining private chat:", err);
       showError("Failed to join private chat. Please try again.");
-      navigate("/anonymous-dashboard/private-chat");
     }
   };
 
   // Leave private chat
   const leavePrivateChat = async () => {
     if (!activeChatId || !userId) return;
+
     try {
       const chatRef = doc(db, "privateChats", activeChatId);
       await runTransaction(db, async (transaction) => {
         const chatSnap = await transaction.get(chatRef);
         if (!chatSnap.exists()) throw new Error("Chat document does not exist");
+
         transaction.update(chatRef, {
-          participants: arrayRemove(userId),
+          [`leftBy.${userId}`]: true,
           aiOffered: false,
           therapistJoinedOnce: false,
           needsTherapist: true,
         });
+
         transaction.set(doc(collection(chatRef, "events")), {
           type: "leave",
           user: displayName,
@@ -281,8 +295,13 @@ function AnonymousPrivateChatSplitView({
           timestamp: serverTimestamp(),
         });
       });
-      setActiveChatId(null);
+
+      // Optional: small delay for feedback
+      await new Promise(r => setTimeout(r, 600));
+
+      setActiveChatId(null); // Close right panel
       navigate("/anonymous-dashboard/private-chat");
+
     } catch (err) {
       console.error("Error leaving private chat:", err);
       showError("Failed to leave chat. Please try again.");
@@ -606,27 +625,34 @@ function AnonymousPrivateChatSplitView({
         <h3>Private Chats</h3>
         <div className="chat-list-container">
           {privateChats.length === 0 ? (
-            <p>No private chats available</p>
+            <p>No active private chats. Start one from a therapist profile!</p>
           ) : (
             privateChats.map((chat) => {
               const lastTs = chat.lastUpdated;
               const { dateStr, timeStr } = formatTimestamp(lastTs);
               const anonName = anonNames[chat.id] || "Loading...";
+              const isLeft = chat.leftBy?.[userId];
               return (
                 <div
                   key={chat.id}
                   className={`chat-card ${activeChatId === chat.id ? "selected" : ""}`}
-                  onClick={() => { 
-                    setActiveChatId(chat.id); 
-                    navigate(`/anonymous-dashboard/private-chat/${chat.id}`); 
-                  }}
+                  onClick={() => {
+                    if (isLeft) {
+                      joinPrivateChat(chat.id); // Rejoin
+                    } else {
+                      setActiveChatId(chat.id);
+                      navigate(`/anonymous-dashboard/private-chat/${chat.id}`);
+                    }
+                  }}    
                 >
                   <div className="chat-card-inner">
                     <div className="chat-avater-content">
                       <span className="therapist-text-avatar">{anonName[0] || "T"}</span>
                       <div className="chat-card-content">
                         <strong className="chat-card-title">{anonName}</strong>
-                        <small className="chat-card-preview">{chat.lastMessage || "No messages yet"}</small>
+                        <small className="chat-card-preview">
+                          {isLeft ? "You left — click to rejoin" : (chat.lastMessage || "No messages yet")}
+                        </small>
                       </div>
                     </div>
                     <div className="chat-card-meta">

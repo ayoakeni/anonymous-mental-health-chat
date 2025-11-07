@@ -90,6 +90,13 @@ function AnonymousDashboard() {
     };
   }, []);
 
+  // Auto-clear activeChatId if chat no longer exists in list
+  useEffect(() => {
+    if (activeChatId && !privateChats.some(chat => chat.id === activeChatId)) {
+      setActiveChatId(null);
+    }
+  }, [privateChats, activeChatId]);
+
   // Authenticate anonymous user
   useEffect(() => {
     let isMounted = true;
@@ -135,28 +142,46 @@ function AnonymousDashboard() {
     return () => unsubscribe();
   }, [showError]);
 
-  // Fetch private chats
+  // Fetch private chats — include those you left
   useEffect(() => {
     if (!userId) return;
-    const q = query(
+
+    // Get ALL chats involving this user OR where they left
+    const q1 = query(
       collection(db, "privateChats"),
       where("participants", "array-contains", userId),
       limit(50)
     );
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        setPrivateChats(chats);
-        setIsLoadingChats(false);
-      },
-      (err) => {
-        console.error("Error fetching private chats:", err);
-        showError("Failed to load private chats. Please try again.");
-        setIsLoadingChats(false);
-      }
+
+    const q2 = query(
+      collection(db, "privateChats"),
+      where(`leftBy.${userId}`, "==", true),
+      limit(50)
     );
-    return () => unsubscribe();
+
+    const unsub1 = onSnapshot(q1, handleSnapshot);
+    const unsub2 = onSnapshot(q2, handleSnapshot);
+
+    function handleSnapshot(snapshot) {
+      const chats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setPrivateChats(prev => {
+        const updated = [...prev];
+        chats.forEach(chat => {
+          const index = updated.findIndex(c => c.id === chat.id);
+          if (index >= 0) {
+            updated[index] = chat;
+          } else {
+            updated.push(chat);
+          }
+        });
+        return updated;
+      });
+    }
+
+    return () => {
+      unsub1();
+      unsub2();
+    };
   }, [userId, showError]);
 
   // Fetch anonymous names for private chats
