@@ -13,6 +13,7 @@ import GroupChatSplitView from "../components/therapistDashboard/GroupChatSplitV
 import PrivateChatSplitView from "../components/therapistDashboard/PrivateChatSplitView";
 import TherapistDashboardHome from "../components/therapistDashboard/therapistDashboardHome";
 import TherapistDashboardProfile from "../components/therapistDashboard/therapistDashboardProfile";
+import TherapistDashboardNotification from "../components/therapistDashboard/therapistDashboardNotification";
 import TherapistAppointmentsDashboard from "../components/therapistDashboard/therapistAppointmentDashboard";
 import TherapistDashboardSetting from "../components/therapistDashboard/therapistDashboardSetting";
 import useNotificationSound from "../components/useNotificationSound";
@@ -32,7 +33,7 @@ import { useNotifications } from "../hooks/useNotifications";
 function TherapistDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-const { groupId, chatId } = useParams();
+  const { groupId, chatId } = useParams();
 
   // UI state
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -311,44 +312,21 @@ const { groupId, chatId } = useParams();
           <Route
             path="/notifications"
             element={
-              <div className="notifications">
-                <div className="notifications-header">
-                  <h3>Notifications</h3>
-                  <select
-                    value={notificationFilter}
-                    onChange={(e) => setNotificationFilter(e.target.value)}
-                  >
-                    <option value="all">All</option>
-                    <option value="unread">Unread</option>
-                    <option value="dismissed">Dismissed</option>
-                  </select>
-                  <button onClick={markAllAsRead}>Mark All Read</button>
-                  <button onClick={resetDismissed}>Reset</button>
-                </div>
-                <ul>
-                  {filteredNotifications.map((notif) => (
-                    <li
-                      key={notif.id}
-                      className={notif.unreadCount > 0 ? "unread" : ""}
-                    >
-                      <span>{notif.message}</span>
-                      <button
-                        onClick={() =>
-                          notif.type === "private"
-                            ? joinPrivate(notif.id)
-                            : navigate(`/therapist-dashboard/group-chat/${notif.id}`)
-                        }
-                      >
-                        View
-                      </button>
-                      {notif.type === "private" && (
-                        <button onClick={() => markAsRead(notif.id)}>Read</button>
-                      )}
-                      <button onClick={() => dismiss(notif.id)}>Dismiss</button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <TherapistDashboardNotification
+                notifications={filteredNotifications}
+                notificationFilter={notificationFilter}
+                setNotificationFilter={setNotificationFilter}
+                markAllAsRead={markAllAsRead}
+                resetDismissed={resetDismissed}
+                onView={(notif) =>
+                  notif.type === "private"
+                    ? joinPrivate(notif.id)
+                    : navigate(`/therapist-dashboard/group-chat/${notif.id}`)
+                }
+                onMarkAsRead={markAsRead}
+                onDismiss={dismiss}
+                formatTimestamp={formatTimestamp}
+              />
             }
           />
           <Route

@@ -5,7 +5,6 @@ import {
   onSnapshot,
   updateDoc,
   arrayUnion,
-  arrayRemove,
 } from "firebase/firestore";
 import { getTimestampMillis } from "../components/timestampUtils";
 
@@ -18,7 +17,7 @@ export function useNotifications(
   const [dismissed, setDismissed] = useState([]);
   const therapistId = auth.currentUser?.uid;
 
-  // Load dismissed notifications
+  // Load dismissed
   useEffect(() => {
     if (!therapistId) return;
     const ref = doc(db, "therapists", therapistId);
@@ -34,6 +33,7 @@ export function useNotifications(
     return unsub;
   }, [therapistId, showError]);
 
+  // Generate notifications
   const notifications = useMemo(() => {
     const privateNotifs = privateChats.map((c) => ({
       id: c.id,
@@ -65,54 +65,69 @@ export function useNotifications(
       );
   }, [privateChats, groupChats, anonNames, dismissed]);
 
+  // MARK AS READ (single)
   const markAsRead = async (chatId) => {
     try {
       await updateDoc(doc(db, "privateChats", chatId), {
         unreadCountForTherapist: 0,
       });
-    } catch {
+    } catch (err) {
       showError("Failed to mark as read.");
+      console.error(err);
     }
   };
 
+  // MARK ALL AS READ
   const markAllAsRead = async () => {
-    const updates = privateChats
-      .filter((c) => c.unreadCountForTherapist > 0)
-      .map((c) =>
-        updateDoc(doc(db, "privateChats", c.id), { unreadCountForTherapist: 0 })
-      );
+    const chatsToUpdate = privateChats.filter(
+      (c) => c.unreadCountForTherapist > 0
+    );
+
+    if (chatsToUpdate.length === 0) return;
+
+    const updates = chatsToUpdate.map((c) =>
+      updateDoc(doc(db, "privateChats", c.id), {
+        unreadCountForTherapist: 0,
+      })
+    );
+
     try {
       await Promise.all(updates);
-    } catch {
+      // No need to manually update state — Firestore listener will trigger re-render
+    } catch (err) {
       showError("Failed to mark all as read.");
+      console.error(err);
     }
   };
 
+  // DISMISS
   const dismiss = async (id) => {
     try {
       await updateDoc(doc(db, "therapists", therapistId), {
         dismissedNotifications: arrayUnion(id),
       });
       setDismissed((prev) => [...prev, id]);
-    } catch {
+    } catch (err) {
       showError("Failed to dismiss notification.");
+      console.error(err);
     }
   };
 
+  // RESET DISMISSED
   const resetDismissed = async () => {
     try {
       await updateDoc(doc(db, "therapists", therapistId), {
         dismissedNotifications: [],
       });
       setDismissed([]);
-    } catch {
+    } catch (err) {
       showError("Failed to reset dismissed notifications.");
+      console.error(err);
     }
   };
 
   return {
     notifications,
-    dismissed,
     markAsRead,
     markAllAsRead,
     dismiss,

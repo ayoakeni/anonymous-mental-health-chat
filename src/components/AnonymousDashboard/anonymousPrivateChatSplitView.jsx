@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation  } from "react-router-dom";
 import { db, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
 import {
   collection,
@@ -53,13 +53,24 @@ function AnonymousPrivateChatSplitView({
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
   const navigate = useNavigate();
-  const { handleTyping } = useTypingStatus(displayName);
+  const location = useLocation();
+  const { handleTyping } = useTypingStatus(displayName);  
 
   // Memoize active chat to avoid repeated find calls
   const activeChat = useMemo(() => 
     privateChats.find((g) => g.id === activeChatId), 
     [privateChats, activeChatId]
   );
+
+  // Auto-select newly created chat
+  useEffect(() => {
+    const selectId = location.state?.selectChatId;
+    if (selectId && privateChats.some(chat => chat.id === selectId)) {
+      setActiveChatId(selectId);
+      // Clear state to prevent re-trigger
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, privateChats, setActiveChatId, navigate]);
 
   // Auto scroll to bottom when new messages arrive
   useEffect(() => {
@@ -605,7 +616,10 @@ function AnonymousPrivateChatSplitView({
                 <div
                   key={chat.id}
                   className={`chat-card ${activeChatId === chat.id ? "selected" : ""}`}
-                  onClick={() => joinPrivateChat(chat.id)}
+                  onClick={() => { 
+                    setActiveChatId(chat.id); 
+                    navigate(`/anonymous-dashboard/private-chat/${chat.id}`); 
+                  }}
                 >
                   <div className="chat-card-inner">
                     <div className="chat-avater-content">

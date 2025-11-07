@@ -1,3 +1,38 @@
+:root {
+  --primary-color: #4a90e2;
+  --background-color: #f5f7fa;
+  --chat-bg: #ffffff;
+  --text-color: #333333;
+  --therapist-bg: #e6f0fa;
+  --user-bg: #d9e8ff;
+  --ai-bg: #f0f0f0;
+  --system-bg: #f9fafb;
+  --border-radius: 8px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --input-bg: #ffffff;
+  --input-border: #ccc;
+  --accent-color: #34c759;
+  --secondary-color: #ff9500;
+  --error-color: #ff3b30;
+  --badge-bg: #ef4444;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-color: #1e1e2f;
+    --chat-bg: #2a2a3b;
+    --text-color: #e0e0e0;
+    --therapist-bg: #3a4a6b;
+    --user-bg: #4a6b9b;
+    --ai-bg: #3b3b4b;
+    --system-bg: #2e2e4b;
+    --input-bg: #2a2a3b;
+    --chat-input-bg: #1e1e2f;
+    --input-border: #555;
+    --badge-bg: #f87171;
+  }
+}
+
 .notifications {
   flex: 1;
   color: var(--text-color);
