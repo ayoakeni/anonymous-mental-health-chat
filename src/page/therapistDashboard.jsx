@@ -108,6 +108,7 @@ function TherapistDashboard() {
     loading: privLoading,
     chatError,
     validating,
+    inChat,
   } = useActivePrivateChat(
     activeChatId,
     therapistId,
@@ -159,19 +160,20 @@ function TherapistDashboard() {
       if (gid && gid !== activeGroupId) {
         setActiveGroupId(gid);
       }
-    } else {
+    } else if (activeGroupId) {
       setActiveGroupId(null);
     }
 
     // Private chat
     if (path.startsWith("/therapist-dashboard/private-chat/")) {
-      if (chatId && chatId !== activeChatId) {
-        setActiveChatId(chatId);
+      const cid = chatId || path.split("/").pop();
+      if (cid && cid !== activeChatId) {
+        setActiveChatId(cid);
       }
-    } else {
+    } else if (activeChatId) {
       setActiveChatId(null);
     }
-  }, [location.pathname, groupId, chatId, joinGroup, activeGroupId, activeChatId]);
+  }, [location.pathname, groupId, chatId, activeGroupId, activeChatId]);
 
   // ────── UNREAD COUNTS ──────
   const totalGroupUnread = useMemo(
@@ -282,6 +284,7 @@ function TherapistDashboard() {
     onEmojiClick: (e) => setNewPrivateMessage((p) => p + e.emoji),
     anonNames,
     showError,
+    inChat,
     privateMessagesEndRef,
   };
 

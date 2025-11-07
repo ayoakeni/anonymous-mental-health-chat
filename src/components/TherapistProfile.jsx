@@ -35,18 +35,17 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
     const anonUid = auth.currentUser?.uid;
     if (!anonUid) return;
 
-    const existing = await getDoc(doc(db, "privateChats", `${anonUid}_${therapist.uid}`))
-      .catch(() => getDoc(doc(db, "privateChats", `${therapist.uid}_${anonUid}`)));
+    const uids = [anonUid, therapist.uid].sort();
+    const chatId = `${uids[0]}_${uids[1]}`;
 
-    if (existing?.exists()) {
-      const chatId = existing.id;
-      navigate(`/anonymous-dashboard/private-chat/${chatId}`);
+    const existing = await getDoc(doc(db, "privateChats", chatId));
+    if (existing.exists()) {
+      navigate(`/anonymous-dashboard/private-chat/${chatId}`, {
+        state: { selectChatId: chatId }
+      });
       onBack?.();
       return;
     }
-
-    // === CREATE NEW CHAT ===
-    const chatId = `${anonUid}_${therapist.uid}`;
 
     await setDoc(doc(db, "privateChats", chatId), {
       participants: [anonUid, therapist.uid],
@@ -58,11 +57,9 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
       aiEnabled: false,
     });
 
-    // Navigate with state to auto-select
     navigate(`/anonymous-dashboard/private-chat/${chatId}`, {
       state: { selectChatId: chatId }
     });
-
     onBack?.();
   };
 

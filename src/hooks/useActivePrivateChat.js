@@ -21,6 +21,7 @@ export function useActivePrivateChat(
   const [loading, setLoading] = useState(false);
   const [chatError, setChatError] = useState(null);
   const [validating, setValidating] = useState(false);
+  const [inChat, setInChat] = useState(false);
   const prevMsgs = useRef([]);
 
   const unsubMsgs = useRef(() => {});
@@ -65,6 +66,7 @@ export function useActivePrivateChat(
           timestamp: serverTimestamp(),
         });
       });
+      setInChat(true);
     } catch (e) {
       setChatError(e.message);
       navigate("/therapist-dashboard/private-chat");
@@ -97,6 +99,7 @@ export function useActivePrivateChat(
       setMessages([]);
       setEvents([]);
       navigate("/therapist-dashboard/private-chat");
+      setInChat(false);
     } catch (e) {
       showError("Failed to leave private chat.");
     }
@@ -193,8 +196,12 @@ export function useActivePrivateChat(
       setMessages([]);
       setEvents([]);
       setChatError(null);
+      setInChat(false);
+      setValidating(false);
       return;
     }
+
+    // Auto-join when activeChatId changes
     join(activeChatId);
   }, [activeChatId, join]);
 
@@ -244,6 +251,7 @@ export function useActivePrivateChat(
     loading,
     chatError,
     validating,
+    inChat,
     join,
     leave,
     sendMessage,

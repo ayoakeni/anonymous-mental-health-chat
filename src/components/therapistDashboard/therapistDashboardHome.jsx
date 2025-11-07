@@ -151,7 +151,6 @@ function TherapistDashboardHome({
                     className={`chat-card ${chat.needsTherapist ? "pending-chat" : ""}`}
                     onClick={() => {
                       navigate(`/therapist-dashboard/private-chat/${chat.id}`);
-                      joinPrivateChat(chat.id);
                     }}
                   >
                     <div className="chat-card-inner">

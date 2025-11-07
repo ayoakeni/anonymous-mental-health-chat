@@ -40,6 +40,7 @@ function PrivateChatSplitView({
   onEmojiClick: parentOnEmojiClick,
   anonNames = {},
   showError,
+  inChat,
 }) {
   const { chatId } = useParams();
   const isUserAtBottom = useRef(true);
@@ -67,13 +68,6 @@ function PrivateChatSplitView({
       privateMessagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [combinedPrivateChat]);
-
-  // Join private chat when chatId changes
-  useEffect(() => {
-    if (chatId && chatId !== activeChatId) {
-      joinPrivateChat(chatId);
-    }
-  }, [chatId, activeChatId, joinPrivateChat]);
 
   const onEmojiClick = useCallback((emojiData) => {
     setNewPrivateMessage((prev) => prev + emojiData.emoji);
@@ -111,7 +105,6 @@ function PrivateChatSplitView({
                   key={chat.id}
                   className={`chat-card ${activeChatId === chat.id ? "selected" : ""}`}
                   onClick={() => { 
-                    joinPrivateChat(chat.id); 
                     navigate(`/therapist-dashboard/private-chat/${chat.id}`);
                   }}
                 >
@@ -144,7 +137,7 @@ function PrivateChatSplitView({
         </div>
       </div>
       <div className="chat-box-container">
-        {activeChatId ? (
+        {activeChatId && inChat ? (
           isValidatingChat ? (
             <div className="chat-list">
               <h3>Loading Private Chat...</h3>
@@ -237,14 +230,22 @@ function PrivateChatSplitView({
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
-                      sendPrivateMessage();
+                      if (newPrivateMessage.trim()) {
+                        sendPrivateMessage(newPrivateMessage);
+                        setNewPrivateMessage("");
+                      }
                     }
                   }}
                   aria-label="Message input"
                 />
                 <button
                   className="send-btn"
-                  onClick={() => sendPrivateMessage()}
+                  onClick={() => {
+                    if (newPrivateMessage.trim()) {
+                      sendPrivateMessage(newPrivateMessage);
+                      setNewPrivateMessage("");
+                    }
+                  }}
                   disabled={isSendingPrivate}
                   aria-label="Send message"
                 >
