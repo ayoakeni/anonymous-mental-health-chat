@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { auth, db } from "../utils/firebase";
-import { doc, onSnapshot, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 
 export function useTherapistProfile(navigate, showError) {

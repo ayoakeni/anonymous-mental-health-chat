@@ -1,4 +1,3 @@
-import React from "react";
 import "../../styles/therapistDashboardSetting.css";
 
 export default function TherapistDashboardSetting({

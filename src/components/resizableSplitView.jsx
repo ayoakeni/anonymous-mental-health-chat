@@ -1,5 +1,4 @@
-// src/components/ResizableSplitView.jsx
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import "../styles/resizableSplitView.css";
 
 const ResizableSplitView = ({

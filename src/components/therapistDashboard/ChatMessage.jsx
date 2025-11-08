@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import { memo } from "react";
 import { formatMessageTime } from "../../components/timestampUtils";
 
 const ChatMessage = memo(({ msg, toggleReaction, deleteMessage, therapistInfo, handleTherapistClick }) => (

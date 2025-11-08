@@ -1,4 +1,3 @@
-import React from "react";
 import { formatTimestamp } from "../../components/timestampUtils";
 import "../../styles/therapistDashboardNotification.css";
 

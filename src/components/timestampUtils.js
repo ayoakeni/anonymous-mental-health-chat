@@ -1,7 +1,3 @@
-/**
- * timestampUtils.js
- * Utility functions for handling and formatting timestamps with Luxon for timezone support.
- */
 import { DateTime } from 'luxon';
 
 /**

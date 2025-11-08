@@ -1,5 +1,4 @@
-import React, { useEffect, useRef, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useRef, useCallback } from "react";
 import ChatMessage from "./ChatMessage";
 import { formatTimestamp } from "../../components/timestampUtils";
 import ResizableSplitView from "../../components/resizableSplitView";

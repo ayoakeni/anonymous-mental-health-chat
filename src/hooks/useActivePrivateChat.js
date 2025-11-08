@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { db, auth, storage, serverTimestamp } from "../utils/firebase";
+import { db, storage, serverTimestamp } from "../utils/firebase";
 import {
   doc, collection, query, orderBy, onSnapshot, limit, getDocs, startAfter,
-  updateDoc, setDoc, deleteDoc, getDoc, runTransaction, arrayUnion, arrayRemove
+  runTransaction, arrayUnion, arrayRemove
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getTimestampMillis } from "../components/timestampUtils";

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { db, auth, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
 import { getAnonName } from "../../login/anonymous_login";

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { db, auth, Timestamp } from "../utils/firebase";
 import { doc, setDoc, updateDoc, collection, query, where, onSnapshot, getDoc } from "firebase/firestore";
 import "../styles/clientDashboard.css";

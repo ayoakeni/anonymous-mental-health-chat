@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
