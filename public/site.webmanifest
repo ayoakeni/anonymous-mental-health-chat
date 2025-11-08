@@ -1,6 +1,6 @@
 {
   "name": "Anonymous Mental Health Chat",
-  "short_name": "Anonymous",
+  "short_name": "Anonymous chat",
   "description": "Connect anonymously with peers, get AI support, or chat privately with licensed therapists. Safe, secure, and judgment-free.",
   "start_url": "/",
   "display": "standalone",
