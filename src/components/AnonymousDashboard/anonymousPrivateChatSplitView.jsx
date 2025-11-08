@@ -344,7 +344,6 @@ function AnonymousPrivateChatSplitView({
         transaction.update(chatRef, {
           [`leftBy.${userId}`]: true,
           aiOffered: false,
-          therapistJoinedOnce: false,
           needsTherapist: true,
         });
 
@@ -699,7 +698,7 @@ function AnonymousPrivateChatSplitView({
                   className={`chat-card ${activeChatId === chat.id ? "selected" : ""}`}
                   onClick={() => {
                     if (isLeft) {
-                      joinPrivateChat(chat.id); // Rejoin
+                      joinPrivateChat(chat.id);
                     } else {
                       setActiveChatId(chat.id);
                       navigate(`/anonymous-dashboard/private-chat/${chat.id}`);
@@ -712,7 +711,9 @@ function AnonymousPrivateChatSplitView({
                       <div className="chat-card-content">
                         <strong className="chat-card-title">
                           {anonName}
-                          {isLeft ? " (You Left)" : ""}
+                          {isLeft && (
+                            <span className="left-indicator"> (You Left)</span>
+                          )}
                         </strong>
                         <small className="chat-card-preview">
                           {chat.lastMessage || "No messages yet"}

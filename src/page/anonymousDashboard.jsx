@@ -312,7 +312,6 @@ function AnonymousDashboard() {
               transaction.update(privateChatRef, {
                 participants: arrayRemove(userId),
                 aiOffered: false,
-                therapistJoinedOnce: false,
                 needsTherapist: true,
               });
               transaction.set(doc(collection(privateChatRef, "events")), {

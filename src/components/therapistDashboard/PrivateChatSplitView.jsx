@@ -127,8 +127,10 @@ function PrivateChatSplitView({
                             </span>
                           )}
                           {chat.needsTherapist ? "(Needs Therapist)" : ""}
-                          {therapistId && !chat.participants?.includes(therapistId) && chat.therapistJoinedOnce && (
-                            <span className="left-indicator"> (Left)</span>
+                          {therapistId && 
+                          !chat.participants?.includes(chat.userId) && 
+                          chat.therapistJoinedOnce && (
+                            <span className="left-indicator"> (User Left)</span>
                           )}
                         </strong>
                         <small className="chat-card-preview">{chat.lastMessage || "No messages yet"}</small>
