@@ -110,18 +110,12 @@
 }
 
 
-/* Split Layout Styles */
-.therapist-dashboard .split-chat-container {
-  display: flex;
-  height: 100vh;
-}
 
-.chat-box-card {
+.therapist-dashboard .chat-box-card {
   flex: 1;
-  max-width: 350px;
+  width: 100%;
   padding: 20px 0;
   background: var(--chat-bg);
-  border-right: 1px solid var(--input-border);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -350,9 +344,9 @@
     margin-left: 65px;
   }
 
-  .therapist-dashboard .split-chat-container {
+  /* .therapist-dashboard .split-chat-container {
     flex-direction: column;
-  }
+  } */
   
   .therapist-dashboard .chat-box-card {
     max-width: 100%;
@@ -362,18 +356,6 @@
   
   .therapist-dashboard .chat-list-container {
     max-width: 100%;
-    /* max-height: 50vh; */
-  }
-
-  .therapist-dashboard .chat-box-container {
-    flex: 1;
-    max-height: 50vh;
-  }
-
-  .therapist-dashboard .chat-box,
-  .therapist-dashboard .chat-container {
-    height: aut;
-    max-height: 50vh;
   }
 
   .therapist-dashboard .chat-message {

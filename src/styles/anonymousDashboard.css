@@ -714,18 +714,10 @@
   border-radius: 4px;
 }
 
-.anonymous-dashboard .split-chat-container {
-  display: flex;
-  height: 100vh;
-  row-gap: 20px;
-}
-
 .anonymous-dashboard .chat-box-card {
   flex: 1;
-  max-width: 350px;
   padding: 20px 0;
   background: var(--chat-bg);
-  border-right: 1px solid var(--input-border);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -1513,16 +1505,6 @@
 
   .therapist-dashboard .chat-list-container {
     max-width: 100%;
-  }
-
-  .anonymous-dashboard .chat-box-container {
-    flex: 1;
-    max-height: 50vh;
-  }
-
-  .anonymous-dashboard .chat-box {
-    height: auto;
-    max-height: 50vh;
   }
 
   .anonymous-dashboard .chat-message {

@@ -22,6 +22,7 @@ import { useTypingStatus } from "../useTypingStatus";
 import { getAIResponse } from "../../utils/AiChatIntegration";
 import { mapMessagesForAI } from "../../utils/aiMessageMapper";
 import ChatMessage from "../therapistDashboard/ChatMessage";
+import ResizableSplitView from "../../components/resizableSplitView";
 import LeaveChatButton from "../LeaveChatButton";
 import EmojiPicker from "emoji-picker-react";
 
@@ -679,202 +680,217 @@ function AnonymousPrivateChatSplitView({
     return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
   });
 
-  return (
-    <div className="split-chat-container">
-      <div className="chat-box-card">
-        <h3>Private Chats</h3>
-        <div className="chat-list-container">
-          {privateChats.length === 0 ? (
-            <p>No active private chats. Start one from a therapist profile!</p>
-          ) : (
-            privateChats.map((chat) => {
-              const lastTs = chat.lastUpdated;
-              const { dateStr, timeStr } = formatTimestamp(lastTs);
-              const anonName = anonNames[chat.id] || "Loading...";
-              const isLeft = chat.leftBy?.[userId];
-              return (
-                <div
-                  key={chat.id}
-                  className={`chat-card ${activeChatId === chat.id ? "selected" : ""}`}
-                  onClick={() => {
-                    if (isLeft) {
-                      joinPrivateChat(chat.id);
-                    } else {
-                      setActiveChatId(chat.id);
-                      navigate(`/anonymous-dashboard/private-chat/${chat.id}`);
-                    }
-                  }}    
-                >
-                  <div className="chat-card-inner">
-                    <div className="chat-avater-content">
-                      <span className="therapist-text-avatar">{anonName[0] || "T"}</span>
-                      <div className="chat-card-content">
-                        <strong className="chat-card-title">
-                          {anonName}
-                          {isLeft && (
-                            <span className="left-indicator"> (You Left)</span>
-                          )}
-                        </strong>
-                        <small className="chat-card-preview">
-                          {chat.lastMessage || "No messages yet"}
-                        </small>
-                      </div>
-                    </div>
-                    <div className="chat-card-meta">
-                      {lastTs ? (
-                        <div className="message-timestamp">
-                          <span className="meta-date">{dateStr}</span>
-                          <span className="meta-time">{timeStr}</span>
-                        </div>
-                      ) : null}
-                      {chat.unreadCountForTherapist > 0 && (
-                        <span className="unread-badge">{chat.unreadCountForTherapist}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-      <div className="chat-box-container">
-        {isSelectingChat ? (
-          <div className="empty-chat">
-            <p className="loading-text">Opening your new chat...</p>
-            <div className="spinner"></div>
-          </div>
-        ) : activeChatId ? (
-          <div className="private-chat-box">
-            <div className="detailLeave">
-              <div className="chat-avater">
-                <span className="text-avatar">{therapistName?.[0] || "T"}</span>
-                <div className="card-content">
-                  <strong className="group-title">
-                    {therapistName === "Loading…" ? (
-                      <>
-                        <span className="spinner small"></span> Loading…
-                      </>
-                    ) : (
-                      therapistName
-                    )}
-                  </strong>
-                  <small className="participant-preview">
-                    {activeTherapists.length > 0 ? (
-                      activeTherapists.map((therapist) => (
-                        <div key={therapist.uid} className="participant">
-                          <span className="participant-name">
-                            {therapist.name || "Loading..."}<b>,</b>
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="participant">No therapist</div>
-                    )}           
-                  </small>
-                </div>
-              </div>
-              <div className="leave-participant">
-                <LeaveChatButton type="private" onLeave={leavePrivateChat} />
-              </div>
-            </div>
-            <div className="chat-box" role="log" aria-live="polite" ref={chatBoxRef}>
-              {isLoadingChat ? (
-                <p>Loading chat data...</p>
-              ) : combinedPrivateChat.length === 0 ? (
-                <p>No messages or events in this chat yet.</p>
-              ) : (
-                combinedPrivateChat.map((msg) => (
-                  <div key={msg.id}>
-                    {msg.type === "ai-offer" && chatData?.aiOffered && !aiEnabled ? (
-                      <div className="ai-offer">
-                        <p className="chat-message system"><em>{msg.text}</em></p>
-                        <button onClick={() => handleAiChoice("yes")} disabled={isSending}>Yes</button>
-                        <button onClick={() => handleAiChoice("no")} disabled={isSending}>No</button>
-                      </div>
-                    ) : (
-                      <ChatMessage
-                        msg={msg}
-                        toggleReaction={msg.id.startsWith("pending-") ? () => {} : toggleReaction}
-                        therapistInfo={{ role: "user" }}
-                        handleTherapistClick={() => {}}
-                      />
-                    )}
-                  </div>
-                ))
-              )}
-              {typingUsers.length > 0 && (
-                <p className="typing-indicator">
-                  {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
-                </p>
-              )}
-              {aiTyping && (
-                <p className="typing-indicator ai-typing">
-                  Support Assistant is typing...
-                </p>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-            <div className="chat-input">
-              <button
-                className="emoji-btn"
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                aria-label="Open emoji picker"
-                disabled={isSending || aiTyping}
-              >
-                <i className="fa-regular fa-face-smile"></i>
-              </button>
-              {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
-              <input
-                type="file"
-                id="private-file-upload"
-                style={{ display: "none" }}
-                onChange={(e) => sendMessage(e.target.files[0])}
-                aria-label="Upload file"
-              />
-              <button
-                className="attach-btn"
-                onClick={() => document.getElementById("private-file-upload").click()}
-                aria-label="Attach file"
-                disabled={isSending || aiTyping}
-              >
-                <i className="fa-solid fa-paperclip"></i>
-              </button>
-              <input
-                className="inputInsert"
-                type="text"
-                value={newMessage}
-                onChange={(e) => {
-                  setNewMessage(e.target.value);
-                  handleTyping(e.target.value);
-                }}
-                placeholder="Type a message..."
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                  }
-                }}
-                aria-label="Message input"
-                disabled={isSending || aiTyping}
-              />
-              <button
-                className="send-btn"
-                onClick={() => sendMessage()}
-                disabled={isSending || aiTyping}
-                aria-label="Send message"
-              >
-                {isSending ? "Sending..." : <i className="fa-solid fa-paper-plane"></i>}
-              </button>
-            </div>
-          </div>
+  // LEFT PANEL: Chat List
+  const leftPanel = (
+    <div className="chat-box-card">
+      <h3>Private Chats</h3>
+      <div className="chat-list-container">
+        {privateChats.length === 0 ? (
+          <p>No active private chats. Start one from a therapist profile!</p>
         ) : (
-          <div className="empty-chat">
-            <p>Select a private chat to view messages</p>
-          </div>
+          privateChats.map((chat) => {
+            const lastTs = chat.lastUpdated;
+            const { dateStr, timeStr } = formatTimestamp(lastTs);
+            const anonName = anonNames[chat.id] || "Loading...";
+            const isLeft = chat.leftBy?.[userId];
+            return (
+              <div
+                key={chat.id}
+                className={`chat-card ${activeChatId === chat.id ? "selected" : ""}`}
+                onClick={() => {
+                  if (isLeft) {
+                    joinPrivateChat(chat.id);
+                  } else {
+                    setActiveChatId(chat.id);
+                    navigate(`/anonymous-dashboard/private-chat/${chat.id}`);
+                  }
+                }}    
+              >
+                <div className="chat-card-inner">
+                  <div className="chat-avater-content">
+                    <span className="therapist-text-avatar">{anonName[0] || "T"}</span>
+                    <div className="chat-card-content">
+                      <strong className="chat-card-title">
+                        {anonName}
+                        {isLeft && (
+                          <span className="left-indicator"> (You Left)</span>
+                        )}
+                      </strong>
+                      <small className="chat-card-preview">
+                        {chat.lastMessage || "No messages yet"}
+                      </small>
+                    </div>
+                  </div>
+                  <div className="chat-card-meta">
+                    {lastTs ? (
+                      <div className="message-timestamp">
+                        <span className="meta-date">{dateStr}</span>
+                        <span className="meta-time">{timeStr}</span>
+                      </div>
+                    ) : null}
+                    {chat.unreadCountForTherapist > 0 && (
+                      <span className="unread-badge">{chat.unreadCountForTherapist}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
     </div>
+  );
+
+  // RIGHT PANEL: Active Chat
+  const rightPanel = (
+    <div className="chat-box-container">
+      {isSelectingChat ? (
+        <div className="empty-chat">
+          <p className="loading-text">Opening your new chat...</p>
+          <div className="spinner"></div>
+        </div>
+      ) : activeChatId ? (
+        <div className="private-chat-box">
+          <div className="detailLeave">
+            <div className="chat-avater">
+              <span className="text-avatar">{therapistName?.[0] || "T"}</span>
+              <div className="card-content">
+                <strong className="group-title">
+                  {therapistName === "Loading…" ? (
+                    <>
+                      <span className="spinner small"></span> Loading…
+                    </>
+                  ) : (
+                    therapistName
+                  )}
+                </strong>
+                <small className="participant-preview">
+                  {activeTherapists.length > 0 ? (
+                    activeTherapists.map((therapist) => (
+                      <div key={therapist.uid} className="participant">
+                        <span className="participant-name">
+                          {therapist.name || "Loading..."}<b>,</b>
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="participant">No therapist</div>
+                  )}           
+                </small>
+              </div>
+            </div>
+            <div className="leave-participant">
+              <LeaveChatButton type="private" onLeave={leavePrivateChat} />
+            </div>
+          </div>
+          <div className="chat-box" role="log" aria-live="polite" ref={chatBoxRef}>
+            {isLoadingChat ? (
+              <p>Loading chat data...</p>
+            ) : combinedPrivateChat.length === 0 ? (
+              <p>No messages or events in this chat yet.</p>
+            ) : (
+              combinedPrivateChat.map((msg) => (
+                <div key={msg.id}>
+                  {msg.type === "ai-offer" && chatData?.aiOffered && !aiEnabled ? (
+                    <div className="ai-offer">
+                      <p className="chat-message system"><em>{msg.text}</em></p>
+                      <button onClick={() => handleAiChoice("yes")} disabled={isSending}>Yes</button>
+                      <button onClick={() => handleAiChoice("no")} disabled={isSending}>No</button>
+                    </div>
+                  ) : (
+                    <ChatMessage
+                      msg={msg}
+                      toggleReaction={msg.id.startsWith("pending-") ? () => {} : toggleReaction}
+                      therapistInfo={{ role: "user" }}
+                      handleTherapistClick={() => {}}
+                    />
+                  )}
+                </div>
+              ))
+            )}
+            {typingUsers.length > 0 && (
+              <p className="typing-indicator">
+                {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+              </p>
+            )}
+            {aiTyping && (
+              <p className="typing-indicator ai-typing">
+                Support Assistant is typing...
+              </p>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+          <div className="chat-input">
+            <button
+              className="emoji-btn"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              aria-label="Open emoji picker"
+              disabled={isSending || aiTyping}
+            >
+              <i className="fa-regular fa-face-smile"></i>
+            </button>
+            {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
+            <input
+              type="file"
+              id="private-file-upload"
+              style={{ display: "none" }}
+              onChange={(e) => sendMessage(e.target.files[0])}
+              aria-label="Upload file"
+            />
+            <button
+              className="attach-btn"
+              onClick={() => document.getElementById("private-file-upload").click()}
+              aria-label="Attach file"
+              disabled={isSending || aiTyping}
+            >
+              <i className="fa-solid fa-paperclip"></i>
+            </button>
+            <input
+              className="inputInsert"
+              type="text"
+              value={newMessage}
+              onChange={(e) => {
+                setNewMessage(e.target.value);
+                handleTyping(e.target.value);
+              }}
+              placeholder="Type a message..."
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+              aria-label="Message input"
+              disabled={isSending || aiTyping}
+            />
+            <button
+              className="send-btn"
+              onClick={() => sendMessage()}
+              disabled={isSending || aiTyping}
+              aria-label="Send message"
+            >
+              {isSending ? "Sending..." : <i className="fa-solid fa-paper-plane"></i>}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="empty-chat">
+          <p>Select a private chat to view messages</p>
+        </div>
+      )}
+    </div>
+  );
+  
+  return (
+    <ResizableSplitView
+      leftPanel={leftPanel}
+      rightPanel={rightPanel}
+      initialRatio={0.3}
+      minLeft={290}
+      maxLeft={550}
+      minRight={200}
+      maxRight={400}
+    />
   );
 }
 

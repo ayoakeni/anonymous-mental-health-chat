@@ -19,6 +19,7 @@ import {
 } from "firebase/firestore";
 import { useTypingStatus } from "../useTypingStatus";
 import ChatMessage from "../therapistDashboard/ChatMessage";
+import ResizableSplitView from "../../components/resizableSplitView";
 import LeaveChatButton from "../LeaveChatButton";
 import EmojiPicker from "emoji-picker-react";
 import TherapistProfile from "../TherapistProfile";
@@ -548,240 +549,255 @@ function AnonymousGroupChatSplitView({
     return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
   });
 
-  return (
-    <div className="split-chat-container">
-      <div className="chat-box-card">
-        <h3>Group Chats</h3>
-        <div className="chat-list-container">
-          {isLoadingChats ? (
-            <p>Loading group chats...</p>
-          ) : groupChats.length === 0 ? (
-            <p>No group chats available</p>
-          ) : (
-            groupChats.map((group) => {
-              const lastTs = group.lastMessage?.timestamp;
-              const { dateStr, timeStr } = formatTimestamp(lastTs);
-              return (
-                <div
-                  key={group.id}
-                  className={`chat-card ${activeGroupId === group.id ? "selected" : ""}`}
-                  onClick={() => {
-                    joinGroupChat(group.id);
-                  }}
-                >
-                  <div className="chat-card-inner">
-                    <div className="chat-avater-content">
-                      <span className="therapist-text-avatar">{group.name?.[0] || "G"}</span>
-                      <div className="chat-card-content">
-                        <strong className="chat-card-title">{group.name || "Unnamed Group"}</strong>
-                        <small className="chat-card-preview">
-                          {group.lastMessage
-                            ? `${group.lastMessage.displayName || "Anonymous"}: ${group.lastMessage.text}`
-                            : "No messages yet"}
-                        </small>
-                      </div>
-                    </div>
-                    <div className="chat-card-meta">
-                      {lastTs ? (
-                        <div className="message-timestamp">
-                          <span className="meta-date">{dateStr || "N/A"}</span>
-                          <span className="meta-time">{timeStr || "N/A"}</span>
-                        </div>
-                      ) : null}
-                      {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-      <div className="chat-box-container">
-        {activeGroupId ? (
-          <div className="group-chat-box">
-            {/* Therapist Profile Modal */}
-            {selectedTherapist && (
-              <div className="modal-backdrop">
-                <div className="modal" ref={modalRef}>
-                  <TherapistProfile
-                    therapist={selectedTherapist}
-                    isOnline={isTherapistOnline(selectedTherapist.uid)}
-                    onBack={() => setSelectedTherapist(null)}
-                    onStartChat={() => startPrivateChat(selectedTherapist)}
-                    onBookAppointment={() => alert("Appointment booking coming soon!")}
-                  />
-                </div>
-              </div>
-            )}
-            {/* Pinned Message */}
-            {combinedGroupChat.some((msg) => msg.pinned) && (
-              <div className="pinned-message">
-                <strong>Pinned:</strong>{" "}
-                {combinedGroupChat.find((msg) => msg.pinned)?.text || "Welcome to the chatroom!"}
-              </div>
-            )}
-            <div className="detailLeave">
-              <div className="chat-avater">
-                <span className="text-avatar">{activeGroup?.name?.[0] || "G"}</span>
-                <div className="card-content">
-                  <strong className="group-title">{activeGroup?.name || "Unnamed Group"}</strong>
-                  <small className="participant-preview">
-                    {participants.length > 0 ? (
-                      participants.map((uid) => (
-                        <div key={uid} className="participant">
-                          <span className="participant-name">
-                            {participantNames[uid] || "Loading"}<b>,</b>
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="participant">No participants</div>
-                    )}           
-                  </small>
-                </div>
-              </div>
-              {/* Therapist List */}
-              <div className="therapist-list">
-                {therapistsOnline.map((therapist) => (
-                  <div
-                    key={therapist.uid}
-                    className={`therapist-item ${therapist.online ? "online" : ""} ${
-                      selectedTherapist?.uid === therapist.uid ? "active" : ""
-                    }`}
-                    data-fullname={therapist.name}
-                    onClick={() => handleTherapistClick({ userId: therapist.uid, role: "therapist" })}
-                  >
-                    {therapist.profileImage ? (
-                      <img src={therapist.profileImage} alt={therapist.name} className={`avatar ${therapist.online ? "online" : ""}`} />
-                    ) : (
-                      <div className={`avatarPlaceholder ${therapist.online ? "online" : ""}`}>
-                        {therapist.name ? therapist.name[0].toUpperCase() : 'T'}
-                      </div>
-                    )}
-                    <span className="therapist-name">
-                      {therapist.name || `Therapist ${therapist.uid.slice(0, 4)}`}
-                    </span> 
-                  </div>
-                ))}
-              </div>
-              <div className="leave-participant">
-                <div className="participant-list">
-                  <h4
-                    className="participant-toggle"
-                    onClick={() => setIsParticipantsOpen(!isParticipantsOpen)}
-                    role="button"
-                    aria-expanded={isParticipantsOpen}
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        setIsParticipantsOpen(!isParticipantsOpen);
-                      }
-                    }}
-                  >
-                    <i className="fas fa-user" style={{ color: isParticipantsOpen ? "#e0e0e0" : "gray" }} aria-hidden="true"></i>
-                    ({participants.length})
-                  </h4>
-                  {isParticipantsOpen && (
-                    <div className="participant-dropdown">
-                      <div className="participant-item-container">
-                        {participants.length > 0 ? (
-                          participants.map((uid) => (
-                            <div key={uid} className="participant-item">
-                              {participantNames[uid] || "Loading..."}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="participant-item">No participants</div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <LeaveChatButton type="group" onLeave={leaveGroupChat} />
-              </div>
-            </div>
-            <div className={selectedTherapist ? "chat-box blurred" : "chat-box"} role="log" aria-live="polite" ref={chatBoxRef}>
-              {isLoadingChat ? (
-                <p>Loading chat data...</p>
-              ) : combinedGroupChat.length === 0 ? (
-                <p className="no-message">No messages in this group yet.</p>
-              ) : (
-                combinedGroupChat.map((msg) => (
-                  <ChatMessage
-                    key={msg.id}
-                    msg={msg}
-                    toggleReaction={msg.id.startsWith("pending-") ? () => {} : toggleReaction}
-                    therapistInfo={{ role: "user" }}
-                    handleTherapistClick={handleTherapistClick}
-                  />
-                ))
-              )}
-              {typingUsers.length > 0 && (
-                <p className="typing-indicator">
-                  {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
-                </p>
-              )}
-              {aiTyping && (
-                <p className="typing-indicator ai-typing">
-                  Support Assistant is typing...
-                </p>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-            <div className="chat-input">
-              <button
-                className="emoji-btn"
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                aria-label="Open emoji picker"
-              >
-                <i className="fa-regular fa-face-smile"></i>
-              </button>
-              {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
-              <input
-                type="file"
-                id="group-file-upload"
-                style={{ display: "none" }}
-                onChange={(e) => sendMessage(e.target.files[0])}
-                aria-label="Upload file"
-              />
-              <button
-                className="attach-btn"
-                onClick={() => document.getElementById("group-file-upload").click()}
-                aria-label="Attach file"
-              >
-                <i className="fa-solid fa-paperclip"></i>
-              </button>
-              <input
-                className="inputInsert"
-                type="text"
-                value={newMessage}
-                onChange={(e) => {
-                  setNewMessage(e.target.value);
-                  handleTyping(e.target.value);
-                }}
-                placeholder="Type a message..."
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                  }
-                }}
-                aria-label="Message input"
-                disabled={isSending}
-              />
-              <button className="send-btn" onClick={() => sendMessage()} disabled={isSending} aria-label="Send message">
-                {isSending ? "Sending..." : <i className="fa-solid fa-paper-plane"></i>}
-              </button>
-            </div>
-          </div>
+  // LEFT PANEL: Chat List
+  const leftPanel = (
+    <div className="chat-box-card">
+      <h3>Group Chats</h3>
+      <div className="chat-list-container">
+        {isLoadingChats ? (
+          <p>Loading group chats...</p>
+        ) : groupChats.length === 0 ? (
+          <p>No group chats available</p>
         ) : (
-          <div className="empty-chat">
-            <p>Select a group chat to view messages</p>
-          </div>
+          groupChats.map((group) => {
+            const lastTs = group.lastMessage?.timestamp;
+            const { dateStr, timeStr } = formatTimestamp(lastTs);
+            return (
+              <div
+                key={group.id}
+                className={`chat-card ${activeGroupId === group.id ? "selected" : ""}`}
+                onClick={() => {
+                  joinGroupChat(group.id);
+                }}
+              >
+                <div className="chat-card-inner">
+                  <div className="chat-avater-content">
+                    <span className="therapist-text-avatar">{group.name?.[0] || "G"}</span>
+                    <div className="chat-card-content">
+                      <strong className="chat-card-title">{group.name || "Unnamed Group"}</strong>
+                      <small className="chat-card-preview">
+                        {group.lastMessage
+                          ? `${group.lastMessage.displayName || "Anonymous"}: ${group.lastMessage.text}`
+                          : "No messages yet"}
+                      </small>
+                    </div>
+                  </div>
+                  <div className="chat-card-meta">
+                    {lastTs ? (
+                      <div className="message-timestamp">
+                        <span className="meta-date">{dateStr || "N/A"}</span>
+                        <span className="meta-time">{timeStr || "N/A"}</span>
+                      </div>
+                    ) : null}
+                    {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
+                  </div>
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
     </div>
+  );
+
+  // RIGHT PANEL: Active Chat
+  const rightPanel = (
+    <div className="chat-box-container">
+      {activeGroupId ? (
+        <div className="group-chat-box">
+          {/* Therapist Profile Modal */}
+          {selectedTherapist && (
+            <div className="modal-backdrop">
+              <div className="modal" ref={modalRef}>
+                <TherapistProfile
+                  therapist={selectedTherapist}
+                  isOnline={isTherapistOnline(selectedTherapist.uid)}
+                  onBack={() => setSelectedTherapist(null)}
+                  onStartChat={() => startPrivateChat(selectedTherapist)}
+                  onBookAppointment={() => alert("Appointment booking coming soon!")}
+                />
+              </div>
+            </div>
+          )}
+          {/* Pinned Message */}
+          {combinedGroupChat.some((msg) => msg.pinned) && (
+            <div className="pinned-message">
+              <strong>Pinned:</strong>{" "}
+              {combinedGroupChat.find((msg) => msg.pinned)?.text || "Welcome to the chatroom!"}
+            </div>
+          )}
+          <div className="detailLeave">
+            <div className="chat-avater">
+              <span className="text-avatar">{activeGroup?.name?.[0] || "G"}</span>
+              <div className="card-content">
+                <strong className="group-title">{activeGroup?.name || "Unnamed Group"}</strong>
+                <small className="participant-preview">
+                  {participants.length > 0 ? (
+                    participants.map((uid) => (
+                      <div key={uid} className="participant">
+                        <span className="participant-name">
+                          {participantNames[uid] || "Loading"}<b>,</b>
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="participant">No participants</div>
+                  )}           
+                </small>
+              </div>
+            </div>
+            {/* Therapist List */}
+            <div className="therapist-list">
+              {therapistsOnline.map((therapist) => (
+                <div
+                  key={therapist.uid}
+                  className={`therapist-item ${therapist.online ? "online" : ""} ${
+                    selectedTherapist?.uid === therapist.uid ? "active" : ""
+                  }`}
+                  data-fullname={therapist.name}
+                  onClick={() => handleTherapistClick({ userId: therapist.uid, role: "therapist" })}
+                >
+                  {therapist.profileImage ? (
+                    <img src={therapist.profileImage} alt={therapist.name} className={`avatar ${therapist.online ? "online" : ""}`} />
+                  ) : (
+                    <div className={`avatarPlaceholder ${therapist.online ? "online" : ""}`}>
+                      {therapist.name ? therapist.name[0].toUpperCase() : 'T'}
+                    </div>
+                  )}
+                  <span className="therapist-name">
+                    {therapist.name || `Therapist ${therapist.uid.slice(0, 4)}`}
+                  </span> 
+                </div>
+              ))}
+            </div>
+            <div className="leave-participant">
+              <div className="participant-list">
+                <h4
+                  className="participant-toggle"
+                  onClick={() => setIsParticipantsOpen(!isParticipantsOpen)}
+                  role="button"
+                  aria-expanded={isParticipantsOpen}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      setIsParticipantsOpen(!isParticipantsOpen);
+                    }
+                  }}
+                >
+                  <i className="fas fa-user" style={{ color: isParticipantsOpen ? "#e0e0e0" : "gray" }} aria-hidden="true"></i>
+                  ({participants.length})
+                </h4>
+                {isParticipantsOpen && (
+                  <div className="participant-dropdown">
+                    <div className="participant-item-container">
+                      {participants.length > 0 ? (
+                        participants.map((uid) => (
+                          <div key={uid} className="participant-item">
+                            {participantNames[uid] || "Loading..."}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="participant-item">No participants</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <LeaveChatButton type="group" onLeave={leaveGroupChat} />
+            </div>
+          </div>
+          <div className={selectedTherapist ? "chat-box blurred" : "chat-box"} role="log" aria-live="polite" ref={chatBoxRef}>
+            {isLoadingChat ? (
+              <p>Loading chat data...</p>
+            ) : combinedGroupChat.length === 0 ? (
+              <p className="no-message">No messages in this group yet.</p>
+            ) : (
+              combinedGroupChat.map((msg) => (
+                <ChatMessage
+                  key={msg.id}
+                  msg={msg}
+                  toggleReaction={msg.id.startsWith("pending-") ? () => {} : toggleReaction}
+                  therapistInfo={{ role: "user" }}
+                  handleTherapistClick={handleTherapistClick}
+                />
+              ))
+            )}
+            {typingUsers.length > 0 && (
+              <p className="typing-indicator">
+                {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+              </p>
+            )}
+            {aiTyping && (
+              <p className="typing-indicator ai-typing">
+                Support Assistant is typing...
+              </p>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+          <div className="chat-input">
+            <button
+              className="emoji-btn"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              aria-label="Open emoji picker"
+            >
+              <i className="fa-regular fa-face-smile"></i>
+            </button>
+            {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
+            <input
+              type="file"
+              id="group-file-upload"
+              style={{ display: "none" }}
+              onChange={(e) => sendMessage(e.target.files[0])}
+              aria-label="Upload file"
+            />
+            <button
+              className="attach-btn"
+              onClick={() => document.getElementById("group-file-upload").click()}
+              aria-label="Attach file"
+            >
+              <i className="fa-solid fa-paperclip"></i>
+            </button>
+            <input
+              className="inputInsert"
+              type="text"
+              value={newMessage}
+              onChange={(e) => {
+                setNewMessage(e.target.value);
+                handleTyping(e.target.value);
+              }}
+              placeholder="Type a message..."
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+              aria-label="Message input"
+              disabled={isSending}
+            />
+            <button className="send-btn" onClick={() => sendMessage()} disabled={isSending} aria-label="Send message">
+              {isSending ? "Sending..." : <i className="fa-solid fa-paper-plane"></i>}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="empty-chat">
+          <p>Select a group chat to view messages</p>
+        </div>
+      )}
+    </div>
+  );
+  
+  return (
+    <ResizableSplitView
+      leftPanel={leftPanel}
+      rightPanel={rightPanel}
+      initialRatio={0.3}
+      minLeft={290}
+      maxLeft={550}
+      minRight={200}
+      maxRight={400}
+    />
   );
 }
 
