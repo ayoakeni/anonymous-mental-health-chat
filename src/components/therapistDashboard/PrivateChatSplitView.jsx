@@ -1,9 +1,30 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import ChatMessage from "./ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
 import EmojiPicker from "emoji-picker-react";
 import LeaveChatButton from "../LeaveChatButton";
 
+/* -------------------------------------------------------------
+   Simple media-query hook (no external deps)
+   ------------------------------------------------------------- */
+const useMediaQuery = (query) => {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const m = window.matchMedia(query);
+    setMatches(m.matches);
+
+    const handler = (e) => setMatches(e.matches);
+    m.addEventListener("change", handler);
+    return () => m.removeEventListener("change", handler);
+  }, [query]);
+
+  return matches;
+};
+
+/* -------------------------------------------------------------
+   MAIN COMPONENT
+   ------------------------------------------------------------- */
 function PrivateChatSplitView({
   privateChats,
   activeChatId,
@@ -42,9 +63,10 @@ function PrivateChatSplitView({
   therapistId,
   userMoods,
 }) {
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const isUserAtBottom = useRef(true);
 
-  // Track scroll position
+  /* ------------------- SCROLL LOGIC (unchanged) ------------------- */
   useEffect(() => {
     const chatBox = chatBoxRef.current;
     if (!chatBox) return;
@@ -68,6 +90,7 @@ function PrivateChatSplitView({
     }
   }, [combinedPrivateChat, privateMessagesEndRef]);
 
+  /* ------------------- EMOJI & FILE HELPERS ------------------- */
   const onEmojiClick = useCallback(
     (emojiData) => {
       setNewPrivateMessage((prev) => prev + emojiData.emoji);
@@ -92,7 +115,7 @@ function PrivateChatSplitView({
     [sendPrivateMessage, showError]
   );
 
-  // LEFT PANEL: Chat List
+  /* ------------------- LEFT PANEL (Chat List) ------------------- */
   const leftPanel = (
     <div className="chat-box-card">
       <h3>Private Chats</h3>
@@ -158,9 +181,22 @@ function PrivateChatSplitView({
     </div>
   );
 
-  // RIGHT PANEL: Active Chat
+  /* ------------------- RIGHT PANEL (Active Chat) ------------------- */
   const rightPanel = (
     <div className="chat-box-container">
+      {/* ---------- MOBILE BACK BUTTON ---------- */}
+      {isMobile && activeChatId && inChat && (
+        <div className="mobile-back-header">
+          <button
+            className="mobile-back-btn"
+            onClick={() => navigate("/therapist-dashboard/private-chat")}
+            aria-label="Back to chat list"
+          >
+            ← Back to chats
+          </button>
+        </div>
+      )}
+
       {activeChatId && inChat ? (
         isValidatingChat ? (
           <div className="chat-list">
@@ -292,6 +328,16 @@ function PrivateChatSplitView({
     </div>
   );
 
+  /* ------------------- RENDER LOGIC ------------------- */
+  // Mobile: show only ONE panel at a time
+  if (isMobile) {
+    if (activeChatId && inChat) {
+      return <div className="mobile-chat-wrapper">{rightPanel}</div>;
+    }
+    return <div className="mobile-chat-wrapper">{leftPanel}</div>;
+  }
+
+  // Desktop: keep the resizable split view
   return (
     <ResizableSplitView
       leftPanel={leftPanel}
