@@ -36,6 +36,7 @@
 .therapist-dashboard {
   display: flex;
   min-height: 100vh;
+  overflow: h;
 }
 
 .therapist-dashboard .box {

@@ -34,14 +34,19 @@
   }
 }
 
-/* Layout */
+/* ========================================
+   Appointments PANEL
+   ======================================== */
 .appointments-panel {
   background: var(--chat-bg);
   border-radius: var(--border-radius);
   padding: 1.5rem;
   max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
+/* Header */
 .appointments-panel .appointments-header {
   display: flex;
   justify-content: space-between;
@@ -92,7 +97,7 @@
   transform: translateY(-1px);
 }
 
-/* Success */
+/* Success Message */
 .appointments-panel .success-message {
   background: var(--accent-color);
   color: white;
@@ -102,73 +107,76 @@
   font-weight: 500;
   animation: fadeInOut 3s ease-in-out;
 }
+
+/* ========================================
+   LIST & TABLE WRAPPER
+   ======================================== */
 .appointments-panel .appointments-list {
-  max-width: 100%;
+  width: 100%;
+  overflow: hidden;
 }
 
 .appointments-list .table-wrapper {
+  width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   border-radius: var(--border-radius);
-  box-shadow: var(--shadow);
   background: var(--chat-bg);
+  box-shadow: var(--shadow);
 }
 
 /* Table */
-.appointments-panel .appointments-table {
+.appointments-list .appointments-table {
   min-width: 800px;
   width: 100%;
   border-collapse: collapse;
   background: var(--chat-bg);
-  box-shadow: var(--shadow);
   font-size: 0.95rem;
   white-space: nowrap;
 }
 
-.appointments-list .actions-cell {
-  white-space: nowrap;
-}
-
-.appointments-panel .appointments-table th,
-.appointments-panel .appointments-table td {
+.appointments-list .appointments-table th,
+.appointments-list .appointments-table td {
   color: var(--text-color);
   padding: 0.9rem 1rem;
   text-align: left;
   border-bottom: 1px solid var(--input-border);
 }
 
+/* Sticky Header */
 .appointments-list .appointments-table thead th {
   position: sticky;
   top: 0;
   background: var(--system-bg);
   font-weight: 600;
   color: var(--text-color);
-  z-index: 1;
+  z-index: 2;
 }
 
-.appointments-panel .appointments-table tr:hover {
+.appointments-list .appointments-table tr:hover {
   background: var(--therapist-bg);
 }
 
-.appointments-panel .pending-row {
+.appointments-list .pending-row {
   background: var(--highlight-bg) !important;
   font-weight: 500;
 }
 
-.appointments-panel .appointments-table td.status-pending { color: var(--secondary-color); }
-.appointments-panel .appointments-table td.status-confirmed { color: var(--primary-color); }
-.appointments-panel .appointments-table td.status-completed { color: var(--accent-color); }
-.appointments-panel .appointments-table td.status-cancelled,
-.appointments-panel .appointments-table td.status-rejected { color: var(--error-color); }
+/* Status Colors */
+.appointments-list .appointments-table td.status-pending { color: var(--secondary-color); }
+.appointments-list .appointments-table td.status-confirmed { color: var(--primary-color); }
+.appointments-list .appointments-table td.status-completed { color: var(--accent-color); }
+.appointments-list .appointments-table td.status-cancelled,
+.appointments-list .appointments-table td.status-rejected { color: var(--error-color); }
 
-.appointments-panel .appointments-table td[class^="status-"] {
+.appointments-list .appointments-table td[class^="status-"] {
   font-weight: 600;
 }
 
 /* Action Buttons */
-.appointments-panel .action-btn,
-.appointments-panel .btn-accept,
-.appointments-panel .btn-reject {
+.appointments-list .action-btn,
+.appointments-list .btn-accept,
+.appointments-list .btn-reject {
   display: inline-block;
   margin: 0.2rem 0.4rem 0.2rem 0;
   padding: 0.5rem 0.8rem;
@@ -180,16 +188,39 @@
   transition: all 0.2s;
 }
 
-.appointments-panel .btn-accept { background: var(--accent-color); color: white; }
-.appointments-panel .btn-reject { background: var(--error-color); color: white; }
-.appointments-panel .edit-btn { background: var(--primary-color); color: white; }
-.appointments-panel .cancel-btn { background: var(--secondary-color); color: white; }
-.appointments-panel .complete-btn { background: #2e7d32; color: white; }
-.appointments-panel .delete-btn { background: var(--error-color); color: white; }
+.appointments-list .btn-accept { background: var(--accent-color); color: white; }
+.appointments-list .btn-reject { background: var(--error-color); color: white; }
+.appointments-list .edit-btn { background: var(--primary-color); color: white; }
+.appointments-list .cancel-btn { background: var(--secondary-color); color: white; }
+.appointments-list .complete-btn { background: #2e7d32; color: white; }
+.appointments-list .delete-btn { background: var(--error-color); color: white; }
 
-.appointments-panel .action-btn:hover { transform: translateY(-1px); }
+.appointments-list .action-btn:hover {
+  transform: translateY(-1px);
+}
 
-/* Modal */
+/* Action Cell – Mobile Stacking */
+.appointments-list .actions-cell {
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .appointments-list .actions-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .appointments-list .action-btn,
+  .appointments-list .btn-accept,
+  .appointments-list .btn-reject {
+    width: 100%;
+    margin: 0;
+  }
+}
+
+/* ========================================
+   MODALS
+   ======================================== */
 .appointments-panel .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -251,7 +282,8 @@
   color: var(--text-color);
 }
 
-.appointments-panel .input, .appointments-panel .textarea {
+.appointments-panel .input,
+.appointments-panel .textarea {
   padding: 0.7rem;
   border: 1px solid var(--input-border);
   border-radius: var(--border-radius);
@@ -261,14 +293,22 @@
   resize: none;
 }
 
-.appointments-panel .input:focus, .appointments-panel .textarea:focus {
+.appointments-panel .input:focus,
+.appointments-panel .textarea:focus {
   outline: none;
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(74,144,226,0.2);
 }
 
-.appointments-panel .input-error { border-color: var(--error-color); }
-.appointments-panel .error { color: var(--error-color); font-size: 0.8rem; margin-top: 0.3rem; }
+.appointments-panel .input-error {
+  border-color: var(--error-color);
+}
+
+.appointments-panel .error {
+  color: var(--error-color);
+  font-size: 0.8rem;
+  margin-top: 0.3rem;
+}
 
 .appointments-panel .form-actions {
   display: flex;
@@ -276,7 +316,8 @@
   margin-top: 1rem;
 }
 
-.appointments-panel .save-btn, .appointments-panel .cancel-btn {
+.appointments-panel .save-btn,
+.appointments-panel .cancel-btn {
   flex: 1;
   padding: 0.75rem;
   border: none;
@@ -285,10 +326,17 @@
   cursor: pointer;
 }
 
-.appointments-panel .save-btn { background: var(--accent-color); color: white; }
-.appointments-panel .cancel-btn { background: var(--secondary-color); color: white; }
+.appointments-panel .save-btn {
+  background: var(--accent-color);
+  color: white;
+}
 
-/* Read-only reason box */
+.appointments-panel .cancel-btn {
+  background: var(--secondary-color);
+  color: white;
+}
+
+/* Read-only Reason */
 .appointments-panel .readonly-reason {
   padding: 0.7rem;
   border: 1px solid var(--input-border);
@@ -316,7 +364,9 @@
   font-size: 0.95rem;
 }
 
-/* Empty & Loading States */
+/* ========================================
+   EMPTY & LOADING STATES
+   ======================================== */
 .appointments-panel .no-appointments {
   text-align: center;
   padding: 2.5rem 1rem;
@@ -356,51 +406,49 @@
   font-size: 1rem;
 }
 
-/* Animations */
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes fadeInOut { 0%,100% { opacity: 0; } 10%,90% { opacity: 1; } }
-
-/* Responsive */
-@media (max-width: 768px) {
-  .appointments-panel .appointments-header { 
-    flex-direction: column; 
-    align-items: stretch; 
-  }
-  .appointments-panel .appointments-controls { 
-    width: 100%; 
-    flex-direction: column;
-  }
-  .appointments-panel .appointment-filter, 
-  .appointments-panel .create-appointment-btn { 
-    width: 100%; 
-  }
-  .appointments-panel .appointments-table { 
-    font-size: 0.85rem; 
-  }
-  .appointments-panel .action-btn { 
-    padding: 0.4rem 0.6rem; 
-    font-size: 0.75rem; 
-    margin-bottom: 0.3rem;
-  }
-  .appointments-panel .action-btn:last-child {
-    margin-right: 0;
-  }
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-@media (max-width: 480px) {
-  .appointments-list .table-wrapper {
-    width: 290px;
-  }
-  .appointments-list .actions-cell {
-    display: flex;
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInOut {
+  0%, 100% { opacity: 0; }
+  10%, 90% { opacity: 1; }
+}
+
+/* ========================================
+   RESPONSIVE BREAKPOINTS
+   ======================================== */
+@media (max-width: 768px) {
+  .appointments-panel .appointments-header {
     flex-direction: column;
-    gap: 0.3rem;
+    align-items: stretch;
   }
-  .appointments-list .action-btn,
-  .appointments-list .btn-accept,
-  .appointments-list .btn-reject {
+  .appointments-panel .appointments-controls {
     width: 100%;
-    margin: 0;
+    flex-direction: column;
+  }
+  .appointments-panel .appointment-filter,
+  .appointments-panel .create-appointment-btn {
+    width: 100%;
+  }
+  .appointments-list .appointments-table {
+    font-size: 0.85rem;
+  }
+  .appointments-list .action-btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+    margin-bottom: 0.3rem;
+  }
+  .appointments-list .action-btn:last-child {
+    margin-right: 0;
   }
 }
