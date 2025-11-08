@@ -102,6 +102,11 @@
   font-weight: 500;
   animation: fadeInOut 3s ease-in-out;
 }
+.appointments-panel .appointments-list {
+  max-width: 100%;
+  height: fit-content;
+}
+
 
 /* Table */
 .appointments-panel .appointments-table {
@@ -110,6 +115,17 @@
   background: var(--chat-bg);
   box-shadow: var(--shadow);
   font-size: 0.95rem;
+}
+
+@media (max-width: 970px) {
+  .appointments-panel .appointments-list {
+    max-width: 835px;
+    overflow: auto;
+  }
+
+  .appointments-panel .appointments-table {
+    width: 853px;
+  }
 }
 
 .appointments-panel .appointments-table th,
