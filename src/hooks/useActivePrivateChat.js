@@ -5,7 +5,6 @@ import {
   runTransaction, arrayUnion, arrayRemove
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { getTimestampMillis } from "../components/timestampUtils";
 
 export function useActivePrivateChat(
   activeChatId,

@@ -1,4 +1,3 @@
-import { formatTimestamp } from "../../components/timestampUtils";
 import "../../styles/therapistDashboardNotification.css";
 
 function TherapistDashboardNotification({

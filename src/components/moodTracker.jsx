@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { collection, setDoc, doc, query, where, onSnapshot, limit, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../utils/firebase";
 
@@ -8,13 +8,13 @@ const MoodTracker = ({ formatTimestamp, onMoodLogged }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Mood options with emojis, memoized to prevent recreation on every render
+  // Memoized mood options
   const moodOptions = useMemo(() => [
-    { value: "happy", label: "Happy", emoji: "😊" },
-    { value: "sad", label: "Sad", emoji: "😢" },
-    { value: "anxious", label: "Anxious", emoji: "😣" },
-    { value: "neutral", label: "Neutral", emoji: "😐" },
-    { value: "excited", label: "Excited", emoji: "😄" }
+    { value: "happy", label: "Happy", emoji: "smile" },
+    { value: "sad", label: "Sad", emoji: "frown" },
+    { value: "anxious", label: "Anxious", emoji: "worried" },
+    { value: "neutral", label: "Neutral", emoji: "neutral" },
+    { value: "excited", label: "Excited", emoji: "grinning" }
   ], []);
 
   // Helper function to format timestamp
@@ -32,8 +32,8 @@ const MoodTracker = ({ formatTimestamp, onMoodLogged }) => {
     return formatted || "Unknown time";
   };
 
-  // Fetch moods and sort client-side
-  const fetchLastMood = () => {
+  // Wrap fetchLastMood in useCallback to prevent recreation
+  const fetchLastMood = useCallback(() => {
     setLoading(true);
     setError(null);
     const userId = auth.currentUser?.uid || "anonymous";
@@ -42,18 +42,19 @@ const MoodTracker = ({ formatTimestamp, onMoodLogged }) => {
       where("userId", "==", userId),
       limit(50)
     );
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       if (!snapshot.empty) {
-        // Sort moods client-side by timestamp
         const moods = snapshot.docs.map(doc => doc.data());
         const latestMood = moods.sort((a, b) => {
           const aTime = a.timestamp?.seconds || 0;
           const bTime = b.timestamp?.seconds || 0;
-          return bTime - aTime; // Descending order
+          return bTime - aTime;
         })[0];
+
         if (latestMood) {
           setLastLoggedMood({
-            mood: moodOptions.find((m) => m.value === latestMood.mood) || { label: latestMood.mood, emoji: "❓" },
+            mood: moodOptions.find((m) => m.value === latestMood.mood) || { label: latestMood.mood, emoji: "?" },
             timestamp: latestMood.timestamp
           });
         }
@@ -64,36 +65,34 @@ const MoodTracker = ({ formatTimestamp, onMoodLogged }) => {
       setError("Failed to load last mood. Please try again.");
       setLoading(false);
     });
-    return unsubscribe;
-  };
 
+    return unsubscribe;
+  }, [moodOptions]); // Only recreate if moodOptions changes (which it won't)
+
+  // Now safe to depend on fetchLastMood
   useEffect(() => {
     const unsubscribe = fetchLastMood();
-    return () => unsubscribe();
-  }, [moodOptions]);
+    return () => unsubscribe && unsubscribe();
+  }, [fetchLastMood]);
 
   // Handle mood logging
-  const logMood = async () => {
-    if (mood) {
-      try {
-        await setDoc(doc(collection(db, "moods")), {
-          userId: auth.currentUser?.uid || "anonymous",
-          mood,
-          timestamp: serverTimestamp(),
-        });
-        setMood(""); // Reset selection
-        setError(null);
-        // Refetch moods after logging
-        fetchLastMood();
-        // Trigger callback to close popup
-        if (onMoodLogged) {
-          onMoodLogged();
-        }
-      } catch (error) {
-        setError("Failed to log mood. Please try again.");
-      }
+  const logMood = useCallback(async () => {
+    if (!mood) return;
+
+    try {
+      await setDoc(doc(collection(db, "moods")), {
+        userId: auth.currentUser?.uid || "anonymous",
+        mood,
+        timestamp: serverTimestamp(),
+      });
+      setMood("");
+      setError(null);
+      fetchLastMood(); // Refetch after logging
+      onMoodLogged?.();
+    } catch (error) {
+      setError("Failed to log mood. Please try again.");
     }
-  };
+  }, [mood, fetchLastMood, onMoodLogged]);
 
   return (
     <div className="mood-tracker">
@@ -116,7 +115,9 @@ const MoodTracker = ({ formatTimestamp, onMoodLogged }) => {
       >
         Log Mood
       </button>
+
       {loading && <div className="last-mood"><p>Loading last mood...</p></div>}
+
       {error && (
         <div className="last-mood error">
           <p>{error}</p>
@@ -129,6 +130,7 @@ const MoodTracker = ({ formatTimestamp, onMoodLogged }) => {
           </button>
         </div>
       )}
+
       {!loading && !error && lastLoggedMood && (
         <div className="last-mood">
           <p>

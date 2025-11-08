@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import ChatMessage from "./ChatMessage";
-import { formatTimestamp } from "../../components/timestampUtils";
 import ResizableSplitView from "../../components/resizableSplitView";
 import EmojiPicker from "emoji-picker-react";
 import LeaveChatButton from "../LeaveChatButton";
@@ -35,7 +34,6 @@ function GroupChatSplitView({
   formatTimestamp,
   onEmojiClick: parentOnEmojiClick,
   isLoadingNames,
-  lastSeenTimestamp,
   isLoadingMessages,
   hasMoreMessages,
   loadMoreMessages,

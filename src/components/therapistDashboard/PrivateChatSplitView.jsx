@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
 import ChatMessage from "./ChatMessage";
-import { formatTimestamp } from "../../components/timestampUtils";
 import ResizableSplitView from "../../components/resizableSplitView";
 import EmojiPicker from "emoji-picker-react";
 import LeaveChatButton from "../LeaveChatButton";
