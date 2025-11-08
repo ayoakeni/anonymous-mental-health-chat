@@ -45,3 +45,42 @@
 /* Visual cue when hitting a limit */
 .resizable-splitter.limit-min { background: #e74c3c !important; }
 .resizable-splitter.limit-max { background: #27ae60 !important; }
+
+/* -------------------------------------------------------------
+   Mobile-only helpers
+   ------------------------------------------------------------- */
+.mobile-chat-wrapper {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Back button that appears only on mobile when a chat is open */
+.mobile-back-header {
+  padding: 8px 12px;
+  background: var(--chat-bg);
+}
+.mobile-back-btn {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: var(--primary-color);
+  cursor: pointer;
+  font-weight: 600;
+}
+.mobile-back-btn:hover {
+  text-decoration: underline;
+}
+
+/* Chat box on mobile uses the whole height */
+@media (max-width: 768px) {
+  .mobile-chat-wrapper .chat-box {
+    flex: 1;
+    height: auto;
+  }
+  .mobile-chat-wrapper .chat-input {
+    position: sticky;
+    bottom: 0;
+    background: var(--chat-input-bg);
+  }
+}
