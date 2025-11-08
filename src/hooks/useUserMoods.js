@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { collection, query, where, onSnapshot, limit } from "firebase/firestore";
 import { db } from "../utils/firebase";
 
@@ -12,6 +12,13 @@ const moodConfig = {
 
 export function useUserMoods(userIds = []) {
   const [moods, setMoods] = useState({});
+
+  // Create a stable dependency key from userIds
+  const userIdsKey = useMemo(() => {
+    return userIds.length > 0
+      ? [...userIds].sort().join(",")
+      : "";
+  }, [userIds]);
 
   useEffect(() => {
     if (!userIds.length) {
@@ -47,7 +54,7 @@ export function useUserMoods(userIds = []) {
     });
 
     return unsub;
-  }, [userIds.join(",")]);
+  }, [userIdsKey, userIds]);
 
   return moods;
 }

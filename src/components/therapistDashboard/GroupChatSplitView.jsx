@@ -65,7 +65,7 @@ function GroupChatSplitView({
     if (isUserAtBottom.current && groupMessagesEndRef.current) {
       groupMessagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [combinedGroupChat]);
+  }, [combinedGroupChat, groupMessagesEndRef]);
 
   // Join group chat when groupId changes
   useEffect(() => {

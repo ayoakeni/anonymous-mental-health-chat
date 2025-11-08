@@ -66,7 +66,7 @@ function PrivateChatSplitView({
     if (isUserAtBottom.current && privateMessagesEndRef.current) {
       privateMessagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [combinedPrivateChat]);
+  }, [combinedPrivateChat, privateMessagesEndRef]);
 
   const onEmojiClick = useCallback(
     (emojiData) => {
