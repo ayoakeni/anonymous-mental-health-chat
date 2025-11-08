@@ -341,7 +341,7 @@
 
 @media (max-width: 768px) {
   .therapist-dashboard .box {
-    margin-left: 65px;
+    /* margin-left: 65px; */
   }
 
   /* .therapist-dashboard .split-chat-container {

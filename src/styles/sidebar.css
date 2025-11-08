@@ -30,7 +30,7 @@
   padding-right: 0;
   transition: width 0.3s ease-in-out, padding 0.3s ease-in-out;
   z-index: 1000;
-  display: flex;
+  display: none;
   flex-direction: column;
 }
 
