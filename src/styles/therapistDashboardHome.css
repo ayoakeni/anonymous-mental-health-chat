@@ -359,6 +359,10 @@
     grid-template-columns: 1fr;
   }
 
+  .dashboard-home .chat-section .chat-card-content {
+    max-width: 120px;
+  }
+
   .dashboard-home .quick-stats {
     grid-template-columns: 1fr;
   }
@@ -381,6 +385,10 @@
 }
 
 @media (max-width: 480px) {
+  .dashboard-home {
+    padding: 10px;
+  }
+
   .dashboard-home .welcome-header h2 {
     font-size: 1.2rem;
   }
@@ -400,5 +408,19 @@
     height: 40px;
     line-height: 40px;
     font-size: 1.2rem;
+  }
+
+  .dashboard-home .chat-section {
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .dashboard-home .chat-section .chat-list-container {
+    margin: 0;
+  }
+
+  .dashboard-home .chat-section .chat-card-content {
+    max-width: 80px;
   }
 }
