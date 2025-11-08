@@ -102,7 +102,7 @@ function Home() {
             <i className="fas fa-users feature-icon"></i>
             <h3>Peer Support</h3>
             <p>Share experiences anonymously with a supportive community.</p>
-            <Link to="/anonymous-dashboard" className="feature-cta">Join Now</Link>
+            <Link to="/anonymous-dashboard/group-chat" className="feature-cta">Join Now</Link>
           </div>
           <div className="feature-card">
             <i className="fas fa-robot feature-icon"></i>

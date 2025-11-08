@@ -157,7 +157,7 @@ function GroupChatSplitView({
         <div className="mobile-back-header">
           <button
             className="mobile-back-btn"
-            onClick={() => navigate("/therapist-dashboard/private-chat")}
+            onClick={() => navigate("/therapist-dashboard/group-chat")}
             aria-label="Back to chat list"
           >
             ← Back to chats
