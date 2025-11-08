@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, useLocation  } from "react-router-dom";
 import { db, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
 import {
@@ -9,7 +9,6 @@ import {
   serverTimestamp,
   doc,
   arrayUnion,
-  arrayRemove,
   deleteField,
   runTransaction,
   limit,
@@ -42,7 +41,6 @@ function AnonymousPrivateChatSplitView({
   const [messages, setMessages] = useState([]);
   const [events, setEvents] = useState([]);
   const [pendingMessages, setPendingMessages] = useState([]);
-  const [isTherapistAvailable, setIsTherapistAvailable] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
   const [newMessage, setNewMessage] = useState("");
@@ -204,7 +202,6 @@ function AnonymousPrivateChatSplitView({
           }))
           .filter((t) => t.online);
         setActiveTherapists(onlineTherapists);
-        setIsTherapistAvailable(onlineTherapists.length > 0);
       },
       (err) => {
         console.error("Error fetching therapists online:", err);

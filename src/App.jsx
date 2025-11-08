@@ -9,7 +9,6 @@ import TherapistLogin from "./login/therapist_login";
 import TherapistDashboard from "./page/therapistDashboard";
 import AnonymousDashboard from "./page/anonymousDashboard";
 import Chatroom from "./page/chats_rooms/chatRoom";
-import ClientDashboard from "./page/clientDashboard";
 import "./styles/App.css";
 
 function ProtectedRoute({ children, requireTherapist = false }) {
@@ -53,7 +52,6 @@ function App() {
       <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
-          <Route path="/client-dashboard/*" element={<ClientDashboard />} />
           <Route path="/therapist-login" element={<TherapistLogin />} />
         <Route path="/chat-room/:chatId" element={<Chatroom />} />
         <Route path="/chat-room/" element={<Chatroom />} />
