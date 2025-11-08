@@ -284,6 +284,7 @@
 
 .appointments-panel .input,
 .appointments-panel .textarea {
+  width: 100%;
   padding: 0.7rem;
   border: 1px solid var(--input-border);
   border-radius: var(--border-radius);
