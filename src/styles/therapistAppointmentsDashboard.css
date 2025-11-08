@@ -106,20 +106,26 @@
   max-width: 100%;
 }
 
-@media (max-width: 970px) {
-  .appointments-panel .appointments-list {
-    max-width: 835px;
-    overflow: auto;
-  }
+.appointments-list .table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  background: var(--chat-bg);
 }
 
 /* Table */
 .appointments-panel .appointments-table {
+  min-width: 800px;
   width: 100%;
   border-collapse: collapse;
   background: var(--chat-bg);
   box-shadow: var(--shadow);
   font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.appointments-list .actions-cell {
   white-space: nowrap;
 }
 
@@ -131,10 +137,13 @@
   border-bottom: 1px solid var(--input-border);
 }
 
-.appointments-panel .appointments-table th {
+.appointments-list .appointments-table thead th {
+  position: sticky;
+  top: 0;
   background: var(--system-bg);
   font-weight: 600;
   color: var(--text-color);
+  z-index: 1;
 }
 
 .appointments-panel .appointments-table tr:hover {
@@ -160,13 +169,14 @@
 .appointments-panel .action-btn,
 .appointments-panel .btn-accept,
 .appointments-panel .btn-reject {
+  display: inline-block;
+  margin: 0.2rem 0.4rem 0.2rem 0;
   padding: 0.5rem 0.8rem;
   border: none;
   border-radius: var(--border-radius);
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
-  margin-right: 0.4rem;
   transition: all 0.2s;
 }
 
@@ -375,5 +385,22 @@
   }
   .appointments-panel .action-btn:last-child {
     margin-right: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .appointments-list .table-wrapper {
+    width: 290px;
+  }
+  .appointments-list .actions-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .appointments-list .action-btn,
+  .appointments-list .btn-accept,
+  .appointments-list .btn-reject {
+    width: 100%;
+    margin: 0;
   }
 }
