@@ -26,6 +26,24 @@ import TherapistProfile from "../TherapistProfile";
 import { getAIResponse } from "../../utils/AiChatIntegration";
 import { mapMessagesForAI } from "../../utils/aiMessageMapper";
 
+/* -------------------------------------------------------------
+   Simple media-query hook (no external deps)
+   ------------------------------------------------------------- */
+const useMediaQuery = (query) => {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const m = window.matchMedia(query);
+    setMatches(m.matches);
+
+    const handler = (e) => setMatches(e.matches);
+    m.addEventListener("change", handler);
+    return () => m.removeEventListener("change", handler);
+  }, [query]);
+
+  return matches;
+};
+
 function AnonymousGroupChatSplitView({
   groupChats,
   activeGroupId,
@@ -58,6 +76,7 @@ function AnonymousGroupChatSplitView({
   const modalRef = useRef(null);
   const navigate = useNavigate();
   const { handleTyping } = useTypingStatus(displayName);
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   // Memoize active group to avoid repeated find calls
   const activeGroup = useMemo(() => 
@@ -603,6 +622,19 @@ function AnonymousGroupChatSplitView({
   // RIGHT PANEL: Active Chat
   const rightPanel = (
     <div className="chat-box-container">
+      {/* ---------- MOBILE BACK BUTTON ---------- */}
+      {isMobile && activeGroupId && (
+        <div className="mobile-back-header">
+          <button
+            className="mobile-back-btn"
+            onClick={() => navigate("/therapist-dashboard/private-chat")}
+            aria-label="Back to chat list"
+          >
+            ← Back to chats
+          </button>
+        </div>
+      )}
+
       {activeGroupId ? (
         <div className="group-chat-box">
           {/* Therapist Profile Modal */}
@@ -787,6 +819,15 @@ function AnonymousGroupChatSplitView({
       )}
     </div>
   );
+
+  /* ------------------- RENDER LOGIC ------------------- */
+  // Mobile: show only ONE panel at a time
+  if (isMobile) {
+    if (activeGroupId) {
+      return <div className="mobile-chat-wrapper">{rightPanel}</div>;
+    }
+    return <div className="mobile-chat-wrapper">{leftPanel}</div>;
+  }
   
   return (
     <ResizableSplitView

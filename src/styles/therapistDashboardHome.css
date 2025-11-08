@@ -358,6 +358,10 @@
   .dashboard-home .chat-summaries {
     grid-template-columns: 1fr;
   }
+  
+  .dashboard-home .chat-section .chat-list-container {
+    margin: 0;
+  }
 
   .dashboard-home .chat-section .chat-card-content {
     max-width: 120px;
@@ -416,11 +420,12 @@
     box-shadow: none;
   }
 
-  .dashboard-home .chat-section .chat-list-container {
-    margin: 0;
-  }
-
   .dashboard-home .chat-section .chat-card-content {
     max-width: 80px;
+  }
+
+  .dashboard-home .notifications-section {
+    padding: 0;
+    border: 0;
   }
 }

@@ -66,7 +66,7 @@ function PrivateChatSplitView({
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isUserAtBottom = useRef(true);
 
-  /* ------------------- SCROLL LOGIC (unchanged) ------------------- */
+  /* ------------------- SCROLL LOGIC ------------------- */
   useEffect(() => {
     const chatBox = chatBoxRef.current;
     if (!chatBox) return;

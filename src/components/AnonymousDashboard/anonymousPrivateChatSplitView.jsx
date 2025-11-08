@@ -25,6 +25,24 @@ import ResizableSplitView from "../../components/resizableSplitView";
 import LeaveChatButton from "../LeaveChatButton";
 import EmojiPicker from "emoji-picker-react";
 
+/* -------------------------------------------------------------
+   Simple media-query hook (no external deps)
+   ------------------------------------------------------------- */
+const useMediaQuery = (query) => {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const m = window.matchMedia(query);
+    setMatches(m.matches);
+
+    const handler = (e) => setMatches(e.matches);
+    m.addEventListener("change", handler);
+    return () => m.removeEventListener("change", handler);
+  }, [query]);
+
+  return matches;
+};
+
 function AnonymousPrivateChatSplitView({
   privateChats,
   activeChatId,
@@ -57,6 +75,7 @@ function AnonymousPrivateChatSplitView({
   const { handleTyping } = useTypingStatus(displayName);  
   const [isSelectingChat, setIsSelectingChat] = useState(false);
   const [therapistName, setTherapistName] = useState("Loading…");
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   useEffect(() => {
     if (!activeChatId) {
@@ -741,6 +760,19 @@ function AnonymousPrivateChatSplitView({
   // RIGHT PANEL: Active Chat
   const rightPanel = (
     <div className="chat-box-container">
+      {/* ---------- MOBILE BACK BUTTON ---------- */}
+      {isMobile && activeChatId && (
+        <div className="mobile-back-header">
+          <button
+            className="mobile-back-btn"
+            onClick={() => navigate("/therapist-dashboard/private-chat")}
+            aria-label="Back to chat list"
+          >
+            ← Back to chats
+          </button>
+        </div>
+      )}
+      
       {isSelectingChat ? (
         <div className="empty-chat">
           <p className="loading-text">Opening your new chat...</p>
@@ -878,6 +910,15 @@ function AnonymousPrivateChatSplitView({
     </div>
   );
   
+  /* ------------------- RENDER LOGIC ------------------- */
+  // Mobile: show only ONE panel at a time
+  if (isMobile) {
+    if (activeChatId) {
+      return <div className="mobile-chat-wrapper">{rightPanel}</div>;
+    }
+    return <div className="mobile-chat-wrapper">{leftPanel}</div>;
+  }
+
   return (
     <ResizableSplitView
       leftPanel={leftPanel}

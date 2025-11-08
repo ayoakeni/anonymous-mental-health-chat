@@ -1,9 +1,27 @@
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, useState } from "react";
 import { useParams } from "react-router-dom";
 import ChatMessage from "./ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
 import EmojiPicker from "emoji-picker-react";
 import LeaveChatButton from "../LeaveChatButton";
+
+/* -------------------------------------------------------------
+   Simple media-query hook (no external deps)
+   ------------------------------------------------------------- */
+const useMediaQuery = (query) => {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const m = window.matchMedia(query);
+    setMatches(m.matches);
+
+    const handler = (e) => setMatches(e.matches);
+    m.addEventListener("change", handler);
+    return () => m.removeEventListener("change", handler);
+  }, [query]);
+
+  return matches;
+};
 
 function GroupChatSplitView({
   groupChats,
@@ -42,6 +60,7 @@ function GroupChatSplitView({
   const { groupId } = useParams();
   const chatBoxRef = useRef(null);
   const isUserAtBottom = useRef(true);
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   // Track if user is at the bottom of the chat
   useEffect(() => {
@@ -133,6 +152,19 @@ function GroupChatSplitView({
   // RIGHT PANEL: Active Chat
   const rightPanel = (
     <div className="chat-box-container">
+      {/* ---------- MOBILE BACK BUTTON ---------- */}
+      {isMobile && activeGroupId&& isGroupChatOpen && inGroupChat && (
+        <div className="mobile-back-header">
+          <button
+            className="mobile-back-btn"
+            onClick={() => navigate("/therapist-dashboard/private-chat")}
+            aria-label="Back to chat list"
+          >
+            ← Back to chats
+          </button>
+        </div>
+      )}
+
       {activeGroupId && isGroupChatOpen && inGroupChat ? (
         <div className="group-chat-box">
           <div className="detailLeave">
@@ -284,7 +316,17 @@ function GroupChatSplitView({
       )}
     </div>
   );
-  
+
+  /* ------------------- RENDER LOGIC ------------------- */
+  // Mobile: show only ONE panel at a time
+  if (isMobile) {
+    if (activeGroupId && isGroupChatOpen && inGroupChat) {
+      return <div className="mobile-chat-wrapper">{rightPanel}</div>;
+    }
+    return <div className="mobile-chat-wrapper">{leftPanel}</div>;
+  }
+
+  // Desktop: keep the resizable split view 
   return (
     <ResizableSplitView
       leftPanel={leftPanel}
