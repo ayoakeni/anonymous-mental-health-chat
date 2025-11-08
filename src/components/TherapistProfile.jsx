@@ -48,6 +48,7 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
     }
 
     await setDoc(doc(db, "privateChats", chatId), {
+      userId: anonUid,
       participants: [anonUid, therapist.uid],
       createdAt: serverTimestamp(),
       lastMessage: null,
@@ -55,6 +56,8 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
       unreadCountForAnon: 0,
       aiOffered: false,
       aiEnabled: false,
+      needsTherapist: true,
+      therapistJoinedOnce: false,
     });
 
     navigate(`/anonymous-dashboard/private-chat/${chatId}`, {

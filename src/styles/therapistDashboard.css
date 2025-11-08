@@ -231,6 +231,32 @@
   text-overflow: ellipsis;
 }
 
+.therapist-dashboard .chat-card .chat-card-title .mood-emoji {
+  margin-left: 6px;
+  font-size: 1.1em;
+  cursor: help;
+}
+
+.therapist-dashboard .chat-card .chat-card-title .mood-emoji[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  background: #333;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  white-space: nowrap;
+  z-index: 10;
+  margin-top: 20px;
+  margin-left: -20px;
+}
+
+.therapist-dashboard .chat-card .chat-card-title .left-indicator {
+  color: #888;
+  font-weight: normal;
+  font-size: 0.9em;
+}
+
 .therapist-dashboard .chat-card .chat-card-preview {
   font-size: 0.85rem;
   color: var(--text-color);

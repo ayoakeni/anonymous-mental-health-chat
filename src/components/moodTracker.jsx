@@ -14,7 +14,7 @@ const MoodTracker = ({ formatTimestamp, onMoodLogged }) => {
     { value: "sad", label: "Sad", emoji: "😢" },
     { value: "anxious", label: "Anxious", emoji: "😣" },
     { value: "neutral", label: "Neutral", emoji: "😐" },
-    { value: "excited", label: "Excited", emoji: "😊" }
+    { value: "excited", label: "Excited", emoji: "😄" }
   ], []);
 
   // Helper function to format timestamp

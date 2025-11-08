@@ -8,6 +8,7 @@ import {
 } from "react-router-dom";
 import { auth } from "../utils/firebase";
 import Sidebar from "../components/sidebar";
+import { useUserMoods } from "../hooks/useUserMoods";
 import { useTypingStatus } from "../components/useTypingStatus";
 import GroupChatSplitView from "../components/therapistDashboard/GroupChatSplitView";
 import PrivateChatSplitView from "../components/therapistDashboard/PrivateChatSplitView";
@@ -150,6 +151,13 @@ function TherapistDashboard() {
     }
   };
 
+  // ────── USER MOODS ──────
+  const userIds = privateChats
+  .map(chat => chat.userId)
+  .filter(Boolean);
+
+  const userMoods = useUserMoods(userIds);
+
   // ────── URL ↔ ACTIVE CHAT SYNC ──────
   useEffect(() => {
     const path = location.pathname;
@@ -285,6 +293,8 @@ function TherapistDashboard() {
     anonNames,
     showError,
     inChat,
+    therapistId,
+    userMoods,
     privateMessagesEndRef,
   };
 

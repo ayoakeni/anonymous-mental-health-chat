@@ -710,9 +710,12 @@ function AnonymousPrivateChatSplitView({
                     <div className="chat-avater-content">
                       <span className="therapist-text-avatar">{anonName[0] || "T"}</span>
                       <div className="chat-card-content">
-                        <strong className="chat-card-title">{anonName}</strong>
+                        <strong className="chat-card-title">
+                          {anonName}
+                          {isLeft ? " (You Left)" : ""}
+                        </strong>
                         <small className="chat-card-preview">
-                          {isLeft ? "You left — click to rejoin" : (chat.lastMessage || "No messages yet")}
+                          {chat.lastMessage || "No messages yet"}
                         </small>
                       </div>
                     </div>

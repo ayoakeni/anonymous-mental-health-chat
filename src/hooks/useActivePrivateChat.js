@@ -85,7 +85,6 @@ export function useActivePrivateChat(
           participants: arrayRemove(therapistId),
           aiOffered: true,
           aiActive: false,
-          therapistJoinedOnce: false,
           needsTherapist: false,
         });
         tx.set(doc(collection(chatRef, "events")), {

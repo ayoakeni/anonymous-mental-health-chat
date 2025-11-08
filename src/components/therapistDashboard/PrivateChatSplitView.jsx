@@ -28,7 +28,6 @@ function PrivateChatSplitView({
   handleTyping,
   sendPrivateMessage,
   isSendingPrivate,
-  joinPrivateChat,
   leavePrivateChat,
   handleTherapistClick,
   navigate,
@@ -41,8 +40,10 @@ function PrivateChatSplitView({
   anonNames = {},
   showError,
   inChat,
+  therapistId,
+  userMoods,
 }) {
-  const { chatId } = useParams();
+
   const isUserAtBottom = useRef(true);
 
   // Track if user is at the bottom of the chat
@@ -100,6 +101,8 @@ function PrivateChatSplitView({
               const lastTs = chat.lastUpdated;
               const { dateStr, timeStr } = formatTimestamp(lastTs || null);
               const anonName = anonNames[chat.id] || "Loading...";
+              const chatUserId = chat.userId;
+              const mood = userMoods[chatUserId];
               return (
                 <div
                   key={chat.id}
@@ -113,7 +116,20 @@ function PrivateChatSplitView({
                       <span className="therapist-avatar">{anonName[0] || "A"}</span>
                       <div className="chat-card-content">
                         <strong className="chat-card-title">
-                          {anonName} {chat.needsTherapist ? "(Needs Therapist)" : ""}
+                          {anonName} 
+                          {mood && (
+                            <span
+                              className="mood-emoji"
+                              title={mood.label}
+                              aria-label={`Mood: ${mood.label}`}
+                            >
+                              {mood.emoji}
+                            </span>
+                          )}
+                          {chat.needsTherapist ? "(Needs Therapist)" : ""}
+                          {therapistId && !chat.participants?.includes(therapistId) && chat.therapistJoinedOnce && (
+                            <span className="left-indicator"> (Left)</span>
+                          )}
                         </strong>
                         <small className="chat-card-preview">{chat.lastMessage || "No messages yet"}</small>
                       </div>
