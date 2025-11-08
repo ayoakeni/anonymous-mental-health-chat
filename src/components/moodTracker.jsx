@@ -10,11 +10,11 @@ const MoodTracker = ({ formatTimestamp, onMoodLogged }) => {
 
   // Memoized mood options
   const moodOptions = useMemo(() => [
-    { value: "happy", label: "Happy", emoji: "smile" },
-    { value: "sad", label: "Sad", emoji: "frown" },
-    { value: "anxious", label: "Anxious", emoji: "worried" },
-    { value: "neutral", label: "Neutral", emoji: "neutral" },
-    { value: "excited", label: "Excited", emoji: "grinning" }
+    { value: "happy", label: "Happy", emoji: "😊" },
+    { value: "sad", label: "Sad", emoji: "😢" },
+    { value: "anxious", label: "Anxious", emoji: "😣" },
+    { value: "neutral", label: "Neutral", emoji: "😐" },
+    { value: "excited", label: "Excited", emoji: "😄" }
   ], []);
 
   // Helper function to format timestamp
