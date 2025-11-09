@@ -16,7 +16,7 @@ import TherapistDashboardProfile from "../components/therapistDashboard/therapis
 import TherapistDashboardNotification from "../components/therapistDashboard/therapistDashboardNotification";
 import TherapistAppointmentsDashboard from "../components/therapistDashboard/therapistAppointmentDashboard";
 import TherapistDashboardSetting from "../components/therapistDashboard/therapistDashboardSetting";
-import useNotificationSound from "../components/useNotificationSound";
+import useNotificationSound from "../hooks/useNotificationSound";
 import { getTimestampMillis, formatTimestamp } from "../components/timestampUtils";
 
 import { useTherapistProfile } from "../hooks/useTherapistProfile";
