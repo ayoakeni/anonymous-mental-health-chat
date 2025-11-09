@@ -20,6 +20,7 @@ import AnonymousDashboardHome from "../components/AnonymousDashboard/anonymousDa
 import AnonymousGroupChatSplitView from "../components/AnonymousDashboard/anonymousGroupChatSplitView";
 import AnonymousPrivateChatSplitView from "../components/AnonymousDashboard/anonymousPrivateChatSplitView";
 import AppointmentsList from "../components/AnonymousDashboard/anonymousAppointmentList";
+import { useUserNames } from "../hooks/useUserNames";
 import MoodTracker from "../components/moodTracker";
 import { DateTime } from 'luxon';
 import "../styles/anonymousDashboard.css";
@@ -33,7 +34,6 @@ function AnonymousDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
   const [isErrorFading, setIsErrorFading] = useState(false);
-  const [anonNames, setAnonNames] = useState({});
   const [moodHistory, setMoodHistory] = useState([]);
   const [moodHistoryLoading, setMoodHistoryLoading] = useState(true);
   const [showMoodPopup, setShowMoodPopup] = useState(false);
@@ -181,33 +181,7 @@ function AnonymousDashboard() {
     };
   }, [userId, showError]);
 
-  // Fetch anonymous names for private chats
-  useEffect(() => {
-    if (privateChats.length === 0 || !userId) return;
-
-    const unsubs = privateChats.map((chat) => {
-      const therapistUid = chat.participants?.find((uid) => uid !== userId);
-      if (!therapistUid) return () => {};
-
-      const therapistRef = doc(db, "therapists", therapistUid);
-      return onSnapshot(
-        therapistRef,
-        (snap) => {
-          const therapistData = snap.exists() ? snap.data() : null;
-          setAnonNames((prev) => ({
-            ...prev,
-            [chat.id]: therapistData?.name?.trim() || "Therapist",
-          }));
-        },
-        (err) => {
-          console.error("Error fetching therapist name:", err);
-          setAnonNames((prev) => ({ ...prev, [chat.id]: "Therapist" }));
-        }
-      );
-    });
-
-    return () => unsubs.forEach((unsub) => unsub());
-  }, [privateChats, userId]);
+  const anonNames = useUserNames( privateChats, userId, "therapists", "Therapist");
 
   // Fetch mood history
   useEffect(() => {

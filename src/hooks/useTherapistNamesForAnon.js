@@ -1,30 +1,21 @@
 import { useEffect, useState, useRef } from "react";
 import { db } from "../utils/firebase";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  limit,
-} from "firebase/firestore";
+import { collection, query, where, getDocs, limit } from "firebase/firestore";
 
 /**
- * Returns a map { chatId: anonDisplayName } for every private chat.
- *
- * - Batches reads (max 10 uids per request)
- * - Caches results for the component lifetime
- * - Falls back to "Anonymous" if doc missing
+ * Returns { chatId: therapistName } for all private chats.
+ * Batches reads (max 10 uids per request).
  */
-export function useAnonNames(privateChats = [], therapistId) {
+export function useTherapistNamesForAnon(privateChats = [], userId) {
   const [names, setNames] = useState({});
   const cacheRef = useRef(new Map()); // uid → name
 
   useEffect(() => {
-    // 1. Extract the *other* participant (the anonymous user)
-    const uidMap = new Map(); // uid → chatId
+    // Extract therapist UIDs (the one that's not the current user)
+    const uidMap = new Map(); // therapistUid → chatId
     privateChats.forEach((chat) => {
-      const anonUid = chat.participants?.find((u) => u !== therapistId);
-      if (anonUid) uidMap.set(anonUid, chat.id);
+      const therapistUid = chat.participants?.find((u) => u !== userId);
+      if (therapistUid) uidMap.set(therapistUid, chat.id);
     });
 
     const uids = Array.from(uidMap.keys());
@@ -33,21 +24,20 @@ export function useAnonNames(privateChats = [], therapistId) {
       return;
     }
 
-    // 2. Remove stale cache entries
+    // Clean stale cache
     for (const uid of cacheRef.current.keys()) {
       if (!uidMap.has(uid)) cacheRef.current.delete(uid);
     }
 
-    // 3. Split into chunks of 10 (Firestore `in` limit)
+    // Chunk into 10s
     const chunks = [];
     for (let i = 0; i < uids.length; i += 10) {
       chunks.push(uids.slice(i, i + 10));
     }
 
     const fetchChunk = async (chunk) => {
-      // Try to fetch all at once with `in`
       const q = query(
-        collection(db, "anonymousUsers"),
+        collection(db, "therapists"),
         where("__name__", "in", chunk),
         limit(10)
       );
@@ -55,29 +45,26 @@ export function useAnonNames(privateChats = [], therapistId) {
 
       const found = new Map();
       snap.forEach((doc) => {
-        const name = doc.data()?.anonymousName?.trim() || "Anonymous";
+        const name = doc.data()?.name?.trim() || "Therapist";
         found.set(doc.id, name);
       });
 
-      // Fill missing with fallback
+      // Fill missing
       chunk.forEach((uid) => {
-        if (!found.has(uid)) found.set(uid, "Anonymous");
+        if (!found.has(uid)) found.set(uid, "Therapist");
       });
 
       return found;
     };
 
-    // 4. Run all chunks in parallel
     Promise.all(chunks.map(fetchChunk)).then((results) => {
       const merged = new Map();
-      results.forEach((map) => {
-        map.forEach((name, uid) => merged.set(uid, name));
-      });
+      results.forEach((map) => map.forEach((name, uid) => merged.set(uid, name)));
 
       // Update cache
       merged.forEach((name, uid) => cacheRef.current.set(uid, name));
 
-      // Build final { chatId: name } object
+      // Build { chatId: name }
       const result = {};
       uidMap.forEach((chatId, uid) => {
         result[chatId] = cacheRef.current.get(uid);
@@ -85,7 +72,7 @@ export function useAnonNames(privateChats = [], therapistId) {
 
       setNames(result);
     });
-  }, [privateChats, therapistId]);
+  }, [privateChats, userId]);
 
   return names;
 }

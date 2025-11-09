@@ -25,7 +25,7 @@ import { usePrivateChats } from "../hooks/usePrivateChats";
 import { useActiveGroupChat } from "../hooks/useActiveGroupChat";
 import { useActivePrivateChat } from "../hooks/useActivePrivateChat";
 import { useParticipantNames } from "../hooks/useParticipantNames";
-import { useAnonNames } from "../hooks/useAnonNames";
+import { useUserNames } from "../hooks/useUserNames";
 import { useAppointments } from "../hooks/useAppointments";
 import { useOnlineTherapists } from "../hooks/useOnlineTherapists";
 import { useNotifications } from "../hooks/useNotifications";
@@ -121,7 +121,8 @@ function TherapistDashboard() {
   const participantNames = useParticipantNames(
     groupChats.flatMap((g) => g.participants || [])
   );
-  const anonNames = useAnonNames(privateChats, therapistId);
+
+  const anonNames = useUserNames(privateChats, therapistId, "anonymousUsers", "Anonymous");
 
   // APPOINTMENTS
   const appointmentsData = useAppointments(therapistId, showError);
