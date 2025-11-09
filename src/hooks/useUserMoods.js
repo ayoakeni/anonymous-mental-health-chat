@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
-import { collection, query, where, onSnapshot, limit } from "firebase/firestore";
+import { collection, query, where, onSnapshot, limit,
+} from "firebase/firestore";
 import { db } from "../utils/firebase";
 
 const moodConfig = {
@@ -13,22 +14,20 @@ const moodConfig = {
 export function useUserMoods(userIds = []) {
   const [moods, setMoods] = useState({});
 
-  // Create a stable dependency key from userIds
-  const userIdsKey = useMemo(() => {
-    return userIds.length > 0
-      ? [...userIds].sort().join(",")
-      : "";
+  // Stable array – only changes when the set of IDs changes
+  const stableIds = useMemo(() => {
+    return userIds.length ? [...userIds].sort() : [];
   }, [userIds]);
 
   useEffect(() => {
-    if (!userIds.length) {
+    if (!stableIds.length) {
       setMoods({});
       return;
     }
 
     const q = query(
       collection(db, "moods"),
-      where("userId", "in", userIds),
+      where("userId", "in", stableIds),
       limit(50)
     );
 
@@ -36,25 +35,23 @@ export function useUserMoods(userIds = []) {
       const latest = {};
 
       snap.docs.forEach((doc) => {
-        const data = doc.data();
-        const uid = data.userId;
-        const ts = data.timestamp?.seconds || 0;
-        const config = moodConfig[data.mood];
-
-        if (config && (!latest[uid] || ts > (latest[uid].ts || 0))) {
-          latest[uid] = {
-            emoji: config.emoji,
-            label: config.label,
-            ts,
-          };
+        const d = doc.data();
+        const uid = d.userId;
+        const ts = d.timestamp?.seconds || 0;
+        const cfg = moodConfig[d.mood];
+        if (cfg && (!latest[uid] || ts > (latest[uid].ts || 0))) {
+          latest[uid] = { emoji: cfg.emoji, label: cfg.label, ts };
         }
       });
 
-      setMoods(latest);
+      // Only setState when the object actually changed
+      if (JSON.stringify(latest) !== JSON.stringify(moods)) {
+        setMoods(latest);
+      }
     });
 
     return unsub;
-  }, [userIdsKey, userIds]);
+  }, [moods, stableIds]);
 
   return moods;
 }

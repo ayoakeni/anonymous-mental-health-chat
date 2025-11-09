@@ -1,29 +1,31 @@
-import { useState, useRef, useEffect } from "react";
-import { collection, doc, onSnapshot, setDoc, serverTimestamp, query, where, limit } from "firebase/firestore";
-import { db, auth } from "../utils/firebase";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { debounce } from "lodash";
+import { db, auth } from "../utils/firebase";
+import { doc, setDoc, serverTimestamp, collection, query, where, onSnapshot, limit,} from "firebase/firestore";
 
 export const useTypingStatus = (displayName, chatId) => {
   const [typingUsers, setTypingUsers] = useState([]);
   const typingTimeoutRef = useRef(null);
 
-  const debouncedUpdateTyping = debounce(async (isTyping) => {
-    if (!auth.currentUser?.uid || !chatId) return;
+  // Stable debounced function – recreated only when chatId or name change
+  const debouncedUpdateTyping = useCallback(
+    debounce(async (isTyping) => {
+      if (!auth.currentUser?.uid || !chatId) return;
 
-    const typingRef = doc(db, "typingStatus", `${chatId}_${auth.currentUser.uid}`);
-    const payload = {
-      typing: isTyping,
-      name: displayName,
-      chatId,
-      timestamp: serverTimestamp(),
-    };
-
-    try {
-      await setDoc(typingRef, payload, { merge: true });
-    } catch (err) {
-      console.warn("Typing status failed:", err);
-    }
-  }, 800);
+      const typingRef = doc(db, "typingStatus", `${chatId}_${auth.currentUser.uid}`);
+      await setDoc(
+        typingRef,
+        {
+          typing: isTyping,
+          name: displayName,
+          chatId,
+          timestamp: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }, 800),
+    [chatId, displayName]
+  );
 
   useEffect(() => {
     if (!chatId) {
@@ -38,19 +40,20 @@ export const useTypingStatus = (displayName, chatId) => {
       limit(10)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const users = snapshot.docs
-        .map(doc => doc.data().name)
-        .filter(Boolean);
-      setTypingUsers(users);
+    const unsub = onSnapshot(q, (snap) => {
+      const users = snap.docs.map((d) => d.data().name).filter(Boolean);
+
+      // Avoid unnecessary re-renders
+      if (JSON.stringify(users) !== JSON.stringify(typingUsers)) {
+        setTypingUsers(users);
+      }
     });
 
     return () => {
-      unsubscribe();
-      debouncedUpdateTyping(false);
-      debouncedUpdateTyping.flush();
+      unsub();
+      debouncedUpdateTyping.cancel();
     };
-  }, [chatId, debouncedUpdateTyping]);
+  }, [chatId, debouncedUpdateTyping, typingUsers]);
 
   const handleTyping = (value) => {
     if (!chatId) return;
@@ -59,9 +62,7 @@ export const useTypingStatus = (displayName, chatId) => {
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     if (isTyping) {
-      typingTimeoutRef.current = setTimeout(() => {
-        debouncedUpdateTyping(false);
-      }, 3000);
+      typingTimeoutRef.current = setTimeout(() => debouncedUpdateTyping(false), 3000);
     }
   };
 

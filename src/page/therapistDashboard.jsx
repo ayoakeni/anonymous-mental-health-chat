@@ -1,10 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import {
-  useNavigate,
-  useLocation,
-  Routes,
-  Route,
-  useParams,
+import { useNavigate, useLocation, Routes, Route, useParams,
 } from "react-router-dom";
 import { auth } from "../utils/firebase";
 import Sidebar from "../components/sidebar";
@@ -150,9 +145,11 @@ function TherapistDashboard() {
   };
 
   // ────── USER MOODS ──────
-  const userIds = privateChats
-  .map(chat => chat.userId)
-  .filter(Boolean);
+  const userIds = useMemo(() => {
+    return privateChats
+      .map((c) => c.userId)
+      .filter(Boolean);
+  }, [privateChats]);
 
   const userMoods = useUserMoods(userIds);
 
