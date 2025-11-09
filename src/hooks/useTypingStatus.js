@@ -6,14 +6,15 @@ import { doc, setDoc, serverTimestamp, collection, query, where, onSnapshot, lim
 export const useTypingStatus = (displayName, chatId) => {
   const [typingUsers, setTypingUsers] = useState([]);
   const typingTimeoutRef = useRef(null);
+  const debouncedUpdateTypingRef = useRef(null);
 
-  // Stable debounced function – recreated only when chatId or name change
-  const debouncedUpdateTyping = useCallback(
-    debounce(async (isTyping) => {
+  // Create a *stable* debounced function (only when deps change)
+  useEffect(() => {
+    debouncedUpdateTypingRef.current = debounce((isTyping) => {
       if (!auth.currentUser?.uid || !chatId) return;
 
       const typingRef = doc(db, "typingStatus", `${chatId}_${auth.currentUser.uid}`);
-      await setDoc(
+      setDoc(
         typingRef,
         {
           typing: isTyping,
@@ -22,11 +23,21 @@ export const useTypingStatus = (displayName, chatId) => {
           timestamp: serverTimestamp(),
         },
         { merge: true }
-      );
-    }, 800),
-    [chatId, displayName]
-  );
+      ).catch((err) => console.error("Failed to update typing status:", err));
+    }, 800);
 
+    // Cleanup on deps change or unmount
+    return () => {
+      debouncedUpdateTypingRef.current?.cancel();
+    };
+  }, [chatId, displayName]);
+
+  // Expose a stable caller
+  const updateTyping = useCallback((isTyping) => {
+    debouncedUpdateTypingRef.current?.(isTyping);
+  }, []);
+
+  // Subscribe to Firestore typing status
   useEffect(() => {
     if (!chatId) {
       setTypingUsers([]);
@@ -43,7 +54,7 @@ export const useTypingStatus = (displayName, chatId) => {
     const unsub = onSnapshot(q, (snap) => {
       const users = snap.docs.map((d) => d.data().name).filter(Boolean);
 
-      // Avoid unnecessary re-renders
+      // Dedupe render
       if (JSON.stringify(users) !== JSON.stringify(typingUsers)) {
         setTypingUsers(users);
       }
@@ -51,20 +62,42 @@ export const useTypingStatus = (displayName, chatId) => {
 
     return () => {
       unsub();
-      debouncedUpdateTyping.cancel();
+      debouncedUpdateTypingRef.current?.cancel();
     };
-  }, [chatId, debouncedUpdateTyping, typingUsers]);
+  }, [chatId, typingUsers]);
 
-  const handleTyping = (value) => {
-    if (!chatId) return;
-    const isTyping = value.trim() !== "";
-    debouncedUpdateTyping(isTyping);
+  // Public handler
+  const handleTyping = useCallback(
+    (value) => {
+      if (!chatId) return;
 
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    if (isTyping) {
-      typingTimeoutRef.current = setTimeout(() => debouncedUpdateTyping(false), 3000);
-    }
-  };
+      const isTyping = value.trim() !== "";
+      updateTyping(isTyping);
+
+      // Clear existing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      // Auto-stop after 3s of inactivity
+      if (isTyping) {
+        typingTimeoutRef.current = setTimeout(() => {
+          updateTyping(false);
+        }, 3000);
+      }
+    },
+    [chatId, updateTyping]
+  );
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      debouncedUpdateTypingRef.current?.cancel();
+    };
+  }, []);
 
   return { typingUsers, handleTyping };
 };
