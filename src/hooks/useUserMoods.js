@@ -51,6 +51,7 @@ export function useUserMoods(userIds = []) {
     });
 
     return unsub;
+    // eslint-disable-next-line
   }, [stableIds]);
 
   return moods;
