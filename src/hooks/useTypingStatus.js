@@ -64,7 +64,7 @@ export const useTypingStatus = (displayName, chatId) => {
       unsub();
       debouncedUpdateTypingRef.current?.cancel();
     };
-  }, [chatId, typingUsers]);
+  }, [chatId]);
 
   // Public handler
   const handleTyping = useCallback(

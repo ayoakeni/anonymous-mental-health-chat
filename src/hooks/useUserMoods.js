@@ -51,7 +51,7 @@ export function useUserMoods(userIds = []) {
     });
 
     return unsub;
-  }, [moods, stableIds]);
+  }, [stableIds]);
 
   return moods;
 }
