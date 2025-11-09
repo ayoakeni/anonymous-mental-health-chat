@@ -64,7 +64,7 @@ export const useTypingStatus = (displayName, chatId) => {
       unsub();
       debouncedUpdateTypingRef.current?.cancel();
     };
-    // eslint-disable-next-line
+  // eslint-disable-next-line
   }, [chatId]);
 
   // Public handler
