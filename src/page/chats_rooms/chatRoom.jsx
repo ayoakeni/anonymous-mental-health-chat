@@ -18,7 +18,7 @@ import { getAIResponse } from "../../utils/AiChatIntegration";
 import { mapMessagesForAI } from "../../utils/aiMessageMapper";
 import { loginAnonymously, getAnonName } from "../../login/anonymous_login";
 import TherapistProfile from "../../components/TherapistProfile";
-import { useTypingStatus } from "../../components/useTypingStatus";
+import { useTypingStatus } from "../../hooks/useTypingStatus";
 import { getTimestampMillis, formatMessageTime } from "../../components/timestampUtils";
 import EmojiPicker from "emoji-picker-react";
 import "../chats_rooms/chatroom.css";

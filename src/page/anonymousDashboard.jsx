@@ -13,7 +13,6 @@ import {
   limit,
 } from "firebase/firestore";
 import { loginAnonymously, getAnonName } from "../login/anonymous_login";
-import { useTypingStatus } from "../components/useTypingStatus";
 import useNotificationSound from "../components/useNotificationSound";
 import { formatTimestamp, getTimestampMillis } from "../components/timestampUtils";
 import Sidebar from "../components/sidebar";
@@ -46,8 +45,6 @@ function AnonymousDashboard() {
   const { groupId, chatId } = useParams();
   const userId = auth.currentUser?.uid;
   const displayName = getAnonName();
-
-  const { typingUsers } = useTypingStatus(displayName);
 
   // Calculate total unread counts
   const totalGroupUnread = useMemo(() =>
@@ -432,7 +429,6 @@ function AnonymousDashboard() {
                 formatTimestamp={formatTimestamp}
                 getTimestampMillis={getTimestampMillis}
                 displayName={displayName}
-                typingUsers={typingUsers}
                 userId={userId}
                 showError={showError}
                 playNotification={playNotification}
@@ -449,7 +445,6 @@ function AnonymousDashboard() {
                 formatTimestamp={formatTimestamp}
                 getTimestampMillis={getTimestampMillis}
                 displayName={displayName}
-                typingUsers={typingUsers}
                 userId={userId}
                 anonNames={anonNames}
                 showError={showError}

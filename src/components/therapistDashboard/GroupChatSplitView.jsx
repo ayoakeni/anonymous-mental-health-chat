@@ -4,6 +4,7 @@ import ChatMessage from "./ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
 import EmojiPicker from "emoji-picker-react";
 import LeaveChatButton from "../LeaveChatButton";
+import { useTypingStatus } from "../../hooks/useTypingStatus";
 
 /* -------------------------------------------------------------
    Simple media-query hook (no external deps)
@@ -34,13 +35,11 @@ function GroupChatSplitView({
   setIsParticipantsOpen,
   participantNames,
   combinedGroupChat,
-  typingUsers,
   groupMessagesEndRef,
   showEmojiPicker,
   setShowEmojiPicker,
   reply,
   setReply,
-  handleTyping,
   sendReply,
   joinGroupChat,
   leaveGroupChat,
@@ -61,6 +60,11 @@ function GroupChatSplitView({
   const chatBoxRef = useRef(null);
   const isUserAtBottom = useRef(true);
   const isMobile = useMediaQuery("(max-width: 768px)");
+
+  const { typingUsers, handleTyping } = useTypingStatus(
+    therapistInfo?.name || "Therapist",
+    activeGroupId && isGroupChatOpen && inGroupChat ? activeGroupId : null
+  );
 
   // Track if user is at the bottom of the chat
   useEffect(() => {
@@ -152,7 +156,6 @@ function GroupChatSplitView({
   // RIGHT PANEL: Active Chat
   const rightPanel = (
     <div className="chat-box-container">
-      {/* ---------- MOBILE BACK BUTTON ---------- */}
       {isMobile && activeGroupId&& isGroupChatOpen && inGroupChat && (
         <div className="mobile-back-header">
           <button
@@ -160,7 +163,7 @@ function GroupChatSplitView({
             onClick={() => navigate("/therapist-dashboard/group-chat")}
             aria-label="Back to chat list"
           >
-            ← Back to chats
+            Back to chats
           </button>
         </div>
       )}
@@ -241,6 +244,7 @@ function GroupChatSplitView({
                 </React.Fragment>
               ))
             )}
+            {/* Typing Indicator */}
             {typingUsers.length > 0 && (
               <p className="typing-indicator">
                 {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
@@ -318,7 +322,6 @@ function GroupChatSplitView({
   );
 
   /* ------------------- RENDER LOGIC ------------------- */
-  // Mobile: show only ONE panel at a time
   if (isMobile) {
     if (activeGroupId && isGroupChatOpen && inGroupChat) {
       return <div className="mobile-chat-wrapper">{rightPanel}</div>;
@@ -326,7 +329,6 @@ function GroupChatSplitView({
     return <div className="mobile-chat-wrapper">{leftPanel}</div>;
   }
 
-  // Desktop: keep the resizable split view 
   return (
     <ResizableSplitView
       leftPanel={leftPanel}

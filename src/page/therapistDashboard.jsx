@@ -9,7 +9,6 @@ import {
 import { auth } from "../utils/firebase";
 import Sidebar from "../components/sidebar";
 import { useUserMoods } from "../hooks/useUserMoods";
-import { useTypingStatus } from "../components/useTypingStatus";
 import GroupChatSplitView from "../components/therapistDashboard/GroupChatSplitView";
 import PrivateChatSplitView from "../components/therapistDashboard/PrivateChatSplitView";
 import TherapistDashboardHome from "../components/therapistDashboard/therapistDashboardHome";
@@ -139,8 +138,6 @@ function TherapistDashboard() {
     resetDismissed,
   } = useNotifications(privateChats, groupChats, anonNames, showError);
 
-  const { typingUsers, handleTyping } = useTypingStatus(therapistName);
-
   // ────── SAVE SETTINGS WITH LOADER ──────
   const saveSettings = async () => {
     setIsSaving(true);
@@ -236,7 +233,6 @@ function TherapistDashboard() {
     isParticipantsOpen,
     setIsParticipantsOpen,
     combinedGroupChat,
-    typingUsers,
     chatBoxRef: useRef(null),
     isLoadingMessages: groupLoading,
     hasMoreMessages: groupHasMore,
@@ -245,7 +241,6 @@ function TherapistDashboard() {
     setShowEmojiPicker,
     reply,
     setReply,
-    handleTyping,
     sendReply: sendGroupMsg,
     joinGroupChat: joinGroup,
     leaveGroupChat: leaveGroup,
@@ -269,7 +264,6 @@ function TherapistDashboard() {
     selectedTherapist,
     setSelectedTherapist,
     combinedPrivateChat,
-    typingUsers,
     chatBoxRef: useRef(null),
     isLoadingMessages: privLoading,
     hasMoreMessages: privHasMore,
@@ -278,7 +272,6 @@ function TherapistDashboard() {
     setShowEmojiPicker,
     newPrivateMessage,
     setNewPrivateMessage,
-    handleTyping,
     sendPrivateMessage: sendPrivMsg,
     isSendingPrivate: false,
     joinPrivateChat: joinPrivate,

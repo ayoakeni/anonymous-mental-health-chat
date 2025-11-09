@@ -17,7 +17,7 @@ import {
   increment,
   startAfter,
 } from "firebase/firestore";
-import { useTypingStatus } from "../useTypingStatus";
+import { useTypingStatus } from "../../hooks/useTypingStatus";
 import { getAIResponse } from "../../utils/AiChatIntegration";
 import { mapMessagesForAI } from "../../utils/aiMessageMapper";
 import ChatMessage from "../therapistDashboard/ChatMessage";
@@ -50,7 +50,6 @@ function AnonymousPrivateChatSplitView({
   formatTimestamp,
   getTimestampMillis,
   displayName,
-  typingUsers,
   userId,
   anonNames,
   showError,
@@ -71,8 +70,8 @@ function AnonymousPrivateChatSplitView({
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
   const navigate = useNavigate();
-  const location = useLocation();
-  const { handleTyping } = useTypingStatus(displayName);  
+  const location = useLocation(); 
+  const { typingUsers, handleTyping } = useTypingStatus( displayName, activeChatId);
   const [isSelectingChat, setIsSelectingChat] = useState(false);
   const [therapistName, setTherapistName] = useState("Loading…");
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -760,7 +759,6 @@ function AnonymousPrivateChatSplitView({
   // RIGHT PANEL: Active Chat
   const rightPanel = (
     <div className="chat-box-container">
-      {/* ---------- MOBILE BACK BUTTON ---------- */}
       {isMobile && activeChatId && (
         <div className="mobile-back-header">
           <button
@@ -768,7 +766,7 @@ function AnonymousPrivateChatSplitView({
             onClick={() => navigate("/anonymous-dashboard/group-chat")}
             aria-label="Back to chat list"
           >
-            ← Back to chats
+            Back to chats
           </button>
         </div>
       )}
@@ -837,6 +835,7 @@ function AnonymousPrivateChatSplitView({
                 </div>
               ))
             )}
+            {/* Typing Indicator */}
             {typingUsers.length > 0 && (
               <p className="typing-indicator">
                 {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
@@ -911,7 +910,6 @@ function AnonymousPrivateChatSplitView({
   );
   
   /* ------------------- RENDER LOGIC ------------------- */
-  // Mobile: show only ONE panel at a time
   if (isMobile) {
     if (activeChatId) {
       return <div className="mobile-chat-wrapper">{rightPanel}</div>;

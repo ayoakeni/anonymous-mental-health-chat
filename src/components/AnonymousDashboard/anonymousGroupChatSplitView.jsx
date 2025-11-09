@@ -17,7 +17,7 @@ import {
   getDocs,
   startAfter,
 } from "firebase/firestore";
-import { useTypingStatus } from "../useTypingStatus";
+import { useTypingStatus } from "../../hooks/useTypingStatus";
 import ChatMessage from "../therapistDashboard/ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
 import LeaveChatButton from "../LeaveChatButton";
@@ -52,7 +52,6 @@ function AnonymousGroupChatSplitView({
   formatTimestamp,
   getTimestampMillis,
   displayName,
-  typingUsers,
   userId,
   showError,
   playNotification,
@@ -75,7 +74,8 @@ function AnonymousGroupChatSplitView({
   const chatBoxRef = useRef(null);
   const modalRef = useRef(null);
   const navigate = useNavigate();
-  const { handleTyping } = useTypingStatus(displayName);
+  const { typingUsers, handleTyping } = useTypingStatus(displayName, activeGroupId ? activeGroupId : null);
+
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   // Memoize active group to avoid repeated find calls
@@ -104,8 +104,8 @@ function AnonymousGroupChatSplitView({
       );
       const snapshot = await getDocs(nextQuery);
       const newMessages = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setMessages((prev) => [...newMessages, ...prev]); // Prepend new messages
-      setHasMoreMessages(snapshot.docs.length === 50); // More messages if we hit the limit
+      setMessages((prev) => [...newMessages, ...prev]);
+      setHasMoreMessages(snapshot.docs.length === 50);
     } catch (err) {
       console.error("Error loading more messages:", err);
       showError("Failed to load more messages. Please try again.");
@@ -133,9 +133,9 @@ function AnonymousGroupChatSplitView({
         loadMoreMessages();
       }
     };
-  chatBox.addEventListener("scroll", handleScroll);
-  return () => chatBox.removeEventListener("scroll", handleScroll);
-}, [hasMoreMessages, isLoadingChat, activeGroupId, loadMoreMessages]);
+    chatBox.addEventListener("scroll", handleScroll);
+    return () => chatBox.removeEventListener("scroll", handleScroll);
+  }, [hasMoreMessages, isLoadingChat, activeGroupId, loadMoreMessages]);
   
   // Fetch online therapists with default name
   useEffect(() => {
@@ -190,7 +190,7 @@ function AnonymousGroupChatSplitView({
           prev.filter((pending) => !msgs.some((msg) => msg.text === pending.text && msg.role === pending.role))
         );
         setIsLoadingChat(false);
-        setHasMoreMessages(snapshot.docs.length === 50); // More messages if we hit the limit
+        setHasMoreMessages(snapshot.docs.length === 50);
         if (msgs.length > 0) playNotification();
       },
       (err) => {
@@ -622,7 +622,6 @@ function AnonymousGroupChatSplitView({
   // RIGHT PANEL: Active Chat
   const rightPanel = (
     <div className="chat-box-container">
-      {/* ---------- MOBILE BACK BUTTON ---------- */}
       {isMobile && activeGroupId && (
         <div className="mobile-back-header">
           <button
@@ -630,7 +629,7 @@ function AnonymousGroupChatSplitView({
             onClick={() => navigate("/anonymous-dashboard/private-chat")}
             aria-label="Back to chat list"
           >
-            ← Back to chats
+            Back to chats
           </button>
         </div>
       )}
@@ -754,6 +753,7 @@ function AnonymousGroupChatSplitView({
                 />
               ))
             )}
+            {/* Typing Indicator */}
             {typingUsers.length > 0 && (
               <p className="typing-indicator">
                 {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
@@ -821,7 +821,6 @@ function AnonymousGroupChatSplitView({
   );
 
   /* ------------------- RENDER LOGIC ------------------- */
-  // Mobile: show only ONE panel at a time
   if (isMobile) {
     if (activeGroupId) {
       return <div className="mobile-chat-wrapper">{rightPanel}</div>;

@@ -3,6 +3,7 @@ import ChatMessage from "./ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
 import EmojiPicker from "emoji-picker-react";
 import LeaveChatButton from "../LeaveChatButton";
+import { useTypingStatus } from "../../hooks/useTypingStatus"; // <-- Import
 
 /* -------------------------------------------------------------
    Simple media-query hook (no external deps)
@@ -35,7 +36,6 @@ function PrivateChatSplitView({
   selectedTherapist,
   setSelectedTherapist,
   combinedPrivateChat,
-  typingUsers,
   privateMessagesEndRef,
   chatBoxRef,
   isLoadingMessages,
@@ -45,7 +45,6 @@ function PrivateChatSplitView({
   setShowEmojiPicker,
   newPrivateMessage,
   setNewPrivateMessage,
-  handleTyping,
   sendPrivateMessage,
   isSendingPrivate,
   leavePrivateChat,
@@ -65,6 +64,7 @@ function PrivateChatSplitView({
 }) {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isUserAtBottom = useRef(true);
+  const { typingUsers, handleTyping } = useTypingStatus(therapistInfo?.name, activeChatId && inChat && !isValidatingChat && !chatError ? activeChatId : null);
 
   /* ------------------- SCROLL LOGIC ------------------- */
   useEffect(() => {
@@ -184,7 +184,6 @@ function PrivateChatSplitView({
   /* ------------------- RIGHT PANEL (Active Chat) ------------------- */
   const rightPanel = (
     <div className="chat-box-container">
-      {/* ---------- MOBILE BACK BUTTON ---------- */}
       {isMobile && activeChatId && inChat && (
         <div className="mobile-back-header">
           <button
@@ -192,7 +191,7 @@ function PrivateChatSplitView({
             onClick={() => navigate("/therapist-dashboard/private-chat")}
             aria-label="Back to chat list"
           >
-            ← Back to chats
+            Back to chats
           </button>
         </div>
       )}
@@ -250,6 +249,7 @@ function PrivateChatSplitView({
                   </div>
                 ))
               )}
+              {/* Typing Indicator */}
               {typingUsers.length > 0 && (
                 <p className="typing-indicator">
                   {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
@@ -329,7 +329,6 @@ function PrivateChatSplitView({
   );
 
   /* ------------------- RENDER LOGIC ------------------- */
-  // Mobile: show only ONE panel at a time
   if (isMobile) {
     if (activeChatId && inChat) {
       return <div className="mobile-chat-wrapper">{rightPanel}</div>;
@@ -337,7 +336,6 @@ function PrivateChatSplitView({
     return <div className="mobile-chat-wrapper">{leftPanel}</div>;
   }
 
-  // Desktop: keep the resizable split view
   return (
     <ResizableSplitView
       leftPanel={leftPanel}
