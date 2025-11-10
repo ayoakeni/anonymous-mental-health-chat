@@ -11,7 +11,8 @@ export function useActiveGroupChat(
   therapistId,
   displayName,
   playNotification,
-  showError
+  showError,
+  navigate
 ) {
   const [messages, setMessages] = useState([]);
   const [events, setEvents] = useState([]);
@@ -59,6 +60,7 @@ export function useActiveGroupChat(
       setInChat(false);
       setMessages([]);
       setEvents([]);
+      navigate("/therapist-dashboard/group-chat");
       setParticipants([]);
     } catch (e) {
       showError("Failed to leave group chat.");

@@ -739,7 +739,7 @@
 }
 
 .anonymous-dashboard .chat-list-container::-webkit-scrollbar {
-  width: 8px;
+  width: 4px;
 }
 
 .anonymous-dashboard .chat-list-container::-webkit-scrollbar-track {
