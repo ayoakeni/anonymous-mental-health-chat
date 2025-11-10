@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom'
 import '../styles/about.css';
 import Header from "../components/header"
 
@@ -37,8 +38,8 @@ function About() {
             We provide anonymous mental health support through real-time peer chat, AI-driven assistance, and professional therapist access.
           </p>
           <div className="hero-cta">
-            <a href="/anonymous-dashboard" className="cta-button primary">Join the Community</a>
-            <a href="/learn-more" className="cta-button secondary">Learn More</a>
+            <Link to="/anonymous-dashboard" className="cta-button primary">Join the Community</Link>
+            <Link to="/learn-more" className="cta-button secondary">Learn More</Link>
           </div>
         </div>
       </section>
@@ -57,13 +58,13 @@ function About() {
             <i className="feature-icon fas fa-robot"></i>
             <h3>AI Assistance</h3>
             <p>Our AI offers instant, empathetic responses and resources to guide you through challenges.</p>
-            <a href="/ai-assist" className="feature-cta">Try AI Support</a>
+            <Link to="/ai-assist" className="feature-cta">Try AI Support</Link>
           </div>
           <div className="feature-card">
             <i className="feature-icon fas fa-user-md"></i>
             <h3>Therapist Access</h3>
             <p>Connect with licensed therapists for professional guidance when you need it most.</p>
-            <a href="/therapists" className="feature-cta">Find a Therapist</a>
+            <Link to="/therapists" className="feature-cta">Find a Therapist</Link>
           </div>
         </div>
       </section>
@@ -93,6 +94,15 @@ function About() {
           ))}
         </div>
       </section>
+
+      <footer className="footer">
+        <p>&copy; {new Date().getFullYear()} Anonymous Mental Health Support. All rights reserved.</p>
+        <div className="footer-links">
+          <Link to="/privacy">Privacy Policy</Link>
+          <Link to="/terms">Terms of Service</Link>
+          <a href="mailto:support@mentalhealthapp.com">Contact Us</a>
+        </div>
+      </footer>
     </div>
   );
 }

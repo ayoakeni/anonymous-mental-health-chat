@@ -194,12 +194,6 @@ function Home() {
         </div>
       </section>
 
-      <div className="chatbot-widget">
-        <Link to="/ai-support" className="chatbot-button">
-          <i className="fas fa-comment"></i>
-        </Link>
-      </div>
-
       <footer className="footer">
         <p>&copy; {new Date().getFullYear()} Anonymous Mental Health Support. All rights reserved.</p>
         <div className="footer-links">

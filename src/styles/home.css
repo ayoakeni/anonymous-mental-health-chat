@@ -516,29 +516,6 @@
   }
 }
 
-.chatbot-widget {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 1000;
-}
-.chatbot-button {
-  background: var(--primary-color);
-  color: #ffffff;
-  border-radius: 50%;
-  width: 60px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: var(--shadow);
-  text-decoration: none;
-  font-size: 1.5rem;
-}
-.chatbot-button:hover {
-  background: #357abd;
-}
-
 /* Footer */
 .footer {
   text-align: center;
