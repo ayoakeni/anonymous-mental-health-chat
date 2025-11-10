@@ -155,23 +155,6 @@ function Home() {
         </div>
       </section>
 
-      <section className="crisis-section" aria-labelledby="crisis-title">
-        <h2 id="crisis-title" className="crisis-title">
-          Need Immediate Help?
-        </h2>
-        <p className="crisis-text">
-          If you're in crisis, reach out to a trusted resource immediately.
-        </p>
-        <a
-          href="https://www.crisistextline.org/"
-          className="crisis-button"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Contact Crisis Support
-        </a>
-      </section>
-
       <section className="faq-section" aria-labelledby="faq-title">
         <h2 id="faq-title" className="faq-title">Frequently Asked Questions</h2>
         <div className="faq-list">

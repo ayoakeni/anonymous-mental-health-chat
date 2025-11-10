@@ -51,7 +51,7 @@ function About() {
             <i className="feature-icon fas fa-comments"></i>
             <h3>Peer Support</h3>
             <p>Connect anonymously with others in real-time to share experiences and support each other.</p>
-            <a href="/anonmous-dashboard" className="feature-cta">Join Chat</a>
+            <a href="/anonymous-dashboard/group-chat" className="feature-cta">Join Chat</a>
           </div>
           <div className="feature-card">
             <i className="feature-icon fas fa-robot"></i>
@@ -92,15 +92,6 @@ function About() {
             </div>
           ))}
         </div>
-      </section>
-
-      {/* Crisis Support Section */}
-      <section className="crisis-section">
-        <h2 className="crisis-title">Need Immediate Help?</h2>
-        <p className="crisis-text">
-          If you or someone you know is in crisis, reach out to our 24/7 support or contact a local helpline.
-        </p>
-        <a href="/crisis" className="crisis-button">Get Help Now</a>
       </section>
     </div>
   );
