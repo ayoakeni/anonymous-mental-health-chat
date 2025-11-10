@@ -716,6 +716,7 @@
 
 .anonymous-dashboard .chat-box-card {
   flex: 1;
+  width: 100%;
   padding: 20px 0;
   background: var(--chat-bg);
   display: flex;
@@ -874,7 +875,7 @@
 }
 
 .anonymous-dashboard .chat-box-container {
-  flex: 2;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   background: var(--chat-bg);
@@ -921,7 +922,8 @@
 .anonymous-dashboard .chat-box {
   background: var(--chat-bg);
   padding: 0 20px;
-  height: 569px;
+  flex: 1;
+  height: auto;
   overflow-y: auto;
   margin: 0 5px 0 0;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -950,8 +952,12 @@
   opacity: 0.7;
 }
 
+.anonymous-dashboard .message {
+  margin: 0 0 30px;
+  transition: background-color 0.2s ease;
+}
+
 .anonymous-dashboard .chat-message {
-  margin: 10px 0;
   padding: 10px 15px;
   border-radius: var(--border-radius);
   max-width: 60%;
@@ -959,12 +965,12 @@
   word-wrap: break-word;
   position: relative;
   color: var(--text-color);
-  font-size: 0.95rem;
 }
 
 .anonymous-dashboard .chat-message.therapist {
   background: var(--therapist-bg);
   margin-right: auto;
+  font-weight: 600;
   border-left: 4px solid var(--accent-color);
 }
 
@@ -1007,12 +1013,13 @@
 
 .anonymous-dashboard .chat-message.system {
   background: var(--system-bg);
-  margin: 10px auto;
+  margin: 30px auto;
   text-align: center;
   font-style: italic;
+  padding: 3px 15px;
   color: var(--text-color);
+  border-left: 4px solid var(--error-color);
   opacity: 0.7;
-  font-size: 0.9rem;
 }
 
 .anonymous-dashboard .chat-message strong {
@@ -1020,6 +1027,7 @@
   color: var(--text-color);
 }
 
+/* Attachment Link */
 .anonymous-dashboard .chat-message .attachment-link {
   display: inline-block;
   margin-top: 5px;
@@ -1046,30 +1054,38 @@
   opacity: 0.5;
   text-align: right;
   display: block;
+  margin-top: 2px;
 }
 
 .anonymous-dashboard .chat-message .message-reactions {
-  display: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
   position: absolute;
   top: 0;
-  right: -77px;
-  background: var(--chat-bg);
-  padding: 5px;
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow);
+  padding: 5px 10px;
+  height: 100%;
+  opacity: 0;
 }
 
 .anonymous-dashboard .chat-message.user .message-reactions {
-  right: 146px;
+  left: -40px;
 }
 
+.anonymous-dashboard .chat-message.ai .message-reactions,
+.anonymous-dashboard .chat-message.therapist .message-reactions {
+  right: -37px;
+}
+
+.anonymous-dashboard .chat-message.system .message-reactions,
 .anonymous-dashboard .chat-message.system:hover .message-reactions {
   display: none;
 }
 
 .anonymous-dashboard .chat-message:hover .message-reactions {
   display: flex;
-  gap: 10px;
+  opacity: 1;
 }
 
 .anonymous-dashboard .reaction {
@@ -1077,11 +1093,41 @@
   font-size: 1rem;
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 5px;
 }
 
 .anonymous-dashboard .reaction:hover {
   transform: scale(1.2);
+}
+
+.anonymous-dashboard .message-reactions-view {
+  position: absolute;
+  display: flex;
+  gap: 5px;
+  position: absolute;
+  bottom: -26px;
+  background: var(--chat-bg);
+  padding: 5px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+
+.anonymous-dashboard .chat-message.user .message-reactions-view {
+  right: 0;
+}
+
+.anonymous-dashboard .chat-message.ai .message-reactions-view,
+.anonymous-dashboard .chat-message.therapist .message-reactions-view {
+  left: 0;
+}
+
+.anonymous-dashboard .chat-message.system .message-reactions-view,
+.anonymous-dashboard .chat-message.system:hover .message-reactions-view {
+  display: none;
+}
+
+.anonymous-dashboard .message-reactions-view .reaction:hover {
+  transform: scale(1);
 }
 
 .anonymous-dashboard .typing-indicator {
@@ -1497,7 +1543,7 @@
     max-width: 100%;
   }
 
-  .therapist-dashboard .chat-list-container {
+  .anonymous-dashboard .chat-list-container {
     max-width: 100%;
   }
 

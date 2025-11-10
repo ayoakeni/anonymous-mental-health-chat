@@ -156,18 +156,6 @@ function GroupChatSplitView({
   // RIGHT PANEL: Active Chat
   const rightPanel = (
     <div className="chat-box-container">
-      {isMobile && activeGroupId&& isGroupChatOpen && inGroupChat && (
-        <div className="mobile-back-header">
-          <button
-            className="mobile-back-btn"
-            onClick={() => navigate("/therapist-dashboard/group-chat")}
-            aria-label="Back to chat list"
-          >
-            Back to chats
-          </button>
-        </div>
-      )}
-
       {activeGroupId && isGroupChatOpen && inGroupChat ? (
         <div className="group-chat-box">
           <div className="detailLeave">
@@ -212,6 +200,17 @@ function GroupChatSplitView({
                   </div>
                 )}
               </div>
+              {isMobile && activeGroupId&& isGroupChatOpen && inGroupChat && (
+                <div className="mobile-back-header">
+                  <button
+                    className="mobile-back-btn"
+                    onClick={() => navigate("/therapist-dashboard/group-chat")}
+                    aria-label="Back to chat list"
+                  >
+                    Back to chats
+                  </button>
+                </div>
+              )}
               <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
             </div>
           </div>

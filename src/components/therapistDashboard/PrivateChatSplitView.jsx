@@ -184,18 +184,6 @@ function PrivateChatSplitView({
   /* ------------------- RIGHT PANEL (Active Chat) ------------------- */
   const rightPanel = (
     <div className="chat-box-container">
-      {isMobile && activeChatId && inChat && (
-        <div className="mobile-back-header">
-          <button
-            className="mobile-back-btn"
-            onClick={() => navigate("/therapist-dashboard/private-chat")}
-            aria-label="Back to chat list"
-          >
-            Back to chats
-          </button>
-        </div>
-      )}
-
       {activeChatId && inChat ? (
         isValidatingChat ? (
           <div className="chat-list">
@@ -219,6 +207,17 @@ function PrivateChatSplitView({
                   : "Waiting for Therapist"}
               </h3>
               <div className="leave-participant">
+                {isMobile && activeChatId && inChat && (
+                  <div className="mobile-back-header">
+                    <button
+                      className="mobile-back-btn"
+                      onClick={() => navigate("/therapist-dashboard/private-chat")}
+                      aria-label="Back to chat list"
+                    >
+                      Back to chats
+                    </button>
+                  </div>
+                )}
                 <LeaveChatButton type="private" onLeave={leavePrivateChat} />
               </div>
             </div>

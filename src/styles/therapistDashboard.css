@@ -293,7 +293,7 @@
 }
 
 .therapist-dashboard .chat-box-container {
-  flex: 2;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   background: var(--chat-bg);
@@ -315,49 +315,6 @@
   color: var(--text-color);
   font-size: 1.2rem;
   opacity: 0.7;
-}
-
-.therapist-dashboard .chat-container {
-  flex: 1;
-  overflow-y: auto;
-  background: var(--chat-bg);
-  border-radius: var(--border-radius);
-  padding: 15px;
-  border: 1px solid var(--input-border);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.therapist-dashboard .chat-container::-webkit-scrollbar {
-  width: 8px;
-}
-
-.therapist-dashboard .chat-container::-webkit-scrollbar-track {
-  background: var(--background-color);
-}
-
-.therapist-dashboard .chat-container::-webkit-scrollbar-thumb {
-  background: var(--primary-color);
-  border-radius: 4px;
-}
-
-@media (max-width: 768px) {
-  .therapist-dashboard .box {
-    margin-left: 65px;
-  }
-  
-  .therapist-dashboard .chat-box-card {
-    max-width: 100%;
-    max-height: 50vh;
-    border: none;
-  }
-  
-  .therapist-dashboard .chat-list-container {
-    max-width: 100%;
-  }
-
-  .therapist-dashboard .chat-message {
-    max-width: 80%;
-  }
 }
 
 .therapist-dashboard .detailLeave {
@@ -480,7 +437,8 @@
 .therapist-dashboard .chat-box {
   background: var(--chat-bg);
   padding: 0 20px;
-  height: 510px;
+  flex: 1;
+  height: auto;
   overflow-y: auto;
   margin: 0 5px 0 0;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -510,18 +468,26 @@
 }
 
 .therapist-dashboard .new-message {
-  background-color: #f0f8ff;
+  background-color: #555;
   padding: 5px;
 }
 
+.anonymous-dashboard .no-message {
+  color: var(--text-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 1.1rem;
+  opacity: 0.7;
+}
+
 .therapist-dashboard .message {
-  padding: 5px;
-  margin-bottom: 10px;
+  margin: 0 0 30px;
   transition: background-color 0.2s ease;
 }
 
 .therapist-dashboard .chat-message {
-  margin: 10px 0;
   padding: 10px 15px;
   border-radius: var(--border-radius);
   max-width: 60%;
@@ -552,7 +518,7 @@
 
 .therapist-dashboard .chat-message.system {
   background: var(--system-bg);
-  margin: 10px auto;
+  margin: 30px auto;
   text-align: center;
   font-style: italic;
   padding: 3px 15px;
@@ -593,22 +559,38 @@
   opacity: 0.5;
   text-align: right;
   display: block;
+  margin-top: 2px;
 }
 
 .therapist-dashboard .message-reactions {
   display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
   position: absolute;
-  top: -20px;
-  right: 10px;
-  background: var(--chat-bg);
-  padding: 5px;
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow);
-  gap: 10px;
+  top: 0;
+  padding: 5px 10px;
+  height: 100%;
+  opacity: 0;
+}
+
+.therapist-dashboard .chat-message.ai .message-reactions,
+.therapist-dashboard .chat-message.user .message-reactions {
+  right: -37px;
+}
+
+.therapist-dashboard .chat-message.therapist .message-reactions {
+  left: -40px;
+}
+
+.therapist-dashboard .chat-message.system .message-reactions,
+.therapist-dashboard .chat-message.system:hover .message-reactions {
+  display: none;
 }
 
 .therapist-dashboard .chat-message:hover .message-reactions {
   display: flex;
+  opacity: 1;
 }
 
 .therapist-dashboard .reaction {
@@ -616,11 +598,41 @@
   font-size: 1rem;
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 5px;
 }
 
 .therapist-dashboard .reaction:hover {
   transform: scale(1.2);
+}
+
+.therapist-dashboard .message-reactions-view {
+  position: absolute;
+  display: flex;
+  gap: 5px;
+  position: absolute;
+  bottom: -26px;
+  background: var(--chat-bg);
+  padding: 5px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+
+.therapist-dashboard .chat-message.ai .message-reactions-view,
+.therapist-dashboard .chat-message.user .message-reactions-view {
+  left: 0;
+}
+
+.therapist-dashboard .chat-message.therapist .message-reactions-view {
+  right: 0;
+}
+
+.therapist-dashboard .chat-message.system .message-reactions-view,
+.therapist-dashboard .chat-message.system:hover .message-reactions-view {
+  display: none;
+}
+
+.therapist-dashboard .message-reactions-view .reaction:hover {
+  transform: scale(1);
 }
 
 .therapist-dashboard .pinned-message {
@@ -713,4 +725,23 @@
 
 .therapist-dashboard .delete-btn:hover {
   background: #cc0000;
+}
+
+
+@media (max-width: 768px) {
+  .therapist-dashboard .box.open {
+    margin-left: 65px;
+  }
+  
+  .therapist-dashboard .chat-box-card {
+    max-width: 100%;
+  }
+  
+  .therapist-dashboard .chat-list-container {
+    max-width: 100%;
+  }
+
+  .therapist-dashboard .chat-message {
+    max-width: 80%;
+  }
 }

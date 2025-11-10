@@ -52,9 +52,7 @@ const ChatMessage = memo(({ msg, toggleReaction, deleteMessage, therapistInfo, h
             toggleReaction(msg.id, "heart");
           }}
           aria-label="React with heart"
-        >
-          {msg.reactions?.heart?.length || 0}
-        </i>
+        ></i>
         <i
           className="fa-solid fa-thumbs-up reaction"
           style={{ color: msg.reactions?.thumbsUp?.length > 0 ? "blue" : "gray" }}
@@ -62,6 +60,20 @@ const ChatMessage = memo(({ msg, toggleReaction, deleteMessage, therapistInfo, h
             e.stopPropagation();
             toggleReaction(msg.id, "thumbsUp");
           }}
+          aria-label="React with thumbs up"
+        ></i>
+      </span>
+      <span className="message-reactions-view">
+        <i
+          className="fa-solid fa-heart reaction"
+          style={{ color: msg.reactions?.heart?.length > 0 ? "red" : "gray" }}
+          aria-label="React with heart"
+        >
+          {msg.reactions?.heart?.length || 0}
+        </i>
+        <i
+          className="fa-solid fa-thumbs-up reaction"
+          style={{ color: msg.reactions?.thumbsUp?.length > 0 ? "blue" : "gray" }}
           aria-label="React with thumbs up"
         >
           {msg.reactions?.thumbsUp?.length || 0}

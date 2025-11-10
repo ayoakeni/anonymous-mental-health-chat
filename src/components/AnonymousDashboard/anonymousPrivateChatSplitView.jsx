@@ -759,18 +759,6 @@ function AnonymousPrivateChatSplitView({
   // RIGHT PANEL: Active Chat
   const rightPanel = (
     <div className="chat-box-container">
-      {isMobile && activeChatId && (
-        <div className="mobile-back-header">
-          <button
-            className="mobile-back-btn"
-            onClick={() => navigate("/anonymous-dashboard/group-chat")}
-            aria-label="Back to chat list"
-          >
-            Back to chats
-          </button>
-        </div>
-      )}
-      
       {isSelectingChat ? (
         <div className="empty-chat">
           <p className="loading-text">Opening your new chat...</p>
@@ -807,17 +795,28 @@ function AnonymousPrivateChatSplitView({
               </div>
             </div>
             <div className="leave-participant">
+              {isMobile && activeChatId && (
+                <div className="mobile-back-header">
+                  <button
+                    className="mobile-back-btn"
+                    onClick={() => navigate("/anonymous-dashboard/group-chat")}
+                    aria-label="Back to chat list"
+                  >
+                    Back to chats
+                  </button>
+                </div>
+              )}
               <LeaveChatButton type="private" onLeave={leavePrivateChat} />
             </div>
           </div>
           <div className="chat-box" role="log" aria-live="polite" ref={chatBoxRef}>
             {isLoadingChat ? (
-              <p>Loading chat data...</p>
+              <p>Loading messages...</p>
             ) : combinedPrivateChat.length === 0 ? (
-              <p>No messages or events in this chat yet.</p>
+              <p className="no-message">No messages in this chat yet.</p>
             ) : (
               combinedPrivateChat.map((msg) => (
-                <div key={msg.id}>
+                <div className="message" key={`${msg.id}-${msg.type || "message"}`}>
                   {msg.type === "ai-offer" && chatData?.aiOffered && !aiEnabled ? (
                     <div className="ai-offer">
                       <p className="chat-message system"><em>{msg.text}</em></p>

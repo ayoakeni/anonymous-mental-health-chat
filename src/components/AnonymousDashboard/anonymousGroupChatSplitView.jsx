@@ -622,18 +622,6 @@ function AnonymousGroupChatSplitView({
   // RIGHT PANEL: Active Chat
   const rightPanel = (
     <div className="chat-box-container">
-      {isMobile && activeGroupId && (
-        <div className="mobile-back-header">
-          <button
-            className="mobile-back-btn"
-            onClick={() => navigate("/anonymous-dashboard/private-chat")}
-            aria-label="Back to chat list"
-          >
-            Back to chats
-          </button>
-        </div>
-      )}
-
       {activeGroupId ? (
         <div className="group-chat-box">
           {/* Therapist Profile Modal */}
@@ -734,6 +722,17 @@ function AnonymousGroupChatSplitView({
                   </div>
                 )}
               </div>
+              {isMobile && activeGroupId && (
+                <div className="mobile-back-header">
+                  <button
+                    className="mobile-back-btn"
+                    onClick={() => navigate("/anonymous-dashboard/private-chat")}
+                    aria-label="Back to chat list"
+                  >
+                    Back to chats
+                  </button>
+                </div>
+              )}
               <LeaveChatButton type="group" onLeave={leaveGroupChat} />
             </div>
           </div>
@@ -744,13 +743,15 @@ function AnonymousGroupChatSplitView({
               <p className="no-message">No messages in this group yet.</p>
             ) : (
               combinedGroupChat.map((msg) => (
-                <ChatMessage
-                  key={msg.id}
-                  msg={msg}
-                  toggleReaction={msg.id.startsWith("pending-") ? () => {} : toggleReaction}
-                  therapistInfo={{ role: "user" }}
-                  handleTherapistClick={handleTherapistClick}
-                />
+                <div className="message" key={`${msg.id}-${msg.type || "message"}`}>
+                  <ChatMessage
+                    key={msg.id}
+                    msg={msg}
+                    toggleReaction={msg.id.startsWith("pending-") ? () => {} : toggleReaction}
+                    therapistInfo={{ role: "user" }}
+                    handleTherapistClick={handleTherapistClick}
+                  />
+                </div>
               ))
             )}
             {/* Typing Indicator */}

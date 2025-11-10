@@ -53,6 +53,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  height: 100vh;
 }
 
 /* Back button that appears only on mobile when a chat is open */
