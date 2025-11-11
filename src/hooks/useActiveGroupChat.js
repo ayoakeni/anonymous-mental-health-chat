@@ -65,7 +65,7 @@ export function useActiveGroupChat(
     } catch (e) {
       showError("Failed to leave group chat.");
     }
-  }, [activeGroupId, therapistId, displayName, showError]);
+  }, [activeGroupId, therapistId, displayName, navigate, showError]);
 
   // ---------- SEND MESSAGE ----------
   const sendMessage = async (text, file = null) => {
