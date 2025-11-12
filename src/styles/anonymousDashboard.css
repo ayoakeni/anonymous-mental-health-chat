@@ -1556,6 +1556,16 @@
   }
 }
 
+@media (max-width: 480px) {
+  .anonymous-dashboard .box {
+    margin-bottom: 60px;
+  }
+  
+  .anonymous-dashboard .box.open {
+    margin-left: 0;
+  }
+}
+
 /* APPOINTMENTS LIST  */
 .appointments-list-wrapper {
   background: var(--chat-bg);
