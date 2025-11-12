@@ -748,3 +748,13 @@
     max-width: 80%;
   }
 }
+
+@media (max-width: 480px) {
+  .therapist-dashboard .box {
+    margin-bottom: 60px;
+  }
+  
+  .therapist-dashboard .box.open {
+    margin-left: 0;
+  }
+}

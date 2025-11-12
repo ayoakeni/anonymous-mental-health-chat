@@ -11,6 +11,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout, isAnonymous =
     setIsOpen(!isOpen);
   };
 
+  // Close sidebar when clicking outside (desktop only)
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (isOpen && sidebarRef.current && !sidebarRef.current.contains(event.target)) {
@@ -24,11 +25,18 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout, isAnonymous =
     };
   }, [isOpen]);
 
+  // Detect mobile once (optional – ensures sidebar stays open)
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 480;
+
   return (
     <div className={`sidebar ${isOpen ? 'open' : 'closed'}`} ref={sidebarRef}>
-      <button className="toggle-btn" onClick={toggleSidebar} aria-label="Toggle Sidebar">
-        <i className={`fas ${isOpen ? 'fa-times' : 'fa-bars'}`}></i>
-      </button>
+      {/* Hide toggle button on mobile */}
+      {isMobile && (
+        <button className="toggle-btn" onClick={toggleSidebar} aria-label="Toggle Sidebar">
+          <i className={`fas ${isOpen ? 'fa-times' : 'fa-bars'}`}></i>
+        </button>
+      )}
+
       <div className="list">
         <Link data-tooltip="Dashboard" to={isAnonymous ? "/anonymous-dashboard" : "/therapist-dashboard"}>
           <span
@@ -41,6 +49,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout, isAnonymous =
             {isOpen && <span className="link-text">Dashboard</span>}
           </span>
         </Link>
+
         <Link data-tooltip="Group Chat" to={isAnonymous ? "/anonymous-dashboard/group-chat" : "/therapist-dashboard/group-chat"}>
           <span
             role="button"
@@ -53,6 +62,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout, isAnonymous =
             {groupUnreadCount > 0 && <span className="badge">{groupUnreadCount}</span>}
           </span>
         </Link>
+
         <Link data-tooltip="Private Chat" to={isAnonymous ? "/anonymous-dashboard/private-chat" : "/therapist-dashboard/private-chat"}>
           <span
             role="button"
@@ -65,6 +75,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout, isAnonymous =
             {privateUnreadCount > 0 && <span className="badge">{privateUnreadCount}</span>}
           </span>
         </Link>
+
         <Link data-tooltip="Appointments" to={isAnonymous ? "/anonymous-dashboard/appointments-list" : "/therapist-dashboard/appointments"}>
           <span
             role="button"
@@ -76,6 +87,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout, isAnonymous =
             {isOpen && <span className="link-text">Appointments</span>}
           </span>
         </Link>
+
         {!isAnonymous && (
           <>
             <Link data-tooltip="Notification" to="/therapist-dashboard/notifications">
@@ -87,11 +99,12 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout, isAnonymous =
               >
                 <i className="fas fa-bell"></i>
                 {isOpen && <span className="link-text">Notification</span>}
-                {privateUnreadCount + groupUnreadCount > 0 && (
+                {(privateUnreadCount + groupUnreadCount) > 0 && (
                   <span className="badge">{privateUnreadCount + groupUnreadCount}</span>
                 )}
               </span>
             </Link>
+
             <Link data-tooltip="Profile" to="/therapist-dashboard/profile">
               <span
                 role="button"
@@ -103,6 +116,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout, isAnonymous =
                 {isOpen && <span className="link-text">Profile</span>}
               </span>
             </Link>
+
             <Link data-tooltip="Settings" to="/therapist-dashboard/settings">
               <span
                 role="button"
@@ -114,14 +128,16 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout, isAnonymous =
                 {isOpen && <span className="link-text">Settings</span>}
               </span>
             </Link>
+
             <div className="divider"></div>
+
             <span className='logOut' data-tooltip="Logout">
               <span
                 role="button"
                 aria-label="Logout"
                 tabIndex="0"
                 onClick={onLogout}
-                className={`iconBadge ${location.pathname === '/therapist-dashboard/logout' ? 'active' : ''}`}
+                className={`iconBadge`}
               >
                 <i className="fas fa-sign-out-alt"></i>
                 {isOpen && <span className="link-text">Logout</span>}
@@ -130,6 +146,7 @@ const Sidebar = ({ groupUnreadCount, privateUnreadCount, onLogout, isAnonymous =
           </>
         )}
       </div>
+
       <Link className='logo-side' to="/">
         <img
           src="/anonymous-logo.png"

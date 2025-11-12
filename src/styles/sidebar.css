@@ -243,3 +243,97 @@
     display: block;
   }
 }
+
+@media (max-width: 480px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    height: 60px;
+    width: 100%;
+    padding: 0px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-around;
+    background-color: var(--sidebar-bg);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+    z-index: 1100;
+    transition: none;
+  }
+
+  .sidebar.open {
+    width: 100%;
+  }
+
+  /* Hide toggle button */
+  .sidebar .toggle-btn {
+    display: none;
+  }
+
+  /* List becomes horizontal */
+  .sidebar .list {
+    flex-direction: row;
+    flex: 1;
+    height: auto;
+    overflow: visible;
+    padding: 0;
+    align-items: center;
+    gap: 0;
+    justify-content: space-around;
+  }
+
+  /* Each link takes equal space */
+  .sidebar .list > * {
+    flex: 1;
+    max-width: 40px;
+  }
+
+  .sidebar.open .list a:first-child {
+  border-top: 0;
+  padding-top: 0;
+  }
+
+  /* Hide all link text */
+  .sidebar .link-text {
+    display: none !important;
+  }
+
+  /* Center icon */
+  .sidebar .iconBadge {
+    justify-content: center;
+    padding: 10px 0;
+    margin: 0;
+    font-size: 22px;
+  }
+
+  .sidebar .iconBadge i {
+    margin: 0;
+    font-size: 18px;
+  }
+
+  /* Badge on top-right of icon */
+  .sidebar .iconBadge .badge {
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    font-size: 10px;
+    padding: 2px 5px;
+    min-width: 14px;
+  }
+
+  .sidebar .logo-image {
+    display: none;
+  }
+
+  /* Hide divider */
+  .sidebar .divider {
+    display: none;
+  }
+
+  /* Optional: safe area for iPhone notch */
+  .sidebar {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
