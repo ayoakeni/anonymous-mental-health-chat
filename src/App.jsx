@@ -64,9 +64,8 @@ function AuthProvider({ children }) {
 
         setIsTherapist(true);
 
-        // Only redirect from login page
-        const isPublicOrLogin = location.pathname === "/therapist-login";
-        if (isPublicOrLogin && !location.pathname.startsWith("/therapist-dashboard")) {
+        // ONLY redirect if on /therapist-login
+        if (location.pathname === "/therapist-login") {
           navigate("/therapist-dashboard/", { replace: true });
         }
       }
