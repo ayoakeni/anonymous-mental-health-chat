@@ -47,7 +47,7 @@ function Header() {
 
       if (scrollY <= 0) {
         header.classList.remove('hidden', 'scrolled');
-      } else if (scrollY > lastScrollY && scrollY > 50) {
+      } else if (scrollY > lastScrollY && scrollY > 20) {
         // Scrolling DOWN
         header.classList.add('hidden', 'scrolled');
       } else if (scrollY < lastScrollY) {

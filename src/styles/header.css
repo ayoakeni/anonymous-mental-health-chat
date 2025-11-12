@@ -7,6 +7,7 @@
   right: 0;
   z-index: 1000;
   padding: 0.5rem 0;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   transition: transform 0.3s ease, padding 0.3s ease, background 0.3s ease;
   transform: translateY(0);
   animation: slideDown 0.5s ease-out;
@@ -199,13 +200,16 @@
 
 @media (max-width: 768px) {
   .header {
-    background-color: transparent;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   }
 
   .header .nav-menu {
     display: none;
     position: absolute;
-    top: 54px;
+    top: 55px;
     left: 0;
     right: 0;
     background: var(--chat-bg);
