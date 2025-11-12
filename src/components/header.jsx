@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { db, auth } from "../utils/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 import "../styles/header.css";
 
 function Header() {
@@ -9,20 +10,20 @@ function Header() {
   const [onlineUsers, setOnlineUsers] = useState(0);
   const [therapistsOnline, setTherapistsOnline] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [user, setUser] = useState(null); // Add user state
   const liveIndicatorRef = useRef(null);
   const [isDarkMode, setIsDarkMode] = useState(
     window.matchMedia("(prefers-color-scheme: dark)").matches
   );
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
+  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
     document.documentElement.classList.toggle("dark");
   };
 
+  // Scroll effect
   useEffect(() => {
     const handleScroll = () => {
       const header = document.querySelector(".header");
@@ -31,10 +32,8 @@ function Header() {
       }
     };
 
-    // Use requestAnimationFrame to ensure DOM is ready
     const raf = requestAnimationFrame(() => {
       window.addEventListener("scroll", handleScroll);
-      // Trigger once immediately
       handleScroll();
     });
 
@@ -44,7 +43,7 @@ function Header() {
     };
   }, []);
 
-  // Fetch online users count from Firestore
+  // Online users count
   useEffect(() => {
     const unsubscribe = onSnapshot(
       collection(db, "usersOnline"),
@@ -56,7 +55,6 @@ function Header() {
         setOnlineUsers(count);
         setTherapistsOnline(therapists);
 
-        // Use ref instead of querySelector
         if (liveIndicatorRef.current) {
           liveIndicatorRef.current.classList.add("updated");
           setTimeout(() => {
@@ -66,15 +64,13 @@ function Header() {
           }, 500);
         }
       },
-      (error) => {
-        console.error("Error fetching online users:", error);
-      }
+      (error) => console.error("Error fetching online users:", error)
     );
 
     return () => unsubscribe();
   }, []);
 
-  // Sync dark mode with system preference changes
+  // Dark mode sync
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = (e) => {
@@ -85,16 +81,36 @@ function Header() {
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
 
+  // Listen to auth state
   useEffect(() => {
-    const unsubscribeMessages = onSnapshot(
-      collection(db, `users/${auth.currentUser?.uid}/messages`),
-      (snapshot) => {
-        const unread = snapshot.docs.filter(doc => doc.data().unread).length;
-        setUnreadMessages(unread);
-      }
-    );
-    return () => unsubscribeMessages();
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
   }, []);
+
+  // Unread messages (only if user is logged in)
+  useEffect(() => {
+    if (!user) {
+      setUnreadMessages(0);
+      return;
+    }
+
+    const path = user.isAnonymous
+      ? `anonymousUsers/${user.uid}/messages`
+      : `users/${user.uid}/messages`;
+
+    const unsubscribe = onSnapshot(
+      collection(db, path),
+      (snapshot) => {
+        const unread = snapshot.docs.filter((doc) => doc.data().unread).length;
+        setUnreadMessages(unread);
+      },
+      (err) => console.error("Unread messages error:", err)
+    );
+
+    return () => unsubscribe();
+  }, [user]);
 
   return (
     <header className="header">
@@ -108,6 +124,7 @@ function Header() {
             />
           </Link>
         </div>
+
         <button
           className="menu-toggle"
           onClick={toggleMenu}
@@ -116,36 +133,42 @@ function Header() {
         >
           <i className={isMenuOpen ? "fas fa-times" : "fas fa-bars"}></i>
         </button>
+
         <nav className={`nav-menu ${isMenuOpen ? "open" : ""}`}>
-          <Link
-            to="/"
-            className="nav-link"
-            onClick={() => setIsMenuOpen(false)}
-          >
+          <Link to="/" className="nav-link" onClick={() => setIsMenuOpen(false)}>
             Home
           </Link>
-          <Link
-            to="/anonymous-dashboard/group-chat"
-            className="nav-link"
-            onClick={() => setIsMenuOpen(false)}
-          >
-            Chatroom {unreadMessages > 0 && <span className="badge">{unreadMessages}</span>}
-          </Link>
-          <Link
-            to="/about"
-            className="nav-link"
-            onClick={() => setIsMenuOpen(false)}
-          >
+          
+          {user && (
+            <Link
+              to={user.isAnonymous ? "/anonymous-dashboard/group-chat" : "/therapist-dashboard/group-chat"}
+              className="nav-link"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Chatroom {unreadMessages > 0 && <span className="badge">{unreadMessages}</span>}
+            </Link>
+          )}
+
+          <Link to="/about" className="nav-link" onClick={() => setIsMenuOpen(false)}>
             About
           </Link>
-          <Link
-            to="/allTherapist"
-            className="nav-link"
-            onClick={() => setIsMenuOpen(false)}
-          >
-            <i className="fas fa-user" aria-hidden="true"></i>
-            <span className="sr-only">All Therapist</span>
-          </Link>
+          
+          {!user || user.isAnonymous ? (
+            <Link to="/allTherapist" 
+              className="nav-link" 
+              onClick={() => setIsMenuOpen(false)}>
+              <i className="fas fa-user" aria-hidden="true"></i>
+              <span className="sr-only">All Therapists</span>
+            </Link>
+          ) : null}
+
+          {/* Only show for therapists */}
+          {user && !user.isAnonymous && (
+            <Link to="/therapist-dashboard" className="nav-link" onClick={() => setIsMenuOpen(false)}>
+              Go to Dashboard
+            </Link>
+          )}
+
           <button
             className="theme-toggle"
             onClick={toggleDarkMode}
@@ -153,6 +176,7 @@ function Header() {
           >
             <i className={isDarkMode ? "fas fa-sun" : "fas fa-moon"}></i>
           </button>
+
           <div
             ref={liveIndicatorRef}
             className="live-indicator"
