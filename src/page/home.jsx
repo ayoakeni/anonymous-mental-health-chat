@@ -8,40 +8,40 @@ import "../styles/home.css";
 
 function Home() {
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        const { user: anonUser } = await signInAnonymously(auth);
-        await setDoc(doc(db, "usersOnline", anonUser.uid), {
-          name: "Anonymous User",
-          online: true,
-          lastSeen: serverTimestamp(),
-        });
-      } else {
-        await setDoc(doc(db, "usersOnline", user.uid), {
-          name: user.displayName || "Anonymous User",
-          online: true,
-          lastSeen: serverTimestamp(),
-        });
-      }
+  // useEffect(() => {
+  //   const unsubscribe = onAuthStateChanged(auth, async (user) => {
+  //     if (!user) {
+  //       const { user: anonUser } = await signInAnonymously(auth);
+  //       await setDoc(doc(db, "usersOnline", anonUser.uid), {
+  //         name: "Anonymous User",
+  //         online: true,
+  //         lastSeen: serverTimestamp(),
+  //       });
+  //     } else {
+  //       await setDoc(doc(db, "usersOnline", user.uid), {
+  //         name: user.displayName || "Anonymous User",
+  //         online: true,
+  //         lastSeen: serverTimestamp(),
+  //       });
+  //     }
 
-      const handleBeforeUnload = () => {
-        if (user) {
-          setDoc(
-            doc(db, "usersOnline", user.uid),
-            { online: false, lastSeen: serverTimestamp() },
-            { merge: true }
-          );
-        }
-      };
-      window.addEventListener("beforeunload", handleBeforeUnload);
+  //     const handleBeforeUnload = () => {
+  //       if (user) {
+  //         setDoc(
+  //           doc(db, "usersOnline", user.uid),
+  //           { online: false, lastSeen: serverTimestamp() },
+  //           { merge: true }
+  //         );
+  //       }
+  //     };
+  //     window.addEventListener("beforeunload", handleBeforeUnload);
 
-      return () => {
-        window.removeEventListener("beforeunload", handleBeforeUnload);
-        unsubscribe();
-      };
-    }, []);
-  }, []);
+  //     return () => {
+  //       window.removeEventListener("beforeunload", handleBeforeUnload);
+  //       unsubscribe();
+  //     };
+  //   }, []);
+  // }, []);
 
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const testimonials = [

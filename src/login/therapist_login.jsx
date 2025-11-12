@@ -15,7 +15,7 @@ export default function TherapistLogin() {
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // App.jsx will handle redirect
+      // Redirect handled by App.jsx
     } catch (err) {
       setError("Invalid email or password.");
     } finally {

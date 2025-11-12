@@ -3,6 +3,7 @@ import {
   Routes,
   Route,
   Navigate,
+  useLocation,
   useNavigate,
 } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
@@ -18,13 +19,16 @@ import AnonymousDashboard from "./page/anonymousDashboard";
 import Chatroom from "./page/chats_rooms/chatRoom";
 import "./styles/App.css";
 
-function App() {
+// -------------------------------------------------------------------
+// Auth Provider – only runs once, handles presence + redirect
+// -------------------------------------------------------------------
+function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [isTherapist, setIsTherapist] = useState(false);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Global auth listener – runs once
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
@@ -60,8 +64,8 @@ function App() {
 
         setIsTherapist(true);
 
-        // Redirect to dashboard if not already there
-        if (user) {
+        // Only redirect if not already in therapist dashboard
+        if (!location.pathname.startsWith("/therapist-dashboard")) {
           navigate("/therapist-dashboard/", { replace: true });
         }
       }
@@ -69,63 +73,75 @@ function App() {
       setLoading(false);
     });
 
-    // Cleanup on unmount
     return () => unsub();
-  }, [navigate, user]);
+  }, [navigate, location.pathname]);
 
-  // Show loader while checking auth
-  if (loading) {
-    return (
-      <div className="loaderbox" role="status" aria-label="Loading...">
-        <span className="loader">
-          <img src="/anonymous-logo.png" alt="" className="loader-logo-image" />
-        </span>
-      </div>
-    );
-  }
+  return children({ user, isTherapist, loading });
+}
 
+// -------------------------------------------------------------------
+// Main App
+// -------------------------------------------------------------------
+export default function App() {
   return (
     <>
       <NotificationHandler />
-      <Routes>
-        {/* Public */}
-        <Route path="/" element={<Home />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/therapist-login" element={<TherapistLogin />} />
+      <AuthProvider>
+        {({ user, isTherapist, loading }) => (
+          <Routes>
+            {/* Public Routes – No loader */}
+            <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/therapist-login" element={<TherapistLogin />} />
+            <Route path="/chat-room/:chatId" element={<Chatroom />} />
+            <Route path="/chat-room/" element={<Chatroom />} />
 
-        {/* Chatroom */}
-        <Route path="/chat-room/:chatId" element={<Chatroom />} />
-        <Route path="/chat-room/" element={<Chatroom />} />
+            {/* Protected: Therapist */}
+            <Route
+              path="/therapist-dashboard/*"
+              element={
+                loading ? (
+                  <Loader />
+                ) : user && !user.isAnonymous && isTherapist ? (
+                  <TherapistDashboard />
+                ) : (
+                  <Navigate to="/therapist-login" replace />
+                )
+              }
+            />
 
-        {/* Protected: Therapist */}
-        <Route
-          path="/therapist-dashboard/*"
-          element={
-            user && !user.isAnonymous && isTherapist ? (
-              <TherapistDashboard />
-            ) : (
-              <Navigate to="/therapist-login" replace />
-            )
-          }
-        />
+            {/* Protected: Anonymous */}
+            <Route
+              path="/anonymous-dashboard/*"
+              element={
+                loading ? (
+                  <Loader />
+                ) : user && user.isAnonymous ? (
+                  <AnonymousDashboard />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              }
+            />
 
-        {/* Protected: Anonymous */}
-        <Route
-          path="/anonymous-dashboard/*"
-          element={
-            user && user.isAnonymous ? (
-              <AnonymousDashboard />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
-
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        )}
+      </AuthProvider>
     </>
   );
 }
 
-export default App;
+// -------------------------------------------------------------------
+// Reusable Loader
+// -------------------------------------------------------------------
+function Loader() {
+  return (
+    <div className="loaderbox" role="status" aria-label="Loading...">
+      <span className="loader">
+        <img src="/anonymous-logo.png" alt="" className="loader-logo-image" />
+      </span>
+    </div>
+  );
+}
