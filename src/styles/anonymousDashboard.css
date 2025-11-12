@@ -1134,7 +1134,7 @@
 .anonymous-dashboard .typing-indicator {
   position: absolute;
   left: 5px;
-  bottom: 60px;
+  bottom: 65px;
   font-style: italic;
   color: var(--text-color);
   opacity: 0.7;
