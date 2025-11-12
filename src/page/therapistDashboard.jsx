@@ -24,7 +24,7 @@ import { useUserNames } from "../hooks/useUserNames";
 import { useAppointments } from "../hooks/useAppointments";
 import { useOnlineTherapists } from "../hooks/useOnlineTherapists";
 import { useNotifications } from "../hooks/useNotifications";
-
+import Header from "../components/header"
 function TherapistDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -291,6 +291,7 @@ function TherapistDashboard() {
 
   return (
     <div className="therapist-dashboard">
+      <Header />
       <Sidebar
         groupUnreadCount={totalGroupUnread}
         privateUnreadCount={privateUnread}
