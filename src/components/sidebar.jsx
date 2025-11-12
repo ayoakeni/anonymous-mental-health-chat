@@ -8,19 +8,20 @@ const Sidebar = ({
   onLogout,
   isAnonymous = false,
 }) => {
-
-  // Detect device size *once* on mount
+  // Always start closed — both mobile & desktop
   const [isMobile, setIsMobile] = useState(false);
-  const [isOpen, setIsOpen] = useState(true); // default for desktop
+  const [isOpen, setIsOpen] = useState(false);   // ← NOW CLOSED BY DEFAULT
   const location = useLocation();
   const sidebarRef = useRef(null);
 
+  // Detect screen size (mobile ≤ 480px)
   useEffect(() => {
     const check = () => {
       const mobile = window.innerWidth <= 480;
       setIsMobile(mobile);
-      // mobile → always start closed (bottom bar)
-      setIsOpen(!mobile);
+      // On mobile: force closed (bottom bar)
+      // On desktop: keep closed (user can open with toggle)
+      setIsOpen(false);
     };
 
     check();
@@ -28,19 +29,18 @@ const Sidebar = ({
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // Toggle (desktop only)
+  // Toggle – desktop only
   const toggleSidebar = () => {
-    if (isMobile) return; // ignore on mobile
+    if (isMobile) return;
     setIsOpen(prev => !prev);
   };
 
-  // Click-outside – **desktop only**
+  // Click-outside – desktop only
   useEffect(() => {
-    if (isMobile) return;
+    if (isMobile || !isOpen) return;
 
     const handleClickOutside = event => {
       if (
-        isOpen &&
         sidebarRef.current &&
         !sidebarRef.current.contains(event.target)
       ) {
@@ -57,7 +57,7 @@ const Sidebar = ({
       className={`sidebar ${isOpen ? 'open' : 'closed'}`}
       ref={sidebarRef}
     >
-      {/* Toggle button – **desktop only** */}
+      {/* Toggle button – DESKTOP ONLY */}
       {!isMobile && (
         <button
           className="toggle-btn"
@@ -69,7 +69,7 @@ const Sidebar = ({
       )}
 
       <div className="list">
-        {/* ---------- Dashboard ---------- */}
+        {/* Dashboard */}
         <Link
           data-tooltip="Dashboard"
           to={isAnonymous ? '/anonymous-dashboard' : '/therapist-dashboard'}
@@ -90,7 +90,7 @@ const Sidebar = ({
           </span>
         </Link>
 
-        {/* ---------- Group Chat ---------- */}
+        {/* Group Chat */}
         <Link
           data-tooltip="Group Chat"
           to={
@@ -120,9 +120,9 @@ const Sidebar = ({
           </span>
         </Link>
 
-        {/* ---------- Private Chat ---------- */}
+        {/* Private Chat */}
         <Link
-          data-tooltip="Private Chat"
+          data-tooltip="Private chat"
           to={
             isAnonymous
               ? '/anonymous-dashboard/private-chat'
@@ -150,7 +150,7 @@ const Sidebar = ({
           </span>
         </Link>
 
-        {/* ---------- Appointments ---------- */}
+        {/* Appointments */}
         <Link
           data-tooltip="Appointments"
           to={
@@ -177,7 +177,7 @@ const Sidebar = ({
           </span>
         </Link>
 
-        {/* ---------- Therapist-only items ---------- */}
+        {/* Therapist-only items */}
         {!isAnonymous && (
           <>
             <Link data-tooltip="Notification" to="/therapist-dashboard/notifications">
