@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+} from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "./utils/firebase";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "./utils/firebase";
+
 import NotificationHandler from "./components/notificationHandler";
 import Home from "./page/home";
 import About from "./page/about";
@@ -11,67 +18,111 @@ import AnonymousDashboard from "./page/anonymousDashboard";
 import Chatroom from "./page/chats_rooms/chatRoom";
 import "./styles/App.css";
 
-function ProtectedRoute({ children, requireTherapist = false }) {
+function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const location = useLocation();
+  const [isTherapist, setIsTherapist] = useState(false);
+  const navigate = useNavigate();
 
+  // Global auth listener – runs once
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (!u) {
+        setUser(null);
+        setIsTherapist(false);
+        setLoading(false);
+        return;
+      }
+
+      setUser(u);
+
+      // --- ANONYMOUS USER ---
+      if (u.isAnonymous) {
+        await setDoc(doc(db, "usersOnline", u.uid), {
+          name: "Anonymous User",
+          online: true,
+          lastSeen: serverTimestamp(),
+        }, { merge: true });
+      }
+
+      // --- THERAPIST USER ---
+      else if (u.email) {
+        const therapistRef = doc(db, "therapists", u.uid);
+        const snap = await getDoc(therapistRef);
+        const name = snap.exists() ? snap.data().name : u.email;
+
+        await setDoc(therapistRef, {
+          name,
+          email: u.email,
+          online: true,
+          lastSeen: serverTimestamp(),
+        }, { merge: true });
+
+        setIsTherapist(true);
+
+        // Redirect to dashboard if not already there
+        if (user) {
+          navigate("/therapist-dashboard/", { replace: true });
+        }
+      }
+
       setLoading(false);
     });
-    return () => unsubscribe();
-  }, []);
 
+    // Cleanup on unmount
+    return () => unsub();
+  }, [navigate, user]);
+
+  // Show loader while checking auth
   if (loading) {
     return (
       <div className="loaderbox" role="status" aria-label="Loading...">
         <span className="loader">
-          <img src="/anonymous-logo.png" alt="Loading" className="loader-logo-image" />
+          <img src="/anonymous-logo.png" alt="" className="loader-logo-image" />
         </span>
       </div>
     );
   }
 
-  if (!user) {
-    return <Navigate to="/" state={{ from: location }} replace />;
-  }
-
-  if (requireTherapist && !user.email) {
-    return <Navigate to="/therapist-login" state={{ from: location }} replace />;
-  }
-
-  return children;
-}
-
-function App() {
   return (
     <>
       <NotificationHandler />
       <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/therapist-login" element={<TherapistLogin />} />
+        {/* Public */}
+        <Route path="/" element={<Home />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/therapist-login" element={<TherapistLogin />} />
+
+        {/* Chatroom */}
         <Route path="/chat-room/:chatId" element={<Chatroom />} />
         <Route path="/chat-room/" element={<Chatroom />} />
 
+        {/* Protected: Therapist */}
         <Route
           path="/therapist-dashboard/*"
           element={
-            <ProtectedRoute requireTherapist={true}>
+            user && !user.isAnonymous && isTherapist ? (
               <TherapistDashboard />
-            </ProtectedRoute>
+            ) : (
+              <Navigate to="/therapist-login" replace />
+            )
           }
         />
+
+        {/* Protected: Anonymous */}
         <Route
           path="/anonymous-dashboard/*"
           element={
-            <ProtectedRoute>
+            user && user.isAnonymous ? (
               <AnonymousDashboard />
-            </ProtectedRoute>
+            ) : (
+              <Navigate to="/" replace />
+            )
           }
         />
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
   );
