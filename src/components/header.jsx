@@ -25,22 +25,40 @@ function Header() {
 
   // Scroll effect
   useEffect(() => {
-    const handleScroll = () => {
-      const header = document.querySelector(".header");
-      if (header) {
-        header.classList.toggle("scrolled", window.scrollY > 50);
+    let lastScrollY = window.scrollY;
+    let ticking = false;
+
+    const updateScrollDir = () => {
+      const scrollY = window.scrollY;
+      const header = document.querySelector('.header');
+      if (!header) return;
+
+      if (scrollY <= 0) {
+        header.classList.remove('hidden', 'scrolled');
+      } else if (scrollY > lastScrollY && scrollY > 50) {
+        // Scrolling DOWN
+        header.classList.add('hidden', 'scrolled');
+      } else if (scrollY < lastScrollY) {
+        // Scrolling UP
+        header.classList.remove('hidden');
+        header.classList.toggle('scrolled', scrollY > 50);
+      }
+
+      lastScrollY = scrollY;
+      ticking = false;
+    };
+
+    const onScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(updateScrollDir);
+        ticking = true;
       }
     };
 
-    const raf = requestAnimationFrame(() => {
-      window.addEventListener("scroll", handleScroll);
-      handleScroll();
-    });
+    window.addEventListener('scroll', onScroll);
+    onScroll();
 
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("scroll", handleScroll);
-    };
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   // Online users count

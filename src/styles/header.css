@@ -1,24 +1,24 @@
-
-/* Header Styles */
 .header {
   background: var(--chat-bg);
   box-shadow: var(--shadow);
   position: sticky;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 1000;
-  padding: 15px 0;
-  transition: background 0.3s, transform 0.3s;
+  padding: 0.5rem 0;
+  transition: transform 0.3s ease, padding 0.3s ease, background 0.3s ease;
+  transform: translateY(0);
   animation: slideDown 0.5s ease-out;
 }
 
 @keyframes slideDown {
   from { transform: translateY(-100%); }
-  to { transform: translateY(0); }
+  to   { transform: translateY(0); }
 }
 
-.header.scrolled {
-  padding: 10px 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+.header.hidden {
+  transform: translateY(-100%);
 }
 
 .header .header-container {
@@ -198,10 +198,14 @@
 }
 
 @media (max-width: 768px) {
+  .header {
+    background-color: transparent;
+  }
+
   .header .nav-menu {
     display: none;
     position: absolute;
-    top: 60px;
+    top: 54px;
     left: 0;
     right: 0;
     background: var(--chat-bg);
