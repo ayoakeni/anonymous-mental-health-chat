@@ -473,7 +473,7 @@
   padding: 5px;
 }
 
-.anonymous-dashboard .no-message {
+.therapist-dashboard .no-message {
   color: var(--text-color);
   display: flex;
   align-items: center;
