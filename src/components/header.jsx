@@ -26,6 +26,11 @@ function Header() {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
+      const toggleButton = document.querySelector('.menu-toggle');
+      if (toggleButton && toggleButton.contains(event.target)) {
+        return;
+      }
+      
       if (isMenuOpen && menuRef.current && !menuRef.current.contains(event.target)) {
         setIsMenuOpen(false);
       }
