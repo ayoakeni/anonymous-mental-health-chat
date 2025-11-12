@@ -887,6 +887,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  position: relative;
 }
 
 .anonymous-dashboard .empty-chat {
@@ -921,7 +922,7 @@
 
 .anonymous-dashboard .chat-box {
   background: var(--chat-bg);
-  padding: 0 20px;
+  padding: 20px;
   flex: 1;
   height: auto;
   overflow-y: auto;
@@ -1131,6 +1132,9 @@
 }
 
 .anonymous-dashboard .typing-indicator {
+  position: absolute;
+  left: 5px;
+  bottom: 60px;
   font-style: italic;
   color: var(--text-color);
   opacity: 0.7;

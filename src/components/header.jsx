@@ -153,6 +153,7 @@ function Header() {
             About
           </Link>
           
+          {/* Only show for anonymous */}
           {!user || user.isAnonymous ? (
             <Link to="/allTherapist" 
               className="nav-link" 
@@ -161,21 +162,6 @@ function Header() {
               <span className="sr-only">All Therapists</span>
             </Link>
           ) : null}
-
-          {/* Only show for therapists */}
-          {user && !user.isAnonymous && (
-            <Link to="/therapist-dashboard" className="nav-link" onClick={() => setIsMenuOpen(false)}>
-              Go to Dashboard
-            </Link>
-          )}
-
-          <button
-            className="theme-toggle"
-            onClick={toggleDarkMode}
-            aria-label={`Switch to ${isDarkMode ? "light" : "dark"} mode`}
-          >
-            <i className={isDarkMode ? "fas fa-sun" : "fas fa-moon"}></i>
-          </button>
 
           <div
             ref={liveIndicatorRef}
@@ -187,6 +173,28 @@ function Header() {
             <i className="fas fa-circle live-indicator-icon"></i>
             <span>{onlineUsers} users online</span>
           </div>
+
+          {/* Therapist Mode Badge — only on public pages */}
+          {user && !user.isAnonymous && (
+            <div className="therapist-badge">
+              <Link 
+                to="/therapist-dashboard" 
+                className="therapist-badge-link"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <i className="fas fa-user-md"></i>
+                Therapist Mode
+              </Link>
+            </div>
+          )}
+
+          <button
+            className="theme-toggle"
+            onClick={toggleDarkMode}
+            aria-label={`Switch to ${isDarkMode ? "light" : "dark"} mode`}
+          >
+            <i className={isDarkMode ? "fas fa-sun" : "fas fa-moon"}></i>
+          </button>
         </nav>
       </div>
     </header>

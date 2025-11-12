@@ -21,7 +21,7 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.header-container {
+.header .header-container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 20px;
@@ -30,12 +30,12 @@
   align-items: center;
 }
 
-.logo-image {
+.header .logo-image {
   height: 40px;
   transition: transform 0.2s;
 }
 
-.logo-image:hover {
+.header .logo-image:hover {
   transform: scale(1.05);
 }
 
@@ -43,24 +43,24 @@
   height: 32px;
 }
 
-.logo a {
+.header .logo a {
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--primary-color);
   text-decoration: none;
 }
 
-.nav-menu {
+.header .nav-menu {
   display: flex;
   gap: 20px;
   align-items: center;
 }
 
-.nav-link {
+.header .nav-link {
   color: var(--text-color);
   text-decoration: none;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
   padding: 8px 12px;
   border-radius: var(--border-radius);
   transition: color 0.2s, background 0.2s, transform 0.2s;
@@ -69,19 +69,19 @@
   gap: 6px;
 }
 
-.nav-link:hover,
-.nav-link:focus {
+.header .nav-link:hover,
+.header .nav-link:focus {
   color: var(--primary-color);
   background: rgba(74, 144, 226, 0.1);
   transform: translateY(-1px);
 }
 
-.nav-link:focus {
+.header .nav-link:focus {
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }
 
-.badge {
+.header .badge {
   background: var(--error-color);
   color: #ffffff;
   border-radius: 12px;
@@ -90,7 +90,29 @@
   font-weight: 600;
 }
 
-.menu-toggle {
+.header .therapist-badge-link {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--primary-color);
+  text-decoration: none;
+  padding: 0.4rem 0.8rem;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 1rem;
+  transition: all 0.2s ease;
+}
+
+.header .therapist-badge-link:hover {
+  background: rgba(34, 197, 94, 0.2);
+  transform: translateY(-1px);
+}
+
+.header .therapist-badge-link i {
+  font-size: 1rem;
+}
+
+.header .menu-toggle {
   display: none;
   background: none;
   border: none;
@@ -100,8 +122,8 @@
   transition: color 0.2s;
 }
 
-.menu-toggle:hover,
-.menu-toggle:focus {
+.header .menu-toggle:hover,
+.header .menu-toggle:focus {
   color: var(--primary-color);
 }
 
@@ -110,7 +132,7 @@
   outline-offset: 2px;
 }
 
-.theme-toggle {
+.header .theme-toggle {
   background: none;
   border: none;
   font-size: 1.2rem;
@@ -121,22 +143,21 @@
   transition: color 0.2s, background 0.2s;
 }
 
-.theme-toggle:hover,
-.theme-toggle:focus {
+.header .theme-toggle:hover,
+.header .theme-toggle:focus {
   color: var(--primary-color);
   background: rgba(74, 144, 226, 0.1);
 }
 
-.theme-toggle:focus {
+.header .theme-toggle:focus {
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }
 
-.live-indicator {
+.header .live-indicator {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.9rem;
   color: var(--text-color);
   padding: 8px 12px;
   background: var(--input-bg);
@@ -145,15 +166,15 @@
   transition: transform 0.2s, background 0.2s;
 }
 
-.live-indicator:hover {
+.header .live-indicator:hover {
   background: rgba(74, 144, 226, 0.1);
 }
 
-.live-indicator.updated {
+.header .live-indicator.updated {
   transform: scale(1.05);
 }
 
-.live-indicator-icon {
+.header .live-indicator-icon {
   font-size: 0.8rem;
   color: var(--accent-color);
   animation: pulse 2s infinite ease-in-out;
@@ -165,7 +186,7 @@
   100% { transform: scale(1); opacity: 1; }
 }
 
-.sr-only {
+.header .sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -177,7 +198,7 @@
 }
 
 @media (max-width: 768px) {
-  .nav-menu {
+  .header .nav-menu {
     display: none;
     position: absolute;
     top: 60px;
@@ -190,24 +211,29 @@
     animation: slideIn 0.3s ease-in-out;
   }
 
-  .nav-menu.open {
+  .header .nav-menu.open {
     display: flex;
   }
 
-  .menu-toggle {
+  .header .menu-toggle {
     display: block;
   }
 
-  .live-indicator {
+  .header .therapist-badge {
     font-size: 0.85rem;
     padding: 6px 10px;
   }
 
-  .theme-toggle {
+  .header .live-indicator {
+    font-size: 0.85rem;
+    padding: 6px 10px;
+  }
+
+  .header .theme-toggle {
     font-size: 1.1rem;
   }
 
-  .badge {
+  .header .badge {
     font-size: 0.7rem;
     padding: 2px 6px;
   }
