@@ -200,26 +200,10 @@
 
 @media (max-width: 768px) {
   .header {
-    position: fixed;
-    top: env(safe-area-inset-top, 0px);
-    left: 0;
-    right: 0;
-    height: 70px;
-    padding: 1rem;
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.50);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    z-index: 1000;
-    transition: transform 0.3s ease;
-    transform: translateY(0);
-    contain: layout style paint;
-  }
-
-  body {
-    margin: 0;
-    min-height: 100dvh;
-    overflow-x: hidden;
   }
 
   .header .nav-menu {

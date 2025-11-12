@@ -17,134 +17,134 @@ function Header() {
     window.matchMedia("(prefers-color-scheme: dark)").matches
   );
 
-  const toggleMenu = () => setIsMenuOpen(prev => !prev);
+  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
   const toggleDarkMode = () => {
-    setIsDarkMode(prev => !prev);
+    setIsDarkMode(!isDarkMode);
     document.documentElement.classList.toggle("dark");
   };
 
-  // Close menu on outside click
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (
-        isMenuOpen &&
-        menuRef.current &&
-        !menuRef.current.contains(e.target) &&
-        !e.target.closest(".menu-toggle")
-      ) {
+    const handleClickOutside = (event) => {
+      const toggleButton = document.querySelector('.menu-toggle');
+      if (toggleButton && toggleButton.contains(event.target)) {
+        return;
+      }
+      
+      if (isMenuOpen && menuRef.current && !menuRef.current.contains(event.target)) {
         setIsMenuOpen(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isMenuOpen]);
 
-  // Scroll: hide/show header (ignores Chrome address bar)
+  // Scroll effect
   useEffect(() => {
-    let lastY = 0;
+    let lastScrollY = window.scrollY;
     let ticking = false;
 
-    const update = () => {
-      const vv = window.visualViewport;
-      const currentY = vv ? vv.offsetTop : window.scrollY;
-      const header = document.querySelector(".header");
+    const updateScrollDir = () => {
+      const scrollY = window.scrollY;
+      const header = document.querySelector('.header');
       if (!header) return;
 
-      const delta = 5;
-      const hideAfter = 20;
-
-      if (Math.abs(currentY - lastY) < delta) {
-        ticking = false;
-        return;
+      if (scrollY <= 0) {
+        header.classList.remove('hidden', 'scrolled');
+      } else if (scrollY > lastScrollY && scrollY > 20) {
+        // Scrolling DOWN
+        header.classList.add('hidden', 'scrolled');
+      } else if (scrollY < lastScrollY) {
+        // Scrolling UP
+        header.classList.remove('hidden');
+        header.classList.toggle('scrolled', scrollY > 50);
       }
 
-      if (currentY > lastY && currentY > hideAfter) {
-        header.classList.add("hidden");
-      } else {
-        header.classList.remove("hidden");
-      }
-
-      header.classList.toggle("scrolled", currentY > 50);
-      lastY = currentY;
+      lastScrollY = scrollY;
       ticking = false;
     };
 
-    const onChange = () => {
+    const onScroll = () => {
       if (!ticking) {
-        requestAnimationFrame(update);
+        requestAnimationFrame(updateScrollDir);
         ticking = true;
       }
     };
 
-    const vv = window.visualViewport;
-    vv?.addEventListener("scroll", onChange);
-    vv?.addEventListener("resize", onChange);
-    window.addEventListener("scroll", onChange);
+    window.addEventListener('scroll', onScroll);
+    onScroll();
 
-    onChange();
-
-    return () => {
-      vv?.removeEventListener("scroll", onChange);
-      vv?.removeEventListener("resize", onChange);
-      window.removeEventListener("scroll", onChange);
-    };
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Online users
+  // Online users count
   useEffect(() => {
-    const unsub = onSnapshot(
+    const unsubscribe = onSnapshot(
       collection(db, "usersOnline"),
-      (snap) => {
-        const count = snap.docs.length;
-        const therapists = snap.docs.filter(d => d.data().role === "therapist").length;
+      (snapshot) => {
+        const count = snapshot.docs.length;
+        const therapists = snapshot.docs.filter((doc) =>
+          doc.data().role === "therapist"
+        ).length;
         setOnlineUsers(count);
         setTherapistsOnline(therapists);
 
-        liveIndicatorRef.current?.classList.add("updated");
-        setTimeout(() => liveIndicatorRef.current?.classList.remove("updated"), 500);
+        if (liveIndicatorRef.current) {
+          liveIndicatorRef.current.classList.add("updated");
+          setTimeout(() => {
+            if (liveIndicatorRef.current) {
+              liveIndicatorRef.current.classList.remove("updated");
+            }
+          }, 500);
+        }
       },
-      console.error
+      (error) => console.error("Error fetching online users:", error)
     );
-    return unsub;
+
+    return () => unsubscribe();
   }, []);
 
   // Dark mode sync
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (e) => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (e) => {
       setIsDarkMode(e.matches);
       document.documentElement.classList.toggle("dark", e.matches);
     };
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
 
-  // Auth
+  // Listen to auth state
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, setUser);
-    return unsub;
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
   }, []);
 
-  // Unread messages
+  // Unread messages (only if user is logged in)
   useEffect(() => {
     if (!user) {
       setUnreadMessages(0);
       return;
     }
+
     const path = user.isAnonymous
       ? `anonymousUsers/${user.uid}/messages`
       : `users/${user.uid}/messages`;
 
-    const unsub = onSnapshot(
+    const unsubscribe = onSnapshot(
       collection(db, path),
-      (snap) => {
-        const unread = snap.docs.filter(d => d.data().unread).length;
+      (snapshot) => {
+        const unread = snapshot.docs.filter((doc) => doc.data().unread).length;
         setUnreadMessages(unread);
       },
-      console.error
+      (err) => console.error("Unread messages error:", err)
     );
-    return unsub;
+
+    return () => unsubscribe();
   }, [user]);
 
   return (
@@ -173,14 +173,10 @@ function Header() {
           <Link to="/" className="nav-link" onClick={() => setIsMenuOpen(false)}>
             Home
           </Link>
-
+          
           {user && (
             <Link
-              to={
-                user.isAnonymous
-                  ? "/anonymous-dashboard/group-chat"
-                  : "/therapist-dashboard/group-chat"
-              }
+              to={user.isAnonymous ? "/anonymous-dashboard/group-chat" : "/therapist-dashboard/group-chat"}
               className="nav-link"
               onClick={() => setIsMenuOpen(false)}
             >
@@ -191,9 +187,12 @@ function Header() {
           <Link to="/about" className="nav-link" onClick={() => setIsMenuOpen(false)}>
             About
           </Link>
-
+          
+          {/* Only show for anonymous */}
           {!user || user.isAnonymous ? (
-            <Link to="/allTherapist" className="nav-link" onClick={() => setIsMenuOpen(false)}>
+            <Link to="/allTherapist" 
+              className="nav-link" 
+              onClick={() => setIsMenuOpen(false)}>
               <i className="fas fa-user" aria-hidden="true"></i>
               <span className="sr-only">All Therapists</span>
             </Link>
@@ -210,10 +209,11 @@ function Header() {
             <span>{onlineUsers} users online</span>
           </div>
 
+          {/* Therapist Mode Badge — only on public pages */}
           {user && !user.isAnonymous && (
             <div className="therapist-badge">
-              <Link
-                to="/therapist-dashboard"
+              <Link 
+                to="/therapist-dashboard" 
                 className="therapist-badge-link"
                 onClick={() => setIsMenuOpen(false)}
               >

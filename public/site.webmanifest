@@ -1,11 +1,11 @@
 {
-  "name": "Anonymous Mental Health Chat",
+  "name": "Anonymous Mental Health Support Chat",
   "short_name": "Anonymous chat",
   "description": "Connect anonymously with peers, get AI support, or chat privately with licensed therapists. Safe, secure, and judgment-free.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#4f46e5",
+  "theme_color": "#4a90e2",
   "orientation": "portrait-primary",
   "icons": [
     {
