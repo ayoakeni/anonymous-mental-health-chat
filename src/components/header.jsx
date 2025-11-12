@@ -7,10 +7,11 @@ import "../styles/header.css";
 
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef(null);
   const [onlineUsers, setOnlineUsers] = useState(0);
   const [therapistsOnline, setTherapistsOnline] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
-  const [user, setUser] = useState(null); // Add user state
+  const [user, setUser] = useState(null);
   const liveIndicatorRef = useRef(null);
   const [isDarkMode, setIsDarkMode] = useState(
     window.matchMedia("(prefers-color-scheme: dark)").matches
@@ -22,6 +23,17 @@ function Header() {
     setIsDarkMode(!isDarkMode);
     document.documentElement.classList.toggle("dark");
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isMenuOpen && menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isMenuOpen]);
 
   // Scroll effect
   useEffect(() => {
@@ -152,7 +164,7 @@ function Header() {
           <i className={isMenuOpen ? "fas fa-times" : "fas fa-bars"}></i>
         </button>
 
-        <nav className={`nav-menu ${isMenuOpen ? "open" : ""}`}>
+        <nav ref={menuRef} className={`nav-menu ${isMenuOpen ? "open" : ""}`}>
           <Link to="/" className="nav-link" onClick={() => setIsMenuOpen(false)}>
             Home
           </Link>
