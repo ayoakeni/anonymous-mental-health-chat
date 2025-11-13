@@ -93,25 +93,6 @@
   to { opacity: 0; transform: translateY(-10px); }
 }
 
-.therapist-dashboard .welcome-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.therapist-dashboard .welcome-header h2 {
-  font-size: 1.8rem;
-  color: var(--text-color);
-  margin-bottom: 20px;
-}
-
-.therapist-dashboard .highlight {
-  color: var(--primary-color);
-}
-
-
-
 .therapist-dashboard .chat-box-card {
   flex: 1;
   width: 100%;

@@ -93,7 +93,7 @@ function TherapistDashboardHome({
           ) : (
             <>
               <div className="chat-list-container">
-                {groupChats.slice(0, 5).map(group => (
+                {groupChats.slice(0, 3).map(group => (
                   <div
                     key={group.id}
                     className="chat-card"
@@ -131,7 +131,7 @@ function TherapistDashboardHome({
                   </div>
                 ))}
               </div>
-              {groupChats.length > 5 && (
+              {groupChats.length > 3 && (
                 <button
                   className="view-all"
                   onClick={() => navigate("/therapist-dashboard/group-chat")}
@@ -152,7 +152,7 @@ function TherapistDashboardHome({
           ) : (
             <>
               <div className="chat-list-container">
-                {privateChats.slice(0, 5).map(chat => (
+                {privateChats.slice(0, 3).map(chat => (
                   <div
                     key={chat.id}
                     className={`chat-card ${chat.needsTherapist ? "pending-chat" : ""}`}
@@ -192,7 +192,7 @@ function TherapistDashboardHome({
                   </div>
                 ))}
               </div>
-              {privateChats.length > 5 && (
+              {privateChats.length > 3 && (
                 <button
                   className="view-all"
                   onClick={() => navigate("/therapist-dashboard/private-chat")}
@@ -211,42 +211,52 @@ function TherapistDashboardHome({
         {isLoadingChats ? (
           <p>Loading notifications...</p>
         ) : (
-          <ul>
-            {privateChats
-              .filter(chat => chat.unreadCountForTherapist > 0)
-              .map(chat => (
+          <>
+            <ul>
+              {privateChats
+                .filter(chat => chat.unreadCountForTherapist > 0)
+                .slice(0, 3).map(chat => (
+                  <li
+                    key={chat.id}
+                    className="notification-item"
+                    onClick={() => navigate(`/therapist-dashboard/private-chat/${chat.id}`)}
+                  >
+                    You have {chat.unreadCountForTherapist} new message{chat.unreadCountForTherapist > 1 ? "s" : ""} in a private chat with {anonNames[chat.id] || "Anonymous"}
+                  </li>
+                ))}
+              {privateChats
+                .filter(chat => chat.needsTherapist)
+                .map(chat => (
+                  <li
+                    key={chat.id}
+                    className="notification-item pending-chat"
+                    onClick={() => navigate(`/therapist-dashboard/private-chat/${chat.id}`)}
+                  >
+                    New chat request from {anonNames[chat.id] || "Anonymous"}
+                  </li>
+                ))}
+              {groupChats.some(group => group.unreadCount > 0) && (
                 <li
-                  key={chat.id}
                   className="notification-item"
-                  onClick={() => joinPrivateChat(chat.id)}
+                  onClick={() => navigate("/therapist-dashboard/group-chat")}
                 >
-                  New messages in Private Chat with {anonNames[chat.id] || "Anonymous"} ({chat.unreadCountForTherapist})
+                  You have {totalGroupUnread} new message{totalGroupUnread > 1 ? "s" : ""} in Group Chats
                 </li>
-              ))}
-            {privateChats
-              .filter(chat => chat.needsTherapist)
-              .map(chat => (
-                <li
-                  key={chat.id}
-                  className="notification-item pending-chat"
-                  onClick={() => joinPrivateChat(chat.id)}
-                >
-                  New chat request from {anonNames[chat.id] || "Anonymous"}
-                </li>
-              ))}
-            {groupChats.some(group => group.unreadCount > 0) && (
-              <li
-                className="notification-item"
-                onClick={() => navigate("/therapist-dashboard/group-chat")}
-              >
-                New messages in Group Chats ({totalGroupUnread})
-              </li>
-            )}
-            {privateChats.every(chat => chat.unreadCountForTherapist === 0 && !chat.needsTherapist) &&
-              groupChats.every(group => group.unreadCount === 0) && (
-                <li>No new notifications</li>
               )}
-          </ul>
+              {privateChats.every(chat => chat.unreadCountForTherapist === 0 && !chat.needsTherapist) &&
+                groupChats.every(group => group.unreadCount === 0) && (
+                  <li>No new notifications</li>
+                )}
+            </ul>
+            {privateChats.length > 3 && groupChats.length > 3 && (
+              <button
+                className="view-all"
+                onClick={() => navigate("/therapist-dashboard/notifications")}
+              >
+                View All Notification
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>
