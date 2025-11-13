@@ -23,15 +23,10 @@
 }
 
 .profileContainer {
-  flex: 1;
   color: var(--text-color);
-  padding: 18px;
+  padding: 20px;
   max-width: 700px;
-  margin: 0 auto;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  margin: 19px auto;
   transition: margin-left 0.3s ease-in-out;
 }
 
@@ -360,5 +355,11 @@
 
   .profileContainer .fieldLabel {
     width: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .profileContainer {
+    margin: 0;
   }
 }
