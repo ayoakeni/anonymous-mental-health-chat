@@ -17,7 +17,7 @@ import TherapistLogin from "./login/therapist_login";
 import TherapistDashboard from "./page/therapistDashboard";
 import AnonymousDashboard from "./page/anonymousDashboard";
 import Chatroom from "./page/chats_rooms/chatRoom";
-import Header from "./components/header"
+// import Header from "./components/header"
 import "./styles/App.css";
 
 // -------------------------------------------------------------------
@@ -86,7 +86,7 @@ function AuthProvider({ children }) {
 export default function App() {
   return (
     <>
-      <Header/>
+      {/* <Header/> */}
       <NotificationHandler />
       <AuthProvider>
         {({ user, isTherapist, loading }) => (
