@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import "../../styles/therapistDashboardHome.css";
 
@@ -18,11 +19,19 @@ function TherapistDashboardHome({
   anonNames,
   formatTimestamp,
   joinGroupChat,
-  joinPrivateChat,
   isLoadingChats,
   isLoadingNames,
 }) {
   const navigate = useNavigate();
+
+  
+  // ────── NOTIFICATION COUNT ──────
+  const totalNotifications = useMemo(() => {
+    const privateUnread = privateChats.filter(c => c.unreadCountForTherapist > 0).length;
+    const pending = privateChats.filter(c => c.needsTherapist).length;
+    const groupUnread = groupChats.filter(g => g.unreadCount > 0).length;
+    return privateUnread + pending + groupUnread;
+  }, [privateChats, groupChats]);
 
   // Count pending chats (needsTherapist: true)
   const pendingChats = privateChats.filter(chat => chat.needsTherapist).length;
@@ -213,9 +222,11 @@ function TherapistDashboardHome({
         ) : (
           <>
             <ul>
+              {/* Private unread (max 3) */}
               {privateChats
                 .filter(chat => chat.unreadCountForTherapist > 0)
-                .slice(0, 3).map(chat => (
+                .slice(0, 2)
+                .map(chat => (
                   <li
                     key={chat.id}
                     className="notification-item"
@@ -224,6 +235,8 @@ function TherapistDashboardHome({
                     You have {chat.unreadCountForTherapist} new message{chat.unreadCountForTherapist > 1 ? "s" : ""} in a private chat with {anonNames[chat.id] || "Anonymous"}
                   </li>
                 ))}
+
+              {/* Pending requests (all) */}
               {privateChats
                 .filter(chat => chat.needsTherapist)
                 .map(chat => (
@@ -235,6 +248,8 @@ function TherapistDashboardHome({
                     New chat request from {anonNames[chat.id] || "Anonymous"}
                   </li>
                 ))}
+
+              {/* Group unread (only one summary) */}
               {groupChats.some(group => group.unreadCount > 0) && (
                 <li
                   className="notification-item"
@@ -243,17 +258,18 @@ function TherapistDashboardHome({
                   You have {totalGroupUnread} new message{totalGroupUnread > 1 ? "s" : ""} in Group Chats
                 </li>
               )}
-              {privateChats.every(chat => chat.unreadCountForTherapist === 0 && !chat.needsTherapist) &&
-                groupChats.every(group => group.unreadCount === 0) && (
-                  <li>No new notifications</li>
-                )}
+
+              {/* Empty state */}
+              {totalNotifications === 0 && <li>No new notifications</li>}
             </ul>
-            {privateChats.length > 3 && groupChats.length > 3 && (
+
+            {/* View All Button – only if > 3 total */}
+            {totalNotifications > 3 && (
               <button
                 className="view-all"
                 onClick={() => navigate("/therapist-dashboard/notifications")}
               >
-                View All Notification
+                View All Notifications
               </button>
             )}
           </>
