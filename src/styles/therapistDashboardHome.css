@@ -79,6 +79,21 @@
   flex-direction: column;
   align-items: center;
   gap: 12px;
+  border-radius: 50%;
+  border: 3px solid var(--input-border);
+  transition: transform 0.3s ease;
+}
+
+.dashboard-home .avatarWrapper:hover {
+  transform: scale(1.05);
+}
+
+.dashboard-home .avatarWrapper.online {
+  border: 3px solid var(--accent-color);
+}
+
+.dashboard-home .profileLink {
+  height: 50px;
 }
 
 .dashboard-home .avatar {
@@ -86,12 +101,6 @@
   height: 50px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid var(--input-border);
-  transition: transform 0.3s ease;
-}
-
-.dashboard-home .avatar:hover {
-  transform: scale(1.05);
 }
 
 .dashboard-home .avatarPlaceholder {
@@ -105,12 +114,6 @@
   font-size: 1rem;
   color: var(--text-color);
   font-weight: 600;
-  border: 3px solid var(--input-border);
-}
-
-.dashboard-home .avatar.online,
-.dashboard-home .avatarPlaceholder.online {
-  border: 3px solid var(--accent-color);
 }
 
 .dashboard-home .quick-stats {

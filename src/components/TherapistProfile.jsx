@@ -74,15 +74,15 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
         <i className="fa-solid fa-times"></i>
       </button>
 
-      <div className="avatarWrapper">
+      <div className={`avatarWrapper ${realTimeOnline ? "online" : ""}`}>
         {therapist.profileImage ? (
           <img
             src={therapist.profileImage}
             alt={therapist.name}
-            className={`avatar ${realTimeOnline ? "online" : ""}`}
+            className="avatar"
           />
         ) : (
-          <div className={`avatarPlaceholder ${realTimeOnline ? "online" : ""}`}>
+          <div className="avatarPlaceholder">
             {therapist.name?.[0].toUpperCase() ?? "T"}
           </div>
         )}
@@ -94,8 +94,8 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
           ● {realTimeOnline ? "Online" : "Offline"}
         </span>
         <div className="badges">
-          {therapist.rating >= 4 && <span className="badge top-rated">Top Rated</span>}
-          {therapist.verified && <span className="badge verified">Verified Therapist</span>}
+          {therapist.rating >= 4 && <span className="top-rated">Top Rated</span>}
+          {therapist.verified && <span className="verified">Verified Therapist</span>}
         </div>
       </h3>
 

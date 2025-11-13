@@ -58,12 +58,32 @@
   margin-left: 5px;
 }
 
+.therapist-profile .badges .top-rated {
+  background-color: var(--offline-color);
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 12px;
+  margin-left: auto;
+}
+
 .therapist-profile .avatarWrapper {
   display: flex;
   align-items: center;
   justify-content: center;
   width: fit-content;
   margin: 0 auto 15px;
+  border-radius: 50%;
+  border: 3px solid var(--input-border);
+  transition: transform 0.3s ease;
+}
+
+.therapist-profile .avatarWrapper:hover {
+  transform: scale(1.05);
+}
+
+.therapist-profile .avatarWrapper.online {
+  border: 3px solid var(--online-color);
 }
 
 .therapist-profile .avatar {
@@ -71,12 +91,6 @@
   height: 80px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid var(--input-border);
-  transition: transform 0.3s ease;
-}
-
-.therapist-profile .avatar:hover {
-  transform: scale(1.05);
 }
 
 .therapist-profile .avatarPlaceholder {
@@ -90,12 +104,6 @@
   color: var(--text-color);
   background: var(--primary-color);
   font-weight: 600;
-  border: 3px solid var(--input-border);
-}
-
-.therapist-profile .avatar.online,
-.therapist-profile .avatarPlaceholder.online {
-  border: 3px solid var(--online-color);
 }
 
 .therapist-profile p {

@@ -116,15 +116,15 @@ const TherapistDashboardProfile = ({
             <div className="editForm">
               {/* ----- Avatar ----- */}
               <div className="avatarSection">
-                <div className="avatarWrapper">
+                <div className={`avatarWrapper ${isOnline ? 'online' : ''}`}>
                   {therapistInfo.profileImage ? (
                     <img
                       src={therapistInfo.profileImage}
                       alt={therapistInfo.name ?? 'Therapist'}
-                      className={`avatar ${isOnline ? 'online' : ''}`}
+                      className="avatar"
                     />
                   ) : (
-                    <div className={`avatarPlaceholder ${isOnline ? 'online' : ''}`}>
+                    <div className="avatarPlaceholder">
                       {(therapistInfo.name?.[0] ?? 'T').toUpperCase()}
                     </div>
                   )}
@@ -207,9 +207,9 @@ const TherapistDashboardProfile = ({
                 <div className="rating-display">
                   {(therapistInfo.rating ?? 0) > 0 ? (
                     <>
-                      {'★'.repeat(Math.floor(therapistInfo.rating ?? 0))}
+                     <span className='rating'> {'★'.repeat(Math.floor(therapistInfo.rating ?? 0))}
                       {(therapistInfo.rating ?? 0) % 1 >= 0.5 && '☆'}
-                      <strong> {(therapistInfo.rating ?? 0).toFixed(1)}</strong>
+                      <strong className='ratingValue'> {(therapistInfo.rating ?? 0).toFixed(1)}</strong></span>
                     </>
                   ) : (
                     'No ratings yet'
@@ -236,15 +236,15 @@ const TherapistDashboardProfile = ({
             <div className="viewMode">
               {/* Avatar */}
               <div className="avatarSection">
-                <div className="avatarWrapper">
+                <div className={`avatarWrapper ${isOnline ? 'online' : ''}`}>
                   {therapistInfo.profileImage ? (
                     <img
                       src={therapistInfo.profileImage}
                       alt={therapistInfo.name ?? 'Therapist'}
-                      className={`avatar ${isOnline ? 'online' : ''}`}
+                      className="avatar"
                     />
                   ) : (
-                    <div className={`avatarPlaceholder ${isOnline ? 'online' : ''}`}>
+                    <div className="avatarPlaceholder">
                       {(therapistInfo.name?.[0] ?? 'T').toUpperCase()}
                     </div>
                   )}

@@ -98,10 +98,21 @@
 }
 
 .profileContainer .avatarWrapper {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+}
+
+.profileContainer .avatarWrapper:hover {
+  transform: scale(1.05);
+}
+
+.profileContainer .avatarWrapper.online {
+  border: 3px solid var(--accent-color);
 }
 
 .profileContainer .avatar {
@@ -109,12 +120,6 @@
   height: 120px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid var(--input-border);
-  transition: transform 0.3s ease;
-}
-
-.profileContainer .avatar:hover {
-  transform: scale(1.05);
 }
 
 .profileContainer .avatarPlaceholder {
@@ -128,28 +133,18 @@
   font-size: 2.5rem;
   color: var(--text-color);
   font-weight: 600;
-  border: 3px solid var(--input-border);
-}
-
-.profileContainer .avatar.online,
-.profileContainer .avatarPlaceholder.online {
-  border: 3px solid var(--accent-color);
 }
 
 .profileContainer .uploadButton {
-  padding: 8px 16px;
-  background: var(--primary-color);
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
   color: white;
+  background-color: rgba(0, 0, 0, 0.5);
   border: none;
-  border-radius: var(--border-radius);
   cursor: pointer;
   font-size: 0.9rem;
-  transition: background-color 0.2s ease, transform 0.1s ease;
-}
-
-.profileContainer .uploadButton:hover {
-  background: #357abd;
-  transform: translateY(-1px);
 }
 
 .profileContainer .fileInput {
@@ -347,6 +342,12 @@
     width: 100px;
     height: 100px;
     font-size: 2rem;
+  }
+
+  .profileContainer .uploadButton {
+    width: 100px;
+    height: 100px;
+    font-size: 0.7rem;
   }
 
   .profileContainer .profileField {

@@ -26,12 +26,12 @@ function TherapistDashboardHome({
         <h2>
           Welcome, <span className="highlight">{therapistInfo.name || "Therapist"}</span>!
         </h2>
-        <div className="avatarWrapper">
-          <Link element="button" to="/therapist-dashboard/profile">
+        <div className={`avatarWrapper ${therapistInfo.online ? "online" : ""}`}>
+          <Link className="profileLink" element="button" to="/therapist-dashboard/profile">
             {therapistInfo.profileImage ? (
-              <img src={therapistInfo.profileImage} alt={therapistInfo.name} className={`avatar ${therapistInfo.online ? "online" : ""}`} />
+              <img src={therapistInfo.profileImage} alt={therapistInfo.name} className="avatar" />
             ) : (
-              <div className={`avatarPlaceholder ${therapistInfo.online ? "online" : ""}`}>
+              <div className="avatarPlaceholder">
                 {therapistInfo.name ? therapistInfo.name[0].toUpperCase() : 'T'}
               </div>
             )}
