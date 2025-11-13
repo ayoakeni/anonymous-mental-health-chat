@@ -245,9 +245,9 @@
 }
 
 /* ──────────────────────────────────────────────────────────────
-   MOBILE (≤480px) – BOTTOM BAR
+   MOBILE (≤484px) – BOTTOM BAR
    ────────────────────────────────────────────────────────────── */
-@media (max-width: 480px) {
+@media (max-width: 484px) {
   .sidebar {
     position: fixed;
     left: 0;

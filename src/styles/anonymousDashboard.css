@@ -74,19 +74,22 @@
 }
 
 .anonymous-dashboard .welcome-header h2 {
-  font-size: 2.25rem;
+  font-size: 1.8rem;
   font-weight: 700;
   color: var(--text-color);
-  margin-bottom: 8px;
+  margin-bottom: 5px;
+}
+
+.anonymous-dashboard .welcome-header .greeting {
+  margin-right: 6px;
 }
 
 .anonymous-dashboard .welcome-header .highlight {
   color: var(--primary-color);
-  font-weight: 800;
 }
 
 .anonymous-dashboard .welcome-header .subtext {
-  font-size: 1.125rem;
+  font-size: 1rem;
   color: var(--text-color);
   opacity: 0.6;
 }
@@ -1539,10 +1542,6 @@
     margin-left: 65px;
   }
 
-  .anonymous-dashboard .welcome-header {
-    text-align: center;
-  }
-
   .anonymous-dashboard .chat-box-card {
     max-width: 100%;
   }
@@ -1556,13 +1555,38 @@
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 568px) {
+  .anonymous-dashboard .welcome-header h2 {
+    font-size: 1.47rem;
+  }
+
+  .anonymous-dashboard .welcome-header .subtext {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 484px) {
   .anonymous-dashboard .box {
     margin-bottom: 60px;
   }
   
   .anonymous-dashboard .box.open {
     margin-left: 0;
+  }
+
+  .anonymous-dashboard .welcome-header h2 {
+    font-size: 1.2rem;
+  }
+
+  .anonymous-dashboard .welcome-header .subtext {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 368px) {
+  .anonymous-dashboard .welcome-header .greeting {
+    display: block;
+    margin-right: 0;
   }
 }
 
@@ -1937,7 +1961,7 @@
 .appointment-booking-wrapper .appointment-modal {
   background:var(--chat-bg); color:var(--text-color);
   padding:2rem; border-radius:var(--border-radius);
-  max-width:480px; width:90%; position:relative;
+  max-width:484px; width:90%; position:relative;
   box-shadow:var(--shadow); border:1px solid var(--input-border);
 }
 .appointment-booking-wrapper .close-btn {

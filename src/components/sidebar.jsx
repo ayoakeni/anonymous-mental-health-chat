@@ -14,10 +14,10 @@ const Sidebar = ({
   const location = useLocation();
   const sidebarRef = useRef(null);
 
-  // Detect screen size (mobile ≤ 480px)
+  // Detect screen size (mobile ≤ 484px)
   useEffect(() => {
     const check = () => {
-      const mobile = window.innerWidth <= 480;
+      const mobile = window.innerWidth <= 484;
       setIsMobile(mobile);
       // On mobile: force closed (bottom bar)
       // On desktop: keep closed (user can open with toggle)

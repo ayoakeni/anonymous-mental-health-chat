@@ -399,11 +399,17 @@
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 548px) {
+  .dashboard-home .welcome-header h2 {
+    font-size: 1.47rem;
+  }
+}
+
+@media (max-width: 484px) {
   .dashboard-home .welcome-header h2 {
     font-size: 1.2rem;
   }
-
+  
   .dashboard-home .welcome-header .greeting {
     display: block;
     margin-right: 0;
