@@ -105,187 +105,189 @@ const TherapistDashboardProfile = ({
   /* 4. Render – every input has a guaranteed value                     */
   /* ------------------------------------------------------------------ */
   return (
-    <div className="profileContainer">
-      {successMessage && <div className="successMessage">{successMessage}</div>}
-      {errors.general && <div className="errorMessage">{errors.general}</div>}
+    <div className="profilePageWrapper">
+      <div className="profileContainer">
+        {successMessage && <div className="successMessage">{successMessage}</div>}
+        {errors.general && <div className="errorMessage">{errors.general}</div>}
 
-      <div className="profileCard">
-        {editing ? (
-          /* ------------------- EDIT MODE ------------------- */
-          <div className="editForm">
-            {/* ----- Avatar ----- */}
-            <div className="avatarSection">
-              <div className="avatarWrapper">
-                {therapistInfo.profileImage ? (
-                  <img
-                    src={therapistInfo.profileImage}
-                    alt={therapistInfo.name ?? 'Therapist'}
-                    className={`avatar ${isOnline ? 'online' : ''}`}
+        <div className="profileCard">
+          {editing ? (
+            /* ------------------- EDIT MODE ------------------- */
+            <div className="editForm">
+              {/* ----- Avatar ----- */}
+              <div className="avatarSection">
+                <div className="avatarWrapper">
+                  {therapistInfo.profileImage ? (
+                    <img
+                      src={therapistInfo.profileImage}
+                      alt={therapistInfo.name ?? 'Therapist'}
+                      className={`avatar ${isOnline ? 'online' : ''}`}
+                    />
+                  ) : (
+                    <div className={`avatarPlaceholder ${isOnline ? 'online' : ''}`}>
+                      {(therapistInfo.name?.[0] ?? 'T').toUpperCase()}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    className="uploadButton"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Upload Image
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/jpeg,image/png"
+                    onChange={handleImageUpload}
+                    className="fileInput"
+                    style={{ display: 'none' }}
                   />
-                ) : (
-                  <div className={`avatarPlaceholder ${isOnline ? 'online' : ''}`}>
-                    {(therapistInfo.name?.[0] ?? 'T').toUpperCase()}
-                  </div>
-                )}
-                <button
-                  type="button"
-                  className="uploadButton"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Upload Image
-                </button>
+                  {errors.profileImage && <span className="error">{errors.profileImage}</span>}
+                </div>
+              </div>
+
+              {/* ----- Name ----- */}
+              <div className="formGroup">
+                <label className="label">Name</label>
                 <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/jpeg,image/png"
-                  onChange={handleImageUpload}
-                  className="fileInput"
-                  style={{ display: 'none' }}
+                  type="text"
+                  placeholder="Enter your name"
+                  value={therapistInfo.name ?? ''}
+                  onChange={e => setTherapistInfo(p => ({ ...p, name: e.target.value }))}
+                  className={`input ${errors.name ? 'inputError' : ''}`}
                 />
-                {errors.profileImage && <span className="error">{errors.profileImage}</span>}
+                {errors.name && <span className="error">{errors.name}</span>}
+              </div>
+
+              {/* ----- Gender ----- */}
+              <div className="formGroup">
+                <label className="label">Gender</label>
+                <select
+                  value={therapistInfo.gender ?? ''}
+                  onChange={e => setTherapistInfo(p => ({ ...p, gender: e.target.value }))}
+                  className={`input ${errors.gender ? 'inputError' : ''}`}
+                >
+                  <option value="">Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Non-Binary">Non-Binary</option>
+                  <option value="Prefer not to say">Prefer not to say</option>
+                </select>
+                {errors.gender && <span className="error">{errors.gender}</span>}
+              </div>
+
+              {/* ----- Position ----- */}
+              <div className="formGroup">
+                <label className="label">Position</label>
+                <input
+                  type="text"
+                  placeholder="Enter your position"
+                  value={therapistInfo.position ?? ''}
+                  onChange={e => setTherapistInfo(p => ({ ...p, position: e.target.value }))}
+                  className={`input ${errors.position ? 'inputError' : ''}`}
+                />
+                {errors.position && <span className="error">{errors.position}</span>}
+              </div>
+
+              {/* ----- Description ----- */}
+              <div className="formGroup">
+                <label className="label">Profile Description</label>
+                <textarea
+                  placeholder="Enter your profile description"
+                  value={therapistInfo.profile ?? ''}
+                  onChange={e => setTherapistInfo(p => ({ ...p, profile: e.target.value }))}
+                  className="textarea"
+                />
+              </div>
+
+              {/* ----- Rating (read-only) ----- */}
+              <div className="formGroup">
+                <label className="label">Average Rating</label>
+                <div className="rating-display">
+                  {(therapistInfo.rating ?? 0) > 0 ? (
+                    <>
+                      {'★'.repeat(Math.floor(therapistInfo.rating ?? 0))}
+                      {(therapistInfo.rating ?? 0) % 1 >= 0.5 && '☆'}
+                      <strong> {(therapistInfo.rating ?? 0).toFixed(1)}</strong>
+                    </>
+                  ) : (
+                    'No ratings yet'
+                  )}
+                </div>
+              </div>
+
+              {/* ----- Buttons ----- */}
+              <div className="buttonGroup">
+                <button onClick={handleSave} className="saveButton" disabled={isSaving}>
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  onClick={() => setEditing(false)}
+                  className="cancelButton"
+                  disabled={isSaving}
+                >
+                  Cancel
+                </button>
               </div>
             </div>
-
-            {/* ----- Name ----- */}
-            <div className="formGroup">
-              <label className="label">Name</label>
-              <input
-                type="text"
-                placeholder="Enter your name"
-                value={therapistInfo.name ?? ''}
-                onChange={e => setTherapistInfo(p => ({ ...p, name: e.target.value }))}
-                className={`input ${errors.name ? 'inputError' : ''}`}
-              />
-              {errors.name && <span className="error">{errors.name}</span>}
-            </div>
-
-            {/* ----- Gender ----- */}
-            <div className="formGroup">
-              <label className="label">Gender</label>
-              <select
-                value={therapistInfo.gender ?? ''}
-                onChange={e => setTherapistInfo(p => ({ ...p, gender: e.target.value }))}
-                className={`input ${errors.gender ? 'inputError' : ''}`}
-              >
-                <option value="">Select Gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Non-Binary">Non-Binary</option>
-                <option value="Prefer not to say">Prefer not to say</option>
-              </select>
-              {errors.gender && <span className="error">{errors.gender}</span>}
-            </div>
-
-            {/* ----- Position ----- */}
-            <div className="formGroup">
-              <label className="label">Position</label>
-              <input
-                type="text"
-                placeholder="Enter your position"
-                value={therapistInfo.position ?? ''}
-                onChange={e => setTherapistInfo(p => ({ ...p, position: e.target.value }))}
-                className={`input ${errors.position ? 'inputError' : ''}`}
-              />
-              {errors.position && <span className="error">{errors.position}</span>}
-            </div>
-
-            {/* ----- Description ----- */}
-            <div className="formGroup">
-              <label className="label">Profile Description</label>
-              <textarea
-                placeholder="Enter your profile description"
-                value={therapistInfo.profile ?? ''}
-                onChange={e => setTherapistInfo(p => ({ ...p, profile: e.target.value }))}
-                className="textarea"
-              />
-            </div>
-
-            {/* ----- Rating (read-only) ----- */}
-            <div className="formGroup">
-              <label className="label">Average Rating</label>
-              <div className="rating-display">
-                {(therapistInfo.rating ?? 0) > 0 ? (
-                  <>
-                    {'★'.repeat(Math.floor(therapistInfo.rating ?? 0))}
-                    {(therapistInfo.rating ?? 0) % 1 >= 0.5 && '☆'}
-                    <strong> {(therapistInfo.rating ?? 0).toFixed(1)}</strong>
-                  </>
-                ) : (
-                  'No ratings yet'
-                )}
+          ) : (
+            /* ------------------- VIEW MODE ------------------- */
+            <div className="viewMode">
+              {/* Avatar */}
+              <div className="avatarSection">
+                <div className="avatarWrapper">
+                  {therapistInfo.profileImage ? (
+                    <img
+                      src={therapistInfo.profileImage}
+                      alt={therapistInfo.name ?? 'Therapist'}
+                      className={`avatar ${isOnline ? 'online' : ''}`}
+                    />
+                  ) : (
+                    <div className={`avatarPlaceholder ${isOnline ? 'online' : ''}`}>
+                      {(therapistInfo.name?.[0] ?? 'T').toUpperCase()}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* ----- Buttons ----- */}
-            <div className="buttonGroup">
-              <button onClick={handleSave} className="saveButton" disabled={isSaving}>
-                {isSaving ? 'Saving...' : 'Save'}
+              <div className="profileField">
+                <span className="fieldLabel">Name:</span>
+                <span className="fieldValue">{therapistInfo.name || 'Not set'}</span>
+              </div>
+              <div className="profileField">
+                <span className="fieldLabel">Gender:</span>
+                <span className="fieldValue">{therapistInfo.gender || 'Not set'}</span>
+              </div>
+              <div className="profileField">
+                <span className="fieldLabel">Position:</span>
+                <span className="fieldValue">{therapistInfo.position || 'Not set'}</span>
+              </div>
+              <div className="profileField">
+                <span className="fieldLabel">About:</span>
+                <span className="fieldValue">{therapistInfo.profile || 'No description provided'}</span>
+              </div>
+              <div className="profileField">
+                <span className="fieldLabel">Rating:</span>
+                <span className="rating">
+                  {(therapistInfo.rating ?? 0) > 0 ? (
+                    <>
+                      {'★'.repeat(Math.floor(therapistInfo.rating ?? 0))}
+                      {(therapistInfo.rating ?? 0) % 1 >= 0.5 && '☆'}
+                      <span className="ratingValue">({(therapistInfo.rating ?? 0).toFixed(1)})</span>
+                    </>
+                  ) : (
+                    'No rating'
+                  )}
+                </span>
+              </div>
+
+              <button onClick={() => setEditing(true)} className="editButton">
+                Edit Profile
               </button>
-              <button
-                onClick={() => setEditing(false)}
-                className="cancelButton"
-                disabled={isSaving}
-              >
-                Cancel
-              </button>
             </div>
-          </div>
-        ) : (
-          /* ------------------- VIEW MODE ------------------- */
-          <div className="viewMode">
-            {/* Avatar */}
-            <div className="avatarSection">
-              <div className="avatarWrapper">
-                {therapistInfo.profileImage ? (
-                  <img
-                    src={therapistInfo.profileImage}
-                    alt={therapistInfo.name ?? 'Therapist'}
-                    className={`avatar ${isOnline ? 'online' : ''}`}
-                  />
-                ) : (
-                  <div className={`avatarPlaceholder ${isOnline ? 'online' : ''}`}>
-                    {(therapistInfo.name?.[0] ?? 'T').toUpperCase()}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="profileField">
-              <span className="fieldLabel">Name:</span>
-              <span className="fieldValue">{therapistInfo.name || 'Not set'}</span>
-            </div>
-            <div className="profileField">
-              <span className="fieldLabel">Gender:</span>
-              <span className="fieldValue">{therapistInfo.gender || 'Not set'}</span>
-            </div>
-            <div className="profileField">
-              <span className="fieldLabel">Position:</span>
-              <span className="fieldValue">{therapistInfo.position || 'Not set'}</span>
-            </div>
-            <div className="profileField">
-              <span className="fieldLabel">About:</span>
-              <span className="fieldValue">{therapistInfo.profile || 'No description provided'}</span>
-            </div>
-            <div className="profileField">
-              <span className="fieldLabel">Rating:</span>
-              <span className="rating">
-                {(therapistInfo.rating ?? 0) > 0 ? (
-                  <>
-                    {'★'.repeat(Math.floor(therapistInfo.rating ?? 0))}
-                    {(therapistInfo.rating ?? 0) % 1 >= 0.5 && '☆'}
-                    <span className="ratingValue">({(therapistInfo.rating ?? 0).toFixed(1)})</span>
-                  </>
-                ) : (
-                  'No rating'
-                )}
-              </span>
-            </div>
-
-            <button onClick={() => setEditing(true)} className="editButton">
-              Edit Profile
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
