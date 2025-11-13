@@ -30,11 +30,14 @@ function TherapistDashboardHome({
   return (
     <div className="dashboard-home">
       <div className="welcome-header">
-        <h2>{getGreeting()}, <span className="highlight">{therapistInfo.name || "Therapist"}</span>!</h2>
+        <h2>
+          <span className="greeting">{getGreeting()},</span>
+          <span className="highlight">{therapistInfo.name || "Therapist"}</span>!
+        </h2>
         <div className={`avatarWrapper ${therapistInfo.online ? "online" : ""}`}>
           <Link className="profileLink" element="button" to="/therapist-dashboard/profile">
             {therapistInfo.profileImage ? (
-              <img src={therapistInfo.profileImage} alt={therapistInfo.name} className="avatar" />
+              <img className="avatar" src={therapistInfo.profileImage} alt={therapistInfo.name} />
             ) : (
               <div className="avatarPlaceholder">
                 {therapistInfo.name ? therapistInfo.name[0].toUpperCase() : 'T'}
