@@ -1,5 +1,5 @@
+import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import "../../styles/therapistDashboardHome.css";
 
@@ -19,6 +19,7 @@ function TherapistDashboardHome({
   anonNames,
   formatTimestamp,
   joinGroupChat,
+  joinPrivateChat,
   isLoadingChats,
   isLoadingNames,
 }) {
@@ -167,6 +168,7 @@ function TherapistDashboardHome({
                     className={`chat-card ${chat.needsTherapist ? "pending-chat" : ""}`}
                     onClick={() => {
                       navigate(`/therapist-dashboard/private-chat/${chat.id}`);
+                      joinPrivateChat(chat.id);
                     }}
                   >
                     <div className="chat-card-inner">
@@ -222,42 +224,66 @@ function TherapistDashboardHome({
         ) : (
           <>
             <ul>
-              {/* Private unread (max 3) */}
-              {privateChats
-                .filter(chat => chat.unreadCountForTherapist > 0)
-                .slice(0, 2)
-                .map(chat => (
-                  <li
-                    key={chat.id}
-                    className="notification-item"
-                    onClick={() => navigate(`/therapist-dashboard/private-chat/${chat.id}`)}
-                  >
-                    You have {chat.unreadCountForTherapist} new message{chat.unreadCountForTherapist > 1 ? "s" : ""} in a private chat with {anonNames[chat.id] || "Anonymous"}
-                  </li>
-                ))}
+              {/* Flatten all notification items into one array, then take first 3 */}
+              {(() => {
+                const items = [];
 
-              {/* Pending requests (all) */}
-              {privateChats
-                .filter(chat => chat.needsTherapist)
-                .map(chat => (
-                  <li
-                    key={chat.id}
-                    className="notification-item pending-chat"
-                    onClick={() => navigate(`/therapist-dashboard/private-chat/${chat.id}`)}
-                  >
-                    New chat request from {anonNames[chat.id] || "Anonymous"}
-                  </li>
-                ))}
+                // 1. Private unread (max 2)
+                privateChats
+                  .filter(chat => chat.unreadCountForTherapist > 0)
+                  .slice(0, 2)
+                  .forEach(chat =>
+                    items.push({
+                      key: `unread-${chat.id}`,
+                      content: (
+                        <li
+                          className="notification-item"
+                          onClick={() => navigate(`/therapist-dashboard/private-chat/${chat.id}`)}
+                        >
+                          You have {chat.unreadCountForTherapist} new message{chat.unreadCountForTherapist > 1 ? "s" : ""} in a private chat with {anonNames[chat.id] || "Anonymous"}
+                        </li>
+                      ),
+                    })
+                  );
 
-              {/* Group unread (only one summary) */}
-              {groupChats.some(group => group.unreadCount > 0) && (
-                <li
-                  className="notification-item"
-                  onClick={() => navigate("/therapist-dashboard/group-chat")}
-                >
-                  You have {totalGroupUnread} new message{totalGroupUnread > 1 ? "s" : ""} in Group Chats
-                </li>
-              )}
+                // 2. Pending requests (max 2)
+                privateChats
+                  .filter(chat => chat.needsTherapist)
+                  .slice(0, 2)
+                  .forEach(chat =>
+                    items.push({
+                      key: `pending-${chat.id}`,
+                      content: (
+                        <li
+                          className="notification-item pending-chat"
+                          onClick={() => navigate(`/therapist-dashboard/private-chat/${chat.id}`)}
+                        >
+                          New chat request from {anonNames[chat.id] || "Anonymous"}
+                        </li>
+                      ),
+                    })
+                  );
+
+                // 3. Group unread (only 1 summary)
+                if (groupChats.some(g => g.unreadCount > 0)) {
+                  items.push({
+                    key: "group-unread",
+                    content: (
+                      <li
+                        className="notification-item"
+                        onClick={() => navigate("/therapist-dashboard/group-chat")}
+                      >
+                        You have {totalGroupUnread} new message{totalGroupUnread > 1 ? "s" : ""} in Group Chats
+                      </li>
+                    ),
+                  });
+                }
+
+                // Slice to max 3 items
+                return items.slice(0, 3).map(item => (
+                  <React.Fragment key={item.key}>{item.content}</React.Fragment>
+                ));
+              })()}
 
               {/* Empty state */}
               {totalNotifications === 0 && <li>No new notifications</li>}
