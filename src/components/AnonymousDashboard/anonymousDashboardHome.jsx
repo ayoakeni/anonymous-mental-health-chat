@@ -5,6 +5,13 @@ import { db, auth } from "../../utils/firebase";
 import TherapistProfile from "../TherapistProfile";
 import "../../styles/anonymousDashboard.css";
 
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+};
+
 const AnonymousDashboardHome = ({
   groupChats = [],
   privateChats = [],
@@ -163,7 +170,7 @@ const AnonymousDashboardHome = ({
   return (
     <div className="dashboard">
       <div className="welcome-header">
-        <h2>Welcome, <span className="highlight">{displayName || "Guest"}</span>!</h2>
+        <h2>{getGreeting()}, <span className="highlight">{displayName || "Anonymous"}</span>!</h2>
         <p className="subtext">Explore your chats, log your mood, try a daily task, or connect with a therapist.</p>
       </div>
 

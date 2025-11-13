@@ -2,6 +2,13 @@ import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import "../../styles/therapistDashboardHome.css";
 
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+};
+
 function TherapistDashboardHome({
   therapistInfo,
   groupChats,
@@ -23,9 +30,7 @@ function TherapistDashboardHome({
   return (
     <div className="dashboard-home">
       <div className="welcome-header">
-        <h2>
-          Welcome, <span className="highlight">{therapistInfo.name || "Therapist"}</span>!
-        </h2>
+        <h2>{getGreeting()}, <span className="highlight">{therapistInfo.name || "Therapist"}</span>!</h2>
         <div className={`avatarWrapper ${therapistInfo.online ? "online" : ""}`}>
           <Link className="profileLink" element="button" to="/therapist-dashboard/profile">
             {therapistInfo.profileImage ? (
