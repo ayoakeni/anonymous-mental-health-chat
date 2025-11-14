@@ -1,6 +1,6 @@
 import { useLocation } from "react-router-dom";
 
-export function useInChat() {
+export function useHideSidebarMobile() {
   const { pathname } = useLocation();
 
   const isPrivate = pathname.includes("/private-chat/");

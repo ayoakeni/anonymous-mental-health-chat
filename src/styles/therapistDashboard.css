@@ -732,6 +732,10 @@
     padding-bottom: 60px;
   }
 
+  .therapist-dashboard.no-bottom-padding {
+    padding-bottom: 0 !important;
+  }
+
   .therapist-dashboard .box {
     margin-left: 0;
   }

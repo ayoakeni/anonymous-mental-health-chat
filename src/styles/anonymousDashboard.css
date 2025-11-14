@@ -1145,6 +1145,10 @@
     padding-bottom: 60px;
   }
 
+  .anonymous-dashboard.no-bottom-padding {
+    padding-bottom: 0 !important;
+  }
+
   .anonymous-dashboard .box {
     margin-left: 0;
   }
