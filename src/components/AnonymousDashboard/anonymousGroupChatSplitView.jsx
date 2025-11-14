@@ -680,7 +680,7 @@ function AnonymousGroupChatSplitView({
                     <img src={therapist.profileImage} alt={therapist.name} className={`avatar ${therapist.online ? "online" : ""}`} />
                   ) : (
                     <div className={`avatarPlaceholder ${therapist.online ? "online" : ""}`}>
-                      {therapist.name ? therapist.name[0].toUpperCase() : 'T'}
+                      {therapist.name?.[0]?.toUpperCase() || 'T'}
                     </div>
                   )}
                   <span className="therapist-name">

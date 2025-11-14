@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { collection, query, where, onSnapshot, limit, getDoc, doc } from "firebase/firestore";
 import { db, auth } from "../../utils/firebase";
+import { useNavigate } from "react-router-dom";
 import TherapistProfile from "../TherapistProfile";
-import "../../styles/anonymousDashboard.css";
+import "../../styles/anonymousDashboardHome.css";
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -19,6 +20,9 @@ const AnonymousDashboardHome = ({
   anonNames = {},
   formatTimestamp
 }) => {
+
+  const navigate = useNavigate();
+
   // Select recent chats
   const recentChats = [
     ...(Array.isArray(groupChats) ? groupChats.slice(0, 3).map(chat => ({ ...chat, type: "group" })) : []),
@@ -168,7 +172,7 @@ const AnonymousDashboardHome = ({
   };
 
   return (
-    <div className="dashboard">
+    <div className="anonymousDashboardHome">
       <div className="welcome-header">
         <h2>
           <span className="greeting">{getGreeting()},</span>
@@ -187,8 +191,13 @@ const AnonymousDashboardHome = ({
                 const lastTs = chat.lastMessage?.timestamp;
                 return (
                   <li key={chat.id} className="chat-card">
-                    <Link
-                      to={chat.type === "group" ? `group-chat/${chat.id}` : `private-chat/${chat.id}`}
+                    <div
+                      onClick={() => {
+                        const path = chat.type === "group"
+                          ? `/anonymous-dashboard/group-chat/${chat.id}`
+                          : `/anonymous-dashboard/private-chat/${chat.id}`;
+                        navigate(path);
+                      }}
                       className="chat-card-inner"
                     >
                       <div className="chat-avater-content">
@@ -208,13 +217,13 @@ const AnonymousDashboardHome = ({
                         <span className="message-timestamp">
                           {renderTimestamp(lastTs)}
                         </span>
-                        {(chat.unreadCount || chat.unreadCountForTherapist) > 0 && (
+                        {(chat.unreadCount || chat.unreadCountForUser) > 0 && (
                           <span className="unread-badge">
-                            {chat.type === "group" ? chat.unreadCount : chat.unreadCountForTherapist}
+                            {chat.type === "group" ? chat.unreadCount : chat.unreadCountForUser}
                           </span>
                         )}
                       </div>
-                    </Link>
+                    </div>
                   </li>
                 );
               })}
@@ -258,7 +267,7 @@ const AnonymousDashboardHome = ({
                     <img src={therapist.profileImage} alt={therapist.name} className={`avatar ${therapist.online ? "online" : ""}`} />
                   ) : (
                     <div className={`avatarPlaceholder ${therapist.online ? "online" : ""}`}>
-                      {therapist.name ? therapist.name[0].toUpperCase() : 'T'}
+                      {therapist.name?.[0]?.toUpperCase() || 'T'}
                     </div>
                   )}
                   <span className="available-therapist-name">

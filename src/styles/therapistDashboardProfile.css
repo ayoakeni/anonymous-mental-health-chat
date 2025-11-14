@@ -120,6 +120,7 @@
   width: 120px;
   height: 120px;
   color: var(--text-color);
+  object-fit: cover;
 }
 
 .profileContainer .avatarPlaceholder {

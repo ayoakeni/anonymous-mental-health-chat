@@ -83,7 +83,7 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
           />
         ) : (
           <div className="avatarPlaceholder">
-            {therapist.name?.[0].toUpperCase() ?? "T"}
+            {therapist.name?.[0]?.toUpperCase() || 'T'}
           </div>
         )}
       </div>

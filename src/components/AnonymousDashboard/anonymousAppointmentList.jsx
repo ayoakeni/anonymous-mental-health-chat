@@ -15,6 +15,7 @@ import {
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns";
 import NotificationHandler from "../notificationHandler";
 import { onMessageListener } from "../../utils/requestForToken";
+import "../../styles/anonymousAppointmentList.css"
 
 function AppointmentsList() {
   const [appointments, setAppointments] = useState([]);
@@ -389,8 +390,8 @@ function AppointmentsList() {
   -------------------------------------------------------------- */
   if (loading) {
     return (
-      <div className="dash-spinner">
-        <div className="spinner"></div>
+      <div className="appointments-list-spinner">
+        <div className="spinner-list"></div>
         <p>Loading appointments...</p>
       </div>
     );
