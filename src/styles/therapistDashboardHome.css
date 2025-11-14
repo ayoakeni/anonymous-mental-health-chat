@@ -42,9 +42,8 @@
   padding: 20px;
   max-width: 1000px;
   margin: auto;
-  height: 100vh;
+  height: auto;
   transition: margin-left 0.3s ease-in-out;
-  overflow-y: auto;
 }
 
 .dashboard-home::-webkit-scrollbar {
@@ -191,10 +190,9 @@
   margin: 0 0 10px;
 }
 
-.dashboard-home .chat-list-container {
+.dashboard-home .chat-section .chat-list-container {
   max-height: 252px;
   overflow-y: auto;
-  padding-right: 5px;
 }
 
 .dashboard-home .chat-card {

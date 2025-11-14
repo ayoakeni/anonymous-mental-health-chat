@@ -38,13 +38,11 @@
 .anonymous-dashboard {
   display: flex;
   min-height: 100vh;
-  background: var(--background-color);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .anonymous-dashboard .box {
   flex: 1;
-  background-color: var(--chat-bg);
+  margin-left: 69px;
   transition: margin-left 0.3s ease-in-out;
 }
 
@@ -1128,15 +1126,11 @@
 }
 
 @media (max-width: 768px) {
-  .anonymous-dashboard .box.open {
-    margin-left: 65px;
-  }
-
   .anonymous-dashboard .chat-box-card {
     max-width: 100%;
   }
 
-  .anonymous-dashboard .chat-list-container {
+  .anonymous-dashboard .chat-box-card .chat-list-container {
     max-width: 100%;
   }
 
@@ -1146,12 +1140,17 @@
 }
 
 @media (max-width: 484px) {
-  .anonymous-dashboard .box {
-    margin-bottom: 60px;
+  .anonymous-dashboard {
+    height: 50vh;
+    padding-bottom: 60px;
   }
-  
-  .anonymous-dashboard .box.open {
+
+  .anonymous-dashboard .box {
     margin-left: 0;
+  }
+
+  .anonymous-dashboard .chat-box-card {
+    max-height: 100%;
   }
 }
 

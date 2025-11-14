@@ -22,10 +22,11 @@
   color: var(--text-color);
   width: 250px;
   height: 100vh;
-  position: sticky;
+  position: fixed;
   top: 0;
   left: 0;
   bottom: 0;
+  border-right: 1px solid #313131;
   padding: 10px;
   padding-right: 0;
   transition: width 0.3s ease-in-out, padding 0.3s ease-in-out;
@@ -249,11 +250,8 @@
    ────────────────────────────────────────────────────────────── */
 @media (max-width: 484px) {
   .sidebar {
-    position: fixed;
-    left: 0;
     right: 0;
     top: auto;
-    bottom: 0;
     height: 60px;
     width: 100%;
     padding: 0 8px;
@@ -331,16 +329,8 @@
   /* tooltip above the bar */
   .sidebar.closed .list .logOut:hover::after,
   .sidebar.closed .list a:hover::after {
-    top: -40px;               /* push far enough above the bar */
-    left: 50%;
+    top: -40px;
+    left: auto;
     transform: translateX(-50%);
-    background: var(--primary-color);
-    color: var(--text-color);
-    padding: 5px 10px;
-    font-size: 12px;
-    border-radius: var(--border-radius);
-    white-space: nowrap;
-    box-shadow: var(--shadow);
-    z-index: 100;
   }
 }

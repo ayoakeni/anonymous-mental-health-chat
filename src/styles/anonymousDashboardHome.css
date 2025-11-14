@@ -2,8 +2,7 @@
   flex: 1;
   color: var(--text-color);
   padding: 20px;
-  height: 100vh;
-  overflow-y: auto;
+  height: auto;
 }
 
 .anonymousDashboardHome::-webkit-scrollbar {
@@ -412,6 +411,10 @@
 }
 
 @media (max-width: 484px) {
+  .anonymousDashboardHome {
+    height: auto;
+  }
+
   .anonymousDashboardHome .welcome-header h2 {
     font-size: 1.2rem;
   }
