@@ -1,13 +1,12 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, useLocation  } from "react-router-dom";
-import { db, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
+import { db, doc, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
 import {
   collection,
   query,
   orderBy,
   onSnapshot,
   serverTimestamp,
-  doc,
   arrayUnion,
   deleteField,
   runTransaction,
@@ -67,58 +66,67 @@ function AnonymousPrivateChatSplitView({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [therapistDisplayName, setTherapistDisplayName] = useState("Waiting for a therapist…"); // NEW
+
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
   const navigate = useNavigate();
-  const location = useLocation(); 
-  const { typingUsers, handleTyping } = useTypingStatus( displayName, activeChatId);
+  const location = useLocation();
+  const { typingUsers, handleTyping } = useTypingStatus(displayName, activeChatId);
   const [isSelectingChat, setIsSelectingChat] = useState(false);
-  const [therapistName, setTherapistName] = useState("Loading…");
   const isMobile = useMediaQuery("(max-width: 768px)");
 
+  /* ----------------------------------------------------
+     FETCH THERAPIST NAME (only when a therapist exists)
+     ---------------------------------------------------- */
   useEffect(() => {
     if (!activeChatId) {
-      setTherapistName("Loading…");
+      setTherapistDisplayName("Waiting for a therapist…");
       return;
     }
 
+    // Cache first
     const cached = anonNames[activeChatId];
     if (cached) {
-      setTherapistName(cached);
+      setTherapistDisplayName(cached);
       return;
     }
 
-    // Fallback: find the therapist UID from participants
+    // Find therapist UID from chat doc
     const chat = privateChats.find(c => c.id === activeChatId);
-    if (!chat) return;
+    if (!chat) {
+      setTherapistDisplayName("Waiting for a therapist…");
+      return;
+    }
 
     const therapistUid = chat.participants?.find(uid => uid !== userId);
     if (!therapistUid) {
-      setTherapistName("Therapist");
+      setTherapistDisplayName("Waiting for a therapist…");
       return;
     }
 
-    // One-time fetch of the therapist doc
+    // Real-time listener
     const therapistRef = doc(db, "therapists", therapistUid);
     const unsub = onSnapshot(
       therapistRef,
       snap => {
         if (snap.exists()) {
           const name = snap.data().name?.trim() || "Therapist";
-          setTherapistName(name);
-          // keep the parent cache in sync
-          anonNames[activeChatId] = name;
+          setTherapistDisplayName(name);
+          anonNames[activeChatId] = name; // keep cache in sync
         } else {
-          setTherapistName("Therapist");
+          setTherapistDisplayName("Therapist");
         }
       },
-      () => setTherapistName("Therapist")
+      () => setTherapistDisplayName("Therapist")
     );
 
     return () => unsub();
   }, [activeChatId, privateChats, userId, anonNames]);
 
-  // Auto-select newly created chat
+  /* ----------------------------------------------------
+     Auto-select newly created chat (unchanged)
+     ---------------------------------------------------- */
   useEffect(() => {
     const selectId = location.state?.selectChatId;
     if (!selectId) return;
@@ -133,12 +141,8 @@ function AnonymousPrivateChatSplitView({
       }
     };
 
-    checkAndSelect(); // Immediate check
-
-    const interval = setInterval(() => {
-      checkAndSelect();
-    }, 300);
-
+    checkAndSelect();
+    const interval = setInterval(checkAndSelect, 300);
     const timeout = setTimeout(() => {
       clearInterval(interval);
       setIsSelectingChat(false);
@@ -151,12 +155,16 @@ function AnonymousPrivateChatSplitView({
     };
   }, [location.state?.selectChatId, privateChats, setActiveChatId, navigate, location.pathname, showError]);
 
-  // Auto scroll to bottom when new messages arrive
+  /* ----------------------------------------------------
+     Auto scroll to bottom
+     ---------------------------------------------------- */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, events, pendingMessages]);
 
-  // Load more messages (pagination)
+  /* ----------------------------------------------------
+     Load more messages (pagination)
+     ---------------------------------------------------- */
   const loadMoreMessages = useCallback(async () => {
     if (!activeChatId || !hasMoreMessages || isLoadingChat) return;
     setIsLoadingChat(true);
@@ -170,18 +178,20 @@ function AnonymousPrivateChatSplitView({
         limit(50)
       );
       const snapshot = await getDocs(nextQuery);
-      const newMessages = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setMessages((prev) => [...newMessages, ...prev]); // Prepend new messages
-      setHasMoreMessages(snapshot.docs.length === 50); // More messages if we hit the limit
+      const newMessages = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      setMessages(prev => [...newMessages, ...prev]);
+      setHasMoreMessages(snapshot.docs.length === 50);
     } catch (err) {
       console.error("Error loading more messages:", err);
       showError("Failed to load more messages. Please try again.");
     } finally {
       setIsLoadingChat(false);
     }
-  }, [activeChatId, hasMoreMessages, isLoadingChat, messages, setMessages, setHasMoreMessages, showError]);
+  }, [activeChatId, hasMoreMessages, isLoadingChat, messages, showError]);
 
-  // Handle scroll to load more messages
+  /* ----------------------------------------------------
+     Scroll handler for pagination
+     ---------------------------------------------------- */
   useEffect(() => {
     const chatBox = chatBoxRef.current;
     if (!chatBox) return;
@@ -196,32 +206,36 @@ function AnonymousPrivateChatSplitView({
     return () => chatBox.removeEventListener("scroll", handleScroll);
   }, [hasMoreMessages, isLoadingChat, activeChatId, loadMoreMessages]);
 
-  // Reset invalid activeChatId
+  /* ----------------------------------------------------
+     Reset invalid activeChatId
+     ---------------------------------------------------- */
   useEffect(() => {
     if (activeChatId && !privateChats.find(g => g.id === activeChatId)) {
-      console.warn(`Active chat ${activeChatId} not found in privateChats, resetting`);
+      console.warn(`Active chat ${activeChatId} not found, resetting`);
       setActiveChatId(null);
       navigate("/anonymous-dashboard/private-chat");
     }
   }, [activeChatId, privateChats, navigate, setActiveChatId]);
 
-  // Watch therapist presence
+  /* ----------------------------------------------------
+     Watch therapist presence (online list)
+     ---------------------------------------------------- */
   useEffect(() => {
     if (!activeChatId) return;
     const q = query(collection(db, "therapists"), limit(50));
     const unsub = onSnapshot(
       q,
-      (snap) => {
-        const onlineTherapists = snap.docs
-          .map((d) => ({
+      snap => {
+        const online = snap.docs
+          .map(d => ({
             uid: d.id,
             ...d.data(),
             name: d.data().name || `Therapist_${d.id.slice(0, 8)}`,
           }))
-          .filter((t) => t.online);
-        setActiveTherapists(onlineTherapists);
+          .filter(t => t.online);
+        setActiveTherapists(online);
       },
-      (err) => {
+      err => {
         console.error("Error fetching therapists online:", err);
         showError("Failed to fetch therapist status. Please try again.");
       }
@@ -229,61 +243,67 @@ function AnonymousPrivateChatSplitView({
     return () => unsub();
   }, [activeChatId, showError]);
 
-  // Watch messages
+  /* ----------------------------------------------------
+     Watch messages
+     ---------------------------------------------------- */
   useEffect(() => {
     if (!activeChatId) return;
     const chatRef = doc(db, "privateChats", activeChatId);
     const q = query(collection(chatRef, "messages"), orderBy("timestamp", "desc"), limit(50));
-    const unsubscribeMessages = onSnapshot(
+    const unsubscribe = onSnapshot(
       q,
-      (snapshot) => {
-        const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      snapshot => {
+        const msgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         setMessages(msgs);
-        setPendingMessages((prev) =>
-          prev.filter((pending) => !msgs.some((msg) => msg.text === pending.text && msg.role === pending.role))
+        setPendingMessages(prev =>
+          prev.filter(p => !msgs.some(m => m.text === p.text && m.role === p.role))
         );
         setIsLoadingChat(false);
-        setHasMoreMessages(snapshot.docs.length === 50); // More messages if we hit the limit
+        setHasMoreMessages(snapshot.docs.length === 50);
         if (msgs.length > 0) playNotification();
       },
-      (err) => {
+      err => {
         console.error("Error fetching messages:", err);
         showError("Failed to load messages. Please try again.");
         setIsLoadingChat(false);
       }
     );
     return () => {
-      unsubscribeMessages();
+      unsubscribe();
       setPendingMessages([]);
     };
   }, [activeChatId, playNotification, showError]);
 
-  // Watch events
+  /* ----------------------------------------------------
+     Watch events
+     ---------------------------------------------------- */
   useEffect(() => {
     if (!activeChatId) return;
     const chatRef = doc(db, "privateChats", activeChatId);
     const q = query(collection(chatRef, "events"), orderBy("timestamp"), limit(50));
-    const unsubscribeEvents = onSnapshot(
+    const unsubscribe = onSnapshot(
       q,
-      (snapshot) => {
-        const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      snapshot => {
+        const evts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         setEvents(evts);
       },
-      (err) => {
+      err => {
         console.error("Error fetching events:", err);
         showError("Failed to load events. Please try again.");
       }
     );
-    return () => unsubscribeEvents();
+    return () => unsubscribe();
   }, [activeChatId, showError]);
 
-  // Watch chat data
+  /* ----------------------------------------------------
+     Watch chat data (aiActive, etc.)
+     ---------------------------------------------------- */
   useEffect(() => {
     if (!activeChatId) return;
     const chatRef = doc(db, "privateChats", activeChatId);
-    const unsubscribeChat = onSnapshot(
+    const unsubscribe = onSnapshot(
       chatRef,
-      (snap) => {
+      snap => {
         if (!snap.exists()) {
           navigate("/anonymous-dashboard/private-chat");
           return;
@@ -292,22 +312,23 @@ function AnonymousPrivateChatSplitView({
         setChatData(data);
         setAiEnabled(data.aiActive || false);
       },
-      (err) => {
+      err => {
         console.error("Error fetching chat data:", err);
         showError("Failed to load chat data. Please try again.");
         navigate("/anonymous-dashboard/private-chat");
       }
     );
-    return () => unsubscribeChat();
+    return () => unsubscribe();
   }, [activeChatId, navigate, showError]);
 
-  // Join private chat
+  /* ----------------------------------------------------
+     Join private chat
+     ---------------------------------------------------- */
   const joinPrivateChat = async (chatId) => {
     if (!userId) return;
-
     try {
       const chatRef = doc(db, "privateChats", chatId);
-      await runTransaction(db, async (transaction) => {
+      await runTransaction(db, async transaction => {
         const chatSnap = await transaction.get(chatRef);
         if (!chatSnap.exists()) {
           transaction.set(chatRef, {
@@ -324,21 +345,15 @@ function AnonymousPrivateChatSplitView({
         } else {
           const data = chatSnap.data();
           const wasLeft = data.leftBy?.[userId];
-
           transaction.update(chatRef, {
-            // If previously left, remove the flag
             ...(wasLeft && { [`leftBy.${userId}`]: deleteField() }),
             needsTherapist: true,
           });
-
           if (!data.participants.includes(userId)) {
-            transaction.update(chatRef, {
-              participants: arrayUnion(userId),
-            });
+            transaction.update(chatRef, { participants: arrayUnion(userId) });
           }
         }
       });
-
       setActiveChatId(chatId);
       navigate(`/anonymous-dashboard/private-chat/${chatId}`);
     } catch (err) {
@@ -347,22 +362,21 @@ function AnonymousPrivateChatSplitView({
     }
   };
 
-  // Leave private chat
+  /* ----------------------------------------------------
+     Leave private chat
+     ---------------------------------------------------- */
   const leavePrivateChat = async () => {
     if (!activeChatId || !userId) return;
-
     try {
       const chatRef = doc(db, "privateChats", activeChatId);
-      await runTransaction(db, async (transaction) => {
+      await runTransaction(db, async transaction => {
         const chatSnap = await transaction.get(chatRef);
-        if (!chatSnap.exists()) throw new Error("Chat document does not exist");
-
+        if (!chatSnap.exists()) throw new Error("Chat does not exist");
         transaction.update(chatRef, {
           [`leftBy.${userId}`]: true,
           aiOffered: false,
           needsTherapist: true,
         });
-
         transaction.set(doc(collection(chatRef, "events")), {
           type: "leave",
           user: displayName,
@@ -371,25 +385,22 @@ function AnonymousPrivateChatSplitView({
           timestamp: serverTimestamp(),
         });
       });
-
-      // Optional: small delay for feedback
       await new Promise(r => setTimeout(r, 600));
-
-      setActiveChatId(null); // Close right panel
+      setActiveChatId(null);
       navigate("/anonymous-dashboard/private-chat");
-
     } catch (err) {
       console.error("Error leaving private chat:", err);
       showError("Failed to leave chat. Please try again.");
     }
   };
 
-  // Send message
+  /* ----------------------------------------------------
+     Send message
+     ---------------------------------------------------- */
   const sendMessage = async (file = null) => {
     if (!newMessage.trim() && !file) return;
     if (!userId || !activeChatId) return;
     setIsSending(true);
-
     try {
       let fileUrl = null;
       if (file) {
@@ -398,13 +409,13 @@ function AnonymousPrivateChatSplitView({
         fileUrl = await getDownloadURL(storageRef);
       }
 
-      let messageText = newMessage;
+      const messageText = newMessage;
       const chatRef = doc(db, "privateChats", activeChatId);
-      await runTransaction(db, async (transaction) => {
+      await runTransaction(db, async transaction => {
         const chatSnap = await transaction.get(chatRef);
-        if (!chatSnap.exists()) throw new Error("Chat document does not exist");
+        if (!chatSnap.exists()) throw new Error("Chat does not exist");
         const data = chatSnap.data();
-        const hasTherapist = data.participants?.some((uid) => uid !== userId) || false;
+        const hasTherapist = data.participants?.some(uid => uid !== userId) || false;
         transaction.set(doc(collection(chatRef, "messages")), {
           text: messageText,
           userId,
@@ -423,8 +434,7 @@ function AnonymousPrivateChatSplitView({
         });
       });
 
-      // Add user message to pendingMessages for instant feedback
-      setPendingMessages((prev) => [
+      setPendingMessages(prev => [
         ...prev,
         {
           id: `pending-user-${Date.now()}`,
@@ -443,12 +453,8 @@ function AnonymousPrivateChatSplitView({
       setShowEmojiPicker(false);
 
       const chatSnap = await getDoc(chatRef);
-      if (!chatSnap.exists()) {
-        navigate("/anonymous-dashboard/private-chat");
-        return;
-      }
       const data = chatSnap.data();
-      const therapistInChat = data.participants?.some((uid) => uid !== userId) || false;
+      const therapistInChat = data.participants?.some(uid => uid !== userId) || false;
 
       if (data.aiActive && !therapistInChat) {
         try {
@@ -690,12 +696,16 @@ function AnonymousPrivateChatSplitView({
     setShowEmojiPicker(false);
   };
 
-  // Combine messages and events
+  /* ----------------------------------------------------
+     Combine messages + events + pending
+     ---------------------------------------------------- */
   const combinedPrivateChat = [...messages, ...events, ...pendingMessages].sort((a, b) => {
     return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
   });
 
-  // LEFT PANEL: Chat List
+  /* ----------------------------------------------------
+     LEFT PANEL – chat list (renamed anonName)
+     ---------------------------------------------------- */
   const leftPanel = (
     <div className="chat-box-card">
       <h3>Private Chats</h3>
@@ -703,33 +713,33 @@ function AnonymousPrivateChatSplitView({
         {privateChats.length === 0 ? (
           <p>No active private chats. Start one from a therapist profile!</p>
         ) : (
-          privateChats.map((chat) => {
+          privateChats.map(chat => {
             const lastTs = chat.lastUpdated;
             const { dateStr, timeStr } = formatTimestamp(lastTs);
-            const anonName = anonNames[chat.id] || "Loading...";
+            const therapistDisplayName = anonNames[chat.id] || "Loading...";
             const isLeft = chat.leftBy?.[userId];
+
             return (
               <div
                 key={chat.id}
                 className={`chat-card ${activeChatId === chat.id ? "selected" : ""}`}
                 onClick={() => {
-                  if (isLeft) {
-                    joinPrivateChat(chat.id);
-                  } else {
+                  if (isLeft) joinPrivateChat(chat.id);
+                  else {
                     setActiveChatId(chat.id);
                     navigate(`/anonymous-dashboard/private-chat/${chat.id}`);
                   }
-                }}    
+                }}
               >
                 <div className="chat-card-inner">
                   <div className="chat-avater-content">
-                    <span className="therapist-text-avatar">{anonName[0] || "T"}</span>
+                    <span className="therapist-text-avatar">
+                      {therapistDisplayName[0]?.toUpperCase() || "T"}
+                    </span>
                     <div className="chat-card-content">
                       <strong className="chat-card-title">
-                        {anonName}
-                        {isLeft && (
-                          <span className="left-indicator"> (You Left)</span>
-                        )}
+                        {therapistDisplayName}
+                        {isLeft && <span className="left-indicator"> (You Left)</span>}
                       </strong>
                       <small className="chat-card-preview">
                         {chat.lastMessage || "No messages yet"}
@@ -737,14 +747,14 @@ function AnonymousPrivateChatSplitView({
                     </div>
                   </div>
                   <div className="chat-card-meta">
-                    {lastTs ? (
+                    {lastTs && (
                       <div className="message-timestamp">
                         <span className="meta-date">{dateStr}</span>
                         <span className="meta-time">{timeStr}</span>
                       </div>
-                    ) : null}
-                    {chat.unreadCountForTherapist > 0 && (
-                      <span className="unread-badge">{chat.unreadCountForTherapist}</span>
+                    )}
+                    {chat.unreadCountForUser > 0 && (
+                      <span className="unread-badge">{chat.unreadCountForUser}</span>
                     )}
                   </div>
                 </div>
@@ -756,7 +766,9 @@ function AnonymousPrivateChatSplitView({
     </div>
   );
 
-  // RIGHT PANEL: Active Chat
+  /* ----------------------------------------------------
+     RIGHT PANEL – active chat header (new placeholder)
+     ---------------------------------------------------- */
   const rightPanel = (
     <div className="chat-box-container">
       {isSelectingChat ? (
@@ -768,32 +780,37 @@ function AnonymousPrivateChatSplitView({
         <div className="private-chat-box">
           <div className="detailLeave">
             <div className="chat-avater">
-              <span className="text-avatar">{therapistName?.[0] || "T"}</span>
+              {/* AVATAR */}
+              {therapistDisplayName === "Waiting for a therapist…" ? (
+                <span className="text-avatar placeholder">?</span>
+              ) : (
+                <span className="text-avatar">{therapistDisplayName[0] || "T"}</span>
+              )}
+
+              {/* NAME */}
               <div className="card-content">
                 <strong className="group-title">
-                  {therapistName === "Loading…" ? (
-                    <>
-                      <span className="spinner small"></span> Loading…
-                    </>
-                  ) : (
-                    therapistName
-                  )}
+                  {therapistDisplayName}
                 </strong>
+
+                {/* ONLINE THERAPISTS */}
                 <small className="participant-preview">
                   {activeTherapists.length > 0 ? (
-                    activeTherapists.map((therapist) => (
-                      <div key={therapist.uid} className="participant">
+                    activeTherapists.map(t => (
+                      <div key={t.uid} className="participant">
                         <span className="participant-name">
-                          {therapist.name || "Loading..."}<b>,</b>
+                          {t.name || "Loading..."}<b>,</b>
                         </span>
                       </div>
                     ))
                   ) : (
                     <div className="participant">No therapist</div>
-                  )}           
+                  )}
                 </small>
               </div>
             </div>
+
+            {/* LEAVE / MOBILE BACK */}
             <div className="leave-participant">
               {isMobile && activeChatId && (
                 <div className="mobile-back-header">
@@ -809,13 +826,15 @@ function AnonymousPrivateChatSplitView({
               <LeaveChatButton type="private" onLeave={leavePrivateChat} />
             </div>
           </div>
+
+          {/* MESSAGE LIST */}
           <div className="chat-box" role="log" aria-live="polite" ref={chatBoxRef}>
             {isLoadingChat ? (
               <p>Loading messages...</p>
             ) : combinedPrivateChat.length === 0 ? (
               <p className="no-message">No messages in this chat yet.</p>
             ) : (
-              combinedPrivateChat.map((msg) => (
+              combinedPrivateChat.map(msg => (
                 <div className="message" key={`${msg.id}-${msg.type || "message"}`}>
                   {msg.type === "ai-offer" && chatData?.aiOffered && !aiEnabled ? (
                     <div className="ai-offer">
@@ -834,7 +853,8 @@ function AnonymousPrivateChatSplitView({
                 </div>
               ))
             )}
-            {/* Typing Indicator */}
+
+            {/* Typing indicators */}
             {typingUsers.length > 0 && (
               <p className="typing-indicator">
                 {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
@@ -847,6 +867,8 @@ function AnonymousPrivateChatSplitView({
             )}
             <div ref={messagesEndRef} />
           </div>
+
+          {/* INPUT BAR */}
           <div className="chat-input">
             <button
               className="emoji-btn"
@@ -857,11 +879,12 @@ function AnonymousPrivateChatSplitView({
               <i className="fa-regular fa-face-smile"></i>
             </button>
             {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
+
             <input
               type="file"
               id="private-file-upload"
               style={{ display: "none" }}
-              onChange={(e) => sendMessage(e.target.files[0])}
+              onChange={e => sendMessage(e.target.files[0])}
               aria-label="Upload file"
             />
             <button
@@ -872,16 +895,17 @@ function AnonymousPrivateChatSplitView({
             >
               <i className="fa-solid fa-paperclip"></i>
             </button>
+
             <input
               className="inputInsert"
               type="text"
               value={newMessage}
-              onChange={(e) => {
+              onChange={e => {
                 setNewMessage(e.target.value);
                 handleTyping(e.target.value);
               }}
               placeholder="Type a message..."
-              onKeyDown={(e) => {
+              onKeyDown={e => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   sendMessage();
@@ -890,6 +914,7 @@ function AnonymousPrivateChatSplitView({
               aria-label="Message input"
               disabled={isSending || aiTyping}
             />
+
             <button
               className="send-btn"
               onClick={() => sendMessage()}
@@ -907,13 +932,16 @@ function AnonymousPrivateChatSplitView({
       )}
     </div>
   );
-  
-  /* ------------------- RENDER LOGIC ------------------- */
+
+  /* ----------------------------------------------------
+     RENDER LOGIC
+     ---------------------------------------------------- */
   if (isMobile) {
-    if (activeChatId) {
-      return <div className="mobile-chat-wrapper">{rightPanel}</div>;
-    }
-    return <div className="mobile-chat-wrapper">{leftPanel}</div>;
+    return activeChatId ? (
+      <div className="mobile-chat-wrapper">{rightPanel}</div>
+    ) : (
+      <div className="mobile-chat-wrapper">{leftPanel}</div>
+    );
   }
 
   return (
