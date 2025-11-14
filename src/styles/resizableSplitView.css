@@ -85,9 +85,3 @@
     background: var(--chat-input-bg);
   }
 }
-
-@media (max-width: 484px) {
-  .mobile-chat-wrapper {
-    height: 90.7vh;
-  }
-}

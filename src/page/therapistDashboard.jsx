@@ -24,11 +24,13 @@ import { useUserNames } from "../hooks/useUserNames";
 import { useAppointments } from "../hooks/useAppointments";
 import { useOnlineTherapists } from "../hooks/useOnlineTherapists";
 import { useNotifications } from "../hooks/useNotifications";
+import { useInChat } from "../hooks/useInChat";
 
 function TherapistDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { groupId, chatId } = useParams();
+  const hideSidebarOnMobile = useInChat();
 
   // UI state
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -292,6 +294,7 @@ function TherapistDashboard() {
   return (
     <div className="therapist-dashboard">
       <Sidebar
+        hideOnMobileChat={hideSidebarOnMobile}
         groupUnreadCount={totalGroupUnread}
         privateUnreadCount={privateUnread}
         onLogout={() => logout(activeChatId, activeGroupId, therapistName)}

@@ -7,10 +7,11 @@ const Sidebar = ({
   privateUnreadCount,
   onLogout,
   isAnonymous = false,
+  hideOnMobileChat = false,
 }) => {
   // Always start closed — both mobile & desktop
   const [isMobile, setIsMobile] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);   // ← NOW CLOSED BY DEFAULT
+  const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const sidebarRef = useRef(null);
 
@@ -19,8 +20,6 @@ const Sidebar = ({
     const check = () => {
       const mobile = window.innerWidth <= 484;
       setIsMobile(mobile);
-      // On mobile: force closed (bottom bar)
-      // On desktop: keep closed (user can open with toggle)
       setIsOpen(false);
     };
 
@@ -51,6 +50,10 @@ const Sidebar = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, isMobile]);
+  
+  if (isMobile && hideOnMobileChat) {
+    return null;
+  }
 
   return (
     <div
