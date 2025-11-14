@@ -17,6 +17,10 @@
   }
 }
 
+body.no-scroll {
+  overflow: hidden;
+}
+
 .sidebar {
   background-color: var(--sidebar-bg);
   color: var(--text-color);
@@ -38,6 +42,20 @@
 .sidebar.closed {
   width: 69px;
   padding-right: 10px;
+}
+
+.sideConBox {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: 999;
+  transition: background-color 0.3s ease;
+}
+
+.sideConBox.open {
+  background-color: rgba(0, 0, 0, 0.6);
 }
 
 .sidebar .logo-side:last-child {
