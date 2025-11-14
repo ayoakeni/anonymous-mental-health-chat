@@ -18,7 +18,7 @@ import {
 } from "firebase/firestore";
 import { useTypingStatus } from "../../hooks/useTypingStatus";
 import { getAIResponse } from "../../utils/AiChatIntegration";
-import { mapMessagesForAI } from "../../utils/aiMessageMapper";
+import { mapMessagesForAI } from "../../utils/AiChatIntegration";
 import ChatMessage from "../therapistDashboard/ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
 import LeaveChatButton from "../LeaveChatButton";

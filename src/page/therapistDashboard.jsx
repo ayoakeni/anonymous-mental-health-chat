@@ -12,7 +12,7 @@ import TherapistDashboardNotification from "../components/therapistDashboard/the
 import TherapistAppointmentsDashboard from "../components/therapistDashboard/therapistAppointmentDashboard";
 import TherapistDashboardSetting from "../components/therapistDashboard/therapistDashboardSetting";
 import useNotificationSound from "../hooks/useNotificationSound";
-import { getTimestampMillis, formatTimestamp } from "../components/timestampUtils";
+import { getTimestampMillis, formatTimestamp } from "../hooks/useTimestampUtils";
 
 import { useTherapistProfile } from "../hooks/useTherapistProfile";
 import { useGroupChats } from "../hooks/useGroupChats";

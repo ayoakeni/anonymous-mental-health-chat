@@ -24,7 +24,7 @@ import LeaveChatButton from "../LeaveChatButton";
 import EmojiPicker from "emoji-picker-react";
 import TherapistProfile from "../TherapistProfile";
 import { getAIResponse } from "../../utils/AiChatIntegration";
-import { mapMessagesForAI } from "../../utils/aiMessageMapper";
+import { mapMessagesForAI } from "../../utils/AiChatIntegration";
 
 /* -------------------------------------------------------------
    Simple media-query hook (no external deps)

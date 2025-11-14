@@ -4,7 +4,7 @@ import { db, auth, storage, ref, uploadBytes, getDownloadURL } from "../../utils
 import { getAnonName } from "../../login/anonymous_login";
 import { useTypingStatus } from "../../hooks/useTypingStatus";
 import { getAIResponse } from "../../utils/AiChatIntegration";
-import { mapMessagesForAI } from "../../utils/aiMessageMapper";
+import { mapMessagesForAI } from "../../utils/AiChatIntegration";
 import useNotificationSound from '../../components/useNotificationSound';
 import {
   collection,

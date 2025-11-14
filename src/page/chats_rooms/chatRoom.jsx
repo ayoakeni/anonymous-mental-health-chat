@@ -15,11 +15,11 @@ import {
 } from "firebase/firestore";
 import { db, auth, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
 import { getAIResponse } from "../../utils/AiChatIntegration";
-import { mapMessagesForAI } from "../../utils/aiMessageMapper";
+import { mapMessagesForAI } from "../../utils/AiChatIntegration";
 import { loginAnonymously, getAnonName } from "../../login/anonymous_login";
 import TherapistProfile from "../../components/TherapistProfile";
 import { useTypingStatus } from "../../hooks/useTypingStatus";
-import { getTimestampMillis, formatMessageTime } from "../../components/timestampUtils";
+import { getTimestampMillis, formatMessageTime } from "../../hooks/useTimestampUtils";
 import EmojiPicker from "emoji-picker-react";
 import "../chats_rooms/chatroom.css";
 

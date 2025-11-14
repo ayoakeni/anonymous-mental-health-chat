@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { formatMessageTime } from "../../components/timestampUtils";
+import { formatMessageTime } from "../../hooks/useTimestampUtils";
 
 const ChatMessage = memo(({ msg, toggleReaction, deleteMessage, therapistInfo, handleTherapistClick }) => (
   <p

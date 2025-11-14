@@ -6,7 +6,7 @@ import {
   updateDoc,
   arrayUnion,
 } from "firebase/firestore";
-import { getTimestampMillis } from "../components/timestampUtils";
+import { getTimestampMillis } from "./useTimestampUtils";
 
 export function useNotifications(
   privateChats,

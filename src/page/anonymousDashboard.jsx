@@ -5,7 +5,7 @@ import { collection, query, onSnapshot, serverTimestamp, doc, arrayRemove, runTr
 } from "firebase/firestore";
 import { loginAnonymously, getAnonName } from "../login/anonymous_login";
 import useNotificationSound from "../hooks/useNotificationSound";
-import { formatTimestamp, getTimestampMillis } from "../components/timestampUtils";
+import { formatTimestamp, getTimestampMillis } from "../hooks/useTimestampUtils";
 import Sidebar from "../components/sidebar";
 import AnonymousDashboardHome from "../components/AnonymousDashboard/anonymousDashboardHome";
 import AnonymousGroupChatSplitView from "../components/AnonymousDashboard/anonymousGroupChatSplitView";
