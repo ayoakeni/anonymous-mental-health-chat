@@ -121,6 +121,7 @@
 
 .private-chat .chat-container::-webkit-scrollbar {
   width: 4px;
+  height: 4px;
 }
 
 .private-chat .chat-container::-webkit-scrollbar-track {

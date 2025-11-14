@@ -949,7 +949,7 @@ function AnonymousPrivateChatSplitView({
       leftPanel={leftPanel}
       rightPanel={rightPanel}
       initialRatio={0.3}
-      minLeft={290}
+      minLeft={370}
       maxLeft={550}
       minRight={200}
       maxRight={400}

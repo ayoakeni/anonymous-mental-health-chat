@@ -49,6 +49,7 @@
 
 .dashboard-home::-webkit-scrollbar {
   width: 4px;
+  height: 4px;
 }
 
 .dashboard-home::-webkit-scrollbar-track {
