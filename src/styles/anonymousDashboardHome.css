@@ -411,10 +411,6 @@
 }
 
 @media (max-width: 484px) {
-  .anonymousDashboardHome {
-    height: auto;
-  }
-
   .anonymousDashboardHome .welcome-header h2 {
     font-size: 1.2rem;
   }
