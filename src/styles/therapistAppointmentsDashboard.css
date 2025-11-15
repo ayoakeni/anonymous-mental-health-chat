@@ -429,12 +429,10 @@
    ======================================== */
 @media (max-width: 768px) {
   .appointments-panel .appointments-header {
-    flex-direction: column;
     align-items: stretch;
   }
   .appointments-panel .appointments-controls {
-    width: 100%;
-    flex-direction: column;
+    width: fit-content;
   }
   .appointments-panel .appointment-filter,
   .appointments-panel .create-appointment-btn {
@@ -455,6 +453,13 @@
     margin-right: 0;
   }
 }
+
+@media (max-width: 530px) {
+  .appointments-panel .appointments-controls {
+    width: 100%;
+  }
+}
+
 
 @media (max-width: 484px) {
   .appointments-panel {
