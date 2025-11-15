@@ -29,7 +29,7 @@
   padding: 20px;
   height: 100vh;
   transition: margin-left 0.3s ease-in-out;
-  overflow-y: scroll;
+  /* overflow-y: scroll; */
 }
 
 .settings h3 {
@@ -49,7 +49,7 @@
   padding: 15px;
   border: 1px solid var(--input-border);
   border-radius: var(--border-radius);
-  background: var(--chat-bg);
+  /* background: var(--chat-bg); */
 }
 
 .settings-section h4 {

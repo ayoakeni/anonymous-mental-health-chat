@@ -276,7 +276,7 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--chat-bg);
+  /* background: var(--chat-bg); */
 }
 
 .therapist-dashboard .group-chat-box,

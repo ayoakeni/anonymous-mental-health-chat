@@ -101,7 +101,7 @@
   list-style: none;
   padding: 0;
   margin: 0;
-  max-height: 60vh;
+  max-height: 87.5vh;
   overflow-y: auto;
 }
 
@@ -124,7 +124,7 @@
   align-items: center;
   padding: 12px;
   margin-bottom: 8px;
-  background: var(--input-bg);
+  /* background: var(--input-bg); */
   border: 1px solid var(--input-border);
   border-radius: var(--border-radius);
   transition: background 0.2s ease;
@@ -221,11 +221,6 @@
     gap: 10px;
   }
 
-  .notification-controls {
-    flex-direction: column;
-    width: 100%;
-  }
-
   .notification-filter,
   .mark-all-read,
   .reset-dismissed {
@@ -245,6 +240,28 @@
   }
 
   .notification-list {
-    max-height: 50vh;
+    max-height: 80.5vh;
+  }
+}
+
+@media (max-width: 606px) {
+  .notifications {
+    height: 100%;
+    padding-bottom: 0;
+  }
+
+  .notification-controls {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .notification-list {
+    max-height: 66.2vh;
+  }
+}
+
+@media (max-width: 484px) {
+  .notification-list {
+    max-height: 56.8vh;
   }
 }

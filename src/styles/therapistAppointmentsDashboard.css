@@ -34,15 +34,28 @@
   }
 }
 
+.appointments-panel ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.appointments-panel ::-webkit-scrollbar-track {
+  background: var(--background-color);
+}
+
+.appointments-panel ::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
+}
+
+
 /* ========================================
    Appointments PANEL
    ======================================== */
 .appointments-panel {
-  background: var(--chat-bg);
-  border-radius: var(--border-radius);
   padding: 1.5rem;
   max-width: 100%;
-  overflow: hidden;
+  height: 100vh;
   box-sizing: border-box;
 }
 
@@ -112,14 +125,13 @@
    LIST & TABLE WRAPPER
    ======================================== */
 .appointments-panel .appointments-list {
-  width: 100%;
-  overflow: hidden;
+  max-width: 100%;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .appointments-list .table-wrapper {
-  width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  height: 100%;
   border-radius: var(--border-radius);
   background: var(--chat-bg);
   box-shadow: var(--shadow);
@@ -127,6 +139,7 @@
 
 /* Table */
 .appointments-list .appointments-table {
+  display: none;
   min-width: 800px;
   width: 100%;
   border-collapse: collapse;
@@ -202,20 +215,6 @@
 /* Action Cell – Mobile Stacking */
 .appointments-list .actions-cell {
   white-space: nowrap;
-}
-
-@media (max-width: 484px) {
-  .appointments-list .actions-cell {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-  }
-  .appointments-list .action-btn,
-  .appointments-list .btn-accept,
-  .appointments-list .btn-reject {
-    width: 100%;
-    margin: 0;
-  }
 }
 
 /* ========================================
@@ -441,6 +440,9 @@
   .appointments-panel .create-appointment-btn {
     width: 100%;
   }
+  .appointments-list {
+    height: 374px;
+  }
   .appointments-list .appointments-table {
     font-size: 0.85rem;
   }
@@ -451,5 +453,22 @@
   }
   .appointments-list .action-btn:last-child {
     margin-right: 0;
+  }
+}
+
+@media (max-width: 484px) {
+  .appointments-panel {
+    height: 100%;
+  }
+  .appointments-list .actions-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .appointments-list .action-btn,
+  .appointments-list .btn-accept,
+  .appointments-list .btn-reject {
+    width: 100%;
+    margin: 0;
   }
 }
