@@ -1,9 +1,10 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import ChatMessage from "./ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
+import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import EmojiPicker from "emoji-picker-react";
 import LeaveChatButton from "../LeaveChatButton";
-import { useTypingStatus } from "../../hooks/useTypingStatus"; // <-- Import
+import { useTypingStatus } from "../../hooks/useTypingStatus";
 
 /* -------------------------------------------------------------
    Simple media-query hook (no external deps)
@@ -29,6 +30,7 @@ const useMediaQuery = (query) => {
 function PrivateChatSplitView({
   privateChats,
   activeChatId,
+  inChat,
   isValidatingChat,
   chatError,
   isTherapistAvailable,
@@ -58,13 +60,13 @@ function PrivateChatSplitView({
   onEmojiClick: parentOnEmojiClick,
   anonNames = {},
   showError,
-  inChat,
   therapistId,
   userMoods,
 }) {
-  const isMobile = useMediaQuery("(max-width: 768px)");
   const isUserAtBottom = useRef(true);
   const { typingUsers, handleTyping } = useTypingStatus(therapistInfo?.name, activeChatId && inChat && !isValidatingChat && !chatError ? activeChatId : null);
+  const isMobile = useMediaQuery("(max-width: 768px)");
+  const isInsideChat = useIsInsideChat();
 
   /* ------------------- SCROLL LOGIC ------------------- */
   useEffect(() => {
@@ -330,9 +332,14 @@ function PrivateChatSplitView({
   /* ------------------- RENDER LOGIC ------------------- */
   if (isMobile) {
     if (activeChatId && inChat) {
-      return <div className="mobile-chat-wrapper">{rightPanel}</div>;
+      return (
+        <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`.trim()}>{rightPanel}</div>
+      );
     }
-    return <div className="mobile-chat-wrapper">{leftPanel}</div>;
+
+    return (
+      <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`.trim()}>{leftPanel}</div>
+    );
   }
 
   return (

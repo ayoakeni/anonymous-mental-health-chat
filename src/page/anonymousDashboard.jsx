@@ -13,6 +13,7 @@ import AnonymousPrivateChatSplitView from "../components/AnonymousDashboard/anon
 import AppointmentsList from "../components/AnonymousDashboard/anonymousAppointmentList";
 import { useUserNames } from "../hooks/useUserNames";
 import { useHideSidebarMobile } from "../hooks/useHideSidebarMobile";
+import { useRemovePaddingBottomMobile } from "../hooks/useRemovePaddingBottomMobile"
 import MoodTracker from "../components/moodTracker";
 import { DateTime } from 'luxon';
 import "../styles/anonymousDashboard.css";
@@ -38,6 +39,7 @@ function AnonymousDashboard() {
   const userId = auth.currentUser?.uid;
   const displayName = getAnonName();
   const hideSidebarOnMobile = useHideSidebarMobile();
+  const removeDashboardPadding = useRemovePaddingBottomMobile();
 
   // Calculate total unread counts
   const totalGroupUnread = useMemo(() =>
@@ -329,7 +331,7 @@ function AnonymousDashboard() {
   }, [activeChatId, activeGroupId, userId, displayName, showError]);
 
   return (
-    <div className={`anonymous-dashboard ${hideSidebarOnMobile ? 'no-bottom-padding' : ''}`.trim()}>
+    <div className={`anonymous-dashboard ${removeDashboardPadding ? 'no-bottom-padding' : ''}`.trim()}>
       <Sidebar
         hideOnMobileChat={hideSidebarOnMobile}
         groupUnreadCount={totalGroupUnread}

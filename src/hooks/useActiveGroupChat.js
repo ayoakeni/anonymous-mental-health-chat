@@ -57,10 +57,10 @@ export function useActiveGroupChat(
         });
         tx.set(doc(db, "therapists", therapistId), { lastSeenGroupChat: serverTimestamp() }, { merge: true });
       });
-      setInChat(false);
       setMessages([]);
       setEvents([]);
       navigate("/therapist-dashboard/group-chat");
+      setInChat(false);
       setParticipants([]);
     } catch (e) {
       showError("Failed to leave group chat.");
@@ -207,10 +207,10 @@ export function useActiveGroupChat(
   return {
     messages,
     events,
-    participants,
-    inChat,
     hasMore,
     loading,
+    participants,
+    inChat,
     join,
     leave,
     sendMessage,

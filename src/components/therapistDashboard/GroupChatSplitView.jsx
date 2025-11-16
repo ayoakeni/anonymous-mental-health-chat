@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useCallback, useState } from "react";
 import { useParams } from "react-router-dom";
 import ChatMessage from "./ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
+import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import EmojiPicker from "emoji-picker-react";
 import LeaveChatButton from "../LeaveChatButton";
 import { useTypingStatus } from "../../hooks/useTypingStatus";
@@ -60,6 +61,7 @@ function GroupChatSplitView({
   const chatBoxRef = useRef(null);
   const isUserAtBottom = useRef(true);
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const isInsideChat = useIsInsideChat();
 
   const { typingUsers, handleTyping } = useTypingStatus(
     therapistInfo?.name || "Therapist",
@@ -322,10 +324,15 @@ function GroupChatSplitView({
 
   /* ------------------- RENDER LOGIC ------------------- */
   if (isMobile) {
-    if (activeGroupId && isGroupChatOpen && inGroupChat) {
-      return <div className="mobile-chat-wrapper">{rightPanel}</div>;
-    }
-    return <div className="mobile-chat-wrapper">{leftPanel}</div>;
+    return activeGroupId && isGroupChatOpen && inGroupChat ? (
+      <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`}>
+        {rightPanel}
+      </div>
+    ) : (
+      <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`}>
+        {leftPanel}
+      </div>
+    );
   }
 
   return (

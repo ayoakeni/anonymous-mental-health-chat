@@ -13,7 +13,6 @@ import TherapistAppointmentsDashboard from "../components/therapistDashboard/the
 import TherapistDashboardSetting from "../components/therapistDashboard/therapistDashboardSetting";
 import useNotificationSound from "../hooks/useNotificationSound";
 import { getTimestampMillis, formatTimestamp } from "../hooks/useTimestampUtils";
-
 import { useTherapistProfile } from "../hooks/useTherapistProfile";
 import { useGroupChats } from "../hooks/useGroupChats";
 import { usePrivateChats } from "../hooks/usePrivateChats";
@@ -25,12 +24,12 @@ import { useAppointments } from "../hooks/useAppointments";
 import { useOnlineTherapists } from "../hooks/useOnlineTherapists";
 import { useNotifications } from "../hooks/useNotifications";
 import { useHideSidebarMobile } from "../hooks/useHideSidebarMobile";
-
+import { useRemovePaddingBottomMobile } from "../hooks/useRemovePaddingBottomMobile"
 function TherapistDashboard() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { groupId, chatId } = useParams();
   const hideSidebarOnMobile = useHideSidebarMobile();
+  const removeDashboardPadding = useRemovePaddingBottomMobile();
 
   // UI state
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -292,7 +291,7 @@ function TherapistDashboard() {
   };
 
   return (
-    <div className={`therapist-dashboard ${hideSidebarOnMobile ? 'no-bottom-padding' : ''}`.trim()}>
+    <div className={`therapist-dashboard ${removeDashboardPadding ? 'no-bottom-padding' : ''}`.trim()}>
       <Sidebar
         hideOnMobileChat={hideSidebarOnMobile}
         groupUnreadCount={totalGroupUnread}

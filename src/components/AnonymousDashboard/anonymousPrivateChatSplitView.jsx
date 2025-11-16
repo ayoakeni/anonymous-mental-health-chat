@@ -21,6 +21,7 @@ import { getAIResponse } from "../../utils/AiChatIntegration";
 import { mapMessagesForAI } from "../../utils/AiChatIntegration";
 import ChatMessage from "../therapistDashboard/ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
+import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import LeaveChatButton from "../LeaveChatButton";
 import EmojiPicker from "emoji-picker-react";
 
@@ -66,7 +67,7 @@ function AnonymousPrivateChatSplitView({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
-  const [therapistDisplayName, setTherapistDisplayName] = useState("Waiting for a therapist…"); // NEW
+  const [therapistDisplayName, setTherapistDisplayName] = useState("Waiting for a therapist…");
 
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
@@ -75,6 +76,7 @@ function AnonymousPrivateChatSplitView({
   const { typingUsers, handleTyping } = useTypingStatus(displayName, activeChatId);
   const [isSelectingChat, setIsSelectingChat] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const isInsideChat = useIsInsideChat();
 
   /* ----------------------------------------------------
      FETCH THERAPIST NAME (only when a therapist exists)
@@ -938,9 +940,13 @@ function AnonymousPrivateChatSplitView({
      ---------------------------------------------------- */
   if (isMobile) {
     return activeChatId ? (
-      <div className="mobile-chat-wrapper">{rightPanel}</div>
+      <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`}>
+        {rightPanel}
+      </div>
     ) : (
-      <div className="mobile-chat-wrapper">{leftPanel}</div>
+      <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`}>
+        {leftPanel}
+      </div>
     );
   }
 

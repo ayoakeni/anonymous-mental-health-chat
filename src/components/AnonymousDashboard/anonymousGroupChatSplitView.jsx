@@ -20,6 +20,7 @@ import {
 import { useTypingStatus } from "../../hooks/useTypingStatus";
 import ChatMessage from "../therapistDashboard/ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
+import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import LeaveChatButton from "../LeaveChatButton";
 import EmojiPicker from "emoji-picker-react";
 import TherapistProfile from "../TherapistProfile";
@@ -75,8 +76,8 @@ function AnonymousGroupChatSplitView({
   const modalRef = useRef(null);
   const navigate = useNavigate();
   const { typingUsers, handleTyping } = useTypingStatus(displayName, activeGroupId ? activeGroupId : null);
-
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const isInsideChat = useIsInsideChat();
 
   // Memoize active group to avoid repeated find calls
   const activeGroup = useMemo(() => 
@@ -823,12 +824,17 @@ function AnonymousGroupChatSplitView({
 
   /* ------------------- RENDER LOGIC ------------------- */
   if (isMobile) {
-    if (activeGroupId) {
-      return <div className="mobile-chat-wrapper">{rightPanel}</div>;
-    }
-    return <div className="mobile-chat-wrapper">{leftPanel}</div>;
+    return activeGroupId ? (
+      <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`}>
+        {rightPanel}
+      </div>
+    ) : (
+      <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`}>
+        {leftPanel}
+      </div>
+    );
   }
-  
+
   return (
     <ResizableSplitView
       leftPanel={leftPanel}
