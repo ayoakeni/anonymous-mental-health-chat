@@ -47,6 +47,7 @@ function GroupChatSplitView({
   therapistInfo,
   toggleReaction,
   deleteMessage,
+  pinMessage,
   therapistId,
   handleTherapistClick,
   isLoadingChats,
@@ -165,7 +166,7 @@ function GroupChatSplitView({
             <h3 className="onlineStatus">
               {groupChats.find((g) => g.id === activeGroupId)?.name || "Group Chat"}{" "}
               {therapistsOnline.length > 0
-                ? `(Therapists Online: ${therapistsOnline.map((t) => t.name).join(", ")})`
+                ? `(Online: ${therapistsOnline.map((t) => t.name).join(", ")})`
                 : "(No therapists online)"}
             </h3>
             <div className="leave-participant">
@@ -219,8 +220,24 @@ function GroupChatSplitView({
           </div>
           {combinedGroupChat.some((msg) => msg.pinned) && (
             <div className="pinned-message">
-              <strong>Pinned:</strong>{" "}
-              {combinedGroupChat.find((msg) => msg.pinned)?.text || "Welcome to the group chat!"}
+              <span className="pin-text-icon">
+                <i className="fas fa-thumbtack pinned-icon"></i>
+                <span className="pinned-text">
+                  <strong>{combinedGroupChat.find(m => m.pinned)?.pinnedBy}:</strong>{" "}
+                  {combinedGroupChat.find((msg) => msg.pinned)?.text || ""}
+                </span>
+              </span>
+              {therapistId && (
+                <button
+                  className="unpin-btn"
+                  onClick={() => {
+                    const pinnedMsg = combinedGroupChat.find(m => m.pinned);
+                    if (pinnedMsg) pinMessage(pinnedMsg.id, true);
+                  }}
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              )}
             </div>
           )}
           <div className="chat-box" ref={chatBoxRef} role="log" aria-live="polite">
@@ -239,6 +256,7 @@ function GroupChatSplitView({
                       msg={msg}
                       toggleReaction={toggleReaction}
                       deleteMessage={deleteMessage}
+                      pinMessage={pinMessage}
                       therapistInfo={therapistInfo}
                       therapistId={therapistId}
                       handleTherapistClick={handleTherapistClick}

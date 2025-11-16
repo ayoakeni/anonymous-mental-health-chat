@@ -128,6 +128,48 @@ export function useActiveGroupChat(
     });
   };
 
+  // ---------- PIN MESSAGE ----------
+  const pinMessage = async (msgId, currentPinned = false) => {
+    if (!activeGroupId) return;
+
+    const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
+    const groupRef = doc(db, "groupChats", activeGroupId);
+
+    await runTransaction(db, async (tx) => {
+      const msgSnap = await tx.get(msgRef);
+      if (!msgSnap.exists()) return;
+
+      const msg = msgSnap.data();
+
+      // Unpin all others first
+      if (!currentPinned) {
+        const allMsgs = await getDocs(collection(db, `groupChats/${activeGroupId}/messages`));
+        allMsgs.forEach((d) => {
+          if (d.data().pinned) {
+            tx.update(d.ref, { pinned: false, pinnedBy: null });
+          }
+        });
+      }
+
+      // Toggle pin + store who pinned it
+      tx.update(msgRef, {
+        pinned: !currentPinned,
+        pinnedBy: !currentPinned ? displayName : null,
+      });
+
+      // System event (still shows in chat)
+      tx.set(doc(collection(groupRef, "events")), {
+        type: "pin",
+        user: displayName,
+        text: !currentPinned
+          ? `${displayName} pinned a message`
+          : `${displayName} unpinned a message`,
+        role: "system",
+        timestamp: serverTimestamp(),
+      });
+    });
+  };
+
   // ---------- LOAD MORE ----------
   const loadMore = useCallback(async () => {
     if (!activeGroupId || !hasMore || loading) return;
@@ -216,6 +258,7 @@ export function useActiveGroupChat(
     sendMessage,
     toggleReaction,
     deleteMessage,
+    pinMessage,
     loadMore,
   };
 }

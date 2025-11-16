@@ -781,6 +781,44 @@
   background: var(--primary-color);
 }
 
+/* Pinned Message */
+.anonymous-dashboard .pinned-message {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: var(--background-color);
+  border-top: 1px solid #313131;
+  color: var(--text-color);
+  padding: 10px 20px;
+  font-size: 0.95rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.anonymous-dashboard .pinned-message .pin-text-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+}
+
+.anonymous-dashboard .pin-text-icon .pinned-icon {
+  font-size: 1.1rem;
+  transform: rotate(45deg);
+}
+
+.anonymous-dashboard .pinned-message .pinned-text {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+}
+
+.anonymous-dashboard .pinned-message .pinned-text strong {
+  color: var(--primary-color);
+}
 
 .anonymous-dashboard .empty-chat {
   flex: 1;

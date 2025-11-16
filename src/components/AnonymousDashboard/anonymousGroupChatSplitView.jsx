@@ -500,6 +500,48 @@ function AnonymousGroupChatSplitView({
     }
   };
 
+  // ---------- PIN MESSAGE ----------
+  const pinMessage = async (msgId, currentPinned = false) => {
+    if (!activeGroupId) return;
+
+    const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
+    const groupRef = doc(db, "groupChats", activeGroupId);
+
+    try {
+      await runTransaction(db, async (tx) => {
+        const msgSnap = await tx.get(msgRef);
+        if (!msgSnap.exists()) return;
+
+        if (!currentPinned) {
+          const all = await getDocs(collection(db, `groupChats/${activeGroupId}/messages`));
+          all.forEach((d) => {
+            if (d.data().pinned) {
+              tx.update(d.ref, { pinned: false, pinnedBy: null });
+            }
+          });
+        }
+
+        tx.update(msgRef, {
+          pinned: !currentPinned,
+          pinnedBy: !currentPinned ? displayName : null,
+        });
+
+        tx.set(doc(collection(groupRef, "events")), {
+          type: "pin",
+          user: displayName,
+          text: currentPinned
+            ? `${displayName} unpinned a message`
+            : `${displayName} pinned a message`,
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
+      });
+    } catch (e) {
+      console.error(e);
+      showError("Failed to pin/unpin message.");
+    }
+  };
+
   // Handle emoji click
   const onEmojiClick = (emojiData) => {
     setNewMessage(newMessage + emojiData.emoji);
@@ -639,13 +681,6 @@ function AnonymousGroupChatSplitView({
               </div>
             </div>
           )}
-          {/* Pinned Message */}
-          {combinedGroupChat.some((msg) => msg.pinned) && (
-            <div className="pinned-message">
-              <strong>Pinned:</strong>{" "}
-              {combinedGroupChat.find((msg) => msg.pinned)?.text || "Welcome to the chatroom!"}
-            </div>
-          )}
           <div className="detailLeave">
             <div className="chat-avater">
               <span className="text-avatar">{activeGroup?.name?.[0] || "G"}</span>
@@ -703,7 +738,7 @@ function AnonymousGroupChatSplitView({
                       setIsParticipantsOpen(!isParticipantsOpen);
                     }
                   }}
-                >
+                  >
                   <i className="fas fa-user" style={{ color: isParticipantsOpen ? "#e0e0e0" : "gray" }} aria-hidden="true"></i>
                   ({participants.length})
                 </h4>
@@ -737,23 +772,39 @@ function AnonymousGroupChatSplitView({
               <LeaveChatButton type="group" onLeave={leaveGroupChat} />
             </div>
           </div>
+          {/* Pinned Message */}
+          {combinedGroupChat.some((msg) => msg.pinned) && (
+            <div className="pinned-message">
+              <span className="pin-text-icon">
+                <i className="fas fa-thumbtack pinned-icon"></i>
+                <span className="pinned-text">
+                  <strong>{combinedGroupChat.find(m => m.pinned)?.pinnedBy}:</strong>{" "}
+                  {combinedGroupChat.find((msg) => msg.pinned)?.text || ""}
+                </span>
+              </span>
+            </div>
+          )}
           <div className={selectedTherapist ? "chat-box blurred" : "chat-box"} role="log" aria-live="polite" ref={chatBoxRef}>
             {isLoadingChat ? (
               <p>Loading chat data...</p>
             ) : combinedGroupChat.length === 0 ? (
               <p className="no-message">No messages in this group yet.</p>
             ) : (
-              combinedGroupChat.map((msg) => (
-                <div className="message" key={`${msg.id}-${msg.type || "message"}`}>
-                  <ChatMessage
-                    key={msg.id}
-                    msg={msg}
-                    toggleReaction={msg.id.startsWith("pending-") ? () => {} : toggleReaction}
-                    therapistInfo={{ role: "user" }}
-                    handleTherapistClick={handleTherapistClick}
-                  />
-                </div>
-              ))
+              combinedGroupChat.map((msg) => {
+                const isTherapist = therapistsOnline.some(t => t.uid === userId && t.online);
+                return (
+                  <div className="message" key={`${msg.id}-${msg.type || "message"}`}>
+                    <ChatMessage
+                      msg={msg}
+                      toggleReaction={msg.id.startsWith("pending-") ? () => {} : toggleReaction}
+                      therapistInfo={{ role: isTherapist ? "therapist" : "user" }}
+                      handleTherapistClick={handleTherapistClick}
+                      pinMessage={isTherapist ? pinMessage : undefined}
+                      isTherapist={isTherapist}
+                    />
+                  </div>
+                );
+              })
             )}
             {/* Typing Indicator */}
             {typingUsers.length > 0 && (

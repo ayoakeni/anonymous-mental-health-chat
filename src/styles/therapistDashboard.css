@@ -302,7 +302,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 15px;
+  padding: 15px 20px;
   background: var(--chat-input-bg);
 }
 
@@ -409,9 +409,62 @@
   background: var(--primary-color);
 }
 
+/* Pinned Message */
+.therapist-dashboard .pinned-message {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: var(--background-color);
+  border-top: 1px solid #313131;
+  color: var(--text-color);
+  padding: 10px 20px;
+  font-size: 0.95rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.therapist-dashboard .pinned-message .pin-text-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+}
+
+.therapist-dashboard .pin-text-icon .pinned-icon {
+  font-size: 1.1rem;
+  transform: rotate(45deg);
+}
+
+.therapist-dashboard .pinned-message .pinned-text {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+}
+
+.therapist-dashboard .pinned-message .pinned-text strong {
+  color: var(--primary-color);
+}
+
+.therapist-dashboard .pinned-message .unpin-btn {
+  color: var(--text-color);
+  background-color: transparent;
+  border-radius: 3px;
+  border: none;
+  padding: 4px 7px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.therapist-dashboard .pinned-message .unpin-btn:hover {
+  background-color: var(--primary-color);
+}
+
 .therapist-dashboard .group-chat-box .onlineStatus,
 .therapist-dashboard .private-chat-box .onlineStatus {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   color: var(--text-color);
 }
 
@@ -591,7 +644,6 @@
   position: absolute;
   display: flex;
   gap: 5px;
-  position: absolute;
   bottom: -26px;
   background: var(--chat-bg);
   padding: 5px;
@@ -617,40 +669,61 @@
   transform: scale(1);
 }
 
-.therapist-dashboard .chat-message .delete-btn {
+.therapist-dashboard .message-actions {
   position: absolute;
-  right: 10px;
-  top: 50%;
+  top: 0;
   transform: translateY(-50%);
+  display: flex;
+  gap: 5px;
   opacity: 0;
   transition: opacity 0.2s;
-  padding: 4px 8px;
-  font-size: 0.8rem;
-  background: var(--error-color);
-  color: white;
-  border: none;
-  border-radius: var(--border-radius);
-  cursor: pointer;
 }
 
-.therapist-dashboard .chat-message:hover .delete-btn {
+.therapist-dashboard .chat-message.ai .message-actions,
+.therapist-dashboard .chat-message.user .message-actions {
+  right: 0;
+}
+
+.therapist-dashboard .chat-message.therapist .message-actions {
+  left: 0;
+}
+
+.therapist-dashboard .chat-message:hover .message-actions {
   opacity: 1;
 }
 
-.therapist-dashboard .chat-message .delete-btn:hover {
-  background: #cc0000;
+/* Pin button */
+.therapist-dashboard .pin-btn {
+  font-size: 0.8rem;
+  color: white;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 4px;
+  background: #f1c40f;
+  cursor: pointer;
 }
 
-.therapist-dashboard .pinned-message {
-  background: var(--primary-color);
-  color: #fff;
-  padding: 10px;
-  border-radius: var(--border-radius);
-  margin-bottom: 15px;
-  font-size: 0.95rem;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+.therapist-dashboard .pin-btn:hover {
+  background: #e67e22;
+}
+
+.therapist-dashboard .pin-btn .pinned {
+  transform: rotate(45deg);
+}
+
+/* Delete Button */
+.therapist-dashboard .chat-message .delete-btn {
+  font-size: 0.8rem;
+  color: white;
+  padding: 4px 6px;
+  border: none;
+  border-radius:4px;
+  background: var(--error-color);
+  cursor: pointer;
+}
+
+.therapist-dashboard .chat-message .delete-btn {
+  background: #cc0000;
 }
 
 .therapist-dashboard .typing-indicator {

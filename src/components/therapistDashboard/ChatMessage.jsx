@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { formatMessageTime } from "../../hooks/useTimestampUtils";
 
-const ChatMessage = memo(({ msg, toggleReaction, deleteMessage, therapistId, handleTherapistClick }) => (
+const ChatMessage = memo(({ msg, toggleReaction, deleteMessage, pinMessage, therapistId, handleTherapistClick }) => (
   <p
     className={`chat-message ${
       msg.role === "therapist"
@@ -80,17 +80,39 @@ const ChatMessage = memo(({ msg, toggleReaction, deleteMessage, therapistId, han
         </i>
       </span>
     </div>
-    {msg.role !== "system" && msg.userId === therapistId && (
-      <button
-        className="delete-btn"
-        onClick={(e) => {
-          e.stopPropagation();
-          deleteMessage(msg.id);
-        }}
-        aria-label="Delete message"
-      >
-        Delete
-      </button>
+    {msg.role !== "system" && therapistId && (
+      <div className="message-actions">
+        <button
+          className="pin-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            pinMessage(msg.id, msg.pinned);
+          }}
+          aria-label={msg.pinned ? "Unpin message" : "Pin message"}
+          title={msg.pinned ? "Unpin" : "Pin to top"}
+        >
+          {msg.pinned ? <i className="fas fa-thumbtack pinned"></i> : <i className="fas fa-thumbtack"></i>}
+        </button>
+
+        {msg.pinned && (
+          <div className="pinned-label">
+            <i className="fas fa-thumbtack"></i> Pinned by <strong>{msg.pinnedBy || "Unknown"}</strong>
+          </div>
+        )}
+
+        {msg.userId === therapistId && (
+          <button
+            className="delete-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteMessage(msg.id);
+            }}
+            aria-label="Delete message"
+          >
+            <i className="fas fa-trash"></i>
+          </button>
+        )}
+      </div>
     )}
   </p>
 ));
