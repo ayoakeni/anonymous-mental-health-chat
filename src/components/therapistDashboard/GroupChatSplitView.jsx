@@ -94,6 +94,14 @@ function GroupChatSplitView({
     }
   }, [combinedGroupChat, groupMessagesEndRef]);
 
+  // Scroll to a pinned message by ID
+  const scrollToMessage = useCallback((msgId) => {
+    const el = document.getElementById(`msg-${msgId}`);
+    if (el && chatBoxRef.current) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, []);
+
   // Join group chat when groupId changes
   useEffect(() => {
     if (groupId && groupId !== activeGroupId) {
@@ -219,7 +227,14 @@ function GroupChatSplitView({
             </div>
           </div>
           {combinedGroupChat.some((msg) => msg.pinned) && (
-            <div className="pinned-message">
+            <div className="pinned-message"
+              onClick={() => {
+                const pinnedMsg = combinedGroupChat.find(m => m.pinned);
+                if (pinnedMsg) scrollToMessage(pinnedMsg.id);
+              }}
+              style={{ cursor: "pointer" }}
+              title="Click to jump to pinned message"
+            >
               <span className="pin-text-icon">
                 <i className="fas fa-thumbtack pinned-icon"></i>
                 <span className="pinned-text">
@@ -231,6 +246,7 @@ function GroupChatSplitView({
                 <button
                   className="unpin-btn"
                   onClick={() => {
+                    e.stopPropagation();
                     const pinnedMsg = combinedGroupChat.find(m => m.pinned);
                     if (pinnedMsg) pinMessage(pinnedMsg.id, true);
                   }}
@@ -251,12 +267,13 @@ function GroupChatSplitView({
                   {msg.isNew && index > 0 && !combinedGroupChat[index - 1].isNew && (
                     <div className="new-messages-divider">New Messages</div>
                   )}
-                  <div className={`message ${msg.isNew ? "new-message" : ""}`}>
+                  <div className={`message ${msg.isNew ? "new-message" : ""}`} id={`msg-${msg.id}`}>
                     <ChatMessage
                       msg={msg}
                       toggleReaction={toggleReaction}
                       deleteMessage={deleteMessage}
                       pinMessage={pinMessage}
+                      scrollToMessage={scrollToMessage}
                       therapistInfo={therapistInfo}
                       therapistId={therapistId}
                       handleTherapistClick={handleTherapistClick}

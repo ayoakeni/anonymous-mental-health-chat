@@ -89,6 +89,14 @@ function AnonymousGroupChatSplitView({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, groupEvents, pendingMessages]);
+
+  // Scroll to pinned message by ID 
+  const scrollToMessage = useCallback((msgId) => {
+    const el = document.getElementById(`msg-${msgId}`);
+    if (el && chatBoxRef.current) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, []);
   
   // Load more messages (pagination)
   const loadMoreMessages = useCallback(async () => {
@@ -774,7 +782,14 @@ function AnonymousGroupChatSplitView({
           </div>
           {/* Pinned Message */}
           {combinedGroupChat.some((msg) => msg.pinned) && (
-            <div className="pinned-message">
+            <div className="pinned-message"
+              onClick={() => {
+                const pinnedMsg = combinedGroupChat.find(m => m.pinned);
+                if (pinnedMsg) scrollToMessage(pinnedMsg.id);
+              }}
+              style={{ cursor: "pointer" }}
+              title="Click to jump to pinned message"
+            >
               <span className="pin-text-icon">
                 <i className="fas fa-thumbtack pinned-icon"></i>
                 <span className="pinned-text">
@@ -793,13 +808,14 @@ function AnonymousGroupChatSplitView({
               combinedGroupChat.map((msg) => {
                 const isTherapist = therapistsOnline.some(t => t.uid === userId && t.online);
                 return (
-                  <div className="message" key={`${msg.id}-${msg.type || "message"}`}>
+                  <div className="message" key={`${msg.id}-${msg.type || "message"}`} id={`msg-${msg.id}`}>
                     <ChatMessage
                       msg={msg}
                       toggleReaction={msg.id.startsWith("pending-") ? () => {} : toggleReaction}
                       therapistInfo={{ role: isTherapist ? "therapist" : "user" }}
                       handleTherapistClick={handleTherapistClick}
                       pinMessage={isTherapist ? pinMessage : undefined}
+                      scrollToMessage={scrollToMessage}
                       isTherapist={isTherapist}
                     />
                   </div>

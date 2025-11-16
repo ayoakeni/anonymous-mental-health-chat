@@ -1,7 +1,15 @@
 import { memo } from "react";
 import { formatMessageTime } from "../../hooks/useTimestampUtils";
 
-const ChatMessage = memo(({ msg, toggleReaction, deleteMessage, pinMessage, therapistId, handleTherapistClick }) => (
+const ChatMessage = memo(({ 
+  msg, 
+  toggleReaction, 
+  deleteMessage, 
+  pinMessage, 
+  therapistId, 
+  handleTherapistClick,
+  scrollToMessage 
+}) => (
   <p
     className={`chat-message ${
       msg.role === "therapist"
@@ -40,8 +48,19 @@ const ChatMessage = memo(({ msg, toggleReaction, deleteMessage, pinMessage, ther
           <i className="fa-solid fa-paperclip"></i> View Attachment
         </a>
       )}
-      <span className="message-timestamp">
-        {formatMessageTime(msg.timestamp)}
+      <span className="message-pin-timestamp">
+        {msg.pinned && (
+          <div className="pinned-label"
+            onClick={(e) => {
+              e.stopPropagation();
+              scrollToMessage(msg.id);
+            }}
+            title="Jump to this pinned message"
+          >
+            <i className="fas fa-thumbtack"></i> Pinned by <strong>{msg.pinnedBy || "Unknown"}</strong>
+          </div>
+        )}
+        <span className="message-time">{formatMessageTime(msg.timestamp)}</span>
       </span>
       <span className="message-reactions">
         <i
@@ -93,13 +112,6 @@ const ChatMessage = memo(({ msg, toggleReaction, deleteMessage, pinMessage, ther
         >
           {msg.pinned ? <i className="fas fa-thumbtack pinned"></i> : <i className="fas fa-thumbtack"></i>}
         </button>
-
-        {msg.pinned && (
-          <div className="pinned-label">
-            <i className="fas fa-thumbtack"></i> Pinned by <strong>{msg.pinnedBy || "Unknown"}</strong>
-          </div>
-        )}
-
         {msg.userId === therapistId && (
           <button
             className="delete-btn"
@@ -107,6 +119,7 @@ const ChatMessage = memo(({ msg, toggleReaction, deleteMessage, pinMessage, ther
               e.stopPropagation();
               deleteMessage(msg.id);
             }}
+            title="Delete this message"
             aria-label="Delete message"
           >
             <i className="fas fa-trash"></i>
