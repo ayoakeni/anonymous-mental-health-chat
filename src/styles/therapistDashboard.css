@@ -617,6 +617,30 @@
   transform: scale(1);
 }
 
+.therapist-dashboard .chat-message .delete-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.2s;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  background: var(--error-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+}
+
+.therapist-dashboard .chat-message:hover .delete-btn {
+  opacity: 1;
+}
+
+.therapist-dashboard .chat-message .delete-btn:hover {
+  background: #cc0000;
+}
+
 .therapist-dashboard .pinned-message {
   background: var(--primary-color);
   color: #fff;
@@ -695,22 +719,6 @@
 .therapist-dashboard .chat-input .send-btn:hover:not(:disabled) {
   background: var(--input-bg);
 }
-
-.therapist-dashboard .delete-btn {
-  font-size: 0.8rem;
-  padding: 5px 10px;
-  margin-left: 10px;
-  background: var(--error-color);
-  color: white;
-  border: none;
-  border-radius: var(--border-radius);
-  cursor: pointer;
-}
-
-.therapist-dashboard .delete-btn:hover {
-  background: #cc0000;
-}
-
 
 @media (max-width: 768px) {
   .therapist-dashboard .chat-box-card {

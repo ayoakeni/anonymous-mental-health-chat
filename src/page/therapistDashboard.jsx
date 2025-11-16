@@ -246,6 +246,7 @@ function TherapistDashboard() {
     therapistInfo,
     toggleReaction: toggleGroupReaction,
     deleteMessage: deleteGroupMsg,
+    therapistId,
     formatTimestamp,
     onEmojiClick: (e) => setReply((p) => p + e.emoji),
     showError,

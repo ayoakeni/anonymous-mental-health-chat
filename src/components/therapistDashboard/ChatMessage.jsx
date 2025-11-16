@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { formatMessageTime } from "../../hooks/useTimestampUtils";
 
-const ChatMessage = memo(({ msg, toggleReaction, deleteMessage, therapistInfo, handleTherapistClick }) => (
+const ChatMessage = memo(({ msg, toggleReaction, deleteMessage, therapistId, handleTherapistClick }) => (
   <p
     className={`chat-message ${
       msg.role === "therapist"
@@ -80,7 +80,7 @@ const ChatMessage = memo(({ msg, toggleReaction, deleteMessage, therapistInfo, h
         </i>
       </span>
     </div>
-    {msg.role !== "system" && therapistInfo.role === "therapist" && (
+    {msg.role !== "system" && msg.userId === therapistId && (
       <button
         className="delete-btn"
         onClick={(e) => {

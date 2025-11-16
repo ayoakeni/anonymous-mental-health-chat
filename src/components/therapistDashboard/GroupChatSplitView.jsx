@@ -47,6 +47,7 @@ function GroupChatSplitView({
   therapistInfo,
   toggleReaction,
   deleteMessage,
+  therapistId,
   handleTherapistClick,
   isLoadingChats,
   formatTimestamp,
@@ -237,8 +238,9 @@ function GroupChatSplitView({
                     <ChatMessage
                       msg={msg}
                       toggleReaction={toggleReaction}
-                      deleteMessage={(msgId) => deleteMessage(msgId, "group")}
+                      deleteMessage={deleteMessage}
                       therapistInfo={therapistInfo}
+                      therapistId={therapistId}
                       handleTherapistClick={handleTherapistClick}
                     />
                   </div>
