@@ -338,7 +338,8 @@ body.no-scroll {
   }
 
   /* hide logo & divider */
-  .sidebar .logo-image,
+  .sidebar .logo-side,
+  .sidebar .list .logOut,
   .sidebar .divider { display: none; }
 
   /* safe-area */
