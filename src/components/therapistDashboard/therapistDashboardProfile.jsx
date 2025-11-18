@@ -43,6 +43,15 @@ const TherapistDashboardProfile = ({
   }, [therapistInfo]);
 
   const handleCancel = () => {
+    setFormData({
+      name: therapistInfo.name || "",
+      gender: therapistInfo.gender || "",
+      position: therapistInfo.position || "",
+      profile: therapistInfo.profile || "",
+      rating: therapistInfo.rating || 0,
+      profileImage: therapistInfo.profileImage || null
+    });
+
     setEditing(false);
   };
 
