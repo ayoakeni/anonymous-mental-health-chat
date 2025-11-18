@@ -17,6 +17,7 @@ const TherapistDashboardProfile = ({
   const [successMessage, setSuccessMessage] = useState('');
   const fileInputRef = useRef(null);
   const storage = getStorage();
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   // LOCAL FORM STATE
   const [formData, setFormData] = useState({
@@ -129,6 +130,34 @@ const TherapistDashboardProfile = ({
 
   return (
     <div className="profilePageWrapper">
+      {showCancelConfirm && (
+        <div className="confirmOverlay">
+          <div className="confirmBox">
+            <h3>Discard changes?</h3>
+            <p>Your unsaved changes will be lost.</p>
+
+            <div className="confirmButtons">
+              <button
+                className="confirmYes"
+                onClick={() => {
+                  handleCancel();
+                  setShowCancelConfirm(false);
+                }}
+              >
+                Yes, discard
+              </button>
+
+              <button
+                className="confirmNo"
+                onClick={() => setShowCancelConfirm(false)}
+              >
+                No, keep editing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="profileContainer">
         {successMessage && <div className="successMessage">{successMessage}</div>}
         {errors.general && <div className="errorMessage">{errors.general}</div>}
@@ -234,7 +263,7 @@ const TherapistDashboardProfile = ({
                 <button onClick={handleSave} className="saveButton" disabled={isSaving}>
                   {isSaving ? 'Saving...' : 'Save'}
                 </button>
-                <button onClick={handleCancel} className="cancelButton" disabled={isSaving}>
+                <button onClick={() => setShowCancelConfirm(true)} className="cancelButton" disabled={isSaving}>
                   Cancel
                 </button>
               </div>

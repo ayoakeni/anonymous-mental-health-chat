@@ -95,16 +95,16 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  flex-direction: column;
   align-items: center;
 }
 
 .profileContainer .avatarWrapper {
   position: relative;
-  display: flex;
-  width: fit-content;
-  overflow: hidden;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid var(--input-border);
   transition: transform 0.3s ease;
 }
 
@@ -113,19 +113,19 @@
 }
 
 .profileContainer .avatarWrapper.online {
-  border: 3px solid var(--accent-color);
+  /* border: 3px solid var(--accent-color); */
 }
 
 .profileContainer .avatar {
-  width: 120px;
-  height: 120px;
+  width: 100%;
+  height: 100%;
   color: var(--text-color);
   object-fit: cover;
 }
 
 .profileContainer .avatarPlaceholder {
-  width: 120px;
-  height: 120px;
+  width: 100%;
+  height: 100%;
   background: var(--avatar-bg);
   display: flex;
   align-items: center;
@@ -135,16 +135,22 @@
   font-weight: 600;
 }
 
-.profileContainer .uploadButton {
+.uploadButton {
   position: absolute;
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
   color: white;
-  background-color: rgba(0, 0, 0, 0.5);
   border: none;
+  border-radius: 50%;
+  font-size: 0.95rem;
+  font-weight: 500;
   cursor: pointer;
-  font-size: 0.9rem;
+  transition: background 0.3s ease;
+  backdrop-filter: blur(2px);
+}
+
+.uploadButton:hover {
+  background: rgba(0, 0, 0, 0.7);
 }
 
 .profileContainer .fileInput {
@@ -169,24 +175,29 @@
   font-weight: 600;
 }
 
-.profileContainer .input, .profileContainer .textarea {
+.input,
+.profileContainer .textarea,
+select.input {
   padding: 12px;
   border: 1px solid var(--input-border);
   border-radius: var(--border-radius);
   background: var(--input-bg);
   color: var(--text-color);
   font-size: 1rem;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: all 0.2s ease;
 }
 
-.profileContainer .input:focus, .profileContainer .textarea:focus {
+.profileContainer .input:focus,
+.profileContainer .textarea:focus,
+.profileContainer select.input:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.15);
 }
 
 .profileContainer .inputError {
   border-color: var(--error-color);
+  box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.1);
 }
 
 .profileContainer .textarea {
@@ -196,7 +207,7 @@
 
 select.input {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23333333' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 16px;
@@ -316,6 +327,91 @@ select.input {
   font-size: 0.95rem;
 }
 
+/* ==================== CANCEL CONFIRM MODAL ==================== */
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+  backdrop-filter: blur(4px);
+}
+
+.confirmBox {
+  background: var(--input-bg);
+  border-radius: var(--border-radius);
+  padding: 32px;
+  width: 90%;
+  max-width: 420px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  animation: modalPop 0.4s ease-out;
+}
+
+.confirmBox h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.4rem;
+  color: var(--text-color);
+}
+
+.confirmBox p {
+  color: #888;
+  margin-bottom: 32px;
+  font-size: 1rem;
+}
+
+.confirmButtons {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+}
+
+.confirmYes,
+.confirmNo {
+  flex: 1;
+  padding: 14px;
+  border: none;
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.confirmYes {
+  background: var(--error-color);
+  color: white;
+}
+
+.confirmYes:hover {
+  background: #e02d25;
+  transform: translateY(-2px);
+}
+
+.confirmNo {
+  background: var(--secondary-color);
+  color: white;
+}
+
+.confirmNo:hover {
+  background: #565c69;
+  transform: translateY(-2px);
+}
+
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @media (max-width: 768px) {
   .profileContainer .profileCard {
     padding: 0;
@@ -329,11 +425,8 @@ select.input {
     box-shadow: none;
   }
 
-  .profileContainer .avatar {
-    width: 100px;
-    height: 100px;
-  }
-
+  .profileContainer .avatarWrapper,
+  .profileContainer .avatar,
   .profileContainer .avatarPlaceholder {
     width: 100px;
     height: 100px;
@@ -341,8 +434,6 @@ select.input {
   }
 
   .profileContainer .uploadButton {
-    width: 100px;
-    height: 100px;
     font-size: 0.7rem;
   }
 
@@ -360,5 +451,14 @@ select.input {
 @media (max-width: 484px) {
   .profilePageWrapper {
     min-height: fit-content;
+  }
+  
+  .confirmBox {
+    padding: 24px 20px;
+    margin: 20px;
+  }
+
+  .confirmButtons {
+    flex-direction: column;
   }
 }
