@@ -18,9 +18,8 @@ const AnonymousDashboardHome = ({
   privateChats = [],
   displayName,
   anonNames = {},
-  formatTimestamp
+  formatTimestamp,
 }) => {
-
   const navigate = useNavigate();
 
   // Select recent chats
@@ -29,27 +28,17 @@ const AnonymousDashboardHome = ({
     ...(Array.isArray(privateChats) ? privateChats.slice(0, 3).map(chat => ({ ...chat, type: "private" })) : []),
   ].sort((a, b) => (b.lastMessage?.timestamp?.seconds || 0) - (a.lastMessage?.timestamp?.seconds || 0)).slice(0, 3);
 
-  // Sample motivational quotes
-  const quotes = [
-    { text: "You are stronger than you know.", author: "Unknown" },
-    { text: "Every day is a new beginning.", author: "Unknown" },
-    { text: "Small steps lead to big changes.", author: "Unknown" },
-  ];
-  const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-
   // Mood history state
   const [moodHistory, setMoodHistory] = useState([]);
   const [moodHistoryLoading, setMoodHistoryLoading] = useState(true);
   const [moodHistoryError, setMoodHistoryError] = useState(null);
 
-  // Therapist list state
   const [therapists, setTherapists] = useState([]);
   const [therapistsLoading, setTherapistsLoading] = useState(true);
   const [therapistsError, setTherapistsError] = useState(null);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const modalRef = useRef(null);
 
-  // Mood options for mapping (consistent with MoodTracker.jsx)
   const moodOptions = [
     { value: "happy", label: "Happy", emoji: "😊" },
     { value: "sad", label: "Sad", emoji: "😢" },
@@ -57,6 +46,13 @@ const AnonymousDashboardHome = ({
     { value: "neutral", label: "Neutral", emoji: "😐" },
     { value: "excited", label: "Excited", emoji: "😊" }
   ];
+
+  const quotes = [
+    { text: "You are stronger than you know.", author: "Unknown" },
+    { text: "Every day is a new beginning.", author: "Unknown" },
+    { text: "Small steps lead to big changes.", author: "Unknown" },
+  ];
+  const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
 
   // Fetch mood history
   useEffect(() => {
@@ -67,18 +63,13 @@ const AnonymousDashboardHome = ({
       limit(5)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        const moods = snapshot.docs
-          .map(doc => doc.data())
-          .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-        setMoodHistory(moods);
-      } else {
-        setMoodHistory([]);
-      }
+      const moods = snapshot.docs
+        .map(doc => doc.data())
+        .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+      setMoodHistory(moods);
       setMoodHistoryLoading(false);
-    }, (error) => {
-      console.error("Error fetching mood history:", error);
-      setMoodHistoryError("Failed to load mood history. Please try again.");
+    }, () => {
+      setMoodHistoryError("Failed to load mood history.");
       setMoodHistoryLoading(false);
     });
     return () => unsubscribe();
@@ -86,30 +77,27 @@ const AnonymousDashboardHome = ({
 
   // Fetch therapists
   useEffect(() => {
-    const q = query(
-      collection(db, "therapists"),
-      limit(5)
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        const therapistData = snapshot.docs.map(doc => ({
+    const q = query(collection(db, "therapists"), limit(5));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const therapistData = snapshot.docs.map((doc) => ({
           uid: doc.id,
-          ...doc.data()
+          ...doc.data(),
         }));
         setTherapists(therapistData);
-      } else {
-        setTherapists([]);
+        setTherapistsLoading(false);
+      },
+      (error) => {
+        console.error("Error fetching therapists:", error);
+        setTherapistsError("Failed to load therapists.");
+        setTherapistsLoading(false);
       }
-      setTherapistsLoading(false);
-    }, (error) => {
-      console.error("Error fetching therapists:", error);
-      setTherapistsError("Failed to load therapists. Please try again.");
-      setTherapistsLoading(false);
-    });
+    );
     return () => unsubscribe();
   }, []);
 
-  // Handle clicks outside the modal to close it
+  // Close modal on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (modalRef.current && !modalRef.current.contains(event.target)) {
@@ -119,9 +107,7 @@ const AnonymousDashboardHome = ({
     if (selectedTherapist) {
       document.addEventListener("mousedown", handleClickOutside);
     }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [selectedTherapist]);
 
   // Handle therapist click to view profile
@@ -132,20 +118,18 @@ const AnonymousDashboardHome = ({
         setSelectedTherapist({
           uid: therapist.uid,
           ...therapistDoc.data(),
-          online: therapist.online
+          online: therapist.online,
         });
-      } else {
-        setTherapistsError("Therapist profile not found.");
       }
     } catch (error) {
-      console.error("Error fetching therapist profile:", error);
-      setTherapistsError("Failed to fetch therapist profile. Please try again.");
+      console.error("Error loading therapist:", error);
+      setTherapistsError("Failed to load therapist profile.");
     }
   };
 
   // Helper function to format timestamp
   const renderTimestamp = (timestamp) => {
-    if (!timestamp) return "N/A";
+    if (!timestamp || !timestamp.seconds) return "N/A";
     const formatted = formatTimestamp(timestamp);
     if (typeof formatted === "object" && formatted.dateStr && formatted.timeStr) {
       return (
@@ -162,13 +146,15 @@ const AnonymousDashboardHome = ({
   const [tasks, setTasks] = useState([
     { id: 1, text: "Drink a glass of water", completed: false },
     { id: 2, text: "Take a 10-minute walk", completed: false },
-    { id: 3, text: "Practice deep breathing", completed: false }
+    { id: 3, text: "Practice deep breathing", completed: false },
   ]);
 
   const toggleTask = (id) => {
-    setTasks(tasks.map(task =>
-      task.id === id ? { ...task, completed: !task.completed } : task
-    ));
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === id ? { ...task, completed: !task.completed } : task
+      )
+    );
   };
 
   return (
@@ -178,7 +164,9 @@ const AnonymousDashboardHome = ({
           <span className="greeting">{getGreeting()},</span>
           <span className="highlight">{displayName || "Anonymous"}</span>!
         </h2>
-        <p className="subtext">Explore your chats, log your mood, try a daily task, or connect with a therapist.</p>
+        <p className="subtext">
+          Explore your chats, log your mood, try a daily task, or connect with a therapist.
+        </p>
       </div>
 
       <div className="dashboard-grid">
@@ -189,20 +177,26 @@ const AnonymousDashboardHome = ({
             <ul className="chat-list">
               {recentChats.map((chat) => {
                 const lastTs = chat.lastMessage?.timestamp;
+                const unreadCount =
+                  chat.type === "group" ? chat.unreadCount : chat.unreadCountForUser;
+
                 return (
-                  <li key={chat.id} className="chat-card">
+                  <li key={`${chat.type}-${chat.id}`} className="chat-card">
                     <div
                       onClick={() => {
-                        const path = chat.type === "group"
-                          ? `/anonymous-dashboard/group-chat/${chat.id}`
-                          : `/anonymous-dashboard/private-chat/${chat.id}`;
+                        const path =
+                          chat.type === "group"
+                            ? `/anonymous-dashboard/group-chat/${chat.id}`
+                            : `/anonymous-dashboard/private-chat/${chat.id}`;
                         navigate(path);
                       }}
                       className="chat-card-inner"
                     >
                       <div className="chat-avater-content">
                         <span className="therapist-text-avatar">
-                          {chat.type === "group" ? chat.name?.[0] || "G" : anonNames[chat.id]?.[0] || "T"}
+                          {chat.type === "group"
+                            ? chat.name?.[0] || "G"
+                            : anonNames[chat.id]?.[0] || "T"}
                         </span>
                         <div className="chat-card-content">
                           <span className="chat-card-title">
@@ -217,10 +211,8 @@ const AnonymousDashboardHome = ({
                         <span className="message-timestamp">
                           {renderTimestamp(lastTs)}
                         </span>
-                        {(chat.unreadCount || chat.unreadCountForUser) > 0 && (
-                          <span className="unread-badge">
-                            {chat.type === "group" ? chat.unreadCount : chat.unreadCountForUser}
-                          </span>
+                        {unreadCount > 0 && (
+                          <span className="unread-badge">{unreadCount}</span>
                         )}
                       </div>
                     </div>

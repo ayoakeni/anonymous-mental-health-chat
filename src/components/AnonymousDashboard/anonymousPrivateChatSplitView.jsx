@@ -735,7 +735,7 @@ function AnonymousPrivateChatSplitView({
               >
                 <div className="chat-card-inner">
                   <div className="chat-avater-content">
-                    <span className="therapist-text-avatar">
+                    <span className="therapist-avatar">
                       {therapistDisplayName[0]?.toUpperCase() || "T"}
                     </span>
                     <div className="chat-card-content">

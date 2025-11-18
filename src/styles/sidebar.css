@@ -104,21 +104,8 @@ body.no-scroll {
   align-self: flex-start;
 }
 
-.sidebar .list::-webkit-scrollbar {
-  width: 5px;
-}
-
 .sidebar.closed .list::-webkit-scrollbar {
   width: 0px;
-}
-
-.sidebar .list::-webkit-scrollbar-track {
-  background: var(--sidebar-bg);
-}
-
-.sidebar .list::-webkit-scrollbar-thumb {
-  background: var(--primary-color);
-  border-radius: 4px;
 }
 
 .list a {

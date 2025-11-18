@@ -93,16 +93,16 @@
 
 .profileContainer .avatarSection {
   display: flex;
+  flex-direction: column;
   justify-content: center;
-  margin-bottom: 24px;
+  flex-direction: column;
+  align-items: center;
 }
 
 .profileContainer .avatarWrapper {
   position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
+  width: fit-content;
   overflow: hidden;
   border-radius: 50%;
   transition: transform 0.3s ease;
@@ -332,10 +332,6 @@
   .profileContainer .avatar {
     width: 100px;
     height: 100px;
-  }
-
-  .profileContainer .avatarSection {
-    margin-bottom: 0;
   }
 
   .profileContainer .avatarPlaceholder {

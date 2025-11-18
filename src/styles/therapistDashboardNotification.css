@@ -105,19 +105,6 @@
   overflow-y: auto;
 }
 
-.notification-list::-webkit-scrollbar {
-  width: 8px;
-}
-
-.notification-list::-webkit-scrollbar-track {
-  background: var(--background-color);
-}
-
-.notification-list::-webkit-scrollbar-thumb {
-  background: var(--primary-color);
-  border-radius: 4px;
-}
-
 .notification-item {
   display: flex;
   justify-content: space-between;

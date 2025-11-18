@@ -5,19 +5,6 @@
   height: auto;
 }
 
-.anonymousDashboardHome::-webkit-scrollbar {
-  width: 8px;
-}
-
-.anonymousDashboardHome::-webkit-scrollbar-track {
-  background: var(--background-color);
-}
-
-.anonymousDashboardHome::-webkit-scrollbar-thumb {
-  background: var(--primary-color);
-  border-radius: 4px;
-}
-
 .anonymousDashboardHome .welcome-header {
   margin-bottom: 40px;
 }
@@ -48,18 +35,6 @@
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 44px;
 }
-
-/* .anonymousDashboardHome .dash-card {
-  padding: 24px;
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-} */
-
-/* .anonymousDashboardHome .dash-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-} */
 
 .anonymousDashboardHome .dash-card h3 {
   font-size: 1.5rem;

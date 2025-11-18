@@ -34,21 +34,6 @@
   }
 }
 
-.appointments-panel ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-
-.appointments-panel ::-webkit-scrollbar-track {
-  background: var(--background-color);
-}
-
-.appointments-panel ::-webkit-scrollbar-thumb {
-  background: var(--primary-color);
-  border-radius: 4px;
-}
-
-
 /* ========================================
    Appointments PANEL
    ======================================== */

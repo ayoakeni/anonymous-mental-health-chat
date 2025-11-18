@@ -46,20 +46,6 @@
   transition: margin-left 0.3s ease-in-out;
 }
 
-.dashboard-home::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-
-.dashboard-home::-webkit-scrollbar-track {
-  background: var(--background-color);
-}
-
-.dashboard-home::-webkit-scrollbar-thumb {
-  background: var(--primary-color);
-  border-radius: 4px;
-}
-
 .dashboard-home .welcome-header {
   display: flex;
   justify-content: space-between;

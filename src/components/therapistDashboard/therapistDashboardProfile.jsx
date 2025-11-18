@@ -19,9 +19,7 @@ const TherapistDashboardProfile = ({
   const fileInputRef = useRef(null);
   const storage = getStorage();
 
-  /* ------------------------------------------------------------------ */
-  /* 1. Image upload – keep the preview in state (base64)               */
-  /* ------------------------------------------------------------------ */
+  /* Image upload – keep the preview in state (base64) */
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -43,9 +41,7 @@ const TherapistDashboardProfile = ({
     reader.readAsDataURL(file);
   };
 
-  /* ------------------------------------------------------------------ */
-  /* 2. Form validation                                                 */
-  /* ------------------------------------------------------------------ */
+  /* Form validation */
   const validateForm = () => {
     const err = {};
     if (!therapistInfo.name?.trim()) err.name = 'Name is required';
@@ -55,9 +51,7 @@ const TherapistDashboardProfile = ({
     return Object.keys(err).length === 0;
   };
 
-  /* ------------------------------------------------------------------ */
-  /* 3. Save – upload image if needed, then write Firestore (no undef)  */
-  /* ------------------------------------------------------------------ */
+  /* Save – upload image if needed, then write Firestore */
   const handleSave = async () => {
     if (!validateForm() || !therapistId) return;
 
@@ -101,9 +95,7 @@ const TherapistDashboardProfile = ({
     }
   };
 
-  /* ------------------------------------------------------------------ */
-  /* 4. Render – every input has a guaranteed value                     */
-  /* ------------------------------------------------------------------ */
+  /* Render – every input has a guaranteed value */
   return (
     <div className="profilePageWrapper">
       <div className="profileContainer">
@@ -143,8 +135,8 @@ const TherapistDashboardProfile = ({
                     className="fileInput"
                     style={{ display: 'none' }}
                   />
-                  {errors.profileImage && <span className="error">{errors.profileImage}</span>}
                 </div>
+                {errors.profileImage && <span className="error">{errors.profileImage}</span>}
               </div>
 
               {/* ----- Name ----- */}

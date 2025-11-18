@@ -93,11 +93,22 @@ function AnonymousGroupChatSplitView({
   // Scroll to pinned message by ID 
   const scrollToMessage = useCallback((msgId) => {
     const el = document.getElementById(`msg-${msgId}`);
-    if (el && chatBoxRef.current) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
+    if (!el) return;
+
+    // Remove any existing highlight
+    document.querySelectorAll(".message-highlight").forEach(e => {
+      e.classList.remove("message-highlight");
+    });
+
+    // Highlight class
+    el.classList.add("message-highlight");
+    // Scroll into view
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => {
+      el.classList.remove("message-highlight");
+    }, 1600);
   }, []);
-  
+
   // Load more messages (pagination)
   const loadMoreMessages = useCallback(async () => {
     if (!activeGroupId || !hasMoreMessages || isLoadingChat) return;
@@ -642,7 +653,7 @@ function AnonymousGroupChatSplitView({
               >
                 <div className="chat-card-inner">
                   <div className="chat-avater-content">
-                    <span className="therapist-text-avatar">{group.name?.[0] || "G"}</span>
+                    <span className="therapist-avatar">{group.name?.[0] || "G"}</span>
                     <div className="chat-card-content">
                       <strong className="chat-card-title">{group.name || "Unnamed Group"}</strong>
                       <small className="chat-card-preview">
@@ -794,7 +805,7 @@ function AnonymousGroupChatSplitView({
                 <i className="fas fa-thumbtack pinned-icon"></i>
                 <span className="pinned-text">
                   <strong>{combinedGroupChat.find(m => m.pinned)?.pinnedBy}:</strong>{" "}
-                  {combinedGroupChat.find((msg) => msg.pinned)?.text || ""}
+                  <span>{combinedGroupChat.find((msg) => msg.pinned)?.text || ""}</span>
                 </span>
               </span>
             </div>
