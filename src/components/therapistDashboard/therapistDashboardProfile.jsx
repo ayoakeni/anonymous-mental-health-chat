@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../utils/firebase';
@@ -19,36 +19,7 @@ const TherapistDashboardProfile = ({
   const fileInputRef = useRef(null);
   const storage = getStorage();
 
-  // LOCAL FORM STATE — THIS IS THE ONLY WAY THAT WORKS 100%
-  const [formData, setFormData] = useState({
-    name: '',
-    gender: '',
-    position: '',
-    profile: '',
-    rating: 0,
-    profileImage: null
-  });
-
-  // Sync form with therapistInfo when entering edit mode
-  useEffect(() => {
-    if (editing && therapistInfo) {
-      setFormData({
-        name: therapistInfo.name || '',
-        gender: therapistInfo.gender || '',
-        position: therapistInfo.position || '',
-        profile: therapistInfo.profile || '',
-        rating: therapistInfo.rating || 0,
-        profileImage: therapistInfo.profileImage || null
-      });
-      setErrors({});
-      setSuccessMessage('');
-    }
-  }, [editing, therapistInfo]);
-
-  const handleCancel = () => {
-    setEditing(false); // Just close — formData resets next time you open Edit
-  };
-
+  /* Image upload – keep the preview in state (base64) */
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -64,64 +35,67 @@ const TherapistDashboardProfile = ({
 
     const reader = new FileReader();
     reader.onload = () => {
-      setFormData(p => ({ ...p, profileImage: reader.result }));
+      setTherapistInfo(p => ({ ...p, profileImage: reader.result }));
       setErrors(p => ({ ...p, profileImage: '' }));
     };
     reader.readAsDataURL(file);
   };
 
+  /* Form validation */
   const validateForm = () => {
     const err = {};
-    if (!formData.name?.trim()) err.name = 'Name is required';
-    if (!formData.gender) err.gender = 'Gender is required';
-    if (!formData.position?.trim()) err.position = 'Position is required';
+    if (!therapistInfo.name?.trim()) err.name = 'Name is required';
+    if (!therapistInfo.gender) err.gender = 'Gender is required';
+    if (!therapistInfo.position?.trim()) err.position = 'Position is required';
     setErrors(err);
     return Object.keys(err).length === 0;
   };
 
+  /* Save – upload image if needed, then write Firestore */
   const handleSave = async () => {
     if (!validateForm() || !therapistId) return;
 
     setIsSaving(true);
     try {
-      let imageUrl = formData.profileImage;
+      let imageUrl = therapistInfo.profileImage ?? '';
 
+      // If the image is a data-URL (new upload) → push to Storage
       if (imageUrl && imageUrl.startsWith('data:')) {
         const resp = await fetch(imageUrl);
         const blob = await resp.blob();
         const storageRef = ref(storage, `therapists/${therapistId}/profile.jpg`);
         await uploadBytes(storageRef, blob);
         imageUrl = await getDownloadURL(storageRef);
+        setTherapistInfo(p => ({ ...p, profileImage: imageUrl }));
       }
 
+      // ---- ONLY defined fields go to Firestore ----
       const payload = {
-        name: formData.name.trim(),
-        gender: formData.gender,
-        position: formData.position.trim(),
-        profile: formData.profile.trim(),
-        rating: Number(formData.rating) || 0,
+        name: therapistInfo.name?.trim() ?? '',
+        gender: therapistInfo.gender ?? '',
+        position: therapistInfo.position?.trim() ?? '',
+        profile: therapistInfo.profile?.trim() ?? '',
+        rating: Number(therapistInfo.rating) || 0,   // guarantee a number
         ...(imageUrl && { profileImage: imageUrl })
       };
 
       await setDoc(doc(db, 'therapists', therapistId), payload, { merge: true });
 
-      setTherapistInfo(prev => ({
-        ...prev,
-        ...payload
-      }));
-
       setSuccessMessage('Profile saved successfully!');
       setTimeout(() => setSuccessMessage(''), 3000);
       setEditing(false);
+
+      // Let the parent know (it may have extra logic)
       await saveProfile?.();
     } catch (err) {
-      console.error(err);
+      console.error('Error saving profile:', err);
       setErrors(p => ({ ...p, general: 'Failed to save profile.' }));
     } finally {
       setIsSaving(false);
     }
   };
 
+  /* Render – every input has a guaranteed value */
   return (
     <div className="profilePageWrapper">
       <div className="profileContainer">
@@ -132,17 +106,25 @@ const TherapistDashboardProfile = ({
           {editing ? (
             /* ------------------- EDIT MODE ------------------- */
             <div className="editForm">
-              {/* Avatar */}
+              {/* ----- Avatar ----- */}
               <div className="avatarSection">
                 <div className={`avatarWrapper ${isOnline ? 'online' : ''}`}>
-                  {formData.profileImage ? (
-                    <img src={formData.profileImage} alt={formData.name} className="avatar" />
+                  {therapistInfo.profileImage ? (
+                    <img
+                      src={therapistInfo.profileImage}
+                      alt={therapistInfo.name ?? 'Therapist'}
+                      className="avatar"
+                    />
                   ) : (
                     <div className="avatarPlaceholder">
-                      {(formData.name?.[0] ?? 'T').toUpperCase()}
+                      {(therapistInfo.name?.[0] ?? 'T').toUpperCase()}
                     </div>
                   )}
-                  <button type="button" className="uploadButton" onClick={() => fileInputRef.current?.click()}>
+                  <button
+                    type="button"
+                    className="uploadButton"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
                     Upload Image
                   </button>
                   <input
@@ -157,23 +139,25 @@ const TherapistDashboardProfile = ({
                 {errors.profileImage && <span className="error">{errors.profileImage}</span>}
               </div>
 
+              {/* ----- Name ----- */}
               <div className="formGroup">
                 <label className="label">Name</label>
                 <input
                   type="text"
                   placeholder="Enter your name"
-                  value={formData.name}
-                  onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
+                  value={therapistInfo.name ?? ''}
+                  onChange={e => setTherapistInfo(p => ({ ...p, name: e.target.value }))}
                   className={`input ${errors.name ? 'inputError' : ''}`}
                 />
                 {errors.name && <span className="error">{errors.name}</span>}
               </div>
 
+              {/* ----- Gender ----- */}
               <div className="formGroup">
                 <label className="label">Gender</label>
                 <select
-                  value={formData.gender}
-                  onChange={e => setFormData(p => ({ ...p, gender: e.target.value }))}
+                  value={therapistInfo.gender ?? ''}
+                  onChange={e => setTherapistInfo(p => ({ ...p, gender: e.target.value }))}
                   className={`input ${errors.gender ? 'inputError' : ''}`}
                 >
                   <option value="">Select Gender</option>
@@ -185,39 +169,39 @@ const TherapistDashboardProfile = ({
                 {errors.gender && <span className="error">{errors.gender}</span>}
               </div>
 
+              {/* ----- Position ----- */}
               <div className="formGroup">
                 <label className="label">Position</label>
                 <input
                   type="text"
                   placeholder="Enter your position"
-                  value={formData.position}
-                  onChange={e => setFormData(p => ({ ...p, position: e.target.value }))}
+                  value={therapistInfo.position ?? ''}
+                  onChange={e => setTherapistInfo(p => ({ ...p, position: e.target.value }))}
                   className={`input ${errors.position ? 'inputError' : ''}`}
                 />
                 {errors.position && <span className="error">{errors.position}</span>}
               </div>
 
+              {/* ----- Description ----- */}
               <div className="formGroup">
                 <label className="label">Profile Description</label>
                 <textarea
                   placeholder="Enter your profile description"
-                  value={formData.profile}
-                  onChange={e => setFormData(p => ({ ...p, profile: e.target.value }))}
+                  value={therapistInfo.profile ?? ''}
+                  onChange={e => setTherapistInfo(p => ({ ...p, profile: e.target.value }))}
                   className="textarea"
                 />
               </div>
 
-              {/* RATING — READ-ONLY */}
+              {/* ----- Rating (read-only) ----- */}
               <div className="formGroup">
                 <label className="label">Average Rating</label>
                 <div className="rating-display">
                   {(therapistInfo.rating ?? 0) > 0 ? (
                     <>
-                      <span className='rating'>
-                        {'★'.repeat(Math.floor(therapistInfo.rating ?? 0))}
-                        {(therapistInfo.rating ?? 0) % 1 >= 0.5 && 'half-star'}
-                        <strong className='ratingValue'> {(therapistInfo.rating ?? 0).toFixed(1)}</strong>
-                      </span>
+                     <span className='rating'> {'★'.repeat(Math.floor(therapistInfo.rating ?? 0))}
+                      {(therapistInfo.rating ?? 0) % 1 >= 0.5 && '☆'}
+                      <strong className='ratingValue'> {(therapistInfo.rating ?? 0).toFixed(1)}</strong></span>
                     </>
                   ) : (
                     'No ratings yet'
@@ -225,11 +209,16 @@ const TherapistDashboardProfile = ({
                 </div>
               </div>
 
+              {/* ----- Buttons ----- */}
               <div className="buttonGroup">
                 <button onClick={handleSave} className="saveButton" disabled={isSaving}>
                   {isSaving ? 'Saving...' : 'Save'}
                 </button>
-                <button onClick={handleCancel} className="cancelButton" disabled={isSaving}>
+                <button
+                  onClick={() => setEditing(false)}
+                  className="cancelButton"
+                  disabled={isSaving}
+                >
                   Cancel
                 </button>
               </div>
@@ -237,10 +226,15 @@ const TherapistDashboardProfile = ({
           ) : (
             /* ------------------- VIEW MODE ------------------- */
             <div className="viewMode">
+              {/* Avatar */}
               <div className="avatarSection">
                 <div className={`avatarWrapper ${isOnline ? 'online' : ''}`}>
                   {therapistInfo.profileImage ? (
-                    <img src={therapistInfo.profileImage} alt={therapistInfo.name} className="avatar" />
+                    <img
+                      src={therapistInfo.profileImage}
+                      alt={therapistInfo.name ?? 'Therapist'}
+                      className="avatar"
+                    />
                   ) : (
                     <div className="avatarPlaceholder">
                       {(therapistInfo.name?.[0] ?? 'T').toUpperCase()}
@@ -271,7 +265,7 @@ const TherapistDashboardProfile = ({
                   {(therapistInfo.rating ?? 0) > 0 ? (
                     <>
                       {'★'.repeat(Math.floor(therapistInfo.rating ?? 0))}
-                      {(therapistInfo.rating ?? 0) % 1 >= 0.5 && 'half-star'}
+                      {(therapistInfo.rating ?? 0) % 1 >= 0.5 && '☆'}
                       <span className="ratingValue">({(therapistInfo.rating ?? 0).toFixed(1)})</span>
                     </>
                   ) : (
