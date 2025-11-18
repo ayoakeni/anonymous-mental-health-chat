@@ -105,8 +105,10 @@ const TherapistDashboardProfile = ({
 
       await setDoc(doc(db, 'therapists', therapistId), payload, { merge: true });
 
-      // Force parent to update with a brand new object
-      setTherapistInfo({ ...payload });
+      setTherapistInfo(prev => ({
+        ...prev,
+        ...payload
+      }));
 
       setSuccessMessage('Profile saved successfully!');
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -130,7 +132,7 @@ const TherapistDashboardProfile = ({
           {editing ? (
             /* ------------------- EDIT MODE ------------------- */
             <div className="editForm">
-              {/* ----- Avatar ----- */}
+              {/* Avatar */}
               <div className="avatarSection">
                 <div className={`avatarWrapper ${isOnline ? 'online' : ''}`}>
                   {formData.profileImage ? (
@@ -155,7 +157,6 @@ const TherapistDashboardProfile = ({
                 {errors.profileImage && <span className="error">{errors.profileImage}</span>}
               </div>
 
-              {/* ----- Name ----- */}
               <div className="formGroup">
                 <label className="label">Name</label>
                 <input
@@ -168,7 +169,6 @@ const TherapistDashboardProfile = ({
                 {errors.name && <span className="error">{errors.name}</span>}
               </div>
 
-              {/* ----- Gender ----- */}
               <div className="formGroup">
                 <label className="label">Gender</label>
                 <select
@@ -185,7 +185,6 @@ const TherapistDashboardProfile = ({
                 {errors.gender && <span className="error">{errors.gender}</span>}
               </div>
 
-              {/* ----- Position ----- */}
               <div className="formGroup">
                 <label className="label">Position</label>
                 <input
@@ -198,7 +197,6 @@ const TherapistDashboardProfile = ({
                 {errors.position && <span className="error">{errors.position}</span>}
               </div>
 
-              {/* ----- Description ----- */}
               <div className="formGroup">
                 <label className="label">Profile Description</label>
                 <textarea
@@ -215,9 +213,11 @@ const TherapistDashboardProfile = ({
                 <div className="rating-display">
                   {(therapistInfo.rating ?? 0) > 0 ? (
                     <>
-                     <span className='rating'> {'★'.repeat(Math.floor(therapistInfo.rating ?? 0))}
-                      {(therapistInfo.rating ?? 0) % 1 >= 0.5 && '☆'}
-                      <strong className='ratingValue'> {(therapistInfo.rating ?? 0).toFixed(1)}</strong></span>
+                      <span className='rating'>
+                        {'★'.repeat(Math.floor(therapistInfo.rating ?? 0))}
+                        {(therapistInfo.rating ?? 0) % 1 >= 0.5 && 'half-star'}
+                        <strong className='ratingValue'> {(therapistInfo.rating ?? 0).toFixed(1)}</strong>
+                      </span>
                     </>
                   ) : (
                     'No ratings yet'
@@ -225,7 +225,6 @@ const TherapistDashboardProfile = ({
                 </div>
               </div>
 
-              {/* ----- Buttons ----- */}
               <div className="buttonGroup">
                 <button onClick={handleSave} className="saveButton" disabled={isSaving}>
                   {isSaving ? 'Saving...' : 'Save'}
@@ -238,7 +237,6 @@ const TherapistDashboardProfile = ({
           ) : (
             /* ------------------- VIEW MODE ------------------- */
             <div className="viewMode">
-              {/* Avatar */}
               <div className="avatarSection">
                 <div className={`avatarWrapper ${isOnline ? 'online' : ''}`}>
                   {therapistInfo.profileImage ? (
@@ -273,7 +271,7 @@ const TherapistDashboardProfile = ({
                   {(therapistInfo.rating ?? 0) > 0 ? (
                     <>
                       {'★'.repeat(Math.floor(therapistInfo.rating ?? 0))}
-                      {(therapistInfo.rating ?? 0) % 1 >= 0.5 && '☆'}
+                      {(therapistInfo.rating ?? 0) % 1 >= 0.5 && 'half-star'}
                       <span className="ratingValue">({(therapistInfo.rating ?? 0).toFixed(1)})</span>
                     </>
                   ) : (
