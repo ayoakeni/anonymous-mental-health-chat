@@ -39,17 +39,36 @@
   gap: 20px;
   flex: 1;
   color: var(--text-color);
-  padding: 20px;
+  padding:  0 20px 20px;
   max-width: 1000px;
   margin: auto;
   height: auto;
-  transition: margin-left 0.3s ease-in-out;
 }
 
 .dashboard-home .welcome-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: sticky;
+  top: 0;
+  padding: 20px 0;
+  right: 0;
+  left: 0;
+  background-color: var(--background-color);
+  z-index: 99;
+  transition: transform 0.3s ease, padding 0.3s ease, box-shadow 0.3s ease;
+  transform: translateY(0);
+  animation: slideDown 0.5s ease-out;
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+
+.welcome-header.hidden {
+  transform: translateY(-107%);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 .dashboard-home .welcome-header h2 {
@@ -357,6 +376,7 @@
 
   .dashboard-home .welcome-header {
     gap: 10px;
+    top: -1px;
   }
 
   .dashboard-home .chat-card-content {

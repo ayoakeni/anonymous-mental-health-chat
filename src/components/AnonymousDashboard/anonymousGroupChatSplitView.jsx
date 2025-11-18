@@ -692,10 +692,10 @@ function AnonymousGroupChatSplitView({
               <div className="modal" ref={modalRef}>
                 <TherapistProfile
                   therapist={selectedTherapist}
-                  isOnline={isTherapistOnline(selectedTherapist.uid)}
+                  isOnline={selectedTherapist.online}
                   onBack={() => setSelectedTherapist(null)}
-                  onStartChat={() => startPrivateChat(selectedTherapist)}
-                  onBookAppointment={() => alert("Appointment booking coming soon!")}
+                  onStartChat={undefined}
+                  onBookAppointment={undefined}
                 />
               </div>
             </div>

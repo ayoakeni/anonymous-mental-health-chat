@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import "../../styles/therapistDashboardHome.css";
@@ -25,7 +25,44 @@ function TherapistDashboardHome({
 }) {
   const navigate = useNavigate();
 
-  
+  // Scroll effect
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+    let ticking = false;
+
+    const updateScrollDir = () => {
+      const scrollY = window.scrollY;
+      const header = document.querySelector('.welcome-header');
+      if (!header) return;
+
+      if (scrollY <= 0) {
+        header.classList.remove('hidden', 'scrolled');
+      } else if (scrollY > lastScrollY && scrollY > 20) {
+        // Scrolling DOWN
+        header.classList.add('hidden', 'scrolled');
+      } else if (scrollY < lastScrollY) {
+        // Scrolling UP
+        header.classList.remove('hidden');
+        header.classList.toggle('scrolled', scrollY > 50);
+      }
+
+      lastScrollY = scrollY;
+      ticking = false;
+    };
+
+    const onScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(updateScrollDir);
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', onScroll);
+    onScroll();
+
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   // ────── NOTIFICATION COUNT ──────
   const totalNotifications = useMemo(() => {
     const privateUnread = privateChats.filter(c => c.unreadCountForTherapist > 0).length;
