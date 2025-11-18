@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../utils/firebase';
@@ -18,22 +18,6 @@ const TherapistDashboardProfile = ({
   const [successMessage, setSuccessMessage] = useState('');
   const fileInputRef = useRef(null);
   const storage = getStorage();
-  const [originalInfo, setOriginalInfo] = useState(therapistInfo);
-
-  // Update originalInfo whenever we enter edit mode
-  useEffect(() => {
-    if (editing) {
-      setOriginalInfo({ ...therapistInfo });
-      setErrors({});
-      setSuccessMessage('');
-    }
-  }, [editing, therapistInfo]);
-
-  // Reset form to original values on cancel
-  const handleCancel = () => {
-    setTherapistInfo(originalInfo);
-    setEditing(false);
-  };
 
   /* Image upload – keep the preview in state (base64) */
   const handleImageUpload = (e) => {
@@ -91,7 +75,7 @@ const TherapistDashboardProfile = ({
         gender: therapistInfo.gender ?? '',
         position: therapistInfo.position?.trim() ?? '',
         profile: therapistInfo.profile?.trim() ?? '',
-        rating: Number(therapistInfo.rating) || 0,
+        rating: Number(therapistInfo.rating) || 0,   // guarantee a number
         ...(imageUrl && { profileImage: imageUrl })
       };
 
@@ -100,6 +84,8 @@ const TherapistDashboardProfile = ({
       setSuccessMessage('Profile saved successfully!');
       setTimeout(() => setSuccessMessage(''), 3000);
       setEditing(false);
+
+      // Let the parent know (it may have extra logic)
       await saveProfile?.();
     } catch (err) {
       console.error('Error saving profile:', err);
@@ -229,7 +215,7 @@ const TherapistDashboardProfile = ({
                   {isSaving ? 'Saving...' : 'Save'}
                 </button>
                 <button
-                  onClick={handleCancel}
+                  onClick={() => setEditing(false)}
                   className="cancelButton"
                   disabled={isSaving}
                 >
