@@ -25,7 +25,6 @@
 .profilePageWrapper {
   display: flex;
   justify-content: center;
-  padding: 20px;
   min-height: 100vh;
   background: var(--background-color);
 }
@@ -414,7 +413,7 @@ select.input {
 
 @media (max-width: 768px) {
   .profileContainer .profileCard {
-    padding: 0;
+    padding: 20px;
     border: none;
     border-radius: none;
     box-shadow: none;
@@ -450,9 +449,9 @@ select.input {
 
 @media (max-width: 484px) {
   .profilePageWrapper {
-    min-height: fit-content;
+    padding-bottom: 60px;
   }
-  
+
   .confirmBox {
     padding: 24px 20px;
     margin: 20px;
