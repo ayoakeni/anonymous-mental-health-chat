@@ -23,7 +23,7 @@ const TherapistDashboardProfile = ({
   // Update originalInfo whenever we enter edit mode
   useEffect(() => {
     if (editing) {
-      setOriginalInfo(...therapistInfo);
+      setOriginalInfo({ ...therapistInfo });
       setErrors({});
       setSuccessMessage('');
     }
