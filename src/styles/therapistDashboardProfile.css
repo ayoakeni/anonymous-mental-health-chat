@@ -113,7 +113,7 @@
 }
 
 .profileContainer .avatarWrapper.online {
-  /* border: 3px solid var(--accent-color); */
+  border: 3px solid var(--accent-color);
 }
 
 .profileContainer .avatar {
@@ -392,12 +392,12 @@ select.input {
 }
 
 .confirmNo {
-  background: var(--secondary-color);
+  background: #357abd;
   color: white;
 }
 
 .confirmNo:hover {
-  background: #565c69;
+  background: var(--primary-color);
   transform: translateY(-2px);
 }
 
