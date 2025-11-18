@@ -32,14 +32,6 @@ export function useTherapistProfile(navigate, showError) {
     return unsub;
   }, [uid, navigate, showError]);
 
-  const saveProfile = async () => {
-    if (!uid) return;
-    await setDoc(doc(db, "therapists", uid), {
-      name: info.name, gender: info.gender, position: info.position,
-      profile: info.profile, rating: info.rating,
-    }, { merge: true });
-  };
-
   const saveSettings = async () => {
     if (!uid) return;
     await setDoc(doc(db, "therapists", uid), {
@@ -55,5 +47,5 @@ export function useTherapistProfile(navigate, showError) {
     navigate("/therapist-login");
   };
 
-  return { info, therapistName, setInfo, saveProfile, saveSettings, logout };
+  return { info, therapistName, setInfo, saveSettings, logout };
 }

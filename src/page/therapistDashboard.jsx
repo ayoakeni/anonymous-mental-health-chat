@@ -62,7 +62,6 @@ function TherapistDashboard() {
     info: therapistInfo,
     therapistName,
     setInfo,
-    saveProfile,
     saveSettings: profileSaveSettings,
     logout,
   } = useTherapistProfile(navigate, showError);
@@ -346,7 +345,6 @@ function TherapistDashboard() {
                 editing={editing}
                 setEditing={setEditing}
                 setTherapistInfo={setInfo}
-                saveProfile={saveProfile}
                 therapistId={therapistId}
                 isOnline={therapistInfo.availability?.online}
               />
