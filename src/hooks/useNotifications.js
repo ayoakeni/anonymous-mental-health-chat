@@ -38,9 +38,7 @@ export function useNotifications(
     const privateNotifs = privateChats.map((c) => ({
       id: c.id,
       type: "private",
-      message: `New messages in Private Chat with ${
-        anonNames[c.id] || "Anonymous"
-      } (${c.unreadCountForTherapist || 0})`,
+      message: `You have (${c.unreadCountForTherapist || 0}) new message${c.unreadCountForTherapist > 1 ? "s" : ""}  in a private chat with - ${anonNames[c.id] || "Anonymous"} `,
       timestamp: c.lastUpdated,
       unreadCount: c.unreadCountForTherapist || 0,
       isDismissed: dismissed.includes(c.id),
@@ -51,7 +49,7 @@ export function useNotifications(
       .map((g) => ({
         id: g.id,
         type: "group",
-        message: `New messages in Group Chat "${g.name}" (${g.unreadCount})`,
+        message: `You have (${g.unreadCount}) new message${g.unreadCount> 1 ? "s" : ""} in group chat - ${g.name} `,
         timestamp: g.lastMessage?.timestamp,
         unreadCount: g.unreadCount,
         isDismissed: dismissed.includes(g.id),

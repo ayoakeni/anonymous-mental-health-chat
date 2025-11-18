@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { useNavigate, useLocation, Routes, Route, useParams,
+import { useNavigate, Routes, Route, useParams,
 } from "react-router-dom";
 import { auth } from "../utils/firebase";
 import Sidebar from "../components/sidebar";
