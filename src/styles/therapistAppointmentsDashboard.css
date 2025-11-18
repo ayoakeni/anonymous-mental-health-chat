@@ -40,7 +40,10 @@
 .appointments-panel {
   padding: 1.5rem;
   max-width: 100%;
-  height: 100vh;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-height: 100vh;
   box-sizing: border-box;
 }
 
@@ -111,7 +114,8 @@
    ======================================== */
 .appointments-panel .appointments-list {
   max-width: 100%;
-  overflow: auto;
+  overflow-y: auto;
+  max-height: 100%;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -124,7 +128,6 @@
 
 /* Table */
 .appointments-list .appointments-table {
-  display: none;
   min-width: 800px;
   width: 100%;
   border-collapse: collapse;
@@ -423,9 +426,6 @@
   .appointments-panel .create-appointment-btn {
     width: 100%;
   }
-  .appointments-list {
-    height: 374px;
-  }
   .appointments-list .appointments-table {
     font-size: 0.85rem;
   }
@@ -448,7 +448,7 @@
 
 @media (max-width: 484px) {
   .appointments-panel {
-    height: 100%;
+    padding-bottom: 60px;
   }
   .appointments-list .actions-cell {
     display: flex;

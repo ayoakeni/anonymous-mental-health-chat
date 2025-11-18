@@ -8,5 +8,6 @@ export function useRemovePaddingBottomMobile() {
   const isPrivateChat = /\/private-chat($|\/)/.test(pathname);
   const isGroupChat   = /\/group-chat($|\/)/.test(pathname);
   const isNotify   = /\/notifications($|\/)/.test(pathname);
-  return isPrivateChat || isGroupChat || isNotify;
+  const isAppoint   = /\/appointments($|\/)/.test(pathname);
+  return isPrivateChat || isGroupChat || isNotify || isAppoint;
 }
