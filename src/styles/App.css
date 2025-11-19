@@ -16,7 +16,7 @@
 .therapist-dashboard,
 .anonymous-dashboard {
   display: flex;
-  max-height: 100vh;
+  min-height: 100vh;
 }
 
 .therapist-dashboard .box,
