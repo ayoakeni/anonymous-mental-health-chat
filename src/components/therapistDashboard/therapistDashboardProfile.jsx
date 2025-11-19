@@ -245,17 +245,17 @@ const TherapistDashboardProfile = ({
               <div className="formGroup">
                 <label className="label">Average Rating</label>
                 <div className="rating-display">
-                  {(therapistInfo.rating ?? 0) > 0 ? (
-                    <>
-                      <span className='rating'>
+                  <span className='rating'>
+                    {(therapistInfo.rating ?? 0) > 0 ? (
+                      <>
                         {'★'.repeat(Math.floor(therapistInfo.rating ?? 0))}
-                        {(therapistInfo.rating ?? 0) % 1 >= 0.5 && 'half-star'}
+                        {(therapistInfo.rating ?? 0) % 1 >= 0.5 && '★'}
                         <strong className='ratingValue'> {(therapistInfo.rating ?? 0).toFixed(1)}</strong>
-                      </span>
-                    </>
-                  ) : (
-                    'No ratings yet'
-                  )}
+                      </>
+                      ) : (
+                        'No ratings yet'
+                      )}
+                    </span>
                 </div>
               </div>
 
@@ -305,7 +305,7 @@ const TherapistDashboardProfile = ({
                   {(therapistInfo.rating ?? 0) > 0 ? (
                     <>
                       {'★'.repeat(Math.floor(therapistInfo.rating ?? 0))}
-                      {(therapistInfo.rating ?? 0) % 1 >= 0.5 && 'half-star'}
+                      {(therapistInfo.rating ?? 0) % 1 >= 0.5 && '★'}
                       <span className="ratingValue">({(therapistInfo.rating ?? 0).toFixed(1)})</span>
                     </>
                   ) : (
