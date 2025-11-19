@@ -575,104 +575,6 @@
   font-style: italic;
 }
 
-.anonymous-dashboard .chat-message.therapist {
-  background: var(--therapist-bg);
-  margin-right: auto;
-  border-left: 4px solid var(--accent-color);
-}
-
-.anonymous-dashboard .chat-message.user {
-  background: var(--user-bg);
-  margin-left: auto;
-  border-left: 4px solid var(--primary-color);
-}
-
-.anonymous-dashboard .chat-message.ai {
-  background: var(--ai-bg);
-  margin-right: auto;
-  border-left: 4px solid var(--secondary-color);
-}
-
-.ai-user-quote {
-  display: block;
-  font-style: italic;
-  color: var(--text-color);
-  width: fit-content;
-  background-color: rgba(0, 0, 0, 0.05);
-  padding: 5px 10px;
-  border-left: 4px solid var(--primary-color);
-  margin-bottom: 10px;
-  border-radius: var(--border-radius);
-  font-size: 0.9rem;
-}
-
-.ai-response {
-  display: block;
-  color: var(--text-color);
-}
-
-@media (prefers-color-scheme: dark) {
-  .ai-user-quote {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-left: 4px solid var(--primary-color);
-  }
-}
-
-.anonymous-dashboard .chat-message.user .message-reactions {
-  left: -40px;
-}
-
-.anonymous-dashboard .chat-message.ai .message-reactions,
-.anonymous-dashboard .chat-message.therapist .message-reactions {
-  right: -37px;
-}
-
-.anonymous-dashboard .chat-message.user .message-reactions-view {
-  right: 0;
-}
-
-.anonymous-dashboard .chat-message.ai .message-reactions-view,
-.anonymous-dashboard .chat-message.therapist .message-reactions-view {
-  left: 0;
-}
-
-.ai-offer {
-  text-align: center;
-  margin: 10px 0;
-}
-
-.ai-offer p {
-  margin-bottom: 10px;
-}
-
-.ai-offer button {
-  padding: 8px 16px;
-  margin: 0 5px;
-  border: none;
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.ai-offer button:first-child {
-  background: var(--accent-color);
-  color: white;
-}
-
-.ai-offer button:last-child {
-  background: var(--badge-bg);
-  color: white;
-}
-
-.ai-offer button:hover:not(:disabled) {
-  filter: brightness(90%);
-}
-
-.ai-offer button:disabled {
-  background: var(--input-border);
-  cursor: not-allowed;
-}
-
 /* Pinned Message */
 .pinned-message {
   display: flex;
@@ -794,14 +696,14 @@
   color: var(--text-color);
 }
 
-.chat-message.therapist {
+.therapist-dashboard  .chat-message.therapist {
   background: var(--therapist-bg);
   margin-left: auto;
   font-weight: 600;
   border-left: 4px solid var(--accent-color);
 }
 
-.chat-message.user {
+.therapist-dashboard  .chat-message.user {
   background: var(--user-bg);
   border-left: 4px solid var(--primary-color);
   margin-right: auto;
@@ -822,6 +724,98 @@
   color: var(--text-color);
   border-left: 4px solid var(--error-color);
   opacity: 0.7;
+}
+
+.anonymous-dashboard .chat-message.therapist {
+  background: var(--therapist-bg);
+  margin-right: auto;
+  border-left: 4px solid var(--accent-color);
+}
+
+.anonymous-dashboard .chat-message.user {
+  background: var(--user-bg);
+  margin-left: auto;
+  border-left: 4px solid var(--primary-color);
+}
+
+.ai-user-quote {
+  display: block;
+  font-style: italic;
+  color: var(--text-color);
+  width: fit-content;
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 5px 10px;
+  border-left: 4px solid var(--primary-color);
+  margin-bottom: 10px;
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+}
+
+.ai-response {
+  display: block;
+  color: var(--text-color);
+}
+
+@media (prefers-color-scheme: dark) {
+  .ai-user-quote {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-left: 4px solid var(--primary-color);
+  }
+}
+
+.anonymous-dashboard .chat-message.user .message-reactions {
+  left: -40px;
+}
+
+.anonymous-dashboard .chat-message.ai .message-reactions,
+.anonymous-dashboard .chat-message.therapist .message-reactions {
+  right: -37px;
+}
+
+.anonymous-dashboard .chat-message.user .message-reactions-view {
+  right: 0;
+}
+
+.anonymous-dashboard .chat-message.ai .message-reactions-view,
+.anonymous-dashboard .chat-message.therapist .message-reactions-view {
+  left: 0;
+}
+
+.ai-offer {
+  text-align: center;
+  margin: 10px 0;
+}
+
+.ai-offer p {
+  margin-bottom: 10px;
+}
+
+.ai-offer button {
+  padding: 8px 16px;
+  margin: 0 5px;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.ai-offer button:first-child {
+  background: var(--accent-color);
+  color: white;
+}
+
+.ai-offer button:last-child {
+  background: var(--badge-bg);
+  color: white;
+}
+
+.ai-offer button:hover:not(:disabled) {
+  filter: brightness(90%);
+}
+
+.ai-offer button:disabled {
+  background: var(--input-border);
+  cursor: not-allowed;
 }
 
 .message-highlight .therapist,
@@ -913,12 +907,12 @@
   opacity: 0;
 }
 
-.chat-message.ai .message-reactions,
-.chat-message.user .message-reactions {
+.therapist-dashboard  .chat-message.ai .message-reactions,
+.therapist-dashboard  .chat-message.user .message-reactions {
   right: -37px;
 }
 
-.chat-message.therapist .message-reactions {
+.therapist-dashboard  .chat-message.therapist .message-reactions {
   left: -40px;
 }
 
@@ -948,6 +942,7 @@
   position: absolute;
   display: flex;
   gap: 5px;
+  width: fit-content;
   bottom: -26px;
   background: var(--chat-bg);
   padding: 5px;
