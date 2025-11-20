@@ -68,7 +68,7 @@
   transition: all 0.2s;
 }
 .mobile-back-btn:hover {
-  transform: scale(1.3);
+  color: var(--primary-color);
 }
 
 /* Chat box on mobile uses the whole height */

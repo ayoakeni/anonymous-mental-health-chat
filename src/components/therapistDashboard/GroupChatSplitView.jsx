@@ -76,6 +76,22 @@ function GroupChatSplitView({
     activeGroupId && isGroupChatOpen && inGroupChat ? activeGroupId : null
   );
 
+  // Menu ellipsis
+  useEffect(() => {
+    const closeMenu = (e) => {
+      // Only close if click is outside the entire menu container
+      if (!e.target.closest(".leave-participant") && !e.target.closest(".chat-options-menu")) {
+        setIsParticipantsOpen(false);
+      }
+    };
+    if (isParticipantsOpen) {
+      document.addEventListener("click", closeMenu);
+    }
+    return () => {
+      document.removeEventListener("click", closeMenu);
+    };
+  }, [isParticipantsOpen]);
+
   // Track if user is at the bottom of the chat
   useEffect(() => {
     const chatBox = chatBoxRef.current;
@@ -217,41 +233,55 @@ function GroupChatSplitView({
               </div>
             </div>
             <div className="leave-participant">
-              <div className="participant-list">
-                <h4
-                  className="participant-toggle"
-                  onClick={() => setIsParticipantsOpen(!isParticipantsOpen)}
-                  role="button"
-                  aria-expanded={isParticipantsOpen}
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      setIsParticipantsOpen(!isParticipantsOpen);
-                    }
-                  }}
-                >
-                  <i className="fas fa-user" style={{ color: isParticipantsOpen ? "#e0e0e0" : "gray" }} aria-hidden="true"></i>
-                  ({participants.length})
-                </h4>
-                {isParticipantsOpen && (
-                  <div className="participant-dropdown">
-                    <div className="participant-item-container">
-                      {isLoadingNames ? (
-                        <div className="participant-item">Loading participants...</div>
-                      ) : participants.length > 0 ? (
-                        participants.map((uid) => (
-                          <div key={uid} className="participant-item">
-                            {participantNames[uid] || "Anonymous User"}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="participant-item">No participants</div>
-                      )}
-                    </div>
+              {/* MENU TRIGGER */}
+              <button
+                className="menu-trigger"
+                onClick={(e) => { 
+                  e.stopPropagation();
+                  setIsParticipantsOpen(!isParticipantsOpen)
+                }}
+                aria-label="Chat options"
+                aria-expanded={isParticipantsOpen}
+              >
+                <i className="fa-solid fa-ellipsis-vertical"></i>
+              </button>
+
+              {/* DROPDOWN MENU */}
+              {isParticipantsOpen && (
+                <div className="chat-options-menu">
+                  {/* Participants */}
+                  <div
+                    className="menu-item participant-toggle"
+                    onClick={() => setIsParticipantsOpen(true)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === "Enter" && setIsParticipantsOpen(true)}
+                  >
+                    <i className="fas fa-users"></i>
+                    <span>Participants ({participants.length})</span>
                   </div>
-                )}
-              </div>
-              <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
+
+                  {/* Participants List (shown inside menu now) */}
+                  <div className="participant-dropdown-inline">
+                    {isLoadingNames ? (
+                      <div className="participant-item">Loading...</div>
+                    ) : participants.length > 0 ? (
+                      participants.map((uid) => (
+                        <div key={uid} className="participant-item">
+                          {participantNames[uid] || "Anonymous User"}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="participant-item">No participants</div>
+                    )}
+                  </div>
+
+                  <div className="menu-divider"></div>
+
+                  {/* Leave Chat */}
+                  <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
+                </div>
+              )}
             </div>
           </div>
           {combinedGroupChat.some((msg) => msg.pinned) && (

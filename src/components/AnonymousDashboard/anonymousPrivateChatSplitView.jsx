@@ -77,6 +77,7 @@ function AnonymousPrivateChatSplitView({
   const [isSelectingChat, setIsSelectingChat] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isInsideChat = useIsInsideChat();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   /* ----------------------------------------------------
      FETCH THERAPIST NAME (only when a therapist exists)
@@ -127,7 +128,7 @@ function AnonymousPrivateChatSplitView({
   }, [activeChatId, privateChats, userId, anonNames]);
 
   /* ----------------------------------------------------
-     Auto-select newly created chat (unchanged)
+     Auto-select newly created chat
      ---------------------------------------------------- */
   useEffect(() => {
     const selectId = location.state?.selectChatId;
@@ -156,6 +157,19 @@ function AnonymousPrivateChatSplitView({
       clearTimeout(timeout);
     };
   }, [location.state?.selectChatId, privateChats, setActiveChatId, navigate, location.pathname, showError]);
+
+  // Menu ellipsis
+  useEffect(() => {
+    const closeMenu = (e) => {
+      if (!e.target.closest(".leave-participant") && !e.target.closest(".chat-options-menu")) {
+        setMenuOpen(false);
+      }
+    };
+    if (menuOpen) {
+      document.addEventListener("click", closeMenu);
+    }
+    return () => document.removeEventListener("click", closeMenu);
+  }, [menuOpen]);
 
   /* ----------------------------------------------------
      Auto scroll to bottom
@@ -790,6 +804,7 @@ function AnonymousPrivateChatSplitView({
         <div className="private-chat-box">
           <div className="detailLeave">
             <div className="chat-avater">
+              {/* LEAVE / MOBILE BACK */}
               {isMobile && activeChatId && (
                 <i 
                   className="fa-solid fa-arrow-left mobile-back-btn"
@@ -833,10 +848,24 @@ function AnonymousPrivateChatSplitView({
                 </small>
               </div>
             </div>
-
-            {/* LEAVE / MOBILE BACK */}
             <div className="leave-participant">
-              <LeaveChatButton type="private" onLeave={leavePrivateChat} />
+              {/* MENU TRIGGER */}
+              <button
+                className="menu-trigger"
+                onClick={(e) => { 
+                  e.stopPropagation();
+                  setMenuOpen(prev => !prev);
+                }}
+                aria-expanded={menuOpen}
+              >
+                <i className="fa-solid fa-ellipsis-vertical"></i>
+              </button>
+
+              {menuOpen && (
+                <div className="chat-options-menu">
+                  <LeaveChatButton type="private" onLeave={leavePrivateChat} />
+                </div>
+              )}
             </div>
           </div>
 

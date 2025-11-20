@@ -67,6 +67,7 @@ function PrivateChatSplitView({
   const { typingUsers, handleTyping } = useTypingStatus(therapistInfo?.name, activeChatId && inChat && !isValidatingChat && !chatError ? activeChatId : null);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isInsideChat = useIsInsideChat();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   /* ------------------- SCROLL LOGIC ------------------- */
   useEffect(() => {
@@ -84,6 +85,19 @@ function PrivateChatSplitView({
     chatBox.addEventListener("scroll", handleScroll);
     return () => chatBox.removeEventListener("scroll", handleScroll);
   }, [hasMoreMessages, isLoadingMessages, loadMoreMessages, chatBoxRef]);
+
+  // Menu ellipsis
+  useEffect(() => {
+    const closeMenu = (e) => {
+      if (!e.target.closest(".leave-participant") && !e.target.closest(".chat-options-menu")) {
+        setMenuOpen(false);
+      }
+    };
+    if (menuOpen) {
+      document.addEventListener("click", closeMenu);
+    }
+    return () => document.removeEventListener("click", closeMenu);
+  }, [menuOpen]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -234,7 +248,24 @@ function PrivateChatSplitView({
                 </div>
               </div>
               <div className="leave-participant">
-                <LeaveChatButton type="private" onLeave={leavePrivateChat} />
+                {/* MENU TRIGGER */}
+                <button
+                  className="menu-trigger"
+                  onClick={(e) => { 
+                    e.stopPropagation();
+                    setMenuOpen(prev => !prev);
+                  }}
+                  aria-expanded={menuOpen}
+                >
+                  <i className="fa-solid fa-ellipsis-vertical"></i>
+                </button>
+
+                {menuOpen && (
+                  <div className="chat-options-menu">
+                    {/* Leave Chat */}
+                    <LeaveChatButton type="private" therapistInfo={therapistInfo} onLeave={leavePrivateChat} />
+                  </div>
+                )}
               </div>
             </div>
 
