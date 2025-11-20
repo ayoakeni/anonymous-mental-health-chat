@@ -157,16 +157,6 @@ export default function TherapistDashboardSetting({
           </div>
         </div>
 
-        <div className="settings-section">
-          <h4>Account Management</h4>
-          <div className="settings-group">
-            <button onClick={() => navigate("/therapist-dashboard/profile")}>
-              Edit Profile
-            </button>
-            <button onClick={handleLogout}>Logout</button>
-          </div>
-        </div>
-
         <div className="settings-actions">
           <button
             onClick={saveSettings}
@@ -175,6 +165,16 @@ export default function TherapistDashboardSetting({
           >
             {isSaving ? "Saving..." : "Save Settings"}
           </button>
+        </div>
+
+        <div className="settings-section">
+          <h4>Account Management</h4>
+          <div className="settings-group">
+            <button onClick={() => navigate("/therapist-dashboard/profile")}>
+              Edit Profile
+            </button>
+            <button onClick={handleLogout}>Logout</button>
+          </div>
         </div>
       </div>
     </div>
