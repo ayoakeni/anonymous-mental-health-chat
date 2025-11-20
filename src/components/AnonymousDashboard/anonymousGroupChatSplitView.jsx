@@ -241,7 +241,6 @@ function AnonymousGroupChatSplitView({
       eventsQuery,
       (snapshot) => {
         const evts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        console.log("Fetched events:", evts);
         setGroupEvents(evts);
       },
       (err) => {
