@@ -735,9 +735,17 @@ function AnonymousPrivateChatSplitView({
               >
                 <div className="chat-card-inner">
                   <div className="chat-avater-content">
-                    <span className="therapist-avatar">
-                      {therapistDisplayName[0]?.toUpperCase() || "T"}
-                    </span>
+                    {activeTherapists.find(t => t.name === therapistDisplayName)?.profileImage ? (
+                      <img
+                        src={activeTherapists.find(t => t.name === therapistDisplayName).profileImage}
+                        alt={therapistDisplayName}
+                        className="therapist-avatar"
+                      />
+                    ) : (
+                      <span className="therapist-avatar">
+                        {therapistDisplayName[0]?.toUpperCase() || "T"}
+                      </span>
+                    )}
                     <div className="chat-card-content">
                       <strong className="chat-card-title">
                         {therapistDisplayName}
@@ -784,9 +792,17 @@ function AnonymousPrivateChatSplitView({
             <div className="chat-avater">
               {/* AVATAR */}
               {therapistDisplayName === "Waiting for a therapist…" ? (
-                <span className="text-avatar placeholder">?</span>
+                <div className="text-avatar placeholder">?</div>
+              ) : activeTherapists.find(t => t.name === therapistDisplayName)?.profileImage ? (
+                <img
+                  src={activeTherapists.find(t => t.name === therapistDisplayName).profileImage}
+                  alt={therapistDisplayName}
+                  className="text-avatar"
+                />
               ) : (
-                <span className="text-avatar">{therapistDisplayName[0] || "T"}</span>
+                <div className="text-avatar">
+                  {therapistDisplayName[0]?.toUpperCase() || "T"}
+                </div>
               )}
 
               {/* NAME */}
