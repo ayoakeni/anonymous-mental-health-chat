@@ -834,43 +834,18 @@ function AnonymousGroupChatSplitView({
               })
             )}
             {/* Typing Indicator */}
-{(typingUsers.length > 0 || aiTyping) && (
-  <p className="typing-indicator">
-    {(() => {
-      const names = typingUsers
-        .map(u => typeof u === "string" ? u : u?.name || "Someone")
-        .filter(Boolean);
-
-      const typists = aiTyping ? ["Support Assistant", ...names] : names;
-      const total = typists.length;
-
-      if (total === 0) return null;
-
-      const last = typists.pop();
-      const list = typists.map((name, i) => (
-        <span key={i}>
-          {i > 0 && ", "}
-          {name === "Support Assistant" ? (
-            <span className="ai-typing">{name}</span>
-          ) : (
-            name
-          )}
-        </span>
-      ));
-
-      return (
-        <>
-          {list}
-          {typists.length > 0 && " and "}
-          <span className={last === "Support Assistant" ? "ai-typing" : ""}>
-            {last}
-          </span>
-          {" "}{total === 1 ? "is" : "are"} typing...
-        </>
-      );
-    })()}
-  </p>
-)}
+            {(typingUsers.length > 0 || aiTyping) && (
+              <p className="typing-indicator">
+                {aiTyping && <span className="ai-typing">Support Assistant</span>}
+                {aiTyping && typingUsers.length > 0 && " and "}
+                {typingUsers
+                  .map(u => typeof u === "string" ? u : u?.name || "")
+                  .filter(Boolean)
+                  .join(", ")}
+                {(typingUsers.length > 0 || aiTyping) && " "}
+                {typingUsers.length + (aiTyping ? 1 : 0) === 1 ? "is" : "are"} typing...
+              </p>
+            )}
             <div ref={messagesEndRef} />
           </div>
           <div className="chat-input">

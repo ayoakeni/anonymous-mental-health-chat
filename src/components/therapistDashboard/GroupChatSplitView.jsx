@@ -297,13 +297,13 @@ function GroupChatSplitView({
             {/* Typing Indicator */}
             {(typingUsers.length > 0 || aiTyping) && (
               <p className="typing-indicator">
-                {[
-                  aiTyping && <span className="ai-typing">Support Assistant</span>,
-                  ...typingUsers.map(u => typeof u === "string" ? u : u.name || "Someone")
-                ]
+                {aiTyping && <span className="ai-typing">Support Assistant</span>}
+                {aiTyping && typingUsers.length > 0 && " and "}
+                {typingUsers
+                  .map(u => typeof u === "string" ? u : u?.name || "")
                   .filter(Boolean)
-                  .join(", ")
-                  .replace(/, ([^,]*)$/, " and $1")}{" "}
+                  .join(", ")}
+                {(typingUsers.length > 0 || aiTyping) && " "}
                 {typingUsers.length + (aiTyping ? 1 : 0) === 1 ? "is" : "are"} typing...
               </p>
             )}
