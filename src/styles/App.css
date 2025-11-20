@@ -485,7 +485,8 @@
   border: 1px solid var(--input-border);
   border-radius: var(--border-radius);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-  min-width: 200px;
+  max-width: fit-content;
+  white-space: noWrap;
   z-index: 1000;
   overflow: hidden;
   animation: slideDown 0.2s ease-out;
@@ -521,6 +522,8 @@
   max-height: 200px;
   overflow-y: auto;
   background: rgba(0, 0, 0, 0.05);
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .participant-item {
