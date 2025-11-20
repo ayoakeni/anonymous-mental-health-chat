@@ -366,21 +366,115 @@
   text-overflow: ellipsis;
 }
 
-.therapist-list {
+.leave-participant {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.menu-trigger {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.menu-trigger:hover {
+  color: var(--primary-color);
+}
+
+.chat-options-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--chat-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--border-radius);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+  max-width: fit-content;
+  max-height: 400px;
+  white-space: noWrap;
+  z-index: 1000;
+  overflow: hidden;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.menu-item {
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   gap: 10px;
-  max-width: 300px;
-  max-height: 60px;
+  color: var(--text-color);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.menu-item:hover {
+  background: var(--background-color);
+}
+
+.menu-item i {
+  width: 18px;
+  text-align: center;
+  opacity: 0.8;
+}
+
+.participant-dropdown-inline {
+  max-height: 200px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.05);
+  overflow-y: auto;
+}
+
+.participant-item {
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  color: var(--text-color);
+  border-bottom: 1px solid var(--input-border);
+}
+
+.participant-item:last-child {
+  border-bottom: none;
+}
+
+.participant-item:hover {
+  background: var(--highlight-bg);
+}
+
+.menu-divider {
+  height: 1px;
+  background: var(--input-border);
+}
+
+.therapist-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 96px;
+  padding: 8px 5px;
+  background: rgba(0, 0, 0, 0.05);
   overflow-x: auto;
 }
 
 .therapist-item {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 3px;
   white-space: nowrap;
-  max-width: 140px;
+  width: 100%;
   height: fit-content;
   padding: 4px 7px;
   background: var(--therapist-bg);
@@ -456,97 +550,8 @@
   }
 }
 
-.leave-participant {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.menu-trigger {
-  background: none;
-  border: none;
-  color: var(--text-color);
-  font-size: 1.4rem;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 50%;
-  transition: background 0.2s;
-}
-
-.menu-trigger:hover {
-  color: var(--primary-color);
-}
-
-.chat-options-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: var(--chat-bg);
-  border: 1px solid var(--input-border);
-  border-radius: var(--border-radius);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-  max-width: fit-content;
-  white-space: noWrap;
-  z-index: 1000;
-  overflow: hidden;
-  animation: slideDown 0.2s ease-out;
-}
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.menu-item {
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--text-color);
-  font-size: 0.95rem;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.menu-item:hover {
-  background: var(--background-color);
-}
-
-.menu-item i {
-  width: 18px;
-  text-align: center;
-  opacity: 0.8;
-}
-
-.participant-dropdown-inline {
-  max-height: 200px;
-  overflow-y: auto;
-  background: rgba(0, 0, 0, 0.05);
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.participant-item {
-  padding: 8px 16px;
-  font-size: 0.9rem;
-  color: var(--text-color);
-  border-bottom: 1px solid var(--input-border);
-}
-
-.participant-item:last-child {
-  border-bottom: none;
-}
-
-.participant-item:hover {
-  background: var(--highlight-bg);
-}
-
-.menu-divider {
-  background: var(--input-border);
-}
-
 .leaveButton {
-  font-size: 10px;
+  font-size: 0.9rem;
   font-weight: 600;
   height: fit-content;
   cursor: pointer;

@@ -742,30 +742,7 @@ function AnonymousGroupChatSplitView({
                 </small>
               </div>
             </div>
-            {/* Therapist List */}
-            <div className="therapist-list">
-              {therapistsOnline.map((therapist) => (
-                <div
-                  key={therapist.uid}
-                  className={`therapist-item ${therapist.online ? "online" : ""} ${
-                    selectedTherapist?.uid === therapist.uid ? "active" : ""
-                  }`}
-                  data-fullname={therapist.name}
-                  onClick={() => handleTherapistClick({ userId: therapist.uid, role: "therapist" })}
-                >
-                  {therapist.profileImage ? (
-                    <img src={therapist.profileImage} alt={therapist.name} className={`avatar ${therapist.online ? "online" : ""}`} />
-                  ) : (
-                    <div className={`avatarPlaceholder ${therapist.online ? "online" : ""}`}>
-                      {therapist.name?.[0]?.toUpperCase() || 'T'}
-                    </div>
-                  )}
-                  <span className="therapist-name">
-                    {therapist.name || `Therapist ${therapist.uid.slice(0, 4)}`}
-                  </span> 
-                </div>
-              ))}
-            </div>
+
             <div className="leave-participant">
               {/* MENU TRIGGER */}
               <button
@@ -785,7 +762,7 @@ function AnonymousGroupChatSplitView({
                 <div className="chat-options-menu">
                   {/* Participants */}
                   <div
-                    className="menu-item participant-toggle"
+                    className="menu-item"
                     onClick={() => setIsParticipantsOpen(true)}
                     role="button"
                     tabIndex={0}
@@ -808,6 +785,43 @@ function AnonymousGroupChatSplitView({
                     ) : (
                       <div className="participant-item">No participants</div>
                     )}
+                  </div>
+
+                  <div className="menu-divider"></div>
+                  
+                  <div 
+                    className="menu-item"
+                    onClick={() => setIsParticipantsOpen(true)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === "Enter" && setIsParticipantsOpen(true)}
+                  >
+                    <i className="fas fa-user"></i>
+                    <span>Therapist Online</span>
+                  </div>
+                  {/* Therapist List */}
+                  <div className="therapist-list">
+                    {therapistsOnline.map((therapist) => (
+                      <div
+                        key={therapist.uid}
+                        className={`therapist-item ${therapist.online ? "online" : ""} ${
+                          selectedTherapist?.uid === therapist.uid ? "active" : ""
+                        }`}
+                        data-fullname={therapist.name}
+                        onClick={() => handleTherapistClick({ userId: therapist.uid, role: "therapist" })}
+                      >
+                        {therapist.profileImage ? (
+                          <img src={therapist.profileImage} alt={therapist.name} className={`avatar ${therapist.online ? "online" : ""}`} />
+                        ) : (
+                          <div className={`avatarPlaceholder ${therapist.online ? "online" : ""}`}>
+                            {therapist.name?.[0]?.toUpperCase() || 'T'}
+                          </div>
+                        )}
+                        <span className="therapist-name">
+                          {therapist.name || `Therapist ${therapist.uid.slice(0, 4)}`}
+                        </span> 
+                      </div>
+                    ))}
                   </div>
 
                   <div className="menu-divider"></div>
