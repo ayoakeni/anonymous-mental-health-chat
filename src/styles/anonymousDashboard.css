@@ -254,3 +254,41 @@
   background: var(--primary-color);
   border-radius: 4px;
 }
+
+
+.ai-offer {
+  text-align: center;
+  margin: 10px 0;
+}
+
+.ai-offer p {
+  margin-bottom: 10px;
+}
+
+.ai-offer button {
+  padding: 8px 16px;
+  margin: 0 5px;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.ai-offer button:first-child {
+  background: var(--accent-color);
+  color: white;
+}
+
+.ai-offer button:last-child {
+  background: var(--badge-bg);
+  color: white;
+}
+
+.ai-offer button:hover:not(:disabled) {
+  filter: brightness(90%);
+}
+
+.ai-offer button:disabled {
+  background: var(--input-border);
+  cursor: not-allowed;
+}

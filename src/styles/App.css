@@ -588,7 +588,6 @@
   font-size: 0.95rem;
   position: sticky;
   top: 0;
-  z-index: 10;
   transition: background 0.2s;
 }
 
@@ -761,43 +760,6 @@
     background-color: rgba(255, 255, 255, 0.1);
     border-left: 4px solid var(--primary-color);
   }
-}
-
-.ai-offer {
-  text-align: center;
-  margin: 10px 0;
-}
-
-.ai-offer p {
-  margin-bottom: 10px;
-}
-
-.ai-offer button {
-  padding: 8px 16px;
-  margin: 0 5px;
-  border: none;
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.ai-offer button:first-child {
-  background: var(--accent-color);
-  color: white;
-}
-
-.ai-offer button:last-child {
-  background: var(--badge-bg);
-  color: white;
-}
-
-.ai-offer button:hover:not(:disabled) {
-  filter: brightness(90%);
-}
-
-.ai-offer button:disabled {
-  background: var(--input-border);
-  cursor: not-allowed;
 }
 
 .message-highlight .therapist,
@@ -1044,26 +1006,28 @@
 }
 
 /* Emoji search and button toggle container */
-.chat-input aside .epr_q53mwh.epr_-8ygbw8.epr_346qu6.epr_-lzq3oa {
+.chat-input aside .epr_346qu6 {
   border: 1px solid var(--chat-bg);
 }
 
 /* Emoji input Search  */
-.chat-input aside input.epr_-orqfm8 {
+.chat-input aside .epr_-tzp699 {
   border: 1px solid var(--chat-bg);
   background-color: var(--background-color);
 }
 
-.chat-input aside input.epr_-orqfm8:focus {
+.chat-input aside .epr_-tzp699:focus {
   border: 1px solid var(--primary-color);
 }
 
-.chat-input aside .epr_q53mwh.epr_-8ygbw8.epr_346qu6.epr_-lzq3oa button:hover {
-  outline: 1px solid red;
+/* emoji color toggle */
+.chat-input aside .epr_ktlibp:hover {
+  border: 1px solid var(--primary-color);
+  box-shadow: inset 0px 0px 0 1px var(--primary-color);
 }
 
 /* Emoji-category-label */
-.chat-input aside h2.epr-emoji-category-label {
+.chat-input aside .epr-emoji-category-label {
   background-color: var(--chat-bg);
 }
 
@@ -1072,12 +1036,8 @@
   background-color: transparent;
 }
 
-.chat-input aside .epr-emoji-category-content button:hover {
-  background-color: var(--chat-bg);
-}
-
 /* Emoji selected view */
-.chat-input aside .epr_q53mwh.epr_q53mwh.epr_vl50xg.epr_-3yva2a.epr_c90x4z.epr_-sisw4f.epr_mw4zr1.epr_-kg0voo.epr_iogimd.epr_wtwvf4.epr_-lzq3oa {
+.chat-input aside .epr_-kg0voo {
   border-top: 1px solid var(--chat-bg);
 }
 
