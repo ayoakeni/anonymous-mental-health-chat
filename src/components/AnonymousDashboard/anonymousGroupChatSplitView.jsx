@@ -63,6 +63,8 @@ function AnonymousGroupChatSplitView({
   const [participants, setParticipants] = useState([]);
   const [participantNames, setParticipantNames] = useState({});
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
+  const [showParticipantsList, setShowParticipantsList] = useState(false);
+  const [showTherapistsList, setShowTherapistsList] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -747,9 +749,9 @@ function AnonymousGroupChatSplitView({
               {/* MENU TRIGGER */}
               <button
                 className="menu-trigger"
-                onClick={(e) => { 
+                onClick={(e) => {
                   e.stopPropagation();
-                  setIsParticipantsOpen(!isParticipantsOpen)
+                  setIsParticipantsOpen(prev => !prev);
                 }}
                 aria-label="Chat options"
                 aria-expanded={isParticipantsOpen}
@@ -759,74 +761,92 @@ function AnonymousGroupChatSplitView({
 
               {/* DROPDOWN MENU */}
               {isParticipantsOpen && (
-                <div className="chat-options-menu">
-                  {/* Participants */}
-                  <div
-                    className="menu-item"
-                    onClick={() => setIsParticipantsOpen(true)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === "Enter" && setIsParticipantsOpen(true)}
-                  >
-                    <i className="fas fa-users"></i>
-                    <span>Participants ({participants.length})</span>
-                  </div>
+                <div 
+                  className="chat-options-menu" 
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Participants - Collapsible */}
+                  <div className="menu-section">
+                    <div
+                      className="menu-item collapsible-header"
+                      onClick={() => setShowParticipantsList(prev => !prev)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === "Enter" && setShowParticipantsList(prev => !prev)}
+                    >
+                      <i className="fas fa-users"></i>
+                      <span>Participants ({participants.length})</span>
+                      <i className={`fas fa-chevron-${showParticipantsList ? "up" : "down"} chevron-icon`}></i>
+                    </div>
 
-                  {/* Participants List (shown inside menu now) */}
-                  <div className="participant-dropdown-inline">
-                    {isLoadingNames ? (
-                      <div className="participant-item">Loading...</div>
-                    ) : participants.length > 0 ? (
-                      participants.map((uid) => (
-                        <div key={uid} className="participant-item">
-                          {participantNames[uid] || "Anonymous User"}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="participant-item">No participants</div>
+                    {showParticipantsList && (
+                      <div className="participant-dropdown-inline">
+                        {participants.length > 0 ? (
+                          participants.map((uid) => (
+                            <div key={uid} className="participant-item">
+                              {participantNames[uid] || "Anonymous User"}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="participant-item">No participants</div>
+                        )}
+                      </div>
                     )}
                   </div>
 
                   <div className="menu-divider"></div>
-                  
-                  <div 
-                    className="menu-item"
-                    onClick={() => setIsParticipantsOpen(true)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === "Enter" && setIsParticipantsOpen(true)}
-                  >
-                    <i className="fas fa-user"></i>
-                    <span>Therapist Online</span>
-                  </div>
-                  {/* Therapist List */}
-                  <div className="therapist-list">
-                    {therapistsOnline.map((therapist) => (
-                      <div
-                        key={therapist.uid}
-                        className={`therapist-item ${therapist.online ? "online" : ""} ${
-                          selectedTherapist?.uid === therapist.uid ? "active" : ""
-                        }`}
-                        data-fullname={therapist.name}
-                        onClick={() => handleTherapistClick({ userId: therapist.uid, role: "therapist" })}
-                      >
-                        {therapist.profileImage ? (
-                          <img src={therapist.profileImage} alt={therapist.name} className={`avatar ${therapist.online ? "online" : ""}`} />
+
+                  {/* Online Therapists - Collapsible */}
+                  <div className="menu-section">
+                    <div
+                      className="menu-item collapsible-header"
+                      onClick={() => setShowTherapistsList(prev => !prev)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === "Enter" && setShowTherapistsList(prev => !prev)}
+                    >
+                      <i className="fas fa-user-md"></i>
+                      <span>Therapists Online ({therapistsOnline.filter(t => t.online).length})</span>
+                      <i className={`fas fa-chevron-${showTherapistsList ? "up" : "down"} chevron-icon`}></i>
+                    </div>
+
+                    {showTherapistsList && (
+                      <div className="therapist-list">
+                        {therapistsOnline.length === 0 ? (
+                          <div className="therapist-item offline">No therapists online</div>
                         ) : (
-                          <div className={`avatarPlaceholder ${therapist.online ? "online" : ""}`}>
-                            {therapist.name?.[0]?.toUpperCase() || 'T'}
-                          </div>
+                          therapistsOnline.map((therapist) => (
+                            <div
+                              key={therapist.uid}
+                              className={`therapist-item ${therapist.online ? "online" : ""} ${
+                                selectedTherapist?.uid === therapist.uid ? "active" : ""
+                              }`}
+                              data-fullname={therapist.name}
+                              onClick={() => {
+                                handleTherapistClick({ userId: therapist.uid, role: "therapist" });
+                                // setIsParticipantsOpen(false);
+                              }}
+                            >
+                              {therapist.profileImage ? (
+                                <img src={therapist.profileImage} alt={therapist.name} className={`avatar ${therapist.online ? "online" : ""}`}/>
+                              ) : (
+                                <div className={`avatarPlaceholder ${therapist.online ? "online" : ""}`}>
+                                  {therapist.name?.[0]?.toUpperCase() || 'T'}
+                                </div>
+                              )}
+                              <span className="therapist-name">
+                                {therapist.name || `Therapist ${therapist.uid.slice(0, 4)}`}
+                              </span>
+                            </div>
+                          ))
                         )}
-                        <span className="therapist-name">
-                          {therapist.name || `Therapist ${therapist.uid.slice(0, 4)}`}
-                        </span> 
                       </div>
-                    ))}
+                    )}
                   </div>
 
                   <div className="menu-divider"></div>
 
-                  {/* Leave Chat */}
+                  {/* Leave Button */}
                   <LeaveChatButton type="group" onLeave={leaveGroupChat} />
                 </div>
               )}
