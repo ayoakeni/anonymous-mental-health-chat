@@ -253,7 +253,10 @@ function PrivateChatSplitView({
               {/* Typing Indicator */}
               {typingUsers.length > 0 && (
                 <p className="typing-indicator">
-                  {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+                  {typingUsers
+                    .map(u => typeof u === "string" ? u : u?.name || "Someone")
+                    .join(", ")}{" "}
+                  {typingUsers.length === 1 ? "is" : "are"} typing...
                 </p>
               )}
               <div ref={privateMessagesEndRef} />
