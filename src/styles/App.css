@@ -295,7 +295,7 @@
 
 .detailLeave .chat-avater {
   display: flex;
-  align-items: end;
+  align-items: center;
   gap: 10px;
 }
 
@@ -1102,6 +1102,19 @@
 
   .chat-box-card .chat-list-container {
     max-width: 100%;
+    padding: 0;
+  }
+
+  .chat-card {
+    margin-bottom: 10px;
+  }
+
+  .chat-card:hover {
+    border-radius: 0;
+  }
+
+  .chat-card.selected {
+    border-radius: 0;
   }
 
   .chat-message {

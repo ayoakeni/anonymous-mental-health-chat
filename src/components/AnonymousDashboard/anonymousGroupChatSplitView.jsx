@@ -702,6 +702,13 @@ function AnonymousGroupChatSplitView({
           )}
           <div className="detailLeave">
             <div className="chat-avater">
+              {isMobile && activeGroup && (
+                <i 
+                  className="fa-solid fa-arrow-left mobile-back-btn"
+                  onClick={() => navigate("/anonymous-dashboard/private-chat")}
+                  aria-label="Back to chat list"
+                ></i>
+              )}
               <span className="text-avatar">{activeGroup?.name?.[0] || "G"}</span>
               <div className="card-content">
                 <strong className="group-title">{activeGroup?.name || "Unnamed Group"}</strong>
@@ -778,17 +785,6 @@ function AnonymousGroupChatSplitView({
                   </div>
                 )}
               </div>
-              {isMobile && activeGroupId && (
-                <div className="mobile-back-header">
-                  <button
-                    className="mobile-back-btn"
-                    onClick={() => navigate("/anonymous-dashboard/private-chat")}
-                    aria-label="Back to chat list"
-                  >
-                    Back to chats
-                  </button>
-                </div>
-              )}
               <LeaveChatButton type="group" onLeave={leaveGroupChat} />
             </div>
           </div>

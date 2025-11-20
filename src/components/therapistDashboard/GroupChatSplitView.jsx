@@ -189,12 +189,20 @@ function GroupChatSplitView({
         <div className="group-chat-box">
           <div className="detailLeave">
             <div className="chat-avater">
+              {isMobile && activeGroup && isGroupChatOpen && inGroupChat && (
+                <i
+                  className="fa-solid fa-arrow-left mobile-back-btn"
+                  onClick={() => navigate("/therapist-dashboard/group-chat")}
+                  aria-label="Back to chat list"
+                >
+                </i>
+              )}
               <span className="text-avatar">{activeGroup?.name?.[0] || "G"}</span>
               <div className="card-content">
                 <strong className="group-title">{activeGroup?.name || "Unnamed Group"}</strong>
                 <small className="participant-preview">
                   {participants.length > 0 ? (
-                    participants.map((uid) => (
+                    participants.map((uid, index) => (
                       <div key={uid} className="participant">
                         <span className="participant-name">
                           {participantNames[uid] || "Loading"}
@@ -243,17 +251,6 @@ function GroupChatSplitView({
                   </div>
                 )}
               </div>
-              {isMobile && activeGroupId&& isGroupChatOpen && inGroupChat && (
-                <div className="mobile-back-header">
-                  <button
-                    className="mobile-back-btn"
-                    onClick={() => navigate("/therapist-dashboard/group-chat")}
-                    aria-label="Back to chat list"
-                  >
-                    Back to chats
-                  </button>
-                </div>
-              )}
               <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
             </div>
           </div>

@@ -790,6 +790,13 @@ function AnonymousPrivateChatSplitView({
         <div className="private-chat-box">
           <div className="detailLeave">
             <div className="chat-avater">
+              {isMobile && activeChatId && (
+                <i 
+                  className="fa-solid fa-arrow-left mobile-back-btn"
+                  onClick={() => navigate("/anonymous-dashboard/group-chat")}
+                  aria-label="Back to chat list"
+                ></i>
+              )}
               {/* AVATAR */}
               {therapistDisplayName === "Waiting for a therapist…" ? (
                 <div className="text-avatar placeholder">?</div>
@@ -829,17 +836,6 @@ function AnonymousPrivateChatSplitView({
 
             {/* LEAVE / MOBILE BACK */}
             <div className="leave-participant">
-              {isMobile && activeChatId && (
-                <div className="mobile-back-header">
-                  <button
-                    className="mobile-back-btn"
-                    onClick={() => navigate("/anonymous-dashboard/group-chat")}
-                    aria-label="Back to chat list"
-                  >
-                    Back to chats
-                  </button>
-                </div>
-              )}
               <LeaveChatButton type="private" onLeave={leavePrivateChat} />
             </div>
           </div>
