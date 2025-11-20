@@ -859,12 +859,10 @@ function AnonymousPrivateChatSplitView({
             {/* Typing indicators */}
             {typingUsers.length > 0 && (
               <p className="typing-indicator">
-                {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
-              </p>
-            )}
-            {aiTyping && (
-              <p className="typing-indicator ai-typing">
-                Support Assistant is typing...
+                {typingUsers
+                  .map(u => typeof u === "string" ? u : u?.name || "Someone")
+                  .join(", ")}{" "}
+                {typingUsers.length === 1 ? "is" : "are"} typing...
               </p>
             )}
             <div ref={messagesEndRef} />

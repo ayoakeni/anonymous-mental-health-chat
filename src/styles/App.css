@@ -975,7 +975,7 @@
 
 .typing-indicator {
   position: absolute;
-  left: 5px;
+  left: 20px;
   bottom: 65px;
   font-style: italic;
   color: var(--text-color);

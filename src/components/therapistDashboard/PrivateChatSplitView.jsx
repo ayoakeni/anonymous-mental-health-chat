@@ -203,11 +203,30 @@ function PrivateChatSplitView({
         ) : (
           <div className="private-chat-box">
             <div className="detailLeave">
-              <h3 className="onlineStatus">
-                {isTherapistAvailable
-                  ? `Therapist Online: ${activeTherapists.join(", ")}`
-                  : "Waiting for Therapist"}
-              </h3>
+              <div className="chat-avater">
+                <span className="text-avatar">
+                  {anonNames[activeChatId]?.[0]?.toUpperCase() || "A"}
+                </span>
+                <div className="card-content">
+                  <strong className="group-title">
+                    {anonNames[activeChatId] || "Anonymous"}
+                  </strong>
+                  {/* Online therapists preview */}
+                  <small className="participant-preview">
+                    {activeTherapists.length > 0 ? (
+                      activeTherapists.map(t => (
+                        <div key={t.uid} className="participant">
+                          <span className="participant-name">
+                            {t.name || "Loading..."}<b>,</b>
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="participant">No therapist</div>
+                    )}
+                  </small>
+                </div>
+              </div>
               <div className="leave-participant">
                 {isMobile && activeChatId && inChat && (
                   <div className="mobile-back-header">

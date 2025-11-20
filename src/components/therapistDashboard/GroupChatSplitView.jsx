@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useState } from "react";
+import React, { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import ChatMessage from "./ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
@@ -64,6 +64,12 @@ function GroupChatSplitView({
   const isUserAtBottom = useRef(true);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isInsideChat = useIsInsideChat();
+
+  // Memoize active group to avoid repeated find calls
+  const activeGroup = useMemo(() => 
+    groupChats.find((g) => g.id === activeGroupId), 
+    [groupChats, activeGroupId]
+  );
 
   const { typingUsers, handleTyping } = useTypingStatus(
     therapistInfo?.name || "Therapist",
@@ -182,12 +188,25 @@ function GroupChatSplitView({
       {activeGroupId && isGroupChatOpen && inGroupChat ? (
         <div className="group-chat-box">
           <div className="detailLeave">
-            <h3 className="onlineStatus">
-              {groupChats.find((g) => g.id === activeGroupId)?.name || "Group Chat"}{" "}
-              {therapistsOnline.length > 0
-                ? `(Online: ${therapistsOnline.map((t) => t.name).join(", ")})`
-                : "(No therapists online)"}
-            </h3>
+            <div className="chat-avater">
+              <span className="text-avatar">{activeGroup?.name?.[0] || "G"}</span>
+              <div className="card-content">
+                <strong className="group-title">{activeGroup?.name || "Unnamed Group"}</strong>
+                <small className="participant-preview">
+                  {participants.length > 0 ? (
+                    participants.map((uid) => (
+                      <div key={uid} className="participant">
+                        <span className="participant-name">
+                          {participantNames[uid] || "Loading"}<b>,</b>
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="participant">No participants</div>
+                  )}           
+                </small>
+              </div>
+            </div>
             <div className="leave-participant">
               <div className="participant-list">
                 <h4
