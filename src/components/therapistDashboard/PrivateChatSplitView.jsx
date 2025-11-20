@@ -213,17 +213,16 @@ function PrivateChatSplitView({
                   </strong>
                   {/* Online therapists preview */}
                   <small className="participant-preview">
-                    {activeTherapists.length > 0 ? (
-                      activeTherapists.map(t => (
-                        <div key={t.uid} className="participant">
-                          <span className="participant-name">
-                            {t.name || "Loading..."}<b>,</b>
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="participant">No therapist</div>
-                    )}
+                  {activeTherapists.length > 0 ? (
+                    activeTherapists.map((t, index) => (
+                      <span key={t.uid} className="participant-name">
+                        {t.name || "Loading..."}
+                        {index < activeTherapists.length - 1 && <b>,</b>}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="participant-name text-muted">No therapist online</span>
+                  )}
                   </small>
                 </div>
               </div>

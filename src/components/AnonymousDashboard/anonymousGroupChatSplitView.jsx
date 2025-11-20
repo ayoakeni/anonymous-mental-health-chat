@@ -707,10 +707,11 @@ function AnonymousGroupChatSplitView({
                 <strong className="group-title">{activeGroup?.name || "Unnamed Group"}</strong>
                 <small className="participant-preview">
                   {participants.length > 0 ? (
-                    participants.map((uid) => (
+                    participants.map((uid, index) => (
                       <div key={uid} className="participant">
                         <span className="participant-name">
-                          {participantNames[uid] || "Loading"}<b>,</b>
+                          {participantNames[uid] || "Loading"}
+                          {index < participantNames.length - 1 && <b>,</b>}
                         </span>
                       </div>
                     ))

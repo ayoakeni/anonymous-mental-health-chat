@@ -261,7 +261,7 @@ function TherapistDashboard() {
     isValidatingChat: validating,
     chatError,
     isTherapistAvailable,
-    activeTherapists: onlineTherapists.map((t) => t.name),
+    activeTherapists: onlineTherapists,
     selectedTherapist,
     setSelectedTherapist,
     combinedPrivateChat,

@@ -197,7 +197,8 @@ function GroupChatSplitView({
                     participants.map((uid) => (
                       <div key={uid} className="participant">
                         <span className="participant-name">
-                          {participantNames[uid] || "Loading"}<b>,</b>
+                          {participantNames[uid] || "Loading"}
+                          {index < participantNames.length - 1 && <b>,</b>}
                         </span>
                       </div>
                     ))

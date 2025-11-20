@@ -798,15 +798,14 @@ function AnonymousPrivateChatSplitView({
                 {/* ONLINE THERAPISTS */}
                 <small className="participant-preview">
                   {activeTherapists.length > 0 ? (
-                    activeTherapists.map(t => (
-                      <div key={t.uid} className="participant">
-                        <span className="participant-name">
-                          {t.name || "Loading..."}<b>,</b>
-                        </span>
-                      </div>
+                    activeTherapists.map((t, index) => (
+                      <span key={t.uid} className="participant-name">
+                        {t.name || "Loading..."}
+                        {index < activeTherapists.length - 1 && <b>,</b>}
+                      </span>
                     ))
                   ) : (
-                    <div className="participant">No therapist</div>
+                    <span className="participant-name text-muted">No therapist online</span>
                   )}
                 </small>
               </div>
