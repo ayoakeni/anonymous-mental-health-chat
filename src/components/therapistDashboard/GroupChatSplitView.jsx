@@ -219,12 +219,10 @@ function GroupChatSplitView({
                 <small className="participant-preview">
                   {participants.length > 0 ? (
                     participants.map((uid, index) => (
-                      <div key={uid} className="participant">
-                        <span className="participant-name">
-                          {participantNames[uid] || "Loading"}
-                          {index < participantNames.length - 1 && <b>,</b>}
-                        </span>
-                      </div>
+                      <span key={uid} className="participant-name">
+                        {participantNames[uid] || "Loading"}
+                        {index < participants.length - 1 && <b>,</b>}
+                      </span>
                     ))
                   ) : (
                     <div className="participant">No participants</div>
