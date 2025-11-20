@@ -1034,7 +1034,7 @@
   padding: 10px;
 }
 
-/* EmojiPicker box */
+/* EmojiPicker Container */
 .chat-input aside {
   position: absolute;
   left: 10px;
@@ -1043,17 +1043,42 @@
   border: 1px solid var(--primary-color);
 }
 
-.chat-input input.epr_-orqfm8 {
+/* Emoji search and button toggle container */
+.chat-input aside .epr_q53mwh.epr_-8ygbw8.epr_346qu6.epr_-lzq3oa {
+  border: 1px solid var(--chat-bg);
+}
+
+/* Emoji input Search  */
+.chat-input aside input.epr_-orqfm8 {
   border: 1px solid var(--chat-bg);
   background-color: var(--background-color);
 }
 
-/* .chat-input .epr_q53mwh {
-  border-top: 1px solid var(--input-border);
-} */
+.chat-input aside input.epr_-orqfm8:focus {
+  border: 1px solid var(--primary-color);
+}
 
-.chat-input h2.epr-emoji-category-label {
+.chat-input aside .epr_q53mwh.epr_-8ygbw8.epr_346qu6.epr_-lzq3oa button:hover {
+  outline: 1px solid red;
+}
+
+/* Emoji-category-label */
+.chat-input aside h2.epr-emoji-category-label {
   background-color: var(--chat-bg);
+}
+
+/* Emoji Button */
+.chat-input aside .epr-emoji-category-content button {
+  background-color: transparent;
+}
+
+.chat-input aside .epr-emoji-category-content button:hover {
+  background-color: var(--chat-bg);
+}
+
+/* Emoji selected view */
+.chat-input aside .epr_q53mwh.epr_q53mwh.epr_vl50xg.epr_-3yva2a.epr_c90x4z.epr_-sisw4f.epr_mw4zr1.epr_-kg0voo.epr_iogimd.epr_wtwvf4.epr_-lzq3oa {
+  border-top: 1px solid var(--chat-bg);
 }
 
 .chat-input .inputInsert {
