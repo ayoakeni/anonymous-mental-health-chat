@@ -1,12 +1,32 @@
 .anonymousDashboardHome {
   flex: 1;
   color: var(--text-color);
-  padding: 20px;
+  padding: 0 20px 20px;
   height: auto;
 }
 
 .anonymousDashboardHome .welcome-header {
-  margin-bottom: 40px;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  padding: 20px 0;
+  right: 0;
+  left: 0;
+  background-color: var(--background-color);
+  z-index: 99;
+  transition: transform 0.3s ease, padding 0.3s ease, box-shadow 0.3s ease;
+  transform: translateY(0);
+  animation: slideDown 0.5s ease-out;
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+
+.anonymousDashboardHome .welcome-header.hidden {
+  transform: translateY(-107%);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 .anonymousDashboardHome .welcome-header h2 {

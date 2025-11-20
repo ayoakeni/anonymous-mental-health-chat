@@ -22,6 +22,44 @@ const AnonymousDashboardHome = ({
 }) => {
   const navigate = useNavigate();
 
+  // Scroll effect
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+    let ticking = false;
+
+    const updateScrollDir = () => {
+      const scrollY = window.scrollY;
+      const header = document.querySelector('.welcome-header');
+      if (!header) return;
+
+      if (scrollY <= 0) {
+        header.classList.remove('hidden', 'scrolled');
+      } else if (scrollY > lastScrollY && scrollY > 20) {
+        // Scrolling DOWN
+        header.classList.add('hidden', 'scrolled');
+      } else if (scrollY < lastScrollY) {
+        // Scrolling UP
+        header.classList.remove('hidden');
+        header.classList.toggle('scrolled', scrollY > 50);
+      }
+
+      lastScrollY = scrollY;
+      ticking = false;
+    };
+
+    const onScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(updateScrollDir);
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', onScroll);
+    onScroll();
+
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   // Select recent chats
   const recentChats = [
     ...(Array.isArray(groupChats) ? groupChats.slice(0, 3).map(chat => ({ ...chat, type: "group" })) : []),
