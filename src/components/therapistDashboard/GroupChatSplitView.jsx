@@ -64,6 +64,7 @@ function GroupChatSplitView({
   const isUserAtBottom = useRef(true);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isInsideChat = useIsInsideChat();
+  const [aiTyping, setAiTyping] = useState(false);
 
   const { typingUsers, handleTyping } = useTypingStatus(
     therapistInfo?.name || "Therapist",
@@ -294,9 +295,16 @@ function GroupChatSplitView({
               ))
             )}
             {/* Typing Indicator */}
-            {typingUsers.length > 0 && (
+            {(typingUsers.length > 0 || aiTyping) && (
               <p className="typing-indicator">
-                {typingUsers.join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+                {[
+                  aiTyping && <span className="ai-typing">Support Assistant</span>,
+                  ...typingUsers,
+                ]
+                  .filter(Boolean)
+                  .join(", ")
+                  .replace(/, ([^,]*)$/, " and $1")}{" "}
+                {typingUsers.length + (aiTyping ? 1 : 0) === 1 ? "is" : "are"} typing...
               </p>
             )}
             <div ref={groupMessagesEndRef} />
