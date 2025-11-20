@@ -299,7 +299,7 @@ function GroupChatSplitView({
               <p className="typing-indicator">
                 {[
                   aiTyping && <span className="ai-typing">Support Assistant</span>,
-                  ...typingUsers,
+                  ...typingUsers.map(u => typeof u === "string" ? u : u.name || "Someone")
                 ]
                   .filter(Boolean)
                   .join(", ")

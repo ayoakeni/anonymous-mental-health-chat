@@ -984,9 +984,12 @@
   margin: 5px 0;
 }
 
-.ai-typing {
+.typing-indicator .ai-typing {
   color: var(--secondary-color);
   font-weight: 600;
+  background: linear-gradient(90deg, #376293, var(--secondary-color));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   animation: pulse 2s infinite;
 }
 
