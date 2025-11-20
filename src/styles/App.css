@@ -351,9 +351,12 @@
   font-size: 0.85rem;
   color: var(--text-color);
   opacity: 0.7;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.detailLeave .participant {
+.detailLeave .participant-name {
   display: flex;
   align-items: end;
 }
@@ -362,10 +365,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
+/* 
 .detailLeave .participant:last-child .participant-name b {
   display: none;
-}
+} */
 
 .therapist-list {
   display: flex;
