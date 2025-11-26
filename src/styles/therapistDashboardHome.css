@@ -492,3 +492,21 @@
     max-width: 200px;
   }
 }
+
+@media (max-width: 368px) {
+  .dashboard-home .chat-section .chat-card-content {
+    max-width: 160px;
+  }
+
+  .dashboard-home .chat-section .chat-card-title {
+    font-size: 0.8rem;
+  }
+
+  .dashboard-home .chat-section .chat-card-preview {
+    font-size: 0.75rem;
+  }
+  
+  .dashboard-home .chat-section .chat-card-meta .message-timestamp {
+    font-size: 0.55rem;
+  }
+}
