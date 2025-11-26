@@ -1,6 +1,7 @@
 import React, { useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
+import { auth } from "../../utils/firebase";
 import "../../styles/therapistDashboardHome.css";
 
 const getGreeting = () => {
@@ -63,16 +64,19 @@ function TherapistDashboardHome({
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  const pendingRequestsCount = useMemo(() => {
+   return privateChats.filter(chat => 
+     chat.lastMessage && 
+     !chat.activeTherapist
+   ).length;
+  }, [privateChats, therapistInfo.uid]);
+
   // ────── NOTIFICATION COUNT ──────
   const totalNotifications = useMemo(() => {
     const privateUnread = privateChats.filter(c => c.unreadCountForTherapist > 0).length;
-    const pending = privateChats.filter(c => c.needsTherapist).length;
     const groupUnread = groupChats.filter(g => g.unreadCount > 0).length;
-    return privateUnread + pending + groupUnread;
+    return privateUnread + groupUnread;
   }, [privateChats, groupChats]);
-
-  // Count pending chats (needsTherapist: true)
-  const pendingChats = privateChats.filter(chat => chat.needsTherapist).length;
 
   return (
     <div className="dashboard-home">
@@ -105,8 +109,19 @@ function TherapistDashboardHome({
           <p>{totalGroupUnread + privateUnreadCount}</p>
         </div>
         <div className="stat-card">
-          <h4>Pending Chats</h4>
-          <p>{pendingChats}</p>
+          <h4>Active Sessions</h4>
+          <p>
+            {privateChats.filter(chat => 
+              chat.participants?.includes(therapistInfo.uid)
+            ).length}
+          </p>
+        </div>
+        <div className={`stat-card highlight ${pendingRequestsCount > 0 ? 'has-pending' : ''}`}>
+          <h4>Pending Requests</h4>
+          <span className="stat-card-count">
+            <p>{pendingRequestsCount}</p>
+            {pendingRequestsCount > 0 && <span className="pulse"></span>}
+          </span>
         </div>
       </div>
 
@@ -202,7 +217,9 @@ function TherapistDashboardHome({
                 {privateChats.slice(0, 3).map(chat => (
                   <div
                     key={chat.id}
-                    className={`chat-card ${chat.needsTherapist ? "pending-chat" : ""}`}
+                    className={`chat-card 
+                      ${chat.activeTherapist === therapistInfo.uid ? "active-session" : ""}
+                      ${!chat.activeTherapist && chat.unreadCountForTherapist === 0 ? "pending-chat" : ""}`}
                     onClick={() => {
                       navigate(`/therapist-dashboard/private-chat/${chat.id}`);
                       joinPrivateChat(chat.id);
@@ -216,7 +233,38 @@ function TherapistDashboardHome({
                         <div className="chat-card-content">
                           <span className="chat-card-title">
                             {anonNames[chat.id] || "Anonymous"}
-                            {chat.needsTherapist && <span className="pending-indicator"> (Pending)</span>}
+                            {/*  SMART INDICATORS*/}
+                            {(() => {
+                              const iAmIn = chat.participants?.includes(therapistInfo.uid);
+                              const someoneElseIn = chat.participants?.length > 1 && 
+                                                  chat.participants?.some(p => p !== chat.userId && p !== therapistInfo.uid);
+                              const userHasMessaged = !!chat.lastMessage;
+                              const requestedMe = chat.requestedTherapist === therapistInfo.uid;
+                              const isOpenPool = !chat.requestedTherapist || chat.requestedTherapist === null;
+
+                              // 1. You are in the chat → Active
+                              if (iAmIn) {
+                                return <span className="active-indicator"> (Active • You)</span>;
+                              }
+
+                              // 2. Someone else took it → Taken
+                              if (someoneElseIn) {
+                                return <span className="taken-indicator"> (Taken)</span>;
+                              }
+
+                              // 3. No one joined yet + user messaged → Pending!
+                              if (userHasMessaged) {
+                                if (requestedMe) {
+                                  return <span className="new-request"> (New Request)</span>;
+                                }
+                                if (isOpenPool) {
+                                  return <span className="available-indicator"> (Available)</span>;
+                                }
+                              }
+
+                              // Fallback (very rare)
+                              return null;
+                            })()}
                           </span>
                           <span className="chat-card-preview">
                             {chat.lastMessage || "No messages yet"}
@@ -283,18 +331,19 @@ function TherapistDashboardHome({
                     })
                   );
 
-                // 2. Pending requests (max 2)
+                // Show chats where no therapist is active AND user has sent a message
                 privateChats
-                  .filter(chat => chat.needsTherapist)
+                  .filter(chat => 
+                    !chat.activeTherapist && 
+                    chat.lastMessage && 
+                    (!chat.unreadCountForTherapist || chat.unreadCountForTherapist === 0)
+                  )
                   .slice(0, 2)
                   .forEach(chat =>
                     items.push({
-                      key: `pending-${chat.id}`,
+                      key: `request-${chat.id}`,
                       content: (
-                        <li
-                          className="notification-item pending-chat"
-                          onClick={() => navigate(`/therapist-dashboard/private-chat/${chat.id}`)}
-                        >
+                        <li className="notification-item new-request" onClick={() => navigate(`/therapist-dashboard/private-chat/${chat.id}`)}>
                           New chat request from {anonNames[chat.id] || "Anonymous"}
                         </li>
                       ),

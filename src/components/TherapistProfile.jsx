@@ -38,30 +38,13 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
     const uids = [anonUid, therapist.uid].sort();
     const chatId = `${uids[0]}_${uids[1]}`;
 
-    const existing = await getDoc(doc(db, "privateChats", chatId));
-    if (existing.exists()) {
-      navigate(`/anonymous-dashboard/private-chat/${chatId}`, {
-        state: { selectChatId: chatId }
-      });
-      onBack?.();
-      return;
-    }
-
-    await setDoc(doc(db, "privateChats", chatId), {
-      userId: anonUid,
-      participants: [anonUid, therapist.uid],
-      createdAt: serverTimestamp(),
-      lastMessage: null,
-      unreadCountForTherapist: 0,
-      unreadCountForAnon: 0,
-      aiOffered: false,
-      aiEnabled: false,
-      needsTherapist: true,
-      therapistJoinedOnce: false,
-    });
-
+    // Just open the chat screen — do NOT create the document!
     navigate(`/anonymous-dashboard/private-chat/${chatId}`, {
-      state: { selectChatId: chatId }
+      state: {
+        selectChatId: chatId,
+        therapistId: therapist.uid,
+        therapistName: therapist.name
+      }
     });
     onBack?.();
   };

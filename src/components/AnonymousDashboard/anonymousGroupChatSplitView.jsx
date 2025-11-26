@@ -599,50 +599,6 @@ function AnonymousGroupChatSplitView({
     }
   };
 
-  // Check if therapist is online
-  const isTherapistOnline = (uid) =>
-    therapistsOnline.some((t) => t.uid === uid && t.online);
-
-  // Start private chat
-  const startPrivateChat = async (therapist) => {
-    if (!therapist || !therapist.uid || !userId) return;
-    const uids = [userId, therapist.uid].sort();
-    const chatId = `chat_${uids[0]}_${uids[1]}`;
-    const chatRef = doc(db, "privateChats", chatId);
-
-    try {
-      await runTransaction(db, async (transaction) => {
-        const chatSnap = await transaction.get(chatRef);
-        if (!chatSnap.exists()) {
-          transaction.set(chatRef, {
-            participants: [userId],
-            createdBy: displayName,
-            lastMessage: "",
-            lastUpdated: serverTimestamp(),
-            unreadCountForTherapist: 0,
-            aiActive: false,
-            aiOffered: false,
-            therapistJoinedOnce: false,
-            needsTherapist: true,
-          });
-        } else {
-          const currentData = chatSnap.data();
-          const updatedParticipants = [
-            ...new Set([...(currentData.participants || []), userId]),
-          ];
-          transaction.update(chatRef, {
-            participants: updatedParticipants,
-            lastUpdated: serverTimestamp(),
-          });
-        }
-      });
-      navigate(`/anonymous-dashboard/private-chat/${chatId}`);
-    } catch (err) {
-      console.error("Error starting private chat:", err);
-      showError("Failed to start private chat. Please try again.");
-    }
-  };
-
   // Combine messages and events
   const combinedGroupChat = [...messages, ...groupEvents, ...pendingMessages].sort((a, b) => {
     return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
@@ -965,13 +921,16 @@ function AnonymousGroupChatSplitView({
 
   /* ------------------- RENDER LOGIC ------------------- */
   if (isMobile) {
-    return activeGroupId ? (
-      <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`}>
-        {rightPanel}
-      </div>
-    ) : (
-      <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`}>
-        {leftPanel}
+    const showChat = activeGroupId;
+
+    return (
+      <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`.trim()}>
+        <div className={`mobile-panel ${showChat ? 'hidden' : ''}`.trim()}>
+          {leftPanel}
+        </div>
+        <div className={`mobile-panel ${!showChat ? 'hidden' : ''}`.trim()}>
+          {rightPanel}
+        </div>
       </div>
     );
   }

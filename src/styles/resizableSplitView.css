@@ -50,10 +50,35 @@
    Mobile-only helpers
    ------------------------------------------------------------- */
 .mobile-chat-wrapper {
+  position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   height: 100vh;
+}
+
+.mobile-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.3s ease, opacity 0.25s ease;
+  transition: all 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+  background: var(--bg-color);
+}
+
+.mobile-panel.hidden {
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.mobile-panel:not(.hidden) {
+  transform: translateX(0);
+  opacity: 1;
+  z-index: 10;
 }
 
 /* Back button that appears only on mobile when a chat is open */

@@ -14,9 +14,7 @@ const ResizableSplitView = ({
   const splitterRef = useRef(null);
   const [leftWidth, setLeftWidth] = useState(0);
 
-  // --------------------------------------------------------------
   // Initialise width once the container is mounted
-  // --------------------------------------------------------------
   useEffect(() => {
     const container = containerRef.current;
     if (!container || leftWidth > 0) return;
@@ -35,9 +33,7 @@ const ResizableSplitView = ({
     setLeftWidth(clamped);
   }, [initialRatio, minLeft, maxLeft, minRight, maxRight, leftWidth]);
 
-  // --------------------------------------------------------------
   // Drag handling
-  // --------------------------------------------------------------
   const onMouseDown = (downE) => {
     downE.preventDefault();
 
@@ -78,9 +74,6 @@ const ResizableSplitView = ({
     document.addEventListener("mouseup", onMouseUp);
   };
 
-  // --------------------------------------------------------------
-  // Render
-  // --------------------------------------------------------------
   return (
     <div ref={containerRef} className="resizable-split-container">
       {/* LEFT */}

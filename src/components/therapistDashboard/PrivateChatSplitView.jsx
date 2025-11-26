@@ -68,6 +68,7 @@ function PrivateChatSplitView({
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isInsideChat = useIsInsideChat();
   const [menuOpen, setMenuOpen] = useState(false);
+  const fileInputRef = useRef(null);
 
   /* ------------------- SCROLL LOGIC ------------------- */
   useEffect(() => {
@@ -165,10 +166,8 @@ function PrivateChatSplitView({
                             {mood.emoji}
                           </span>
                         )}
-                        {chat.needsTherapist ? " (Needs Therapist)" : ""}
                         {therapistId &&
-                          !chat.participants?.includes(chat.userId) &&
-                          chat.therapistJoinedOnce && (
+                          !chat.participants?.includes(chat.userId) && (
                             <span className="left-indicator"> (User Left)</span>
                           )}
                       </strong>
@@ -319,14 +318,14 @@ function PrivateChatSplitView({
 
               <input
                 type="file"
-                id="private-file-upload"
+                ref={fileInputRef}
                 style={{ display: "none" }}
                 onChange={(e) => handleFileChange(e.target.files[0])}
                 aria-label="Upload file"
               />
               <button
                 className="attach-btn"
-                onClick={() => document.getElementById("private-file-upload").click()}
+                onClick={() => fileInputRef.current?.click()}
                 aria-label="Attach file"
               >
                 <i className="fa-solid fa-paperclip"></i>
@@ -379,17 +378,19 @@ function PrivateChatSplitView({
 
   /* ------------------- RENDER LOGIC ------------------- */
   if (isMobile) {
-    if (activeChatId && inChat) {
-      return (
-        <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`.trim()}>{rightPanel}</div>
-      );
-    }
+    const showChat = activeChatId && inChat;
 
     return (
-      <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`.trim()}>{leftPanel}</div>
+      <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`.trim()}>
+        <div className={`mobile-panel ${showChat ? 'hidden' : ''}`.trim()}>
+          {leftPanel}
+        </div>
+        <div className={`mobile-panel ${!showChat ? 'hidden' : ''}`.trim()}>
+          {rightPanel}
+        </div>
+      </div>
     );
   }
-
   return (
     <ResizableSplitView
       leftPanel={leftPanel}

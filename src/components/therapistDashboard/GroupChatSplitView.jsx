@@ -420,13 +420,16 @@ function GroupChatSplitView({
 
   /* ------------------- RENDER LOGIC ------------------- */
   if (isMobile) {
-    return activeGroupId && isGroupChatOpen && inGroupChat ? (
-      <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`}>
-        {rightPanel}
-      </div>
-    ) : (
-      <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`}>
-        {leftPanel}
+    const showChat = activeGroupId && isGroupChatOpen && inGroupChat;
+
+    return (
+      <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`.trim()}>
+        <div className={`mobile-panel ${showChat ? 'hidden' : ''}`.trim()}>
+          {leftPanel}
+        </div>
+        <div className={`mobile-panel ${!showChat ? 'hidden' : ''}`.trim()}>
+          {rightPanel}
+        </div>
       </div>
     );
   }

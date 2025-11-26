@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { db, storage, serverTimestamp } from "../utils/firebase";
 import {
   doc, collection, query, orderBy, onSnapshot, limit, getDocs, startAfter,
-  runTransaction, arrayUnion, arrayRemove
+  runTransaction, arrayUnion, arrayRemove, deleteField
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
@@ -28,46 +28,63 @@ export function useActivePrivateChat(
 
   // ---------- VALIDATE & JOIN ----------
   const join = useCallback(async (chatId = activeChatId) => {
-    if (!therapistId) return;
+    if (!therapistId || !chatId) return;
+
     setValidating(true);
     setChatError(null);
     const chatRef = doc(db, "privateChats", chatId);
+
     try {
       await runTransaction(db, async (tx) => {
         const snap = await tx.get(chatRef);
         if (!snap.exists()) throw new Error("Chat not found");
-        const data = snap.data();
-        const needs = data.needsTherapist === true;
-        const alreadyIn = data.participants?.includes(therapistId);
 
-        if (!alreadyIn && !needs) {
-          // wait a moment – user might just have sent first msg
-          await new Promise(r => setTimeout(r, 2000));
-          const fresh = await tx.get(chatRef);
-          if (!fresh.exists()) throw new Error("Chat vanished");
-          const freshData = fresh.data();
-          if (!freshData.participants?.includes(therapistId) && freshData.needsTherapist !== true) {
-            throw new Error("No permission");
-          }
+        const data = snap.data();
+
+        // NEW LOGIC: Allow join if:
+        // 1. I'm already in participants → resume session
+        // 2. OR user has sent a message (lastMessage exists) → open pool or requested me
+        const iAmAlreadyIn = data.participants?.includes(therapistId);
+        const userHasMessaged = !!data.lastMessage;
+
+        if (!iAmAlreadyIn && !userHasMessaged) {
+          throw new Error("This chat has no messages yet");
         }
 
-        tx.update(chatRef, {
-          participants: alreadyIn ? data.participants : arrayUnion(therapistId),
-          unreadCountForTherapist: 0,
-          needsTherapist: false,
-          therapistJoinedOnce: true,
-        });
+        // Always allow joining if user has messaged
+        if (!iAmAlreadyIn) {
+          tx.update(chatRef, {
+            participants: arrayUnion(therapistId),
+            activeTherapist: therapistId,
+            status: "active",
+            unreadCountForTherapist: 0,
+            aiActive: false,
+            aiOffered: true,
+            // Clean up old fields if they exist
+            pendingTherapist: deleteField(),
+            requestedTherapist: deleteField(), // optional: keep for analytics only
+          });
+        } else {
+          // Just resuming
+          tx.update(chatRef, {
+            activeTherapist: therapistId,
+            unreadCountForTherapist: 0,
+          });
+        }
+
         tx.set(doc(collection(chatRef, "events")), {
           type: "join",
           user: displayName,
-          text: `A therapist "${displayName}" has joined.`,
+          text: `${displayName} has joined the chat.`,
           role: "system",
           timestamp: serverTimestamp(),
         });
       });
+
       setInChat(true);
     } catch (e) {
-      setChatError(e.message);
+      console.error("Join failed:", e);
+      setChatError(e.message || "Failed to join chat");
       navigate("/therapist-dashboard/private-chat");
     } finally {
       setValidating(false);
@@ -78,28 +95,42 @@ export function useActivePrivateChat(
   const leave = useCallback(async () => {
     if (!activeChatId || !therapistId) return;
     const chatRef = doc(db, "privateChats", activeChatId);
+
     try {
       await runTransaction(db, async (tx) => {
+        const chatSnap = await tx.get(chatRef);
+        if (!chatSnap.exists()) throw new Error("Chat not found");
+
+        const data = chatSnap.data();
+
         tx.update(chatRef, {
-          participants: arrayRemove(therapistId),
-          aiOffered: true,
+          activeTherapist: null,
+          status: "waiting",
           aiActive: false,
-          needsTherapist: false,
+          aiOffered: false,
+          participants: arrayRemove(therapistId),
         });
+
+        // keep history of who ended it
         tx.set(doc(collection(chatRef, "events")), {
           type: "leave",
           user: displayName,
-          text: `${displayName} left the chat.`,
+          text: `${displayName} has ended the session.`,
           role: "system",
           timestamp: serverTimestamp(),
         });
       });
+
+      // Clear local state
       setMessages([]);
       setEvents([]);
-      navigate("/therapist-dashboard/private-chat");
       setInChat(false);
+
+      // Navigate back to list
+      navigate("/therapist-dashboard/private-chat");
     } catch (e) {
-      showError("Failed to leave private chat.");
+      console.error("Failed to end session:", e);
+      showError("Failed to end session properly.");
     }
   }, [activeChatId, therapistId, displayName, navigate, showError]);
 
@@ -130,7 +161,6 @@ export function useActivePrivateChat(
         lastMessage: text || "Attachment",
         lastUpdated: serverTimestamp(),
         unreadCountForTherapist: 0,
-        needsTherapist: false,
       });
     });
   };
@@ -199,7 +229,7 @@ export function useActivePrivateChat(
       return;
     }
 
-    // Auto-join when activeChatId changes
+    // Always try to join — new logic is safe
     join(activeChatId);
   }, [activeChatId, join]);
 
@@ -224,11 +254,6 @@ export function useActivePrivateChat(
       prevMsgs.current = msgs;
       setHasMore(snap.docs.length === 50);
       if (newOnes.length) playNotification();
-
-      // reset unread
-      runTransaction(db, tx => {
-        tx.update(chatRef, { unreadCountForTherapist: 0 });
-      }).catch(() => {});
     }, () => setChatError("Failed to load messages"));
 
     const evQ = query(collection(chatRef, "events"), orderBy("timestamp"));

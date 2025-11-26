@@ -22,7 +22,7 @@
 }
 
 .therapist-profile {
-  padding: 20px;
+  /* padding: 20px; */
   background: var(--profile-bg);
   border-radius: var(--border-radius);
   position: relative;
@@ -201,9 +201,9 @@
     width: 95%;
   }
 
-  .therapist-profile {
+  /* .therapist-profile {
     padding: 15px;
-  }
+  } */
 
   .therapist-profile .action-buttons {
     flex-direction: column;

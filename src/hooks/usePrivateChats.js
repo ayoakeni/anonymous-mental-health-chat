@@ -1,44 +1,63 @@
 import { useEffect, useState } from "react";
 import { db, auth } from "../utils/firebase";
-import { collection, query, onSnapshot, limit } from "firebase/firestore";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 
 export function usePrivateChats(showError) {
-  const [chats, setChats] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [privateChats, setPrivateChats] = useState([]);
+  const [isLoadingPrivateChats, setIsLoadingPrivateChats] = useState(true);
   const uid = auth.currentUser?.uid;
 
   useEffect(() => {
     if (!uid) {
-      setLoading(false);
+      setPrivateChats([]);
+      setIsLoadingPrivateChats(false);
       return;
     }
 
-    // Get ALL private chats (up to 50)
-    const q = query(collection(db, "privateChats"), limit(50));
-
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const allChats = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-        // Filter locally: show if therapist is in OR has joined before
-        const filtered = allChats.filter((chat) => {
-          const isParticipant = chat.participants?.includes(uid);
-          const hasJoinedBefore = chat.therapistJoinedOnce === true;
-          return isParticipant || hasJoinedBefore;
-        });
-
-        setChats(filtered);
-        setLoading(false);
-      },
-      (err) => {
-        showError("Failed to load private chats.");
-        setLoading(false);
-      }
+    const q = query(
+      collection(db, "privateChats"),
+      where("lastMessage", "!=", null),
     );
+    const unsub = onSnapshot(q, handleSnapshot, handleError);
 
-    return unsub;
+    function handleSnapshot(snapshot) {
+      const chats = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      setPrivateChats(prev => {
+        const map = new Map(prev.map(c => [c.id, c]));
+        chats.forEach(chat => map.set(chat.id, chat));
+        const updated = Array.from(map.values());
+
+        // Sort ONCE when data changes
+        return updated.sort((a, b) => {
+          const aActive = a.activeTherapist === uid;
+          const bActive = b.activeTherapist === uid;
+          if (aActive && !bActive) return -1;
+          if (!aActive && bActive) return 1;
+
+          const aUnread = (a.unreadCountForTherapist || 0) > 0;
+          const bUnread = (b.unreadCountForTherapist || 0) > 0;
+          if (aUnread && !bUnread) return -1;
+          if (!aUnread && bUnread) return 1;
+
+          return (b.lastUpdated?.toMillis() || 0) - (a.lastUpdated?.toMillis() || 0);
+        });
+      });
+    }
+
+    function handleError(err) {
+      console.error("Error loading private chats:", err);
+      showError("Failed to load private chats.");
+      setIsLoadingPrivateChats(false);
+    }
+
+    setIsLoadingPrivateChats(false);
+
+    return () => unsub();
   }, [uid, showError]);
 
-  return { privateChats: chats, isLoadingPrivateChats: loading };
+  return { privateChats, isLoadingPrivateChats };
 }

@@ -19,10 +19,22 @@ import { DateTime } from 'luxon';
 import "../styles/anonymousDashboard.css";
 
 function AnonymousDashboard() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { groupId, chatId } = useParams();
+
+  const userId = auth.currentUser?.uid;
+  const displayName = getAnonName();
+
+  const playNotification = useNotificationSound();
+  const hideSidebarOnMobile = useHideSidebarMobile();
+  const removeDashboardPadding = useRemovePaddingBottomMobile();
+
   const [groupChats, setGroupChats] = useState([]);
   const [privateChats, setPrivateChats] = useState([]);
   const [activeGroupId, setActiveGroupId] = useState(null);
   const [activeChatId, setActiveChatId] = useState(null);
+  const therapistNames = useUserNames(privateChats, userId, "therapists", "Therapist");
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
@@ -30,28 +42,38 @@ function AnonymousDashboard() {
   const [moodHistory, setMoodHistory] = useState([]);
   const [moodHistoryLoading, setMoodHistoryLoading] = useState(true);
   const [showMoodPopup, setShowMoodPopup] = useState(false);
-  const playNotification = useNotificationSound();
+
   const errorTimeoutRef = useRef(null);
   const moodModalRef = useRef(null);
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { groupId, chatId } = useParams();
-  const userId = auth.currentUser?.uid;
-  const displayName = getAnonName();
-  const hideSidebarOnMobile = useHideSidebarMobile();
-  const removeDashboardPadding = useRemovePaddingBottomMobile();
 
-  // Calculate total unread counts
   const totalGroupUnread = useMemo(() =>
     groupChats.reduce((sum, group) => sum + (group.unreadCount || 0), 0),
     [groupChats]
   );
+
   const privateUnreadCount = useMemo(() =>
     privateChats.reduce((sum, chat) => sum + (chat.unreadCountForTherapist || 0), 0),
     [privateChats]
   );
 
-  // Handle error display
+  const anonNames = useMemo(() => {
+    const base = therapistNames || {};
+
+    // Read location.state without making it a dependency (safe!)
+    const navigationState = location.state;
+    if (navigationState?.selectChatId && navigationState?.therapistName) {
+      const chatId = navigationState.selectChatId;
+      const therapistName = navigationState.therapistName;
+
+      // Only override if different
+      if (base[chatId] !== therapistName) {
+        return { ...base, [chatId]: therapistName };
+      }
+    }
+
+    return base;
+  }, [therapistNames]); // Only therapistNames in dependencies
+
   const closeError = useCallback(() => {
     setIsErrorFading(true);
     setTimeout(() => {
@@ -61,19 +83,16 @@ function AnonymousDashboard() {
         clearTimeout(errorTimeoutRef.current);
       }
     }, 300);
-  }, [setErrorMsg, setIsErrorFading, errorTimeoutRef]);
+  }, []);
 
-  const showError = useCallback(
-    (msg, autoDismiss = true) => {
-      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
-      setErrorMsg(msg);
-      setIsErrorFading(false);
-      if (msg && autoDismiss) {
-        errorTimeoutRef.current = setTimeout(closeError, 5000);
-      }
-    },
-    [closeError, setErrorMsg, setIsErrorFading, errorTimeoutRef]
-  );
+  const showError = useCallback((msg, autoDismiss = true) => {
+    if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+    setErrorMsg(msg);
+    setIsErrorFading(false);
+    if (msg && autoDismiss) {
+      errorTimeoutRef.current = setTimeout(closeError, 5000);
+    }
+  }, [closeError]);
 
   // Cleanup error timeout
   useEffect(() => {
@@ -82,12 +101,10 @@ function AnonymousDashboard() {
     };
   }, []);
 
-  // Auto-clear activeChatId if chat no longer exists in list
   useEffect(() => {
-    if (activeChatId && !privateChats.some(chat => chat.id === activeChatId)) {
-      setActiveChatId(null);
-    }
-  }, [privateChats, activeChatId]);
+    setActiveGroupId(groupId || null);
+    setActiveChatId(chatId || null);
+  }, [groupId, chatId]);
 
   // Authenticate anonymous user
   useEffect(() => {
@@ -136,9 +153,11 @@ function AnonymousDashboard() {
 
   // Fetch private chats — include those you left
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      setPrivateChats([]); // Reset when no user
+      return;
+    }
 
-    // Get ALL chats involving this user OR where they left
     const q1 = query(
       collection(db, "privateChats"),
       where("participants", "array-contains", userId),
@@ -175,8 +194,6 @@ function AnonymousDashboard() {
       unsub2();
     };
   }, [userId, showError]);
-
-  const anonNames = useUserNames( privateChats, userId, "therapists", "Therapist");
 
   // Fetch mood history
   useEffect(() => {
@@ -236,28 +253,6 @@ function AnonymousDashboard() {
   const lastMood = moodHistory[0]?.mood;
   const prompt = lastMood === 'sad' ? 'Feeling down? Let’s check in today!' : 'How’s your mood today?';
 
-  // Sync URL ↔ active chat
-  useEffect(() => {
-    if (groupId && groupId !== activeGroupId) setActiveGroupId(groupId);
-    if (chatId && chatId !== activeChatId) setActiveChatId(chatId);
-  }, [groupId, activeGroupId, chatId, activeChatId]);
-
-  useEffect(() => {
-    if (activeGroupId && !location.pathname.includes(activeGroupId)) {
-      navigate(`/anonymous-dashboard/group-chat/${activeGroupId}`, { replace: true });
-    } else if (!activeGroupId && location.pathname.includes('/group-chat/')) {
-      navigate('/anonymous-dashboard/group-chat', { replace: true });
-    }
-  }, [activeGroupId, navigate, location]);
-
-  useEffect(() => {
-    if (activeChatId && !location.pathname.includes(activeChatId)) {
-      navigate(`/anonymous-dashboard/private-chat/${activeChatId}`, { replace: true });
-    } else if (!activeChatId && location.pathname.includes('/private-chat/')) {
-      navigate('/anonymous-dashboard/private-chat', { replace: true });
-    }
-  }, [activeChatId, navigate, location]);
-
   // Handle sidebar toggle
   const handleToggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -278,7 +273,6 @@ function AnonymousDashboard() {
               transaction.update(privateChatRef, {
                 participants: arrayRemove(userId),
                 aiOffered: false,
-                needsTherapist: true,
               });
               transaction.set(doc(collection(privateChatRef, "events")), {
                 type: "leave",

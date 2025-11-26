@@ -225,11 +225,9 @@ function PrivateChat({ chatId }) {
         const chatSnap = await transaction.get(chatRef);
         if (!chatSnap.exists()) throw new Error("Chat document does not exist");
         transaction.update(chatRef, {
-          therapistJoinedOnce: true,
           aiActive: false,
           aiOffered: false,
           lastJoinEvent: now,
-          needsTherapist: true,
         });
         const unreadQuery = query(collection(chatRef, "messages"), where("read", "==", false));
         const unreadSnap = await getDocs(unreadQuery);
@@ -254,7 +252,6 @@ function PrivateChat({ chatId }) {
     // Handle therapist leave
     if (
       therapistLeft &&
-      chatData.therapistJoinedOnce &&
       now - (lastLeaveEventRef.current || 0) > 2000 &&
       now > lastLeaveEventTime &&
       !chatData.lastLeaveAiOffered
@@ -271,10 +268,8 @@ function PrivateChat({ chatId }) {
         });
         transaction.update(chatRef, {
           aiOffered: true,
-          therapistJoinedOnce: false,
           lastLeaveEvent: now,
           lastLeaveAiOffered: now,
-          needsTherapist: true,
         });
       }).catch((err) => {
         console.error("Error updating on leave:", err);
@@ -284,13 +279,11 @@ function PrivateChat({ chatId }) {
     }
 
     // Handle initial AI offer if no therapist
-    const { aiOffered, therapistJoinedOnce, needsTherapist } = chatData;
+    const { aiOffered } = chatData;
     if (
       messages.length > 0 &&
       !therapistPresent &&
       !aiOffered &&
-      !therapistJoinedOnce &&
-      needsTherapist &&
       !isTherapistAvailable &&
       !hasOfferedNoTherapistRef.current
     ) {
@@ -299,7 +292,7 @@ function PrivateChat({ chatId }) {
       runTransaction(db, async (transaction) => {
         const chatSnap = await transaction.get(chatRef);
         if (!chatSnap.exists()) throw new Error("Chat document does not exist");
-        transaction.update(chatRef, { aiOffered: true, needsTherapist: true });
+        transaction.update(chatRef, { aiOffered: true });
         transaction.set(doc(collection(chatRef, "messages")), {
           text: "No therapist is online right now. Would you like to chat with our support assistant while you wait?",
           role: "system",
@@ -364,8 +357,6 @@ function PrivateChat({ chatId }) {
         const chatSnap = await transaction.get(chatRef);
         if (!chatSnap.exists()) throw new Error("Chat document does not exist");
         const data = chatSnap.data();
-        const hasTherapist = data.participants?.some((uid) => uid !== auth.currentUser.uid) || false;
-        const needsTherapist = !hasTherapist && role !== "therapist";
         transaction.set(doc(collection(chatRef, "messages")), {
           text: messageText,
           userId: auth.currentUser.uid,
@@ -380,7 +371,6 @@ function PrivateChat({ chatId }) {
           lastMessage: newMessage || "Attachment",
           lastUpdated: serverTimestamp(),
           unreadCountForTherapist: role === "therapist" ? 0 : increment(1),
-          needsTherapist: needsTherapist ? true : data.needsTherapist,
         });
       });
 
@@ -494,7 +484,7 @@ function PrivateChat({ chatId }) {
           read: false,
         });
         if (choice === "yes") {
-          transaction.update(chatRef, { aiActive: true, aiOffered: false, needsTherapist: false });
+          transaction.update(chatRef, { aiActive: true, aiOffered: false });
           transaction.set(doc(collection(chatRef, "messages")), {
             text: "You are now chatting with our support assistant until a therapist joins.",
             role: "system",
@@ -538,7 +528,7 @@ function PrivateChat({ chatId }) {
             });
           }
         } else {
-          transaction.update(chatRef, { aiActive: false, aiOffered: false, needsTherapist: true });
+          transaction.update(chatRef, { aiActive: false, aiOffered: false });
           transaction.set(doc(collection(chatRef, "messages")), {
             text: "Okay, please hold on while we connect you to a therapist.",
             role: "system",
@@ -602,9 +592,7 @@ function PrivateChat({ chatId }) {
         transaction.update(chatRef, {
           aiOffered: false,
           aiActive: false,
-          therapistJoinedOnce: false,
-          participants: arrayRemove(auth.currentUser.uid),
-          needsTherapist: true,
+          // participants: arrayRemove(auth.currentUser.uid),
         });
         transaction.set(doc(collection(chatRef, "events")), {
           type: "leave",
@@ -636,8 +624,6 @@ function PrivateChat({ chatId }) {
             transaction.update(privateChatRef, {
               participants: arrayRemove(uid),
               aiOffered: false,
-              therapistJoinedOnce: false,
-              needsTherapist: true,
             });
             transaction.set(doc(collection(privateChatRef, "events")), {
               type: "leave",

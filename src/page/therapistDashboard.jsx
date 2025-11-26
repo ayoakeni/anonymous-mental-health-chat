@@ -65,9 +65,18 @@ function TherapistDashboard() {
     saveSettings: profileSaveSettings,
     logout,
   } = useTherapistProfile(navigate, showError);
-
+  
   const { groupChats, isLoadingGroupChats } = useGroupChats(showError);
   const { privateChats, isLoadingPrivateChats } = usePrivateChats(showError);
+
+  const allParticipantUids = useMemo(() => {
+    return [...new Set(
+      groupChats.flatMap(g => g.participants || [])
+    )];
+  }, [groupChats]);
+
+  const participantNames = useParticipantNames(allParticipantUids);
+  const anonNames = useUserNames(privateChats, therapistId, "anonymousUsers", "Anonymous");
 
   const {
     messages: groupMsgs,
@@ -113,12 +122,6 @@ function TherapistDashboard() {
     showError,
     navigate
   );
-
-  const participantNames = useParticipantNames(
-    groupChats.flatMap((g) => g.participants || [])
-  );
-
-  const anonNames = useUserNames(privateChats, therapistId, "anonymousUsers", "Anonymous");
 
   // APPOINTMENTS
   const appointmentsData = useAppointments(therapistId, showError);

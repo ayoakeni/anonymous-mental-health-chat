@@ -255,40 +255,44 @@
   border-radius: 4px;
 }
 
-
-.ai-offer {
+.ai-offer-card {
+  background: var(--system-bg);
+  border-radius: 12px;
+  border-left: 4px solid var(--error-color);
   text-align: center;
-  margin: 10px 0;
+  align-self: center;
+  font-style: italic;
+  color: var(--text-color);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px auto;
+  max-width: 380px;
+  opacity: 0.8;
 }
 
-.ai-offer p {
-  margin-bottom: 10px;
-}
-
-.ai-offer button {
-  padding: 8px 16px;
-  margin: 0 5px;
+.ai-offer-buttons button {
+  margin: 8px;
+  padding: 10px 20px;
   border: none;
-  border-radius: var(--border-radius);
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 0.9rem;
 }
 
-.ai-offer button:first-child {
-  background: var(--accent-color);
-  color: white;
-}
-
-.ai-offer button:last-child {
-  background: var(--badge-bg);
-  color: white;
-}
-
-.ai-offer button:hover:not(:disabled) {
+.ai-offer-buttons button:hover:not(:disabled) {
   filter: brightness(90%);
 }
 
-.ai-offer button:disabled {
+.ai-offer-buttons button:disabled {
   background: var(--input-border);
   cursor: not-allowed;
+}
+
+.ai-yes-btn { 
+  background: var(--primary-color); 
+  color: white; 
+}
+
+.ai-no-btn { 
+  background: var(--error-color);
+  color: white;
 }
