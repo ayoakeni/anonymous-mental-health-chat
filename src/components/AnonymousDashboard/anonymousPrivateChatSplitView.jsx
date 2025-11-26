@@ -701,14 +701,14 @@ const therapistDisplayName = useMemo(() => {
 
   // FILTER OUT STALE AI OFFER
   const combinedPrivateChat = [...messages, ...events, ...pendingMessages]
-    .filter(msg => {
-      if (msg.id === "ai-offer-message" && msg.type === "ai-offer") {
-        const chat = privateChats.find(c => c.id === activeChatId);
-        return chat?.aiOffered === true;
-      }
-      return true;
-    })
-    .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
+  .filter(msg => {
+    if (msg.id === "ai-offer-message" && msg.type === "ai-offer") {
+      const chat = privateChats.find(c => c.id === activeChatId);
+      return chat?.aiOffered === true;
+    }
+    return true;
+  })
+  .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
 
   const leftPanel = (
     <div className="chat-box-card">
