@@ -5,14 +5,13 @@ import {
   runTransaction, arrayUnion, arrayRemove
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-
+import { useNavigate } from "react-router-dom";
 export function useActiveGroupChat(
   activeGroupId,
   therapistId,
   displayName,
   playNotification,
   showError,
-  navigate
 ) {
   const [messages, setMessages] = useState([]);
   const [events, setEvents] = useState([]);
@@ -25,7 +24,7 @@ export function useActiveGroupChat(
   const unsubMsgs = useRef(() => {});
   const unsubEvents = useRef(() => {});
   const unsubPart = useRef(() => {});
-
+  const navigate = useNavigate();
   // ---------- JOIN ----------
   const join = useCallback(async (groupId = activeGroupId) => {
     if (!therapistId) return;

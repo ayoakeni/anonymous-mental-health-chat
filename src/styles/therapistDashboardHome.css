@@ -318,37 +318,37 @@
   font-size: 0.8rem;
 }
 
-.chat-card.active-session {
+.dashboard-home .chat-card.active-session {
   border-left: 4px solid #4caf50;
   background: rgba(76, 175, 80, 0.08);
 }
 
-.active-indicator {
+.dashboard-home .active-indicator {
   color: #10b981;
   font-weight: 600;
   font-size: 0.85em;
 }
 
-.chat-card.active-session .chat-card-title::after {
+.dashboard-home .chat-card.active-session .chat-card-title::after {
   content: " ●";
   color: #10b981;
   font-size: 0.8em;
 }
 
-.taken-indicator {
+.dashboard-home .taken-indicator {
   color: #ef4444;
   font-style: italic;
   font-size: 0.85em;
 }
 
-.new-request {
+.dashboard-home .new-request {
   color: #d97706;
   font-size: 0.85em;
   font-weight: 600;
   animation: pulse 2.5s infinite;
 }
 
-.available-indicator {
+.dashboard-home .available-indicator {
   color: #3b82f6;
   font-weight: 600;
   font-size: 0.85em;
@@ -424,9 +424,9 @@
     margin: 0;
   }
 
-  .dashboard-home .chat-section .chat-card-content {
+  /* .dashboard-home .chat-section .chat-card-content {
     max-width: 120px;
-  }
+  } */
 
   .dashboard-home .quick-stats {
     grid-template-columns: 1fr;
@@ -489,6 +489,6 @@
   }
 
   .dashboard-home .chat-section .chat-card-content {
-    max-width: 80px;
+    max-width: 200px;
   }
 }
