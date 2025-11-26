@@ -25,6 +25,7 @@ export function useActiveGroupChat(
   const unsubEvents = useRef(() => {});
   const unsubPart = useRef(() => {});
   const navigate = useNavigate();
+  
   // ---------- JOIN ----------
   const join = useCallback(async (groupId = activeGroupId) => {
     if (!therapistId) return;
