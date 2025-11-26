@@ -60,7 +60,7 @@ export default function TherapistLogin() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="therapist@mindful.com"
+                placeholder="therapist@gmail.com"
                 className="form-input"
               />
               <span className="input-icon">
