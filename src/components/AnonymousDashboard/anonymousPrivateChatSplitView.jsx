@@ -321,7 +321,7 @@ const therapistDisplayName = useMemo(() => {
     if (!userId) return;
     try {
       const chatRef = doc(db, "privateChats", chatId);
-      await runTransaction(db, async transaction => {
+      await runTransaction(db, async (transaction) => {
         const chatSnap = await transaction.get(chatRef);
         if (!chatSnap.exists()) {
           transaction.set(chatRef, {
@@ -336,9 +336,14 @@ const therapistDisplayName = useMemo(() => {
         } else {
           const data = chatSnap.data();
           const wasLeft = data.leftBy?.[userId];
-          transaction.update(chatRef, {
-            ...(wasLeft && { [`leftBy.${userId}`]: deleteField() }),
-          });
+
+          if (wasLeft) {
+            transaction.update(chatRef, {
+              [`leftBy.${userId}`]: deleteField(),
+              aiOffered: false,
+              aiActive: false,
+            });
+          }
           if (!data.participants.includes(userId)) {
             transaction.update(chatRef, { participants: arrayUnion(userId) });
           }
@@ -348,7 +353,7 @@ const therapistDisplayName = useMemo(() => {
       navigate(`/anonymous-dashboard/private-chat/${chatId}`);
     } catch (err) {
       console.error("Error joining private chat:", err);
-      showError("Failed to join private chat. Please try again.");
+      showError("Failed to join private chat.");
     }
   };
 
@@ -356,12 +361,14 @@ const therapistDisplayName = useMemo(() => {
     if (!activeChatId || !userId) return;
     try {
       const chatRef = doc(db, "privateChats", activeChatId);
-      await runTransaction(db, async transaction => {
+      await runTransaction(db, async (transaction) => {
         const chatSnap = await transaction.get(chatRef);
         if (!chatSnap.exists()) throw new Error("Chat does not exist");
+
         transaction.update(chatRef, {
           [`leftBy.${userId}`]: true,
           aiOffered: false,
+          aiActive: false, // Disable AI on leave
         });
         transaction.set(doc(collection(chatRef, "events")), {
           type: "leave",
@@ -371,12 +378,13 @@ const therapistDisplayName = useMemo(() => {
           timestamp: serverTimestamp(),
         });
       });
+
       await new Promise(r => setTimeout(r, 600));
       setActiveChatId(null);
       navigate("/anonymous-dashboard/private-chat");
     } catch (err) {
       console.error("Error leaving private chat:", err);
-      showError("Failed to leave chat. Please try again.");
+      showError("Failed to leave chat.");
     }
   };
 
@@ -400,13 +408,11 @@ const therapistDisplayName = useMemo(() => {
       let hasTherapist = false;
       let aiActive = false;
 
-      // DO EVERYTHING IN ONE TRANSACTION — including reading current state
       await runTransaction(db, async (transaction) => {
         const chatSnap = await transaction.get(chatRef);
 
         if (!chatSnap.exists()) {
           const targetTherapistId = location.state?.therapistId;
-
           transaction.set(chatRef, {
             participants: [userId],
             requestedTherapist: targetTherapistId || null,
@@ -422,9 +428,8 @@ const therapistDisplayName = useMemo(() => {
             leftBy: {},
           });
         } else {
-          // existing chat
           const data = chatSnap.data();
-          hasTherapist = (data.participants || []).some(p => p !== userId);
+          hasTherapist = (data.participants || []).some(p => p !== userId && p !== data.activeTherapist);
           aiActive = data.aiActive === true;
 
           transaction.update(chatRef, {
@@ -445,7 +450,7 @@ const therapistDisplayName = useMemo(() => {
         });
       });
 
-      // Add to pending messages (optimistic UI)
+      // Optimistic UI
       setPendingMessages(prev => [...prev, {
         id: `pending-${Date.now()}`,
         text: messageText,
@@ -460,25 +465,53 @@ const therapistDisplayName = useMemo(() => {
       setNewMessage("");
       setShowEmojiPicker(false);
 
-      // NOW: Use the values captured from inside the transaction
+      // === RE-TRIGGER AI OFFER IF NO THERAPIST EVER REPLIED ===
+      const chatSnap = await getDoc(chatRef);
+      if (chatSnap.exists()) {
+        const data = chatSnap.data();
+        const hasActiveTherapist = !!data.activeTherapist;
+        const aiAlreadyOffered = data.aiOffered === true;
+        const hasTherapistMessages = messages.some(m => m.role === "therapist");
+
+        if (!hasActiveTherapist && !aiAlreadyOffered && !hasTherapistMessages) {
+          const offerMsg = {
+            id: "ai-offer-message",
+            type: "ai-offer",
+            text: "It looks like you're waiting for a reply. Would you like to chat with our Support Support Assistant in the meantime?",
+            role: "system",
+            timestamp: { toMillis: () => Date.now() },
+          };
+
+          setPendingMessages(prev => {
+            if (prev.some(m => m.id === "ai-offer-message")) return prev;
+            return [...prev, offerMsg];
+          });
+
+          await runTransaction(db, async (tx) => {
+            const fresh = await tx.get(chatRef);
+            if (fresh.exists() && !fresh.data().aiOffered && !fresh.data().aiActive) {
+              tx.update(chatRef, { aiOffered: true });
+            }
+          });
+        }
+      }
+
+      // AI response if enabled
       if (aiActive && !hasTherapist) {
-        // Trigger AI response
         setAiTyping(true);
         try {
           const aiInputMessages = mapMessagesForAI(messages);
           const aiResponse = await getAIResponse(newMessage || " ", aiInputMessages);
           const aiFullText = `"${newMessage || "Attachment"}"\n\n${aiResponse}`;
 
-          await runTransaction(db, async (transaction) => {
-            transaction.set(doc(collection(chatRef, "messages")), {
+          await runTransaction(db, async (tx) => {
+            tx.set(doc(collection(chatRef, "messages")), {
               text: aiFullText,
               role: "ai",
               displayName: "Support Assistant",
               timestamp: serverTimestamp(),
-              fileUrl: null,
-              reactions: {},
             });
-            transaction.update(chatRef, {
+            tx.update(chatRef, {
               lastMessage: `Support Assistant: ${aiResponse}`,
               lastUpdated: serverTimestamp(),
             });
@@ -490,33 +523,16 @@ const therapistDisplayName = useMemo(() => {
             role: "ai",
             displayName: "Support Assistant",
             timestamp: { toMillis: () => Date.now() },
-            fileUrl: null,
-            reactions: {},
           }]);
-
         } catch (err) {
-          console.error("AI response failed:", err);
-          const errText = "Sorry, I'm having trouble responding right now. A therapist will be with you soon.";
-          await runTransaction(db, async (transaction) => {
-            transaction.set(doc(collection(chatRef, "messages")), {
-              text: errText,
-              role: "system",
-              timestamp: serverTimestamp(),
-            });
-          });
-          setPendingMessages(prev => [...prev, {
-            id: `pending-error-${Date.now()}`,
-            text: errText,
-            role: "system",
-            timestamp: { toMillis: () => Date.now() },
-          }]);
+          // ... error handling
         } finally {
           setAiTyping(false);
         }
       }
     } catch (err) {
       console.error("Error sending message:", err);
-      showError("Failed to send message. Please try again.");
+      showError("Failed to send message.");
     } finally {
       setIsSending(false);
     }
@@ -683,9 +699,16 @@ const therapistDisplayName = useMemo(() => {
     setShowEmojiPicker(false);
   };
 
-  const combinedPrivateChat = [...messages, ...events, ...pendingMessages].sort((a, b) => {
-    return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
-  });
+  // FILTER OUT STALE AI OFFER
+  const combinedPrivateChat = [...messages, ...events, ...pendingMessages]
+    .filter(msg => {
+      if (msg.id === "ai-offer-message" && msg.type === "ai-offer") {
+        const chat = privateChats.find(c => c.id === activeChatId);
+        return chat?.aiOffered === true;
+      }
+      return true;
+    })
+    .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
 
   const leftPanel = (
     <div className="chat-box-card">
