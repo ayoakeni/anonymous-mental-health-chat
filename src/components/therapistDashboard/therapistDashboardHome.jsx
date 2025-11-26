@@ -13,6 +13,7 @@ const getGreeting = () => {
 
 function TherapistDashboardHome({
   therapistInfo,
+  therapistId,
   groupChats,
   privateChats,
   totalGroupUnread,
@@ -69,7 +70,7 @@ function TherapistDashboardHome({
      chat.lastMessage && 
      !chat.activeTherapist
    ).length;
-  }, [privateChats, therapistInfo.uid]);
+  }, [privateChats, therapistId]);
 
   // ────── NOTIFICATION COUNT ──────
   const totalNotifications = useMemo(() => {
@@ -112,7 +113,7 @@ function TherapistDashboardHome({
           <h4>Active Sessions</h4>
           <p>
             {privateChats.filter(chat => 
-              chat.participants?.includes(therapistInfo.uid)
+              chat.participants?.includes(therapistId)
             ).length}
           </p>
         </div>
@@ -235,8 +236,8 @@ function TherapistDashboardHome({
                             {anonNames[chat.id] || "Anonymous"}
                             {/* SMART INDICATORS */}
                             {(() => {
-                              const iAmIn = chat.participants?.includes(therapistInfo.uid);
-                              const someoneElseIn = chat.activeTherapist && chat.activeTherapist !== therapistInfo.uid;
+                              const iAmIn = chat.participants?.includes(therapistId);
+                              const someoneElseIn = chat.activeTherapist && chat.activeTherapist !== therapistId;
                               const noOneInYet = !chat.activeTherapist;
                               const userHasMessaged = !!chat.lastMessage;
 
@@ -252,7 +253,7 @@ function TherapistDashboardHome({
 
                               // 3. No one has joined yet + user sent message → New Request / Available
                               if (noOneInYet && userHasMessaged) {
-                                if (chat.requestedTherapist === therapistInfo.uid) {
+                                if (chat.requestedTherapist === therapistId) {
                                   return <span className="new-request"> (New Request)</span>;
                                 }
                                 return <span className="available-indicator"> (Available)</span>;

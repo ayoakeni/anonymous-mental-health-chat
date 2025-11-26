@@ -212,6 +212,7 @@ function TherapistDashboard() {
   // ────── PROPS FOR CHILD VIEWS ──────
   const homeProps = {
     therapistInfo,
+    therapistId,
     groupChats,
     privateChats,
     totalGroupUnread,
@@ -247,10 +248,10 @@ function TherapistDashboard() {
     joinGroupChat: joinGroup,
     leaveGroupChat: leaveGroup,
     therapistInfo,
+    therapistId,
     toggleReaction: toggleGroupReaction,
     deleteMessage: deleteGroupMsg,
     pinMessage: pinGroupMsg,
-    therapistId,
     formatTimestamp,
     onEmojiClick: (e) => setReply((p) => p + e.emoji),
     showError,

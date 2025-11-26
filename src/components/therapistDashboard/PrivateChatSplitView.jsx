@@ -166,10 +166,9 @@ function PrivateChatSplitView({
                             {mood.emoji}
                           </span>
                         )}
-                        {therapistId &&
-                          !chat.participants?.includes(chat.userId) && (
-                            <span className="left-indicator"> (User Left)</span>
-                          )}
+                        {therapistId && !chat.participants?.includes(therapistId) && (
+                          <span className="left-indicator"> (You Left)</span>
+                        )}
                       </strong>
                       <small className="chat-card-preview">
                         {chat.lastMessage || "No messages yet"}
