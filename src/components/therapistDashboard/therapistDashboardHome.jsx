@@ -233,36 +233,31 @@ function TherapistDashboardHome({
                         <div className="chat-card-content">
                           <span className="chat-card-title">
                             {anonNames[chat.id] || "Anonymous"}
-                            {/*  SMART INDICATORS*/}
+                            {/* SMART INDICATORS */}
                             {(() => {
                               const iAmIn = chat.participants?.includes(therapistInfo.uid);
-                              const someoneElseIn = chat.participants?.length > 1 && 
-                                                  chat.participants?.some(p => p !== chat.userId && p !== therapistInfo.uid);
+                              const someoneElseIn = chat.activeTherapist && chat.activeTherapist !== therapistInfo.uid;
+                              const noOneInYet = !chat.activeTherapist;
                               const userHasMessaged = !!chat.lastMessage;
-                              const requestedMe = chat.requestedTherapist === therapistInfo.uid;
-                              const isOpenPool = !chat.requestedTherapist || chat.requestedTherapist === null;
 
-                              // 1. You are in the chat → Active
+                              // 1. I'm currently in this chat → Active • You
                               if (iAmIn) {
                                 return <span className="active-indicator"> (Active • You)</span>;
                               }
 
-                              // 2. Someone else took it → Taken
+                              // 2. Someone else is in it → Taken
                               if (someoneElseIn) {
                                 return <span className="taken-indicator"> (Taken)</span>;
                               }
 
-                              // 3. No one joined yet + user messaged → Pending!
-                              if (userHasMessaged) {
-                                if (requestedMe) {
+                              // 3. No one has joined yet + user sent message → New Request / Available
+                              if (noOneInYet && userHasMessaged) {
+                                if (chat.requestedTherapist === therapistInfo.uid) {
                                   return <span className="new-request"> (New Request)</span>;
                                 }
-                                if (isOpenPool) {
-                                  return <span className="available-indicator"> (Available)</span>;
-                                }
+                                return <span className="available-indicator"> (Available)</span>;
                               }
 
-                              // Fallback (very rare)
                               return null;
                             })()}
                           </span>

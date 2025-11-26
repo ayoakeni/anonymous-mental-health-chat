@@ -342,9 +342,10 @@
 }
 
 .new-request {
-  color: #f59e0b;
-  font-weight: 500;
+  color: #d97706;
   font-size: 0.85em;
+  font-weight: 600;
+  animation: pulse 2.5s infinite;
 }
 
 .available-indicator {
