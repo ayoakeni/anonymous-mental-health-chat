@@ -787,7 +787,9 @@ const therapistDisplayName = useMemo(() => {
               {isMobile && (activeChatId || location.state?.selectChatId) && (
                 <i
                   className="fa-solid fa-arrow-left mobile-back-btn"
-                  onClick={() => setActiveChatId(null)}
+                  onClick={() => { setActiveChatId(null); 
+                    navigate("/anonymous-dashboard/private-chat"); 
+                  }}
                   aria-label="Back to chat list"
                 ></i>
               )}
