@@ -254,45 +254,95 @@
   background: var(--primary-color);
   border-radius: 4px;
 }
+/* AI Offer Card - Centered & Beautiful */
+.ai-offer-wrapper {
+  text-align: center;
+  margin: 20px 0;
+}
 
 .ai-offer-card {
-  background: var(--system-bg);
-  border-radius: 12px;
-  border-left: 4px solid var(--error-color);
-  text-align: center;
-  align-self: center;
-  font-style: italic;
-  color: var(--text-color);
-  border-radius: 12px;
-  padding: 16px;
-  margin: 12px auto;
-  max-width: 380px;
-  opacity: 0.8;
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 18px 24px;
+  max-width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(74, 144, 226, 0.3);
 }
 
-.ai-offer-buttons button {
-  margin: 8px;
+@media (prefers-color-scheme: dark) {
+  .ai-offer-card {
+    background: rgba(42, 42, 59, 0.95);
+    border-color: rgba(74, 144, 226, 0.5);
+  }
+}
+
+.ai-offer-text {
+  margin: 0 0 16px 0;
+  font-size: 0.95rem;
+  color: #333;
+  line-height: 1.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ai-offer-text {
+    color: #e0e0e0;
+  }
+}
+
+.ai-offer-text strong {
+  color: var(--secondary-color);
+  font-weight: 700;
+  background: linear-gradient(90deg, #376293, var(--secondary-color));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: pulse 2s infinite;
+}
+
+.ai-offer-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.ai-yes-btn,
+.ai-no-btn {
   padding: 10px 20px;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9rem;
   cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
 }
 
-.ai-offer-buttons button:hover:not(:disabled) {
-  filter: brightness(90%);
-}
-
-.ai-offer-buttons button:disabled {
-  background: var(--input-border);
-  cursor: not-allowed;
-}
-
-.ai-yes-btn { 
-  background: var(--primary-color); 
-  color: white; 
-}
-
-.ai-no-btn { 
-  background: var(--error-color);
+.ai-yes-btn {
+  background: #4a90e2;
   color: white;
+}
+
+.ai-yes-btn:hover:not(:disabled) {
+  background: #357abd;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4);
+}
+
+.ai-no-btn {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.ai-no-btn:hover:not(:disabled) {
+  background: #dee2e6;
+  transform: translateY(-1px);
+}
+
+.ai-yes-btn:disabled,
+.ai-no-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }

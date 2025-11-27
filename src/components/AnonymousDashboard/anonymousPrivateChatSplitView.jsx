@@ -72,7 +72,6 @@ function AnonymousPrivateChatSplitView({
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isInsideChat = useIsInsideChat();
   const [menuOpen, setMenuOpen] = useState(false);
-  const pendingMessagesRef = useRef([]);
   const fileInputRef = useRef(null);
 
 const therapistDisplayName = useMemo(() => {
@@ -223,99 +222,98 @@ const therapistDisplayName = useMemo(() => {
     return () => unsubscribe();
   }, [activeChatId, showError]);
 
-  useEffect(() => {
-    pendingMessagesRef.current = pendingMessages;
-  }, [pendingMessages]);
 
+  // AI Offer Logic — shows only AFTER user sends a message and waits 7+ seconds
   useEffect(() => {
     if (!activeChatId || !userId) return;
 
-    let timer = null;
+    let timeoutId = null;
 
     const chatRef = doc(db, "privateChats", activeChatId);
 
-    const unsubscribe = onSnapshot(chatRef, async (snap) => {
+    const unsubscribe = onSnapshot(chatRef, (snap) => {
       if (!snap.exists()) return;
       const data = snap.data();
 
-      if (timer) clearTimeout(timer);
+      // If AI already offered or active → don't show offer
+      if (data.aiOffered || data.aiActive) return;
 
-      if (data.aiActive || data.aiOffered) return;
+      // Clear any previous timer
+      if (timeoutId) clearTimeout(timeoutId);
 
-      const currentPending = pendingMessagesRef.current;
-      const userSentMessage = messages.some(m => m.role === "user") ||
-                            currentPending.some(m => m.role === "user");
+      // Combine real messages + pending (optimistic) messages
+      const allMessages = [...messages, ...pendingMessages];
 
-      if (!userSentMessage) return;
+      // Has the user sent any message yet?
+      const hasUserMessage = allMessages.some(m => m.role === "user");
+      if (!hasUserMessage) return;
 
-      const allMessages = [...messages, ...currentPending];
-      const therapistMessages = allMessages
+      // Find the most recent therapist reply
+      const therapistReplies = allMessages
         .filter(m => m.role === "therapist")
         .sort((a, b) => getTimestampMillis(b.timestamp) - getTimestampMillis(a.timestamp));
 
-      const lastTherapistReplyTime = therapistMessages.length > 0
-        ? getTimestampMillis(therapistMessages[0].timestamp)
+      const lastTherapistTime = therapistReplies.length > 0
+        ? getTimestampMillis(therapistReplies[0].timestamp)
         : 0;
 
       const now = Date.now();
-      const timeSinceLastReply = now - lastTherapistReplyTime;
-      const noReplyYet = lastTherapistReplyTime === 0;
-      const waitingTooLong = timeSinceLastReply > 7000;
+      const noReplyYet = lastTherapistTime === 0;
+      const waitedLongEnough = now - lastTherapistTime > 7000;
 
-      if (noReplyYet || waitingTooLong) {
-        timer = setTimeout(async () => {
+      // Only start the 7-second timer if no reply yet or waited too long
+      if (noReplyYet || waitedLongEnough) {
+        timeoutId = setTimeout(async () => {
           try {
+            // Double-check everything is still valid after 7 seconds
             const freshSnap = await getDoc(chatRef);
             if (!freshSnap.exists()) return;
             const freshData = freshSnap.data();
-            if (freshData.aiActive || freshData.aiOffered) return;
+            if (freshData.aiOffered || freshData.aiActive) return;
 
-            const freshNow = Date.now();
-            const stillNoRecentReply = [...messages, ...pendingMessagesRef.current]
+            const latestMessages = [...messages, ...pendingMessages];
+            const stillNoTherapistReply = latestMessages
               .filter(m => m.role === "therapist")
-              .every(m => freshNow - getTimestampMillis(m.timestamp) > 7000);
+              .every(m => Date.now() - getTimestampMillis(m.timestamp) > 7000);
 
-            const noTherapistReplyAtAll = [...messages, ...pendingMessagesRef.current]
-              .filter(m => m.role === "therapist").length === 0;
+            const neverGotReply = latestMessages.filter(m => m.role === "therapist").length === 0;
 
-            if (noTherapistReplyAtAll || stillNoRecentReply) {
-              const offerMsg = {
+            if (neverGotReply || stillNoTherapistReply) {
+              const now = Date.now();
+              const offerMessage = {
                 id: "ai-offer-message",
                 type: "ai-offer",
                 text: "It looks like you're waiting for a reply. Would you like to chat with our Support Assistant in the meantime?",
                 role: "system",
-                timestamp: { toMillis: () => Date.now() },
+                timestamp: { toMillis: () => now },
               };
 
-              // Only add if not already there
+              // Add to pending messages (optimistic UI)
               setPendingMessages(prev => {
                 if (prev.some(m => m.id === "ai-offer-message")) return prev;
-                return [...prev, offerMsg];
+                return [...prev, offerMessage];
               });
 
+              // Mark as offered in Firestore
               await runTransaction(db, async (transaction) => {
-                const current = await transaction.get(chatRef);
-                if (current.exists() && !current.data().aiOffered && !current.data().aiActive) {
+                const currentSnap = await transaction.get(chatRef);
+                if (currentSnap.exists() && !currentSnap.data().aiOffered && !currentSnap.data().aiActive) {
                   transaction.update(chatRef, { aiOffered: true });
                 }
               });
             }
           } catch (err) {
-            console.error("AI offer failed:", err);
+            console.error("Failed to show AI offer:", err);
           }
         }, 7000);
       }
     });
 
     return () => {
-      if (timer) clearTimeout(timer);
+      if (timeoutId) clearTimeout(timeoutId);
       unsubscribe();
     };
-  }, [
-    activeChatId,
-    userId,
-    messages,
-  ]);
+  }, [activeChatId, userId, messages, pendingMessages]);
 
   const joinPrivateChat = async (chatId) => {
     if (!userId) return;
@@ -464,37 +462,6 @@ const therapistDisplayName = useMemo(() => {
 
       setNewMessage("");
       setShowEmojiPicker(false);
-
-      // === RE-TRIGGER AI OFFER IF NO THERAPIST EVER REPLIED ===
-      const chatSnap = await getDoc(chatRef);
-      if (chatSnap.exists()) {
-        const data = chatSnap.data();
-        const hasActiveTherapist = !!data.activeTherapist;
-        const aiAlreadyOffered = data.aiOffered === true;
-        const hasTherapistMessages = messages.some(m => m.role === "therapist");
-
-        if (!hasActiveTherapist && !aiAlreadyOffered && !hasTherapistMessages) {
-          const offerMsg = {
-            id: "ai-offer-message",
-            type: "ai-offer",
-            text: "It looks like you're waiting for a reply. Would you like to chat with our Support Support Assistant in the meantime?",
-            role: "system",
-            timestamp: { toMillis: () => Date.now() },
-          };
-
-          setPendingMessages(prev => {
-            if (prev.some(m => m.id === "ai-offer-message")) return prev;
-            return [...prev, offerMsg];
-          });
-
-          await runTransaction(db, async (tx) => {
-            const fresh = await tx.get(chatRef);
-            if (fresh.exists() && !fresh.data().aiOffered && !fresh.data().aiActive) {
-              tx.update(chatRef, { aiOffered: true });
-            }
-          });
-        }
-      }
 
       // AI response if enabled
       if (aiActive && !hasTherapist) {
@@ -699,15 +666,7 @@ const therapistDisplayName = useMemo(() => {
     setShowEmojiPicker(false);
   };
 
-  // FILTER OUT STALE AI OFFER
   const combinedPrivateChat = [...messages, ...events, ...pendingMessages]
-  .filter(msg => {
-    if (msg.id === "ai-offer-message" && msg.type === "ai-offer") {
-      const chat = privateChats.find(c => c.id === activeChatId);
-      return chat?.aiOffered === true;
-    }
-    return true;
-  })
   .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
 
   const leftPanel = (
@@ -854,29 +813,17 @@ const therapistDisplayName = useMemo(() => {
             ) : (
               combinedPrivateChat.map(msg => (
                 <div className="message" key={`${msg.id}-${msg.type || "message"}`}>
-                  {msg.type === "ai-offer" && !aiEnabled ? (
-                    <div className="ai-offer-card">
-                      <p className="ai-offer-text">
-                        It looks like you're waiting for a reply.<br />
-                        Would you like to chat with our <strong>Support Assistant</strong> in the meantime?
-                      </p>
-                      <div className="ai-offer-buttons">
-                        <button onClick={() => handleAiChoice("yes")} disabled={isSending || aiTyping} className="ai-yes-btn">
-                          Yes, connect me
-                        </button>
-                        <button onClick={() => handleAiChoice("no")} disabled={isSending || aiTyping} className="ai-no-btn">
-                          No, I'll wait
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <ChatMessage
-                      msg={msg}
-                      toggleReaction={msg.id.startsWith("pending-") ? () => {} : toggleReaction}
-                      therapistInfo={{ role: "user" }}
-                      handleTherapistClick={() => {}}
-                    />
-                  )}
+                  <ChatMessage
+                    msg={msg}
+                    toggleReaction={msg.id.startsWith("pending-") ? () => {} : toggleReaction}
+                    therapistInfo={{ role: "user" }}
+                    handleTherapistClick={() => {}}
+                    isAiOffer={msg.type === "ai-offer" && !aiEnabled}
+                    onAiYes={() => handleAiChoice("yes")}
+                    onAiNo={() => handleAiChoice("no")}
+                    aiTyping={aiTyping}
+                    isSending={isSending}
+                  />
                 </div>
               ))
             )}

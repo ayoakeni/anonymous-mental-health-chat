@@ -319,8 +319,8 @@
 }
 
 .dashboard-home .chat-card.active-session {
-  border-left: 4px solid #4caf50;
-  background: rgba(76, 175, 80, 0.08);
+  border-left: 4px solid #d97706;
+  background: rgba(217, 119, 6, 0.08);
 }
 
 .dashboard-home .active-indicator {
@@ -329,11 +329,11 @@
   font-size: 0.85em;
 }
 
-.dashboard-home .chat-card.active-session .chat-card-title::after {
+/* .dashboard-home .chat-card.active-session .chat-card-title::after {
   content: " ●";
-  color: #10b981;
+  color: #d97706;
   font-size: 0.8em;
-}
+} */
 
 .dashboard-home .taken-indicator {
   color: #ef4444;
