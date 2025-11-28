@@ -423,7 +423,7 @@ function AnonymousGroupChatSplitView({
         try {
           const aiInput = mapMessagesForAI(messages);
           const aiResponse = await getAIResponse(cleanUserText || "Continue", aiInput);
-          const aiFullText = `${displayName}: "${cleanUserText}"\n\n${aiResponse}`;
+          const aiFullText = `${displayName}: ${cleanUserText}\n\n${aiResponse}`;
 
           // AI message transaction
           await runTransaction(db, async (tx) => {

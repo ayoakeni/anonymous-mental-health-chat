@@ -203,115 +203,117 @@ function GroupChatSplitView({
     <div className="chat-box-container">
       {activeGroupId && isGroupChatOpen && inGroupChat ? (
         <div className="group-chat-box">
-          <div className="detailLeave">
-            <div className="chat-avater">
-              {isMobile && activeGroup && isGroupChatOpen && inGroupChat && (
-                <i
-                  className="fa-solid fa-arrow-left mobile-back-btn"
-                  onClick={() => navigate("/therapist-dashboard/group-chat")}
-                  aria-label="Back to chat list"
-                >
-                </i>
-              )}
-              <span className="text-avatar">{activeGroup?.name?.[0] || "G"}</span>
-              <div className="card-content">
-                <strong className="group-title">{activeGroup?.name || "Unnamed Group"}</strong>
-                <small className="participant-preview">
-                  {participants.length > 0 ? (
-                    participants.map((uid, index) => (
-                      <span key={uid} className="participant-name">
-                        {participantNames[uid] || "Loading"}
-                        {index < participants.length - 1 && <b>,</b>}
-                      </span>
-                    ))
-                  ) : (
-                    <div className="participant">No participants</div>
-                  )}           
-                </small>
-              </div>
-            </div>
-            <div className="leave-participant">
-              {/* MENU TRIGGER */}
-              <button
-                className="menu-trigger"
-                onClick={(e) => { 
-                  e.stopPropagation();
-                  setIsParticipantsOpen(!isParticipantsOpen)
-                }}
-                aria-label="Chat options"
-                aria-expanded={isParticipantsOpen}
-              >
-                <i className="fa-solid fa-ellipsis-vertical"></i>
-              </button>
-
-              {/* DROPDOWN MENU */}
-              {isParticipantsOpen && (
-                <div className="chat-options-menu">
-                  {/* Participants */}
-                  <div
-                    className="menu-item participant-toggle"
-                    onClick={() => setIsParticipantsOpen(true)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === "Enter" && setIsParticipantsOpen(true)}
+          <div className="chat-header">
+            <div className="detailLeave">
+              <div className="chat-avater">
+                {isMobile && activeGroup && isGroupChatOpen && inGroupChat && (
+                  <i
+                    className="fa-solid fa-arrow-left mobile-back-btn"
+                    onClick={() => navigate("/therapist-dashboard/group-chat")}
+                    aria-label="Back to chat list"
                   >
-                    <i className="fas fa-users"></i>
-                    <span>Participants ({participants.length})</span>
-                  </div>
-
-                  {/* Participants List (shown inside menu now) */}
-                  <div className="participant-dropdown-inline">
-                    {isLoadingNames ? (
-                      <div className="participant-item">Loading...</div>
-                    ) : participants.length > 0 ? (
-                      participants.map((uid) => (
-                        <div key={uid} className="participant-item">
-                          {participantNames[uid] || "Anonymous User"}
-                        </div>
+                  </i>
+                )}
+                <span className="text-avatar">{activeGroup?.name?.[0] || "G"}</span>
+                <div className="card-content">
+                  <strong className="group-title">{activeGroup?.name || "Unnamed Group"}</strong>
+                  <small className="participant-preview">
+                    {participants.length > 0 ? (
+                      participants.map((uid, index) => (
+                        <span key={uid} className="participant-name">
+                          {participantNames[uid] || "Loading"}
+                          {index < participants.length - 1 && <b>,</b>}
+                        </span>
                       ))
                     ) : (
-                      <div className="participant-item">No participants</div>
-                    )}
-                  </div>
-
-                  <div className="menu-divider"></div>
-
-                  {/* Leave Chat */}
-                  <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
+                      <div className="participant">No participants</div>
+                    )}           
+                  </small>
                 </div>
-              )}
-            </div>
-          </div>
-          {combinedGroupChat.some((msg) => msg.pinned) && (
-            <div className="pinned-message"
-              onClick={() => {
-                const pinnedMsg = combinedGroupChat.find(m => m.pinned);
-                if (pinnedMsg) scrollToMessage(pinnedMsg.id);
-              }}
-              style={{ cursor: "pointer" }}
-              title="Click to jump to pinned message"
-            >
-              <span className="pin-text-icon">
-                <i className="fas fa-thumbtack pinned-icon"></i>
-                <span className="pinned-text">
-                  <strong>{combinedGroupChat.find(m => m.pinned)?.pinnedBy}:</strong>{" "}
-                  <span>{combinedGroupChat.find((msg) => msg.pinned)?.text || ""}</span>
-                </span>
-              </span>
-              {therapistId && (
+              </div>
+              <div className="leave-participant">
+                {/* MENU TRIGGER */}
                 <button
-                  className="unpin-btn"
-                  onClick={() => {
+                  className="menu-trigger"
+                  onClick={(e) => { 
                     e.stopPropagation();
-                    const pinnedMsg = combinedGroupChat.find(m => m.pinned);
-                    if (pinnedMsg) pinMessage(pinnedMsg.id, true);
+                    setIsParticipantsOpen(!isParticipantsOpen)
                   }}
+                  aria-label="Chat options"
+                  aria-expanded={isParticipantsOpen}
                 >
-                  <i className="fas fa-times"></i>
+                  <i className="fa-solid fa-ellipsis-vertical"></i>
                 </button>
-              )}
+
+                {/* DROPDOWN MENU */}
+                {isParticipantsOpen && (
+                  <div className="chat-options-menu">
+                    {/* Participants */}
+                    <div
+                      className="menu-item participant-toggle"
+                      onClick={() => setIsParticipantsOpen(true)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === "Enter" && setIsParticipantsOpen(true)}
+                    >
+                      <i className="fas fa-users"></i>
+                      <span>Participants ({participants.length})</span>
+                    </div>
+
+                    {/* Participants List (shown inside menu now) */}
+                    <div className="participant-dropdown-inline">
+                      {isLoadingNames ? (
+                        <div className="participant-item">Loading...</div>
+                      ) : participants.length > 0 ? (
+                        participants.map((uid) => (
+                          <div key={uid} className="participant-item">
+                            {participantNames[uid] || "Anonymous User"}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="participant-item">No participants</div>
+                      )}
+                    </div>
+
+                    <div className="menu-divider"></div>
+
+                    {/* Leave Chat */}
+                    <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+            {combinedGroupChat.some((msg) => msg.pinned) && (
+              <div className="pinned-message"
+                onClick={() => {
+                  const pinnedMsg = combinedGroupChat.find(m => m.pinned);
+                  if (pinnedMsg) scrollToMessage(pinnedMsg.id);
+                }}
+                style={{ cursor: "pointer" }}
+                title="Click to jump to pinned message"
+              >
+                <span className="pin-text-icon">
+                  <i className="fas fa-thumbtack pinned-icon"></i>
+                  <span className="pinned-text">
+                    <strong>{combinedGroupChat.find(m => m.pinned)?.pinnedBy}:</strong>{" "}
+                    <span>{combinedGroupChat.find((msg) => msg.pinned)?.text || ""}</span>
+                  </span>
+                </span>
+                {therapistId && (
+                  <button
+                    className="unpin-btn"
+                    onClick={() => {
+                      e.stopPropagation();
+                      const pinnedMsg = combinedGroupChat.find(m => m.pinned);
+                      if (pinnedMsg) pinMessage(pinnedMsg.id, true);
+                    }}
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           <div className="chat-box" ref={chatBoxRef} role="log" aria-live="polite">
             {isLoadingMessages ? (
               <p>Loading messages...</p>
