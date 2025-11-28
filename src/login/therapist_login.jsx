@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { useState, useEffect } from "react";
+import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 import { auth } from "../utils/firebase";
 import { useNavigate } from "react-router-dom";
 import "../styles/therapistLogin.css";
@@ -9,8 +9,20 @@ export default function TherapistLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSignedIn, setIsSignedIn] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+
+  // Listen to auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setIsSignedIn(true);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -21,7 +33,6 @@ export default function TherapistLogin() {
       // Redirect handled by auth listener in App.jsx
     } catch (err) {
       setError("Invalid email or password. Please try again.");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -62,6 +73,7 @@ export default function TherapistLogin() {
                 required
                 placeholder="therapist@gmail.com"
                 className="form-input"
+                disabled={isSignedIn}
               />
               <span className="input-icon">
                 <i className="fas fa-envelope"></i>
@@ -80,6 +92,7 @@ export default function TherapistLogin() {
                 required
                 placeholder="••••••••"
                 className="form-input"
+                disabled={isSignedIn}
               />
               <span className="input-icon">
                 <i className="fas fa-lock"></i>
@@ -90,6 +103,7 @@ export default function TherapistLogin() {
                 onClick={() => setShowPassword(!showPassword)}
                 tabIndex="-1"
                 aria-label={showPassword ? "Hide password" : "Show password"}
+                disabled={isSignedIn}
               >
                 {showPassword ? <i className="fas fa-eye-slash"></i> : <i className="fas fa-eye"></i>}
               </button>
@@ -103,8 +117,17 @@ export default function TherapistLogin() {
             </div>
           )}
 
-          <button type="submit" className="login-button" disabled={isLoading}>
-            {isLoading ? (
+          <button 
+            type="submit" 
+            className={`login-button ${isSignedIn ? "signed-in" : ""}`} 
+            disabled={isLoading || isSignedIn}
+          >
+            {isSignedIn ? (
+              <>
+                <i className="fas fa-check-circle"></i>
+                <span>Signed In</span>
+              </>
+            ) : isLoading ? (
               <>
                 <div className="spinner"></div>
                 Signing in...

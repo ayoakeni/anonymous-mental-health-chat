@@ -247,6 +247,16 @@
   box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
 }
 
+.login-button.signed-in {
+  background: var(--success);
+  box-shadow: 0 10px 20px rgba(16, 185, 129, 0.4);
+}
+
+.login-button.signed-in:hover {
+  background: var(--success);
+  box-shadow: 0 10px 20px rgba(16, 185, 129, 0.4);
+}
+
 .login-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 15px 30px rgba(99, 102, 241, 0.4);
