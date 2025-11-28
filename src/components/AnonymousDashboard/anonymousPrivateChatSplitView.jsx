@@ -807,7 +807,10 @@ const therapistDisplayName = useMemo(() => {
 
           <div className="chat-box" role="log" aria-live="polite" ref={chatBoxRef}>
             {isLoadingChat ? (
-              <p>Loading messages...</p>
+              <div className="loading-messages">
+                <div className="spinner"></div>
+                <p>Loading messages...</p>
+              </div>
             ) : combinedPrivateChat.length === 0 ? (
               <p className="no-message">No messages in this chat yet.</p>
             ) : (

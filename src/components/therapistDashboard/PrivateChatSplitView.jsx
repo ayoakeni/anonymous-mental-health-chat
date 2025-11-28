@@ -277,7 +277,10 @@ function PrivateChatSplitView({
 
             <div className="chat-box" ref={chatBoxRef} role="log" aria-live="polite">
               {isLoadingMessages ? (
-                <p>Loading messages...</p>
+                <div className="loading-messages">
+                  <div className="spinner"></div>
+                  <p>Loading messages...</p>
+                </div>
               ) : combinedPrivateChat.length === 0 ? (
                 <p className="no-message">No messages in this chat yet.</p>
               ) : (

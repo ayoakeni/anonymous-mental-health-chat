@@ -316,7 +316,10 @@ function GroupChatSplitView({
           </div>
           <div className="chat-box" ref={chatBoxRef} role="log" aria-live="polite">
             {isLoadingMessages ? (
-              <p>Loading messages...</p>
+              <div className="loading-messages">
+                <div className="spinner"></div>
+                <p>Loading messages...</p>
+              </div>
             ) : combinedGroupChat.length === 0 ? (
               <p className="no-message">No messages in this group yet.</p>
             ) : (
