@@ -17,7 +17,7 @@ export default function TherapistLogin() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        setIsSignedIn(true);
+        setIsSignedIn(!!user);
       }
     });
 
