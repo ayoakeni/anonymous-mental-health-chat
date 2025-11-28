@@ -114,7 +114,10 @@ export default function TherapistLogin() {
               <span>{error}</span>
             </div>
           )}
-
+{/* Add this anywhere in your component for testing */}
+<button onClick={() => auth.signOut()} style={{margin: '20px', padding: '10px'}}>
+  Log Out (Test)
+</button>
           <button 
             type="submit" 
             className={`login-button ${isSignedIn ? "signed-in" : ""}`} 
