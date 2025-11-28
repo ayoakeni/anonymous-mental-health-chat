@@ -158,7 +158,7 @@ export function useActivePrivateChat(
         timestamp: serverTimestamp(),
       });
       tx.update(doc(db, "privateChats", activeChatId), {
-        lastMessage: text || "Attachment",
+        lastMessage: displayName + ": " + text || "Attachment",
         lastUpdated: serverTimestamp(),
         unreadCountForTherapist: 0,
       });

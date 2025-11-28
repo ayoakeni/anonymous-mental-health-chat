@@ -35,7 +35,7 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
     const anonUid = auth.currentUser?.uid;
     if (!anonUid) return;
 
-    const uids = [anonUid, therapist.uid].sort();
+    const uids = [anonUid.slice(0, 8), therapist.uid.slice(0, 8)].sort();
     const chatId = `${uids[0]}_${uids[1]}`;
 
     // Just open the chat screen — do NOT create the document!

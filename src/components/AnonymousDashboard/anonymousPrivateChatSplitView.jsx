@@ -416,7 +416,7 @@ const therapistDisplayName = useMemo(() => {
             requestedTherapist: targetTherapistId || null,
             pendingTherapist: targetTherapistId || null,
             createdAt: serverTimestamp(),
-            lastMessage: messageText || "Attachment",
+            lastMessage: displayName + ": " + messageText || "Attachment",
             lastUpdated: serverTimestamp(),
             unreadCountForTherapist: targetTherapistId ? 1 : 0,
             unreadCountForUser: 0,
@@ -431,7 +431,7 @@ const therapistDisplayName = useMemo(() => {
           aiActive = data.aiActive === true;
 
           transaction.update(chatRef, {
-            lastMessage: messageText || "Attachment",
+            lastMessage: displayName + ": " + messageText || "Attachment",
             lastUpdated: serverTimestamp(),
             unreadCountForTherapist: increment(1),
           });
