@@ -674,159 +674,161 @@ function AnonymousGroupChatSplitView({
               </div>
             </div>
           )}
-          <div className="detailLeave">
-            <div className="chat-avater">
-              {isMobile && activeGroup && (
-                <i 
-                  className="fa-solid fa-arrow-left mobile-back-btn"
-                  onClick={() => setActiveGroupId(null)}
-                  aria-label="Back to chat list"
-                ></i>
-              )}
-              <span className="text-avatar">{activeGroup?.name?.[0] || "G"}</span>
-              <div className="card-content">
-                <strong className="group-title">{activeGroup?.name || "Unnamed Group"}</strong>
-                <small className="participant-preview">
-                  {participants.length > 0 ? (
-                    participants.map((uid, index) => (
-                      <span key={uid} className="participant-name">
-                        {participantNames[uid] || "Loading"}
-                        {index < participants.length - 1 && <b>,</b>}
-                      </span>
-                    ))
-                  ) : (
-                    <div className="participant">No participants</div>
-                  )}           
-                </small>
+          <div className="chat-header">
+            <div className="detailLeave">
+              <div className="chat-avater">
+                {isMobile && activeGroup && (
+                  <i 
+                    className="fa-solid fa-arrow-left mobile-back-btn"
+                    onClick={() => setActiveGroupId(null)}
+                    aria-label="Back to chat list"
+                  ></i>
+                )}
+                <span className="text-avatar">{activeGroup?.name?.[0] || "G"}</span>
+                <div className="card-content">
+                  <strong className="group-title">{activeGroup?.name || "Unnamed Group"}</strong>
+                  <small className="participant-preview">
+                    {participants.length > 0 ? (
+                      participants.map((uid, index) => (
+                        <span key={uid} className="participant-name">
+                          {participantNames[uid] || "Loading"}
+                          {index < participants.length - 1 && <b>,</b>}
+                        </span>
+                      ))
+                    ) : (
+                      <div className="participant">No participants</div>
+                    )}           
+                  </small>
+                </div>
+              </div>
+
+              <div className="leave-participant">
+                {/* MENU TRIGGER */}
+                <button
+                  className="menu-trigger"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsParticipantsOpen(prev => !prev);
+                  }}
+                  aria-label="Chat options"
+                  aria-expanded={isParticipantsOpen}
+                >
+                  <i className="fa-solid fa-ellipsis-vertical"></i>
+                </button>
+
+                {/* DROPDOWN MENU */}
+                {isParticipantsOpen && (
+                  <div 
+                    className="chat-options-menu" 
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Participants - Collapsible */}
+                    <div className="menu-section">
+                      <div
+                        className="menu-item collapsible-header"
+                        onClick={() => setShowParticipantsList(prev => !prev)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === "Enter" && setShowParticipantsList(prev => !prev)}
+                      >
+                        <i className="fas fa-users"></i>
+                        <span>Participants ({participants.length})</span>
+                        <i className={`fas fa-chevron-${showParticipantsList ? "up" : "down"} chevron-icon`}></i>
+                      </div>
+
+                      {showParticipantsList && (
+                        <div className="participant-dropdown-inline">
+                          {participants.length > 0 ? (
+                            participants.map((uid) => (
+                              <div key={uid} className="participant-item">
+                                {participantNames[uid] || "Anonymous User"}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="participant-item">No participants</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="menu-divider"></div>
+
+                    {/* Online Therapists - Collapsible */}
+                    <div className="menu-section">
+                      <div
+                        className="menu-item collapsible-header"
+                        onClick={() => setShowTherapistsList(prev => !prev)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === "Enter" && setShowTherapistsList(prev => !prev)}
+                      >
+                        <i className="fas fa-user-md"></i>
+                        <span>Therapists Online ({therapistsOnline.filter(t => t.online).length})</span>
+                        <i className={`fas fa-chevron-${showTherapistsList ? "up" : "down"} chevron-icon`}></i>
+                      </div>
+
+                      {showTherapistsList && (
+                        <div className="therapist-list">
+                          {therapistsOnline.length === 0 ? (
+                            <div className="therapist-item offline">No therapists online</div>
+                          ) : (
+                            therapistsOnline.map((therapist) => (
+                              <div
+                                key={therapist.uid}
+                                className={`therapist-item ${therapist.online ? "online" : ""} ${
+                                  selectedTherapist?.uid === therapist.uid ? "active" : ""
+                                }`}
+                                data-fullname={therapist.name}
+                                onClick={() => {
+                                  handleTherapistClick({ userId: therapist.uid, role: "therapist" });
+                                  // setIsParticipantsOpen(false);
+                                }}
+                              >
+                                {therapist.profileImage ? (
+                                  <img src={therapist.profileImage} alt={therapist.name} className={`avatar ${therapist.online ? "online" : ""}`}/>
+                                ) : (
+                                  <div className={`avatarPlaceholder ${therapist.online ? "online" : ""}`}>
+                                    {therapist.name?.[0]?.toUpperCase() || 'T'}
+                                  </div>
+                                )}
+                                <span className="therapist-name">
+                                  {therapist.name || `Therapist ${therapist.uid.slice(0, 4)}`}
+                                </span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="menu-divider"></div>
+
+                    {/* Leave Button */}
+                    <LeaveChatButton type="group" onLeave={leaveGroupChat} />
+                  </div>
+                )}
               </div>
             </div>
-
-            <div className="leave-participant">
-              {/* MENU TRIGGER */}
-              <button
-                className="menu-trigger"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsParticipantsOpen(prev => !prev);
+            {/* Pinned Message */}
+            {combinedGroupChat.some((msg) => msg.pinned) && (
+              <div className="pinned-message"
+                onClick={() => {
+                  const pinnedMsg = combinedGroupChat.find(m => m.pinned);
+                  if (pinnedMsg) scrollToMessage(pinnedMsg.id);
                 }}
-                aria-label="Chat options"
-                aria-expanded={isParticipantsOpen}
+                style={{ cursor: "pointer" }}
+                title="Click to jump to pinned message"
               >
-                <i className="fa-solid fa-ellipsis-vertical"></i>
-              </button>
-
-              {/* DROPDOWN MENU */}
-              {isParticipantsOpen && (
-                <div 
-                  className="chat-options-menu" 
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* Participants - Collapsible */}
-                  <div className="menu-section">
-                    <div
-                      className="menu-item collapsible-header"
-                      onClick={() => setShowParticipantsList(prev => !prev)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === "Enter" && setShowParticipantsList(prev => !prev)}
-                    >
-                      <i className="fas fa-users"></i>
-                      <span>Participants ({participants.length})</span>
-                      <i className={`fas fa-chevron-${showParticipantsList ? "up" : "down"} chevron-icon`}></i>
-                    </div>
-
-                    {showParticipantsList && (
-                      <div className="participant-dropdown-inline">
-                        {participants.length > 0 ? (
-                          participants.map((uid) => (
-                            <div key={uid} className="participant-item">
-                              {participantNames[uid] || "Anonymous User"}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="participant-item">No participants</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="menu-divider"></div>
-
-                  {/* Online Therapists - Collapsible */}
-                  <div className="menu-section">
-                    <div
-                      className="menu-item collapsible-header"
-                      onClick={() => setShowTherapistsList(prev => !prev)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === "Enter" && setShowTherapistsList(prev => !prev)}
-                    >
-                      <i className="fas fa-user-md"></i>
-                      <span>Therapists Online ({therapistsOnline.filter(t => t.online).length})</span>
-                      <i className={`fas fa-chevron-${showTherapistsList ? "up" : "down"} chevron-icon`}></i>
-                    </div>
-
-                    {showTherapistsList && (
-                      <div className="therapist-list">
-                        {therapistsOnline.length === 0 ? (
-                          <div className="therapist-item offline">No therapists online</div>
-                        ) : (
-                          therapistsOnline.map((therapist) => (
-                            <div
-                              key={therapist.uid}
-                              className={`therapist-item ${therapist.online ? "online" : ""} ${
-                                selectedTherapist?.uid === therapist.uid ? "active" : ""
-                              }`}
-                              data-fullname={therapist.name}
-                              onClick={() => {
-                                handleTherapistClick({ userId: therapist.uid, role: "therapist" });
-                                // setIsParticipantsOpen(false);
-                              }}
-                            >
-                              {therapist.profileImage ? (
-                                <img src={therapist.profileImage} alt={therapist.name} className={`avatar ${therapist.online ? "online" : ""}`}/>
-                              ) : (
-                                <div className={`avatarPlaceholder ${therapist.online ? "online" : ""}`}>
-                                  {therapist.name?.[0]?.toUpperCase() || 'T'}
-                                </div>
-                              )}
-                              <span className="therapist-name">
-                                {therapist.name || `Therapist ${therapist.uid.slice(0, 4)}`}
-                              </span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="menu-divider"></div>
-
-                  {/* Leave Button */}
-                  <LeaveChatButton type="group" onLeave={leaveGroupChat} />
-                </div>
-              )}
-            </div>
-          </div>
-          {/* Pinned Message */}
-          {combinedGroupChat.some((msg) => msg.pinned) && (
-            <div className="pinned-message"
-              onClick={() => {
-                const pinnedMsg = combinedGroupChat.find(m => m.pinned);
-                if (pinnedMsg) scrollToMessage(pinnedMsg.id);
-              }}
-              style={{ cursor: "pointer" }}
-              title="Click to jump to pinned message"
-            >
-              <span className="pin-text-icon">
-                <i className="fas fa-thumbtack pinned-icon"></i>
-                <span className="pinned-text">
-                  <strong>{combinedGroupChat.find(m => m.pinned)?.pinnedBy}:</strong>{" "}
-                  <span>{combinedGroupChat.find((msg) => msg.pinned)?.text || ""}</span>
+                <span className="pin-text-icon">
+                  <i className="fas fa-thumbtack pinned-icon"></i>
+                  <span className="pinned-text">
+                    <strong>{combinedGroupChat.find(m => m.pinned)?.pinnedBy}:</strong>{" "}
+                    <span>{combinedGroupChat.find((msg) => msg.pinned)?.text || ""}</span>
+                  </span>
                 </span>
-              </span>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
           <div className={selectedTherapist ? "chat-box blurred" : "chat-box"} role="log" aria-live="polite" ref={chatBoxRef}>
             {isLoadingChat ? (
               <p>Loading chat data...</p>
