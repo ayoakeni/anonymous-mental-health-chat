@@ -122,7 +122,7 @@ export default function TherapistLogin() {
           >
             {isSignedIn === null ? (
               <>Checking...</>
-            ) :isSignedIn ? (
+            ) : isSignedIn ? (
               <>
                 <i className="fas fa-check-circle"></i>
                 <span>Signed In</span>
