@@ -9,7 +9,7 @@ export default function TherapistLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [isSignedIn, setIsSignedIn] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
@@ -120,7 +120,9 @@ export default function TherapistLogin() {
             className={`login-button ${isSignedIn ? "signed-in" : ""}`} 
             disabled={isLoading || isSignedIn}
           >
-            {isSignedIn ? (
+            {isSignedIn === null ? (
+              <>Checking...</>
+            ) :isSignedIn ? (
               <>
                 <i className="fas fa-check-circle"></i>
                 <span>Signed In</span>
