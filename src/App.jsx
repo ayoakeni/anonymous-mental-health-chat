@@ -18,6 +18,7 @@ import TherapistDashboard from "./page/therapistDashboard";
 import AnonymousDashboard from "./page/anonymousDashboard";
 import Chatroom from "./page/chats_rooms/chatRoom";
 // import Header from "./components/header"
+import { ThemeProvider } from "./context/ThemeContext";
 import "./styles/App.css";
 
 // -------------------------------------------------------------------
@@ -86,51 +87,53 @@ function AuthProvider({ children }) {
 export default function App() {
   return (
     <>
-      {/* <Header/> */}
-      <NotificationHandler />
-      <AuthProvider>
-        {({ user, isTherapist, loading }) => (
-          <Routes>
-            {/* Public Routes – No loader */}
-            <Route path="/" element={<Home />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/therapist-login" element={<TherapistLogin />} />
-            <Route path="/chat-room/:chatId" element={<Chatroom />} />
-            <Route path="/chat-room/" element={<Chatroom />} />
+      <ThemeProvider>
+        <NotificationHandler />
+        <AuthProvider>
+          {/* <Header/> */}
+          {({ user, isTherapist, loading }) => (
+            <Routes>
+              {/* Public Routes – No loader */}
+              <Route path="/" element={<Home />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/therapist-login" element={<TherapistLogin />} />
+              <Route path="/chat-room/:chatId" element={<Chatroom />} />
+              <Route path="/chat-room/" element={<Chatroom />} />
 
-            {/* Protected: Therapist */}
-            <Route
-              path="/therapist-dashboard/*"
-              element={
-                loading ? (
-                  <Loader />
-                ) : user && !user.isAnonymous && isTherapist ? (
-                  <TherapistDashboard />
-                ) : (
-                  <Navigate to="/therapist-login" replace />
-                )
-              }
-            />
+              {/* Protected: Therapist */}
+              <Route
+                path="/therapist-dashboard/*"
+                element={
+                  loading ? (
+                    <Loader />
+                  ) : user && !user.isAnonymous && isTherapist ? (
+                    <TherapistDashboard />
+                  ) : (
+                    <Navigate to="/therapist-login" replace />
+                  )
+                }
+              />
 
-            {/* Protected: Anonymous */}
-            <Route
-              path="/anonymous-dashboard/*"
-              element={
-                loading ? (
-                  <Loader />
-                ) : user && user.isAnonymous ? (
-                  <AnonymousDashboard />
-                ) : (
-                  <Navigate to="/" replace />
-                )
-              }
-            />
+              {/* Protected: Anonymous */}
+              <Route
+                path="/anonymous-dashboard/*"
+                element={
+                  loading ? (
+                    <Loader />
+                  ) : user && user.isAnonymous ? (
+                    <AnonymousDashboard />
+                  ) : (
+                    <Navigate to="/" replace />
+                  )
+                }
+              />
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        )}
-      </AuthProvider>
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          )}
+        </AuthProvider>
+      </ThemeProvider>
     </>
   );
 }

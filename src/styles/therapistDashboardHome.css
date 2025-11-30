@@ -1,8 +1,8 @@
 :root {
   --primary-color: #4a90e2;
-  --background-color: #f5f7fa;
+  --background-color: #fff !important;
   --chat-bg: #ffffff;
-  --text-color: #333333;
+  --text-color: #1e1e1e;
   --therapist-bg: #e6f0fa;
   --user-bg: #d9e8ff;
   --ai-bg: #f0f0f0;
@@ -17,20 +17,18 @@
   --badge-bg: #ef4444;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background-color: #1e1e2f;
-    --chat-bg: #2a2a3b;
-    --text-color: #e0e0e0;
-    --therapist-bg: #3a4a6b;
-    --user-bg: #4a6b9b;
-    --ai-bg: #3b3b4b;
-    --system-bg: #2e2e4b;
-    --input-bg: #2a2a3b;
-    --chat-input-bg: #1e1e2f;
-    --input-border: #555;
-    --badge-bg: #f87171;
-  }
+.dark {
+  --background-color: #1e1e2f;
+  --chat-bg: #2a2a3b;
+  --text-color: #e0e0e0;
+  --therapist-bg: #3a4a6b;
+  --user-bg: #4a6b9b;
+  --ai-bg: #3b3b4b;
+  --system-bg: #2e2e4b;
+  --input-bg: #2a2a3b;
+  --chat-input-bg: #1e1e2f;
+  --input-border: #555;
+  --badge-bg: #f87171;
 }
 
 .dashboard-home {
@@ -241,7 +239,7 @@
   filter: brightness(100%);
 }
 
-.dashboard-home.chat-card.pending-chat {
+.dashboard-home .chat-card.pending-chat {
   border-left: 4px solid var(--accent-color);
 }
 
@@ -286,7 +284,7 @@
   overflow: hidden;
 }
 
-.dashboard-home.chat-card-preview {
+.dashboard-home .chat-card-preview {
   font-size: 0.9rem;
   color: var(--text-color);
   opacity: 0.7;
@@ -323,17 +321,15 @@
   background: rgba(217, 119, 6, 0.08);
 }
 
+.dashboard-home .chat-card.active-session:hover {
+  background: #c09d74;
+}
+
 .dashboard-home .active-indicator {
   color: #10b981;
   font-weight: 600;
   font-size: 0.85em;
 }
-
-/* .dashboard-home .chat-card.active-session .chat-card-title::after {
-  content: " ●";
-  color: #d97706;
-  font-size: 0.8em;
-} */
 
 .dashboard-home .taken-indicator {
   color: #ef4444;
@@ -392,7 +388,8 @@
   padding: 10px;
   margin-bottom: 10px;
   border-left: 4px solid var(--primary-color) !important;
-  background: var(--system-bg);
+  background: var(--background-color);
+  box-shadow: var(--shadow);
   border: none;
   cursor: pointer;
   transition: background 0.2s;
@@ -443,6 +440,11 @@
   .dashboard-home .welcome-header {
     gap: 10px;
     top: -1px;
+  }
+
+  .dashboard-home .chat-card,
+  .dashboard-home .chat-card.active-session {
+    border-radius: 0;
   }
 
   .dashboard-home .chat-card-content {

@@ -2,7 +2,7 @@
   --primary-color: #4a90e2; /* Primary blue for buttons and accents */
   --background-color: #f5f7fa; /* Light background */
   --profile-bg: rgba(255, 255, 255, 0.9); /* Translucent profile card background */
-  --text-color: #333333; /* Default text color */
+  --text-color: #1e1e1e; /* Default text color */
   --border-radius: 8px;
   --shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   --input-border: #ccc;
@@ -12,13 +12,11 @@
 }
 
 /* Dark theme */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background-color: #1e1e2f;
-    --profile-bg: rgba(42, 42, 59, 0.9);
-    --text-color: #e0e0e0;
-    --input-border: #555;
-  }
+.dark {
+  --background-color: #1e1e2f;
+  --profile-bg: rgba(42, 42, 59, 0.9);
+  --text-color: #e0e0e0;
+  --input-border: #555;
 }
 
 .therapist-profile {

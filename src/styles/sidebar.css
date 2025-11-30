@@ -1,7 +1,7 @@
 :root {
   --primary-color: #3b82f6; /* Primary blue for buttons and accents */
   --background-color: #f5f7fa; /* Light background */
-  --sidebar-bg: #1a1a2e; /* Sidebar background */
+  --sidebar-bg: #f5f7fa; /* Sidebar background */
   --text-color: #ffffff; /* Sidebar text color */
   --active-bg: #3b82f6; /* Active/hover background */
   --border-radius: 8px;
@@ -9,12 +9,10 @@
   --badge-bg: #ef4444; /* Badge background */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background-color: #2a2a3b;
-    --sidebar-bg: #1e1e2f;
-    --text-color: #e0e0e0;
-  }
+.dark {
+  --background-color: #1a1a2e;
+  --sidebar-bg: #1e1e2f;
+  --text-color: #e0e0e0;
 }
 
 body.no-scroll {

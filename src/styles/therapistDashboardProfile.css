@@ -1,7 +1,7 @@
 :root {
   --primary-color: #4a90e2;
   --background-color: #f5f7fa;
-  --text-color: #333333;
+  --text-color: #1e1e1e;
   --input-bg: #ffffff;
   --input-border: #d1d5db;
   --accent-color: #34c759;
@@ -12,14 +12,12 @@
   --avatar-bg: #e5e7eb;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background-color: #1e1e2f;
-    --text-color: #e0e0e0;
-    --input-bg: #2a2a3b;
-    --input-border: #4b5563;
-    --avatar-bg: #374151;
-  }
+.dark {
+  --background-color: #1e1e2f;
+  --text-color: #e0e0e0;
+  --input-bg: #2a2a3b;
+  --input-border: #4b5563;
+  --avatar-bg: #374151;
 }
 
 .profilePageWrapper {

@@ -3,26 +3,19 @@ import { Link } from "react-router-dom";
 import { db, auth } from "../utils/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { useTheme } from "../context/ThemeContext";
 import "../styles/header.css";
 
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+  const { isDarkMode, toggleDarkMode } = useTheme();
   const [onlineUsers, setOnlineUsers] = useState(0);
   const [therapistsOnline, setTherapistsOnline] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [user, setUser] = useState(null);
   const liveIndicatorRef = useRef(null);
-  const [isDarkMode, setIsDarkMode] = useState(
-    window.matchMedia("(prefers-color-scheme: dark)").matches
-  );
-
-  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-    document.documentElement.classList.toggle("dark");
-  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -103,17 +96,6 @@ function Header() {
     );
 
     return () => unsubscribe();
-  }, []);
-
-  // Dark mode sync
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = (e) => {
-      setIsDarkMode(e.matches);
-      document.documentElement.classList.toggle("dark", e.matches);
-    };
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
 
   // Listen to auth state

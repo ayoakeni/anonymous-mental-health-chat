@@ -2,7 +2,7 @@
   --primary-color: #4a90e2;
   --background-color: #f5f7fa;
   --chat-bg: #ffffff;
-  --text-color: #333333;
+  --text-color: #0000;
   --input-bg: #ffffff;
   --input-border: #ccc;
   --border-radius: 8px;
@@ -13,18 +13,16 @@
   --accent-color: #10b981;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background-color: #1e1e2f;
-    --chat-bg: #2a2a3b;
-    --text-color: #e0e0e0;
-    --input-bg: #2a2a3b;
-    --input-border: #555;
-    --error-color: #f87171;
-    --secondary-color: #9ca3af;
-    --gradient-bg: linear-gradient(135deg, #3b82f6 0%, #a855f7 100%);
-    --accent-color: #34d399;
-  }
+.dark {
+  --background-color: #1e1e2f;
+  --chat-bg: #2a2a3b;
+  --text-color: #e0e0e0;
+  --input-bg: #2a2a3b;
+  --input-border: #555;
+  --error-color: #f87171;
+  --secondary-color: #9ca3af;
+  --gradient-bg: linear-gradient(135deg, #3b82f6 0%, #a855f7 100%);
+  --accent-color: #34d399;
 }
 
 .home-container {
