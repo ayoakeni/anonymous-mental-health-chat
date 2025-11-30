@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
+import { ThemeProvider } from "./context/ThemeContext";
 import './styles/index.css';
 
 if ("serviceWorker" in navigator) {
@@ -12,6 +13,8 @@ if ("serviceWorker" in navigator) {
 const root = createRoot(document.getElementById('root'));
 root.render(
   <BrowserRouter>
-    <App />
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
   </BrowserRouter>
 );

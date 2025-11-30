@@ -26,7 +26,7 @@
 }
 
 .home-container {
-  background: var(--background-color);
+  background: var(--background-color) !important;
   min-height: 100vh;
   color: var(--text-color);
 }
