@@ -14,7 +14,6 @@ const ResizableSplitView = ({
   const splitterRef = useRef(null);
   const [leftWidth, setLeftWidth] = useState(0);
 
-  // Initialise width once the container is mounted
   useEffect(() => {
     const container = containerRef.current;
     if (!container || leftWidth > 0) return;
@@ -33,7 +32,6 @@ const ResizableSplitView = ({
     setLeftWidth(clamped);
   }, [initialRatio, minLeft, maxLeft, minRight, maxRight, leftWidth]);
 
-  // Drag handling
   const onMouseDown = (downE) => {
     downE.preventDefault();
 
@@ -46,18 +44,18 @@ const ResizableSplitView = ({
       const total = container.clientWidth;
       const raw = startLeft + delta;
 
-      // ---- LEFT limits ----
+      // LEFT limits
       const min = minLeft;
       const maxL = maxLeft ?? total - minRight;
 
-      // ---- RIGHT limits (maxRight) ----
+      // RIGHT limits (maxRight)
       const maxFromRight = maxRight ? total - maxRight : Infinity;
       const max = Math.min(maxL, maxFromRight);
 
       const newWidth = Math.max(min, Math.min(raw, max));
       setLeftWidth(newWidth);
 
-      // Optional visual cue when a limit is hit
+      // Visual cue when a limit is hit
       const atMin = newWidth === min;
       const atMax = newWidth === max;
       splitterRef.current?.classList.toggle("limit-min", atMin);
