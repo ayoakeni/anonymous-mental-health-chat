@@ -1187,6 +1187,7 @@
 /* EmojiPicker Container */
 .chat-input aside {
   position: absolute;
+  height: 400px !important;
   width: 400px !important;
   left: 10px;
   bottom: 65px;
