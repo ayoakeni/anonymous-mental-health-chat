@@ -865,7 +865,12 @@ function AnonymousGroupChatSplitView({
                   .filter(Boolean)
                   .join(", ")}
                 {(typingUsers.length > 0 || aiTyping) && " "}
-                {typingUsers.length + (aiTyping ? 1 : 0) === 1 ? "is" : "are"} typing...
+                {typingUsers.length + (aiTyping ? 1 : 0) === 1 ? "is" : "are"} typing
+                <div className="typing-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
               </p>
             )}
             <div ref={messagesEndRef} />
@@ -879,20 +884,6 @@ function AnonymousGroupChatSplitView({
               <i className="fa-regular fa-face-smile"></i>
             </button>
             {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
-            <input
-              type="file"
-              id="group-file-upload"
-              style={{ display: "none" }}
-              onChange={(e) => sendMessage(e.target.files[0])}
-              aria-label="Upload file"
-            />
-            <button
-              className="attach-btn"
-              onClick={() => document.getElementById("group-file-upload").click()}
-              aria-label="Attach file"
-            >
-              <i className="fa-solid fa-paperclip"></i>
-            </button>
             <input
               className="inputInsert"
               type="text"
@@ -911,8 +902,22 @@ function AnonymousGroupChatSplitView({
               aria-label="Message input"
               disabled={isSending}
             />
+            <input
+              type="file"
+              id="group-file-upload"
+              style={{ display: "none" }}
+              onChange={(e) => sendMessage(e.target.files[0])}
+              aria-label="Upload file"
+            />
+            <button
+              className="attach-btn"
+              onClick={() => document.getElementById("group-file-upload").click()}
+              aria-label="Attach file"
+            >
+              <i className="fa-solid fa-paperclip"></i>
+            </button>
             <button className="send-btn" onClick={() => sendMessage()} disabled={isSending} aria-label="Send message">
-              {isSending ? "Sending..." : <i className="fa-solid fa-paper-plane"></i>}
+              {isSending ? <span className="spinner small"></span> : <i className="fa-solid fa-paper-plane"></i>}
             </button>
           </div>
         </div>

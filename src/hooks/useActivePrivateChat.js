@@ -15,6 +15,7 @@ export function useActivePrivateChat(
   navigate
 ) {
   const [messages, setMessages] = useState([]);
+  const [isSending, setIsSending] = useState(false);
   const [events, setEvents] = useState([]);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -138,6 +139,7 @@ export function useActivePrivateChat(
   const sendMessage = async (text, file = null) => {
     if (!text.trim() && !file) return;
     if (!activeChatId) return;
+    setIsSending(true);
 
     let fileUrl = "";
     if (file) {
@@ -147,22 +149,28 @@ export function useActivePrivateChat(
       fileUrl = await getDownloadURL(sRef);
     }
 
-    await runTransaction(db, async (tx) => {
-      const msgRef = doc(collection(db, `privateChats/${activeChatId}/messages`));
-      tx.set(msgRef, {
-        text: text || "",
-        fileUrl,
-        userId: therapistId,
-        displayName,
-        role: "therapist",
-        timestamp: serverTimestamp(),
+    try {
+      await runTransaction(db, async (tx) => {
+        const msgRef = doc(collection(db, `privateChats/${activeChatId}/messages`));
+        tx.set(msgRef, {
+          text: text || "",
+          fileUrl,
+          userId: therapistId,
+          displayName,
+          role: "therapist",
+          timestamp: serverTimestamp(),
+        });
+        tx.update(doc(db, "privateChats", activeChatId), {
+          lastMessage: displayName + ": " + text || "Attachment",
+          lastUpdated: serverTimestamp(),
+          unreadCountForTherapist: 0,
+        });
       });
-      tx.update(doc(db, "privateChats", activeChatId), {
-        lastMessage: displayName + ": " + text || "Attachment",
-        lastUpdated: serverTimestamp(),
-        unreadCountForTherapist: 0,
-      });
-    });
+    } catch (e) {
+      showError("Failed to send message.");
+    } finally {
+      setIsSending(false);
+    }
   };
 
   // ---------- REACTION ----------
@@ -278,6 +286,7 @@ export function useActivePrivateChat(
     join,
     leave,
     sendMessage,
+    isSendingPrivate: isSending,
     toggleReaction,
     deleteMessage,
     loadMore,

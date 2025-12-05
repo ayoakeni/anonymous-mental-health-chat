@@ -16,8 +16,10 @@ export function usePrivateChats(showError) {
 
     const q = query(
       collection(db, "privateChats"),
-      where("lastMessage", "!=", null),
+      where("participants", "array-contains", uid),
+      where("lastMessage", "!=", null) 
     );
+
     const unsub = onSnapshot(q, handleSnapshot, handleError);
 
     function handleSnapshot(snapshot) {
@@ -31,7 +33,6 @@ export function usePrivateChats(showError) {
         chats.forEach(chat => map.set(chat.id, chat));
         const updated = Array.from(map.values());
 
-        // Sort ONCE when data changes
         return updated.sort((a, b) => {
           const aActive = a.activeTherapist === uid;
           const bActive = b.activeTherapist === uid;

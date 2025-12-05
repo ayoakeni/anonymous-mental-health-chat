@@ -214,6 +214,7 @@ function PrivateChatSplitView({
           </div>
         ) : (
           <div className="private-chat-box">
+            
             <div className="detailLeave">
               <div className="chat-avater">
                 {isMobile && activeChatId && inChat && (
@@ -230,18 +231,41 @@ function PrivateChatSplitView({
                   <strong className="group-title">
                     {anonNames[activeChatId] || "Anonymous"}
                   </strong>
-                  {/* Online therapists preview */}
                   <small className="participant-preview">
-                  {activeTherapists.length > 0 ? (
-                    activeTherapists.map((t, index) => (
-                      <span key={t.uid} className="participant-name">
-                        {t.name || "Loading..."}
-                        {index < activeTherapists.length - 1 && <b>,</b>}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="participant-name text-muted">No therapist online</span>
-                  )}
+                    <span className="participant-name user-status">
+                      {(() => {
+                        const chat = privateChats.find(c => c.id === activeChatId);
+                        const lastSeen = chat?.lastSeenAt?.toMillis?.();
+                        if (!lastSeen) return "Last seen recently";
+
+                        const diffSec = Math.floor((Date.now() - lastSeen) / 1000);
+
+                        if (diffSec < 30) {
+                          return (
+                            <>
+                              <i className="fas fa-circle online-dot"></i> Active now
+                            </>
+                          );
+                        }
+
+                        if (diffSec < 60) return "Last seen just now";
+                        if (diffSec < 120) return "Last seen a minute ago";
+                        if (diffSec < 3600) return `Last seen ${Math.floor(diffSec / 60)} minutes ago`;
+                        if (diffSec < 7200) return "Last seen an hour ago";
+                        if (diffSec < 86400) return `Last seen ${Math.floor(diffSec / 3600)} hours ago`;
+
+                        // Older than a day → show date
+                        const date = new Date(lastSeen);
+                        const today = new Date();
+                        const yesterday = new Date(today);
+                        yesterday.setDate(yesterday.getDate() - 1);
+
+                        if (date.toDateString() === today.toDateString()) return "Last seen today";
+                        if (date.toDateString() === yesterday.toDateString()) return "Last seen yesterday";
+
+                        return `Last seen ${date.toLocaleDateString()}`;
+                      })()}
+                    </span>
                   </small>
                 </div>
               </div>
@@ -302,7 +326,12 @@ function PrivateChatSplitView({
                   {typingUsers
                     .map(u => typeof u === "string" ? u : u?.name || "Someone")
                     .join(", ")}{" "}
-                  {typingUsers.length === 1 ? "is" : "are"} typing...
+                  {typingUsers.length === 1 ? "is" : "are"} typing
+                  <div className="typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
                 </p>
               )}
               <div ref={privateMessagesEndRef} />
@@ -317,21 +346,6 @@ function PrivateChatSplitView({
                 <i className="fa-regular fa-face-smile"></i>
               </button>
               {showEmojiPicker && <EmojiPicker onEmojiClick={parentOnEmojiClick || onEmojiClick} />}
-
-              <input
-                type="file"
-                ref={fileInputRef}
-                style={{ display: "none" }}
-                onChange={(e) => handleFileChange(e.target.files[0])}
-                aria-label="Upload file"
-              />
-              <button
-                className="attach-btn"
-                onClick={() => fileInputRef.current?.click()}
-                aria-label="Attach file"
-              >
-                <i className="fa-solid fa-paperclip"></i>
-              </button>
 
               <input
                 className="inputInsert"
@@ -354,6 +368,21 @@ function PrivateChatSplitView({
                 aria-label="Message input"
               />
 
+              <input
+                type="file"
+                ref={fileInputRef}
+                style={{ display: "none" }}
+                onChange={(e) => handleFileChange(e.target.files[0])}
+                aria-label="Upload file"
+              />
+              <button
+                className="attach-btn"
+                onClick={() => fileInputRef.current?.click()}
+                aria-label="Attach file"
+              >
+                <i className="fa-solid fa-paperclip"></i>
+              </button>
+
               <button
                 className="send-btn"
                 onClick={() => {
@@ -365,7 +394,7 @@ function PrivateChatSplitView({
                 disabled={isSendingPrivate}
                 aria-label="Send message"
               >
-                {isSendingPrivate ? "Sending..." : <i className="fa-solid fa-paper-plane"></i>}
+                {isSendingPrivate ? <span className="spinner small"></span> : <i className="fa-solid fa-paper-plane"></i>}
               </button>
             </div>
           </div>

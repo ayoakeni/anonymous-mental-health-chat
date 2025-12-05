@@ -32,6 +32,7 @@ function GroupChatSplitView({
   inGroupChat,
   therapistsOnline,
   participants,
+  isSendingGroup,
   isParticipantsOpen,
   setIsParticipantsOpen,
   participantNames,
@@ -121,14 +122,12 @@ function GroupChatSplitView({
     const el = document.getElementById(`msg-${msgId}`);
     if (!el) return;
 
-    // Remove any existing highlight
     document.querySelectorAll(".message-highlight").forEach(e => {
       e.classList.remove("message-highlight");
     });
 
-    // Highlight class
     el.classList.add("message-highlight");
-    // Scroll into view
+
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     setTimeout(() => {
       el.classList.remove("message-highlight");
@@ -349,7 +348,12 @@ function GroupChatSplitView({
                 {typingUsers
                   .map(u => typeof u === "string" ? u : u?.name || "Someone")
                   .join(", ")}{" "}
-                {typingUsers.length === 1 ? "is" : "are"} typing...
+                {typingUsers.length === 1 ? "is" : "are"} typing
+                <div className="typing-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
               </p>
             )}
             <div ref={groupMessagesEndRef} />
@@ -363,26 +367,6 @@ function GroupChatSplitView({
               <i className="fa-regular fa-face-smile"></i>
             </button>
             {showEmojiPicker && <EmojiPicker onEmojiClick={parentOnEmojiClick || onEmojiClick} />}
-            <input
-              type="file"
-              id="group-file-upload"
-              style={{ display: "none" }}
-              onChange={(e) => {
-                const file = e.target.files[0];
-                if (file) {
-                  sendReply("", file);
-                  setReply("");
-                }
-              }}
-              aria-label="Upload file"
-            />
-            <button
-              className="attach-btn"
-              onClick={() => document.getElementById("group-file-upload").click()}
-              aria-label="Attach file"
-            >
-              <i className="fa-solid fa-paperclip"></i>
-            </button>
             <input
               className="inputInsert"
               type="text"
@@ -403,6 +387,26 @@ function GroupChatSplitView({
               }}
               aria-label="Message input"
             />
+            <input
+              type="file"
+              id="group-file-upload"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  sendReply("", file);
+                  setReply("");
+                }
+              }}
+              aria-label="Upload file"
+            />
+            <button
+              className="attach-btn"
+              onClick={() => document.getElementById("group-file-upload").click()}
+              aria-label="Attach file"
+            >
+              <i className="fa-solid fa-paperclip"></i>
+            </button>
             <button className="send-btn" 
               onClick={() => {
                 if (reply.trim()) {
@@ -410,8 +414,9 @@ function GroupChatSplitView({
                   setReply("");
                 }
               }}
+              disabled={isSendingGroup}
               aria-label="Send message">
-              <i className="fa-solid fa-paper-plane"></i>
+              {isSendingGroup ? <span className="spinner small"></span> : <i className="fa-solid fa-paper-plane"></i>}
             </button>
           </div>
         </div>

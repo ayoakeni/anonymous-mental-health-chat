@@ -1,14 +1,25 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { debounce } from "lodash";
 import { db, auth } from "../utils/firebase";
-import { doc, setDoc, serverTimestamp, collection, query, where, onSnapshot, limit,} from "firebase/firestore";
+import {
+  doc,
+  setDoc,
+  serverTimestamp,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  limit,
+  updateDoc,
+} from "firebase/firestore";
 
 export const useTypingStatus = (displayName, chatId) => {
   const [typingUsers, setTypingUsers] = useState([]);
   const typingTimeoutRef = useRef(null);
+  const lastSeenTimerRef = useRef(null);
   const debouncedUpdateTypingRef = useRef(null);
 
-  // Create a *stable* debounced function (only when deps change)
+  // Debounced typing status update to Firestore
   useEffect(() => {
     debouncedUpdateTypingRef.current = debounce((isTyping) => {
       if (!auth.currentUser?.uid || !chatId) return;
@@ -26,18 +37,24 @@ export const useTypingStatus = (displayName, chatId) => {
       ).catch((err) => console.error("Failed to update typing status:", err));
     }, 800);
 
-    // Cleanup on deps change or unmount
     return () => {
       debouncedUpdateTypingRef.current?.cancel();
     };
   }, [chatId, displayName]);
 
-  // Expose a stable caller
   const updateTyping = useCallback((isTyping) => {
     debouncedUpdateTypingRef.current?.(isTyping);
   }, []);
 
-  // Subscribe to Firestore typing status
+  // Update lastSeenAt while user is typing (every 3 seconds)
+  const updateLastSeen = useCallback(() => {
+    if (!chatId) return;
+    updateDoc(doc(db, "privateChats", chatId), {
+      lastSeenAt: serverTimestamp(),
+    }).catch(() => {});
+  }, [chatId]);
+
+  // Listen to who is typing in this chat
   useEffect(() => {
     if (!chatId) {
       setTypingUsers([]);
@@ -52,50 +69,53 @@ export const useTypingStatus = (displayName, chatId) => {
     );
 
     const unsub = onSnapshot(q, (snap) => {
-      const users = snap.docs.map((d) => d.data().name).filter(Boolean);
+      const users = snap.docs
+        .map((d) => d.data().name)
+        .filter(Boolean);
 
-      // Dedupe render
-      if (JSON.stringify(users) !== JSON.stringify(typingUsers)) {
-        setTypingUsers(users);
-      }
+      setTypingUsers((prev) =>
+        JSON.stringify(prev) === JSON.stringify(users) ? prev : users
+      );
     });
 
-    return () => {
-      unsub();
-      debouncedUpdateTypingRef.current?.cancel();
-    };
-  // eslint-disable-next-line
+    return () => unsub();
   }, [chatId]);
 
-  // Public handler
+  // Main handler — call this from input onChange
   const handleTyping = useCallback(
     (value) => {
       if (!chatId) return;
 
       const isTyping = value.trim() !== "";
+
+      // Update typing status
       updateTyping(isTyping);
 
-      // Clear existing timeout
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
+      // Clear previous timeouts
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (lastSeenTimerRef.current) clearTimeout(lastSeenTimerRef.current);
 
-      // Auto-stop after 3s of inactivity
       if (isTyping) {
+        // Stop showing "typing" after 3 seconds of no input
         typingTimeoutRef.current = setTimeout(() => {
           updateTyping(false);
         }, 3000);
+
+        // Update lastSeenAt every 3 seconds while typing
+        updateLastSeen();
+        lastSeenTimerRef.current = setTimeout(() => {
+          if (value.trim() !== "") updateLastSeen();
+        }, 3000);
       }
     },
-    [chatId, updateTyping]
+    [chatId, updateTyping, updateLastSeen]
   );
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (lastSeenTimerRef.current) clearTimeout(lastSeenTimerRef.current);
       debouncedUpdateTypingRef.current?.cancel();
     };
   }, []);

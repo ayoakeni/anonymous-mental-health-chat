@@ -14,6 +14,7 @@ export function useActiveGroupChat(
   showError,
 ) {
   const [messages, setMessages] = useState([]);
+  const [isSending, setIsSending] = useState(false);
   const [events, setEvents] = useState([]);
   const [participants, setParticipants] = useState([]);
   const [inChat, setInChat] = useState(false);
@@ -71,6 +72,7 @@ export function useActiveGroupChat(
   const sendMessage = async (text, file = null) => {
     if ((!text || !text.trim()) && !file) return;
     if (!activeGroupId) return;
+    setIsSending(true);
 
     let fileUrl = "";
     if (file) {
@@ -80,22 +82,28 @@ export function useActiveGroupChat(
       fileUrl = await getDownloadURL(storageRef);
     }
 
-    await runTransaction(db, async (tx) => {
-      const msgRef = doc(collection(db, `groupChats/${activeGroupId}/messages`));
-      tx.set(msgRef, {
-        text: text || "",
-        fileUrl,
-        userId: therapistId,
-        displayName,
-        role: "therapist",
-        timestamp: serverTimestamp(),
-        pinned: false,
-        reactions: {},
+    try {
+      await runTransaction(db, async (tx) => {
+        const msgRef = doc(collection(db, `groupChats/${activeGroupId}/messages`));
+        tx.set(msgRef, {
+          text: text || "",
+          fileUrl,
+          userId: therapistId,
+          displayName,
+          role: "therapist",
+          timestamp: serverTimestamp(),
+          pinned: false,
+          reactions: {},
+        });
+        tx.update(doc(db, "groupChats", activeGroupId), {
+          lastMessage: { text: text || "Attachment", displayName, timestamp: serverTimestamp() },
+        });
       });
-      tx.update(doc(db, "groupChats", activeGroupId), {
-        lastMessage: { text: text || "Attachment", displayName, timestamp: serverTimestamp() },
-      });
-    });
+    } catch (e) {
+      showError("Failed to send message.");
+    } finally {
+      setIsSending(false);
+    }
   };
 
   // ---------- REACTION ----------
@@ -256,6 +264,7 @@ export function useActiveGroupChat(
     join,
     leave,
     sendMessage,
+    isSendingGroup: isSending,
     toggleReaction,
     deleteMessage,
     pinMessage,

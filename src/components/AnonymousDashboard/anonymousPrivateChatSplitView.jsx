@@ -14,6 +14,7 @@ import {
   getDoc,
   getDocs,
   increment,
+  updateDoc,
   startAfter,
 } from "firebase/firestore";
 import { useTypingStatus } from "../../hooks/useTypingStatus";
@@ -74,17 +75,29 @@ function AnonymousPrivateChatSplitView({
   const [menuOpen, setMenuOpen] = useState(false);
   const fileInputRef = useRef(null);
 
-const therapistDisplayName = useMemo(() => {
-  if (!activeChatId) return "Waiting for a therapist…";
-  if (anonNames[activeChatId]) return anonNames[activeChatId];
+  const therapistDisplayName = useMemo(() => {
+    if (!activeChatId) return "Waiting for a therapist…";
+    if (anonNames[activeChatId]) return anonNames[activeChatId];
 
-  const chat = privateChats.find(c => c.id === activeChatId);
-  const therapistUid = chat?.participants?.find(uid => uid !== userId);
-  if (!therapistUid) return "Waiting for a therapist…";
+    const chat = privateChats.find(c => c.id === activeChatId);
+    const therapistUid = chat?.participants?.find(uid => uid !== userId);
+    if (!therapistUid) return "Waiting for a therapist…";
 
-  // Live name will update via onSnapshot elsewhere if needed
-  return "Loading name…";
-}, [activeChatId, anonNames, privateChats, userId]);
+    return "Loading name…";
+  }, [activeChatId, anonNames, privateChats, userId]);
+
+  const currentTherapistUid = useMemo(() => {
+    if (!activeChatId) return null;
+    const chat = privateChats.find(c => c.id === activeChatId);
+    if (!chat?.participants) return null;
+    return chat.participants.find(uid => uid !== userId) || null;
+  }, [activeChatId, privateChats, userId]);
+
+  const therapistStatus = useMemo(() => {
+    if (!currentTherapistUid) return "Waiting for therapist…";
+    const therapist = activeTherapists.find(t => t.uid === currentTherapistUid);
+    return therapist ? "online" : "offline";
+  }, [currentTherapistUid, activeTherapists]);
 
   useEffect(() => {
     const selectId = location.state?.selectChatId;
@@ -92,6 +105,20 @@ const therapistDisplayName = useMemo(() => {
       setActiveChatId(selectId);
     }
   }, [location.state?.selectChatId, activeChatId]);
+
+  useEffect(() => {
+    if (!activeChatId || !userId) return;
+
+    const chatRef = doc(db, "privateChats", activeChatId);
+
+    updateDoc(chatRef, { lastSeenAt: serverTimestamp() }).catch(() => {});
+
+    const interval = setInterval(() => {
+      updateDoc(chatRef, { lastSeenAt: serverTimestamp() }).catch(() => {});
+    }, 30_000);
+
+    return () => clearInterval(interval);
+  }, [activeChatId, userId]);
 
   useEffect(() => {
     const closeMenu = (e) => {
@@ -434,6 +461,7 @@ const therapistDisplayName = useMemo(() => {
             lastMessage: displayName + ": " + messageText || "Attachment",
             lastUpdated: serverTimestamp(),
             unreadCountForTherapist: increment(1),
+            lastSeenAt: serverTimestamp(),
           });
         }
 
@@ -770,19 +798,15 @@ const therapistDisplayName = useMemo(() => {
                 <strong className="group-title">
                   {therapistDisplayName}
                 </strong>
-
-                <small className="participant-preview">
-                  {activeTherapists.length > 0 ? (
-                    activeTherapists.map((t, index) => (
-                      <span key={t.uid} className="participant-name">
-                        {t.name || "Loading..."}
-                        {index < activeTherapists.length - 1 && <b>,</b>}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="participant-name text-muted">No therapist online</span>
-                  )}
-                </small>
+                <span className="participant-preview">
+                  <small
+                    className={`participant-name-p ${
+                      therapistStatus.toLowerCase().includes("waiting") ? "waiting" : ""
+                    } ${therapistStatus.includes("online") ? "text-success" : "text-muted"}`}
+                  >
+                    {therapistStatus}
+                  </small>
+                </span>
               </div>
             </div>
             <div className="leave-participant">
@@ -839,7 +863,12 @@ const therapistDisplayName = useMemo(() => {
                   .filter(Boolean)
                   .join(", ")}
                 {(typingUsers.length > 0 || aiTyping) && " "}
-                {typingUsers.length + (aiTyping ? 1 : 0) === 1 ? "is" : "are"} typing...
+                {typingUsers.length + (aiTyping ? 1 : 0) === 1 ? "is" : "are"} typing
+                <div className="typing-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
               </p>
             )}
             <div ref={messagesEndRef} />
@@ -854,22 +883,6 @@ const therapistDisplayName = useMemo(() => {
               <i className="fa-regular fa-face-smile"></i>
             </button>
             {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
-
-            <input
-              type="file"
-              ref={fileInputRef}
-              style={{ display: "none" }}
-              onChange={e => sendMessage(e.target.files[0])}
-              aria-label="Upload file"
-            />
-            <button
-              className="attach-btn"
-              onClick={() => fileInputRef.current?.click()}
-              aria-label="Attach file"
-              disabled={isSending || aiTyping}
-            >
-              <i className="fa-solid fa-paperclip"></i>
-            </button>
 
             <input
               className="inputInsert"
@@ -890,13 +903,29 @@ const therapistDisplayName = useMemo(() => {
               disabled={isSending || aiTyping}
             />
 
+            <input
+              type="file"
+              ref={fileInputRef}
+              style={{ display: "none" }}
+              onChange={e => sendMessage(e.target.files[0])}
+              aria-label="Upload file"
+            />
+            <button
+              className="attach-btn"
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="Attach file"
+              disabled={isSending || aiTyping}
+            >
+              <i className="fa-solid fa-paperclip"></i>
+            </button>
+
             <button
               className="send-btn"
               onClick={() => sendMessage()}
               disabled={isSending || aiTyping}
               aria-label="Send message"
             >
-              {isSending ? "Sending..." : <i className="fa-solid fa-paper-plane"></i>}
+              {isSending ? <span className="spinner small"></span> : <i className="fa-solid fa-paper-plane"></i>}
             </button>
           </div>
         </div>
