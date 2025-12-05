@@ -280,7 +280,7 @@
   flex-direction: column;
 }
 
-.chat-list {
+.chat-info-display {
   display: flex;
   flex-direction: column;
   align-items: center;

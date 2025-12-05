@@ -200,12 +200,12 @@ function PrivateChatSplitView({
     <div className="chat-box-container">
       {activeChatId && inChat ? (
         isValidatingChat ? (
-          <div className="chat-list">
+          <div className="chat-info-display">
             <h3>Loading Private Chat...</h3>
             <p>Validating chat access, please wait...</p>
           </div>
         ) : chatError ? (
-          <div className="chat-list">
+          <div className="chat-info-display">
             <h3>Error Loading Private Chat</h3>
             <p>{chatError}</p>
             <button onClick={() => navigate("/therapist-dashboard/private-chat")}>

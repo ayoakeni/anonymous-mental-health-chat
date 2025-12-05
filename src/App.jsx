@@ -14,15 +14,20 @@ import NotificationHandler from "./components/notificationHandler";
 import Home from "./page/home";
 import About from "./page/about";
 import TherapistLogin from "./login/therapist_login";
+import AdminPanel from "./admin/adminPanel";
+import AdminLogin from "./admin/admin-login";
 import TherapistDashboard from "./page/therapistDashboard";
 import AnonymousDashboard from "./page/anonymousDashboard";
 import Chatroom from "./page/chats_rooms/chatRoom";
-// import Header from "./components/header"
 import "./styles/App.css";
 
-// -------------------------------------------------------------------
-// Auth Provider – only runs once, handles presence + redirect
-// -------------------------------------------------------------------
+const ADMIN_EMAILS = [
+  "admin@yourapp.com",
+  "support@yourapp.com",
+  "dev@yourapp.com",
+  "yourname@gmail.com"
+];
+
 function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isTherapist, setIsTherapist] = useState(false);
@@ -65,7 +70,6 @@ function AuthProvider({ children }) {
 
         setIsTherapist(true);
 
-        // ONLY redirect if on /therapist-login
         if (location.pathname === "/therapist-login") {
           navigate("/therapist-dashboard/", { replace: true });
         }
@@ -80,25 +84,36 @@ function AuthProvider({ children }) {
   return children({ user, isTherapist, loading });
 }
 
-// -------------------------------------------------------------------
-// Main App
-// -------------------------------------------------------------------
 export default function App() {
   return (
     <>
       <NotificationHandler />
-      {/* <Header/> */}
       <AuthProvider>
         {({ user, isTherapist, loading }) => (
           <Routes>
-            {/* Public Routes – No loader */}
+            {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/about" element={<About />} />
             <Route path="/therapist-login" element={<TherapistLogin />} />
+            <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/chat-room/:chatId" element={<Chatroom />} />
             <Route path="/chat-room/" element={<Chatroom />} />
 
-            {/* Protected: Therapist */}
+            {/* ADMIN PANEL — Protected */}
+            <Route
+              path="/admin"
+              element={
+                loading ? (
+                  <Loader />
+                ) : user && !user.isAnonymous && user.email && ADMIN_EMAILS.includes(user.email) ? (
+                  <AdminPanel />
+                ) : (
+                  <Navigate to="/admin-login" replace />
+                )
+              }
+            />
+
+            {/* Therapist Dashboard */}
             <Route
               path="/therapist-dashboard/*"
               element={
@@ -112,7 +127,7 @@ export default function App() {
               }
             />
 
-            {/* Protected: Anonymous */}
+            {/* Anonymous Dashboard */}
             <Route
               path="/anonymous-dashboard/*"
               element={
@@ -135,9 +150,6 @@ export default function App() {
   );
 }
 
-// -------------------------------------------------------------------
-// Reusable Loader
-// -------------------------------------------------------------------
 function Loader() {
   return (
     <div className="loaderbox" role="status" aria-label="Loading...">
