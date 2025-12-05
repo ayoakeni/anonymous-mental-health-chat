@@ -873,61 +873,62 @@ function AnonymousPrivateChatSplitView({
             )}
             <div ref={messagesEndRef} />
           </div>
-          <div className="chat-input">
-            <button
-              className="emoji-btn"
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              aria-label="Open emoji picker"
-              disabled={isSending || aiTyping}
-            >
-              <i className="fa-regular fa-face-smile"></i>
-            </button>
+          <div className="chat-input-box">
+            <div className="chat-input">
+              <button
+                className="emoji-btn"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                aria-label="Open emoji picker"
+                disabled={isSending || aiTyping}
+              >
+                <i className="fa-regular fa-face-smile"></i>
+              </button>
+              <input
+                className="inputInsert"
+                type="text"
+                value={newMessage}
+                onChange={e => {
+                  setNewMessage(e.target.value);
+                  handleTyping(e.target.value);
+                }}
+                placeholder="Type a message..."
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                aria-label="Message input"
+                disabled={isSending || aiTyping}
+              />
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                style={{ display: "none" }}
+                onChange={e => sendMessage(e.target.files[0])}
+                aria-label="Upload file"
+              />
+              <button
+                className="attach-btn"
+                onClick={() => fileInputRef.current?.click()}
+                aria-label="Attach file"
+                disabled={isSending || aiTyping}
+              >
+                <i className="fa-solid fa-paperclip"></i>
+              </button>
+
+              <button
+                className="send-btn"
+                onClick={() => sendMessage()}
+                disabled={isSending || aiTyping}
+                aria-label="Send message"
+              >
+                {isSending ? <span className="spinner small"></span> : <i className="fa-solid fa-paper-plane"></i>}
+              </button>
+            </div>
             {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
-
-            <input
-              className="inputInsert"
-              type="text"
-              value={newMessage}
-              onChange={e => {
-                setNewMessage(e.target.value);
-                handleTyping(e.target.value);
-              }}
-              placeholder="Type a message..."
-              onKeyDown={e => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-              aria-label="Message input"
-              disabled={isSending || aiTyping}
-            />
-
-            <input
-              type="file"
-              ref={fileInputRef}
-              style={{ display: "none" }}
-              onChange={e => sendMessage(e.target.files[0])}
-              aria-label="Upload file"
-            />
-            <button
-              className="attach-btn"
-              onClick={() => fileInputRef.current?.click()}
-              aria-label="Attach file"
-              disabled={isSending || aiTyping}
-            >
-              <i className="fa-solid fa-paperclip"></i>
-            </button>
-
-            <button
-              className="send-btn"
-              onClick={() => sendMessage()}
-              disabled={isSending || aiTyping}
-              aria-label="Send message"
-            >
-              {isSending ? <span className="spinner small"></span> : <i className="fa-solid fa-paper-plane"></i>}
-            </button>
-          </div>
+          </div>  
         </div>
       ) : (
         <div className="empty-chat">

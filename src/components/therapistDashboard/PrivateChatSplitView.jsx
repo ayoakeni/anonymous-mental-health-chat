@@ -336,67 +336,68 @@ function PrivateChatSplitView({
               )}
               <div ref={privateMessagesEndRef} />
             </div>
+            <div className="chat-input-box">
+              <div className="chat-input">
+                <button
+                  className="emoji-btn"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  aria-label="Open emoji picker"
+                >
+                  <i className="fa-regular fa-face-smile"></i>
+                </button>
 
-            <div className="chat-input">
-              <button
-                className="emoji-btn"
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                aria-label="Open emoji picker"
-              >
-                <i className="fa-regular fa-face-smile"></i>
-              </button>
+                <input
+                  className="inputInsert"
+                  type="text"
+                  value={newPrivateMessage}
+                  onChange={(e) => {
+                    setNewPrivateMessage(e.target.value);
+                    handleTyping(e.target.value);
+                  }}
+                  placeholder="Type a message..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (newPrivateMessage.trim()) {
+                        sendPrivateMessage(newPrivateMessage);
+                        setNewPrivateMessage("");
+                      }
+                    }
+                  }}
+                  aria-label="Message input"
+                  />
 
-              <input
-                className="inputInsert"
-                type="text"
-                value={newPrivateMessage}
-                onChange={(e) => {
-                  setNewPrivateMessage(e.target.value);
-                  handleTyping(e.target.value);
-                }}
-                placeholder="Type a message..."
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: "none" }}
+                  onChange={(e) => handleFileChange(e.target.files[0])}
+                  aria-label="Upload file"
+                  />
+                <button
+                  className="attach-btn"
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="Attach file"
+                  >
+                  <i className="fa-solid fa-paperclip"></i>
+                </button>
+
+                <button
+                  className="send-btn"
+                  onClick={() => {
                     if (newPrivateMessage.trim()) {
                       sendPrivateMessage(newPrivateMessage);
                       setNewPrivateMessage("");
                     }
-                  }
-                }}
-                aria-label="Message input"
-                />
-
-              <input
-                type="file"
-                ref={fileInputRef}
-                style={{ display: "none" }}
-                onChange={(e) => handleFileChange(e.target.files[0])}
-                aria-label="Upload file"
-                />
-              <button
-                className="attach-btn"
-                onClick={() => fileInputRef.current?.click()}
-                aria-label="Attach file"
-                >
-                <i className="fa-solid fa-paperclip"></i>
-              </button>
-
-              <button
-                className="send-btn"
-                onClick={() => {
-                  if (newPrivateMessage.trim()) {
-                    sendPrivateMessage(newPrivateMessage);
-                    setNewPrivateMessage("");
-                  }
-                }}
-                disabled={isSendingPrivate}
-                aria-label="Send message"
-                >
-                {isSendingPrivate ? <span className="spinner small"></span> : <i className="fa-solid fa-paper-plane"></i>}
-              </button>
+                  }}
+                  disabled={isSendingPrivate}
+                  aria-label="Send message"
+                  >
+                  {isSendingPrivate ? <span className="spinner small"></span> : <i className="fa-solid fa-paper-plane"></i>}
+                </button>
+              </div>
+              {showEmojiPicker && <EmojiPicker onEmojiClick={parentOnEmojiClick || onEmojiClick} />}
             </div>
-            {showEmojiPicker && <EmojiPicker onEmojiClick={parentOnEmojiClick || onEmojiClick} />}
           </div>
         )
       ) : (
