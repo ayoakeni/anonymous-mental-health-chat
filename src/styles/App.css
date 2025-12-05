@@ -1187,6 +1187,7 @@
 /* EmojiPicker Container */
 .chat-input aside {
   position: absolute;
+  width: 400px !important;
   left: 10px;
   bottom: 65px;
   background-color: var(--background-color);
@@ -1327,5 +1328,12 @@
 
   .chat-box-card {
     max-height: 100%;
+  }
+
+  .chat-input aside {
+    left: 5px;
+    right: 15px;
+    height: 370px !important;
+    width: auto !important;
   }
 }
