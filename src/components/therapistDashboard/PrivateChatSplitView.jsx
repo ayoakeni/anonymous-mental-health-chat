@@ -345,7 +345,6 @@ function PrivateChatSplitView({
               >
                 <i className="fa-regular fa-face-smile"></i>
               </button>
-              {showEmojiPicker && <EmojiPicker onEmojiClick={parentOnEmojiClick || onEmojiClick} />}
 
               <input
                 className="inputInsert"
@@ -366,7 +365,7 @@ function PrivateChatSplitView({
                   }
                 }}
                 aria-label="Message input"
-              />
+                />
 
               <input
                 type="file"
@@ -374,12 +373,12 @@ function PrivateChatSplitView({
                 style={{ display: "none" }}
                 onChange={(e) => handleFileChange(e.target.files[0])}
                 aria-label="Upload file"
-              />
+                />
               <button
                 className="attach-btn"
                 onClick={() => fileInputRef.current?.click()}
                 aria-label="Attach file"
-              >
+                >
                 <i className="fa-solid fa-paperclip"></i>
               </button>
 
@@ -393,10 +392,11 @@ function PrivateChatSplitView({
                 }}
                 disabled={isSendingPrivate}
                 aria-label="Send message"
-              >
+                >
                 {isSendingPrivate ? <span className="spinner small"></span> : <i className="fa-solid fa-paper-plane"></i>}
               </button>
             </div>
+            {showEmojiPicker && <EmojiPicker onEmojiClick={parentOnEmojiClick || onEmojiClick} />}
           </div>
         )
       ) : (

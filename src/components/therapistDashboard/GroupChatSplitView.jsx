@@ -358,66 +358,68 @@ function GroupChatSplitView({
             )}
             <div ref={groupMessagesEndRef} />
           </div>
-          <div className="chat-input">
-            <button
-              className="emoji-btn"
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              aria-label="Open emoji picker"
-            >
-              <i className="fa-regular fa-face-smile"></i>
-            </button>
-            {showEmojiPicker && <EmojiPicker onEmojiClick={parentOnEmojiClick || onEmojiClick} />}
-            <input
-              className="inputInsert"
-              type="text"
-              value={reply}
-              onChange={(e) => {
-                setReply(e.target.value);
-                handleTyping(e.target.value);
-              }}
-              placeholder="Reply to group chat..."
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
+          <div className="chat-input-box">
+            <div className="chat-input">
+              <button
+                className="emoji-btn"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                aria-label="Open emoji picker"
+              >
+                <i className="fa-regular fa-face-smile"></i>
+              </button>
+              <input
+                className="inputInsert"
+                type="text"
+                value={reply}
+                onChange={(e) => {
+                  setReply(e.target.value);
+                  handleTyping(e.target.value);
+                }}
+                placeholder="Reply to group chat..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (reply.trim()) {
+                      sendReply(reply);
+                      setReply("");
+                    }
+                  }
+                }}
+                aria-label="Message input"
+              />
+              <input
+                type="file"
+                id="group-file-upload"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    sendReply("", file);
+                    setReply("");
+                  }
+                }}
+                aria-label="Upload file"
+              />
+              <button
+                className="attach-btn"
+                onClick={() => document.getElementById("group-file-upload").click()}
+                aria-label="Attach file"
+                >
+                <i className="fa-solid fa-paperclip"></i>
+              </button>
+              <button className="send-btn" 
+                onClick={() => {
                   if (reply.trim()) {
                     sendReply(reply);
                     setReply("");
                   }
-                }
-              }}
-              aria-label="Message input"
-            />
-            <input
-              type="file"
-              id="group-file-upload"
-              style={{ display: "none" }}
-              onChange={(e) => {
-                const file = e.target.files[0];
-                if (file) {
-                  sendReply("", file);
-                  setReply("");
-                }
-              }}
-              aria-label="Upload file"
-            />
-            <button
-              className="attach-btn"
-              onClick={() => document.getElementById("group-file-upload").click()}
-              aria-label="Attach file"
-            >
-              <i className="fa-solid fa-paperclip"></i>
-            </button>
-            <button className="send-btn" 
-              onClick={() => {
-                if (reply.trim()) {
-                  sendReply(reply);
-                  setReply("");
-                }
-              }}
-              disabled={isSendingGroup}
-              aria-label="Send message">
-              {isSendingGroup ? <span className="spinner small"></span> : <i className="fa-solid fa-paper-plane"></i>}
-            </button>
+                }}
+                disabled={isSendingGroup}
+                aria-label="Send message">
+                {isSendingGroup ? <span className="spinner small"></span> : <i className="fa-solid fa-paper-plane"></i>}
+              </button>
+            </div>
+            {showEmojiPicker && <EmojiPicker onEmojiClick={parentOnEmojiClick || onEmojiClick} />}
           </div>
         </div>
       ) : (

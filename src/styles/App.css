@@ -1176,6 +1176,10 @@
   40% { transform: scale(1); }
 }
 
+.chat-input-box {
+  position: relative;
+}
+
 .chat-input {
   display: flex;
   gap: 5px;
@@ -1185,7 +1189,7 @@
 }
 
 /* EmojiPicker Container */
-.chat-input aside {
+.chat-input-box aside {
   position: absolute;
   height: 400px !important;
   width: 400px !important;
@@ -1196,38 +1200,38 @@
 }
 
 /* Emoji search and button toggle container */
-.chat-input aside .epr_346qu6 {
+.chat-input-box aside .epr_346qu6 {
   border: 1px solid var(--chat-bg);
 }
 
 /* Emoji input Search  */
-.chat-input aside .epr_-tzp699 {
+.chat-input-box aside .epr_-tzp699 {
   border: 1px solid var(--chat-bg);
   background-color: var(--background-color);
 }
 
-.chat-input aside .epr_-tzp699:focus {
+.chat-input-box aside .epr_-tzp699:focus {
   border: 1px solid var(--primary-color);
 }
 
 /* emoji color toggle */
-.chat-input aside .epr_ktlibp:hover {
+.chat-input-box aside .epr_ktlibp:hover {
   border: 1px solid var(--primary-color);
   box-shadow: inset 0px 0px 0 1px var(--primary-color);
 }
 
 /* Emoji-category-label */
-.chat-input aside .epr-emoji-category-label {
+.chat-input-box aside .epr-emoji-category-label {
   background-color: var(--chat-bg);
 }
 
 /* Emoji Button */
-.chat-input aside .epr-emoji-category-content button {
+.chat-input-box aside .epr-emoji-category-content button {
   background-color: transparent;
 }
 
 /* Emoji selected view */
-.chat-input aside .epr_-kg0voo {
+.chat-input-box aside .epr_-kg0voo {
   border-top: 1px solid var(--chat-bg);
 }
 
@@ -1308,6 +1312,16 @@
   .chat-message {
     max-width: 80%;
   }
+
+  .chat-input-box aside {
+    position: relative;
+    height: 380px !important;
+    width: 100% !important;
+    left: 0;
+    bottom:0;
+    border-radius: 0;
+    border: none;
+  }
 }
 
 @media (max-width: 484px) {
@@ -1329,12 +1343,5 @@
 
   .chat-box-card {
     max-height: 100%;
-  }
-
-  .chat-input aside {
-    left: 5px;
-    right: 15px;
-    height: 370px !important;
-    width: auto !important;
   }
 }
