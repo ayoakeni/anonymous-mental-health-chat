@@ -301,7 +301,7 @@ function GroupChatSplitView({
                 {therapistId && (
                   <button
                     className="unpin-btn"
-                    onClick={() => {
+                    onClick={(e) => {
                       e.stopPropagation();
                       const pinnedMsg = combinedGroupChat.find(m => m.pinned);
                       if (pinnedMsg) pinMessage(pinnedMsg.id, true);
