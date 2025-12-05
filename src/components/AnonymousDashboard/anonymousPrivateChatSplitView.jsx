@@ -924,7 +924,7 @@ function AnonymousPrivateChatSplitView({
                 disabled={isSending || aiTyping}
                 aria-label="Send message"
               >
-                {isSending ? <span className="spinner small"></span> : <i className="fa-solid fa-paper-plane"></i>}
+                {isSending ? <span className="spinner small"></span> : <span className="spinner small"></span>}
               </button>
             </div>
             {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}

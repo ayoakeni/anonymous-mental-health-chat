@@ -1249,6 +1249,7 @@
 .chat-input .emoji-btn,
 .chat-input .attach-btn,
 .chat-input .send-btn {
+  display: flex;
   padding: 12px 20px;
   color: #fff;
   border: none;
