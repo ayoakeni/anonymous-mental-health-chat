@@ -30,7 +30,10 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
 
   // ---------- START PRIVATE CHAT ----------
   const startPrivateChat = async () => {
-    if (!allowPrivateChats) return;
+    if (!allowPrivateChats) {
+      alert("This therapist is not accepting private chats right now.\n\nYou can still book a session with them!");
+      return;
+    }
 
     const anonUid = auth.currentUser?.uid;
     if (!anonUid) return;
@@ -113,10 +116,13 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
 
       <div className="action-buttons">
         <button
-          className="action-button chat-button"
           onClick={startPrivateChat}
-          disabled={!allowPrivateChats}
-          title={!allowPrivateChats ? "This therapist has disabled private chats" : ""}
+          className={`action-button chat-button ${!allowPrivateChats ? 'unavailable' : ''}`}
+          title={
+            !allowPrivateChats
+              ? "This therapist is not accepting private chats right now"
+              : "Start a private chat"
+          }
         >
           Start Private Chat
         </button>

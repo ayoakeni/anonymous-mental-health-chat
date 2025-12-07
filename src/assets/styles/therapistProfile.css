@@ -157,7 +157,7 @@
   background: #357abd;
 }
 
-.therapist-profile .chat-button:disabled {
+.therapist-profile .chat-button.unavailable {
   background: #a0a0a0;
   cursor: not-allowed;
 }

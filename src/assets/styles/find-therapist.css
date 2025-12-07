@@ -420,10 +420,9 @@
 .find-therapist-page .btn-chat:hover { background: #3a7cc2; }
 .find-therapist-page .btn-book:hover { background: #e68500; }
 
-.btn-chat:disabled {
-  background: #aaa !important;
+.btn-chat.unavailable{
+  background: #a0a0a0 !important;
   cursor: not-allowed;
-  opacity: 0.6;
 }
 
 .find-therapist-page .no-results {

@@ -61,23 +61,28 @@ export default function FindTherapist() {
     });
   }, [therapists, searchTerm, selectedSpecialty]);
 
-  const startPrivateChat = async () => {
-    if (!allowPrivateChats) return;
+  const startPrivateChat = async (therapist) => {
+    if (!therapist.allowPrivateChats) {
+      alert("This therapist is not accepting private chats right now.\n\nYou can still book a session with them!");
+      return;
+    }
 
     const anonUid = auth.currentUser?.uid;
-    if (!anonUid) return;
+    if (!anonUid) {
+      alert("Please log in to start a chat.");
+      return;
+    }
 
-    const uids = [anonUid.slice(0, 8), therapists.uid.slice(0, 8)].sort();
+    const uids = [anonUid.slice(0, 8), therapist.uid.slice(0, 8)].sort();
     const chatId = `${uids[0]}_${uids[1]}`;
 
     navigate(`/anonymous-dashboard/private-chat/${chatId}`, {
       state: {
         selectChatId: chatId,
         therapistId: therapist.uid,
-        therapistName: therapist.name
-      }
+        therapistName: therapist.name,
+      },
     });
-    onBack?.();
   };
 
   if (loading) {
@@ -228,15 +233,18 @@ export default function FindTherapist() {
                   </div>
 
                   <div className="therapist-actions">
-                    <button
-                      onClick= { () => {startPrivateChat(therapist)}}
-                      disabled={!therapist.allowPrivateChats}
-                      title={!therapist.allowPrivateChats ? "This therapist has disabled private chats" : ""}
-                      className="btn-chat"
-                    >
-                      <MessageCircle className="icon" />
-                      {therapist.allowPrivateChats ? "Start Chat" : "Chat Unavailable"}
-                    </button>
+                  <button
+                    onClick={() => startPrivateChat(therapist)}
+                    className={`btn-chat ${!therapist.allowPrivateChats ? 'unavailable' : ''}`}
+                    title={
+                      !therapist.allowPrivateChats
+                        ? "This therapist is not accepting private chats right now"
+                        : "Start a private chat"
+                    }
+                  >
+                    <MessageCircle className="icon" />
+                    {therapist.allowPrivateChats ? "Start Chat" : "Chat Unavailable"}
+                  </button>
 
                     <button
                       onClick={() => {
