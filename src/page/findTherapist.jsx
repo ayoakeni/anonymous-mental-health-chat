@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
-import { collection, query, onSnapshot } from "firebase/firestore";
-import { db } from "../utils/firebase";
+import { collection, query, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { db, auth } from "../utils/firebase";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
+import AppointmentBooking from "../components/AnonymousDashboard/anonymousAppointmentBooking";
 import { Search, Star, CheckCircle, Clock, MessageCircle, Calendar } from "lucide-react";
 import "../assets/styles/find-therapist.css";
 
@@ -11,23 +12,33 @@ export default function FindTherapist() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [selectedTherapist, setSelectedTherapist] = useState(null);
+  const [showBooking, setShowBooking] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     const q = query(collection(db, "therapists"));
-    const unsub = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        online: doc.data().online || false,
-        rating: doc.data().rating || 0,
-        totalRatings: doc.data().totalRatings || 0,
-        profileImage: doc.data().profileImage || null,
-      })).filter(t => t.verified !== false);
+    const unsub = onSnapshot(q, async (snapshot) => {
+      const therapistsData = await Promise.all(
+        snapshot.docs.map(docSnap => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            uid: docSnap.id,
+            ...data,
+            online: data.online || false,
+            allowPrivateChats: data.chatSettings?.allowPrivateChats ?? true,
+            rating: data.rating || 0,
+            totalRatings: data.totalRatings || 0,
+            profileImage: data.profileImage || null,
+          };
+        })
+      );
 
-      setTherapists(data);
+      setTherapists(therapistsData.filter(t => t.verified !== false));
       setLoading(false);
     });
+
     return () => unsub();
   }, []);
 
@@ -40,7 +51,7 @@ export default function FindTherapist() {
     return therapists.filter(t => {
       const matchesSearch = 
         t.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.position?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.position?.position?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.specialties?.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
 
       const matchesSpecialty = selectedSpecialty === "all" || 
@@ -50,25 +61,29 @@ export default function FindTherapist() {
     });
   }, [therapists, searchTerm, selectedSpecialty]);
 
-  const startChat = (therapistId, therapistName) => {
-    navigate("/anonymous-dashboard/private-chat", {
-      state: { therapistId, therapistName }
-    });
-  };
+  const startPrivateChat = async () => {
+    if (!allowPrivateChats) return;
 
-  const bookAppointment = (therapist) => {
-    navigate("/anonymous-dashboard/appointment-booking", {
-      state: { therapist }
+    const anonUid = auth.currentUser?.uid;
+    if (!anonUid) return;
+
+    const uids = [anonUid.slice(0, 8), therapists.uid.slice(0, 8)].sort();
+    const chatId = `${uids[0]}_${uids[1]}`;
+
+    navigate(`/anonymous-dashboard/private-chat/${chatId}`, {
+      state: {
+        selectChatId: chatId,
+        therapistId: therapist.uid,
+        therapistName: therapist.name
+      }
     });
+    onBack?.();
   };
 
   if (loading) {
     return (
       <div className="find-therapist-loading">
-        <p>
-          <span className="spinner"></span>
-          Loading therapists...
-        </p>
+        <p><span className="spinner"></span> Loading therapists...</p>
       </div>
     );
   }
@@ -77,7 +92,6 @@ export default function FindTherapist() {
     <div className="find-therapist-page">
       <Header />
 
-      {/* Hero */}
       <section className="find-therapist-hero">
         <div className="hero-content">
           <h1>Find Your Therapist</h1>
@@ -85,7 +99,6 @@ export default function FindTherapist() {
         </div>
       </section>
 
-      {/* Filters */}
       <section className="find-therapist-filters">
         <div className="filters-container">
           <div className="search-wrapper">
@@ -113,7 +126,6 @@ export default function FindTherapist() {
         </div>
       </section>
 
-      {/* Stats */}
       <section className="find-therapist-stats">
         <div className="stats-grid">
           <div className="stat-item">
@@ -135,13 +147,12 @@ export default function FindTherapist() {
         </div>
       </section>
 
-      {/* Therapist List */}
       <section className="find-therapist-list">
-        <div className="therapist-grid">
-          {filteredTherapists.length === 0 ? (
-            <p className="no-results">No therapists found matching your criteria.</p>
-          ) : (
-            filteredTherapists.map(therapist => (
+        {filteredTherapists.length === 0 ? (
+          <p className="no-results">No therapists found matching your criteria.</p>
+        ) : (
+          <div className="therapist-grid">
+            {filteredTherapists.map(therapist => (
               <article key={therapist.id} className="therapist-card">
                 <header className="therapist-header">
                   <div className="therapist-info">
@@ -161,7 +172,7 @@ export default function FindTherapist() {
                     </div>
                     <div>
                       <h3>{therapist.name}</h3>
-                      <p className="position">{therapist.position}</p>
+                      <p className="position">{therapist.position?.position || therapist.position}</p>
                     </div>
                   </div>
                   {therapist.verified && (
@@ -218,14 +229,20 @@ export default function FindTherapist() {
 
                   <div className="therapist-actions">
                     <button
-                      onClick={() => startChat(therapist.id, therapist.name)}
+                      onClick= { () => {startPrivateChat(therapist)}}
+                      disabled={!therapist.allowPrivateChats}
+                      title={!therapist.allowPrivateChats ? "This therapist has disabled private chats" : ""}
                       className="btn-chat"
                     >
                       <MessageCircle className="icon" />
-                      Start Chat
+                      {therapist.allowPrivateChats ? "Start Chat" : "Chat Unavailable"}
                     </button>
+
                     <button
-                      onClick={() => bookAppointment(therapist)}
+                      onClick={() => {
+                        setSelectedTherapist(therapist);
+                        setShowBooking(true);
+                      }}
                       className="btn-book"
                     >
                       <Calendar className="icon" />
@@ -234,10 +251,19 @@ export default function FindTherapist() {
                   </div>
                 </div>
               </article>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
+      {showBooking && selectedTherapist && (
+        <AppointmentBooking
+          therapist={selectedTherapist}
+          onClose={() => {
+            setShowBooking(false);
+            setSelectedTherapist(null);
+          }}
+        />
+      )}
     </div>
   );
 }

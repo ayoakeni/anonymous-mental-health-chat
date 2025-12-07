@@ -826,7 +826,7 @@
 }
 
 .no-message {
-  color: var(--text-color);
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
