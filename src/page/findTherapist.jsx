@@ -22,6 +22,7 @@ export default function FindTherapist() {
         online: doc.data().online || false,
         rating: doc.data().rating || 0,
         totalRatings: doc.data().totalRatings || 0,
+        profileImage: doc.data().profileImage || null,
       })).filter(t => t.verified !== false);
 
       setTherapists(data);
@@ -66,7 +67,8 @@ export default function FindTherapist() {
       <div className="find-therapist-loading">
         <p>
           <span className="spinner"></span>
-          Loading therapists...</p>
+          Loading therapists...
+        </p>
       </div>
     );
   }
@@ -74,6 +76,7 @@ export default function FindTherapist() {
   return (
     <div className="find-therapist-page">
       <Header />
+
       {/* Hero */}
       <section className="find-therapist-hero">
         <div className="hero-content">
@@ -143,9 +146,17 @@ export default function FindTherapist() {
                 <header className="therapist-header">
                   <div className="therapist-info">
                     <div className="therapist-avatar-wrapper">
-                      <div className="therapist-avatar">
-                        {therapist.name?.[0] || "T"}
-                      </div>
+                      {therapist.profileImage ? (
+                        <img 
+                          src={therapist.profileImage} 
+                          alt={therapist.name}
+                          className="therapist-avatar-img"
+                        />
+                      ) : (
+                        <div className="therapist-avatar-fallback">
+                          {therapist.name?.[0] || "T"}
+                        </div>
+                      )}
                       {therapist.online && <div className="online-indicator"></div>}
                     </div>
                     <div>
