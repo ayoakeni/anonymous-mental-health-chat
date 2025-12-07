@@ -16,7 +16,7 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // <-- New state
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
@@ -124,7 +124,8 @@ export default function AdminLogin() {
           <div className="footer-info">
             <p className="allowed-text">
               <strong>Authorized accounts:</strong><br />
-              {ADMIN_EMAILS.join(" • ")}
+              {/* {ADMIN_EMAILS.join(" • ")} */}
+              Admins only
             </p>
           </div>
         </div>

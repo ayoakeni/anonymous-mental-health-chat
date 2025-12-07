@@ -1,15 +1,30 @@
 :root {
   --primary: #6366f1;
   --primary-hover: #4f46e5;
-  --primary-glow: rgba(99, 102, 241, 0.4);
-  --bg-start: #0f172a;
-  --bg-end: #1e293b;
+  --primary-light: rgba(99, 102, 241, 0.1);
+  --background: #f8fafc;
+  --card-bg: rgba(255, 255, 255, 0.95);
+  --text: #1e293b;
+  --text-light: #64748b;
+  --border: rgba(226, 232, 240, 0.8);
+  --error: #ef4444;
+  --success: #10b981;
+  --shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --border-radius: 16px;
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark {
+  --background: #0f172a;
+  --card-bg: rgba(15, 23, 42, 0.8);
   --text: #f1f5f9;
-  --text-muted: #94a3b8;
-  --card-bg: rgba(15, 23, 42, 0.7);
-  --card-border: rgba(148, 163, 184, 0.15);
-  --error-bg: rgba(239, 68, 68, 0.15);
-  --error-text: #fca5a5;
+  --text-light: #94a3b8;
+  --border: rgba(148, 163, 184, 0.2);
+}
+
+* {
+  box-sizing: border-box;
 }
 
 .admin-login-container {
@@ -64,7 +79,7 @@
 }
 
 .admin-login-container .login-card {
-  background: rgba(15, 23, 42, 0.75);
+  background: var(--card-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(148, 163, 184, 0.15);
@@ -98,8 +113,8 @@
   align-items: center;
   justify-content: center;
 }
-.admin-login-container .logo-title { font-size: 2rem; font-weight: 700; margin: 0; }
-.admin-login-container .logo-subtitle { color: #94a3b8; margin-top: 8px; }
+.admin-login-container .logo-title { font-size: 2rem; font-weight: 700; margin: 0; color: var(--text); }
+.admin-login-container .logo-subtitle { color: var(--text); margin-top: 8px; }
 
 /* Form */
 .admin-login-container .login-form { display: flex; flex-direction: column; gap: 20px; }
@@ -111,7 +126,7 @@
   transform: translateY(-50%);
   background: none;
   border: none;
-  color: #94a3b8;
+  color: var(--text-light);
   cursor: pointer;
   padding: 8px;
   border-radius: 8px;
@@ -231,15 +246,15 @@
 .admin-login-container .footer-info {
   margin-top: 32px;
   padding-top: 24px;
-  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  border-top: 1px solid var(--border);
   text-align: center;
+}
+
+.admin-login-container .allowed-text strong {
+  color: var(--text);
 }
 
 .admin-login-container .allowed-text {
   font-size: 0.8rem;
-  color: #94a3b8;
-}
-
-.admin-login-container .allowed-text strong {
-  color: #cbd5e1;
+  color: var(--text-light);
 }
