@@ -13,6 +13,7 @@ import { auth, db } from "./utils/firebase";
 import NotificationHandler from "./components/notificationHandler";
 import Home from "./page/home";
 import About from "./page/about";
+import FindTherapist from "./page/findTherapist";
 import TherapistLogin from "./login/therapist_login";
 import AdminPanel from "./admin/adminPanel";
 import AdminLogin from "./admin/admin-login";
@@ -93,6 +94,7 @@ export default function App() {
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/about" element={<About />} />
+            <Route path="/find-therapist" element={<FindTherapist />} />
             <Route path="/therapist-login" element={<TherapistLogin />} />
             <Route path="/admin-login" element={<AdminLogin />} />
             {/* ADMIN PANEL — Protected */}

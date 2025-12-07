@@ -114,7 +114,7 @@ function Home() {
             <i className="fas fa-user-md feature-icon"></i>
             <h3>Therapist Chat</h3>
             <p>Connect privately with licensed therapists in a secure environment.</p>
-            <Link to="/therapist-login" className="feature-cta">Find a Therapist</Link>
+            <Link to="/find-therapist" className="feature-cta">Find a Therapist</Link>
           </div>
         </div>
       </section>
