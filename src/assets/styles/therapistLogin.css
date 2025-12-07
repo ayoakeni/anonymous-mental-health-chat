@@ -37,7 +37,7 @@
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-.back-to-home-btn {
+.therapist-login-container .back-to-home-btn {
   position: absolute;
   top: 24px;
   left: 24px;
@@ -58,17 +58,17 @@
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
-.back-to-home-btn:hover {
+.therapist-login-container .back-to-home-btn:hover {
   background: rgba(255, 255, 255, 0.25);
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
-.back-to-home-btn i {
+.therapist-login-container .back-to-home-btn i {
   font-size: 1.1rem;
 }
 
-.login-card {
+.therapist-login-container .login-card {
   background: var(--card-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -83,7 +83,7 @@
   overflow: hidden;
 }
 
-.login-card::before {
+.therapist-login-container .login-card::before {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
@@ -102,12 +102,12 @@
   }
 }
 
-.login-header {
+.therapist-login-container .login-header {
   text-align: center;
   margin-bottom: 32px;
 }
 
-.logo-circle {
+.therapist-login-container .logo-circle {
   width: 80px;
   height: 80px;
   margin: 0 auto 20px;
@@ -120,30 +120,30 @@
   box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
 }
 
-.login-title {
+.therapist-login-container .login-title {
   font-size: 2rem;
   font-weight: 700;
   color: var(--text);
   margin: 0 0 8px;
 }
 
-.login-subtitle {
+.therapist-login-container .login-subtitle {
   color: var(--text-light);
   font-size: 0.95rem;
   margin: 0;
 }
 
-.login-form {
+.therapist-login-container .login-form {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-.form-group {
+.therapist-login-container .form-group {
   position: relative;
 }
 
-.form-group label {
+.therapist-login-container .form-group label {
   display: block;
   font-size: 0.9rem;
   font-weight: 600;
@@ -152,11 +152,11 @@
   transition: var(--transition);
 }
 
-.input-wrapper {
+.therapist-login-container .input-wrapper {
   position: relative;
 }
 
-.form-input {
+.therapist-login-container .form-input {
   width: 100%;
   padding: 14px 16px 14px 44px;
   border: 2px solid transparent;
@@ -168,18 +168,18 @@
   outline: none;
 }
 
-.dark .form-input {
+.dark .therapist-login-container .form-input {
   background: rgba(30, 41, 59, 0.7);
 }
 
-.form-input:focus {
+.therapist-login-container .form-input:focus {
   border-color: var(--primary);
   background: var(--card-bg);
   box-shadow: 0 0 0 4px var(--primary-light);
   transform: translateY(-1px);
 }
 
-.input-icon {
+.therapist-login-container .input-icon {
   position: absolute;
   left: 14px;
   top: 50%;
@@ -189,7 +189,7 @@
   pointer-events: none;
 }
 
-.toggle-password {
+.therapist-login-container .toggle-password {
   position: absolute;
   right: 12px;
   top: 50%;
@@ -203,12 +203,12 @@
   transition: var(--transition);
 }
 
-.toggle-password:hover {
+.therapist-login-container .toggle-password:hover {
   background: rgba(0, 0, 0, 0.05);
   color: var(--primary);
 }
 
-.error-message {
+.therapist-login-container .error-message {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -227,7 +227,7 @@
   20%, 40%, 60%, 80% { transform: translateX(4px); }
 }
 
-.login-button {
+.therapist-login-container .login-button {
   margin-top: 8px;
   padding: 14px 20px;
   background: linear-gradient(135deg, var(--primary), var(--primary-hover));
@@ -245,32 +245,32 @@
   box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
 }
 
-.login-button.signed-in {
+.therapist-login-container .login-button.signed-in {
   background: var(--success);
   box-shadow: 0 10px 20px rgba(16, 185, 129, 0.4);
 }
 
-.login-button.signed-in:hover {
+.therapist-login-container .login-button.signed-in:hover {
   background: var(--success);
   box-shadow: 0 10px 20px rgba(16, 185, 129, 0.4);
 }
 
-.login-button:hover {
+.therapist-login-container .login-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 15px 30px rgba(99, 102, 241, 0.4);
 }
 
-.login-button:active {
+.therapist-login-container .login-button:active {
   transform: translateY(0);
 }
 
-.login-button:disabled {
+.therapist-login-container .login-button:disabled {
   opacity: 0.7;
   cursor: not-allowed;
   transform: none !important;
 }
 
-.spinner {
+.therapist-login-container .spinner {
   width: 18px;
   height: 18px;
   border: 2px solid transparent;
@@ -283,31 +283,31 @@
   to { transform: rotate(360deg); }
 }
 
-.login-footer {
+.therapist-login-container .login-footer {
   text-align: center;
   margin-top: 28px;
   padding-top: 20px;
   border-top: 1px solid var(--border);
 }
 
-.login-footer p {
+.therapist-login-container .login-footer p {
   color: var(--text-light);
   font-size: 0.9rem;
   margin: 0;
 }
 
-.login-footer a {
+.therapist-login-container .login-footer a {
   color: var(--primary);
   text-decoration: none;
   font-weight: 600;
 }
 
-.login-footer a:hover {
+.therapist-login-container .login-footer a:hover {
   text-decoration: underline;
 }
 
 @media (max-width: 768px) {
-  .back-to-home-btn {
+  .therapist-login-container .back-to-home-btn {
     top: 16px;
     left: 16px;
     padding: 8px 12px;
@@ -316,12 +316,12 @@
 }
 
 @media (max-width: 480px) {
-  .login-card {
+  .therapist-login-container .login-card {
     padding: 32px 24px;
     margin: 10px;
   }
   
-  .login-title {
+  .therapist-login-container .login-title {
     font-size: 1.75rem;
   }
 }
