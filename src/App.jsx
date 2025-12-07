@@ -18,8 +18,7 @@ import AdminPanel from "./admin/adminPanel";
 import AdminLogin from "./admin/admin-login";
 import TherapistDashboard from "./page/therapistDashboard";
 import AnonymousDashboard from "./page/anonymousDashboard";
-import Chatroom from "./page/chats_rooms/chatRoom";
-import "./styles/App.css";
+import "./assets/styles/App.css";
 
 const ADMIN_EMAILS = [
   "admin@yourapp.com",
@@ -96,9 +95,6 @@ export default function App() {
             <Route path="/about" element={<About />} />
             <Route path="/therapist-login" element={<TherapistLogin />} />
             <Route path="/admin-login" element={<AdminLogin />} />
-            <Route path="/chat-room/:chatId" element={<Chatroom />} />
-            <Route path="/chat-room/" element={<Chatroom />} />
-
             {/* ADMIN PANEL — Protected */}
             <Route
               path="/admin"

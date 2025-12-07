@@ -16,7 +16,7 @@ import { useHideSidebarMobile } from "../hooks/useHideSidebarMobile";
 import { useRemovePaddingBottomMobile } from "../hooks/useRemovePaddingBottomMobile"
 import MoodTracker from "../components/moodTracker";
 import { DateTime } from 'luxon';
-import "../styles/anonymousDashboard.css";
+import "../assets/styles/anonymousDashboard.css";
 
 function AnonymousDashboard() {
   const navigate = useNavigate();
@@ -42,7 +42,6 @@ function AnonymousDashboard() {
   const [moodHistory, setMoodHistory] = useState([]);
   const [moodHistoryLoading, setMoodHistoryLoading] = useState(true);
   const [showMoodPopup, setShowMoodPopup] = useState(false);
-
   const errorTimeoutRef = useRef(null);
   const moodModalRef = useRef(null);
 

@@ -11,7 +11,7 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { format, addDays } from "date-fns";
-import "../../styles/anonymousAppointmentBooking.css"
+import "../../assets/styles/anonymousAppointmentBooking.css"
 
 const TIME_SLOTS = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"];
 

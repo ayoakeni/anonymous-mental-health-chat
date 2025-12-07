@@ -4,7 +4,7 @@ import { collection, query, where, onSnapshot, limit, getDoc, doc } from "fireba
 import { db, auth } from "../../utils/firebase";
 import { useNavigate } from "react-router-dom";
 import TherapistProfile from "../TherapistProfile";
-import "../../styles/anonymousDashboardHome.css";
+import "../../assets/styles/anonymousDashboardHome.css";
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -82,7 +82,7 @@ const AnonymousDashboardHome = ({
     { value: "sad", label: "Sad", emoji: "😢" },
     { value: "anxious", label: "Anxious", emoji: "😣" },
     { value: "neutral", label: "Neutral", emoji: "😐" },
-    { value: "excited", label: "Excited", emoji: "😊" }
+    { value: "angry", label: "Angry", emoji: "😠" }
   ];
 
   const quotes = [

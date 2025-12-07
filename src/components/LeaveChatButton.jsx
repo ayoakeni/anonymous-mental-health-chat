@@ -1,4 +1,4 @@
-import "../styles/therapistDashboard.css"
+import "../assets/styles/therapistDashboard.css"
 
 const LeaveChatButton = ({ onLeave }) => {
   return (

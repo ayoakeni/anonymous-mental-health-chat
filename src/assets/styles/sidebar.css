@@ -124,7 +124,7 @@ body.no-scroll {
   left: 60px;
   transform: translateY(-50%);
   background: var(--primary-color);
-  color: var(--text-color);
+  color: #ffffff;
   padding: 5px 10px;
   border-radius: var(--border-radius);
   font-size: 12px;
@@ -153,11 +153,13 @@ body.no-scroll {
 
 .list .iconBadge:hover,
 .list .iconBadge:focus {
+  color: #ffffff;
   background-color: var(--active-bg);
   outline: none;
 }
 
 .list .iconBadge.active {
+  color: #ffffff;
   background-color: var(--active-bg);
   font-weight: 600;
 }

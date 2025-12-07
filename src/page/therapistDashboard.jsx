@@ -45,15 +45,30 @@ function TherapistDashboard() {
   const privateMessagesEndRef = useRef(null);
   const groupMessagesEndRef = useRef(null);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
-
-  const playNotification = useNotificationSound();
+  const [errorMsg, setErrorMsg] = useState("");
+  const [isErrorFading, setIsErrorFading] = useState(false);
   const errorTimeout = useRef(null);
+  const playNotification = useNotificationSound();
 
-  const showError = useCallback((msg, auto = true) => {
-    if (errorTimeout.current) clearTimeout(errorTimeout.current);
-    console.error(msg);
-    if (auto) errorTimeout.current = setTimeout(() => {}, 5000);
+  const closeError = useCallback(() => {
+    setIsErrorFading(true);
+    setTimeout(() => {
+      setErrorMsg(null);
+      setIsErrorFading(false);
+      if (errorTimeout.current) {
+        clearTimeout(errorTimeout.current);
+      }
+    }, 300);
   }, []);
+
+  const showError = useCallback((msg, autoDismiss = true) => {
+    if (errorTimeout.current) clearTimeout(errorTimeout.current);
+    setErrorMsg(msg);
+    setIsErrorFading(false);
+    if (msg && autoDismiss) {
+      errorTimeout.current = setTimeout(closeError, 5000);
+    }
+  }, [closeError]);
 
   const therapistId = auth.currentUser?.uid;
 
@@ -145,8 +160,11 @@ function TherapistDashboard() {
     setIsSaving(true);
     try {
       await profileSaveSettings();
+    } catch (e) {
+      showError("Failed to save settings.");
     } finally {
       setIsSaving(false);
+      showError("Settings saved successfully.");
     }
   };
 
@@ -309,6 +327,14 @@ function TherapistDashboard() {
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
       />
       <div className={`box ${isSidebarOpen ? "open" : "closed"}`}>
+        {errorMsg && (
+          <div className={`error-toast ${isErrorFading ? "fade-out" : ""}`}>
+            {errorMsg}
+            <button className="error-close-btn" onClick={closeError} aria-label="Close error message">
+              <i className="fa-solid fa-times"></i>
+            </button>
+          </div>
+        )}
         <Routes>
           <Route path="/" element={<TherapistDashboardHome {...homeProps} />} />
           <Route path="/group-chat/*" element={<GroupChatSplitView {...groupProps} />} />

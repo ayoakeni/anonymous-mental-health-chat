@@ -20,7 +20,7 @@ import {
   Send, UserPlus, Activity, Search, Bell, BarChart3
 } from "lucide-react";
 
-import "../styles/admin.css";
+import "../assets/styles/admin.css";
 
 const ADMIN_EMAILS = ["admin@yourapp.com", "support@yourapp.com", "dev@yourapp.com"];
 
@@ -182,22 +182,6 @@ export default function AdminPanel() {
       return matchesSearch && matchesFilter;
     });
   }, [users, searchTerm, filterStatus]);
-
-  if (!isAuthenticated) {
-    return (
-      <div className="admin-login-page">
-        <div className="login-card">
-          <Shield className="login-icon" />
-          <h1>Admin Login</h1>
-          <form onSubmit={handleLogin} className="login-form">
-            <input type="email" placeholder="admin@yourapp.com" value={email} onChange={e => setEmail(e.target.value)} required />
-            <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
-            <button type="submit">Enter Admin Panel</button>
-          </form>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="admin-panel">

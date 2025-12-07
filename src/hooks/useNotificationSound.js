@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import Notification from '../sounds/notification.mp3';
+import Notification from '../assets/sounds/notification.mp3';
 
 const useNotificationSound = () => {
   const [audio, setAudio] = useState(null);

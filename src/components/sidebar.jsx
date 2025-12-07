@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import '../styles/sidebar.css';
+import '../assets/styles/sidebar.css';
 
 const Sidebar = ({
   groupUnreadCount,

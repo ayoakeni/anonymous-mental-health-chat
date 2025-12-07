@@ -208,7 +208,7 @@ function PrivateChatSplitView({
           <div className="chat-info-display">
             <h3>Error Loading Private Chat</h3>
             <p>{chatError}</p>
-            <button onClick={() => navigate("/therapist-dashboard/private-chat")}>
+            <button className="back-to-pchat" onClick={() => navigate("/therapist-dashboard/private-chat")}>
               Back to Private Chats
             </button>
           </div>
@@ -230,6 +230,19 @@ function PrivateChatSplitView({
                 <div className="card-content">
                   <strong className="group-title">
                     {anonNames[activeChatId] || "Anonymous"}
+                    {activeChatId && (() => {
+                    const chat = privateChats.find(c => c.id === activeChatId);
+                    const mood = chat?.userId && userMoods[chat.userId];
+                    return mood ? (
+                        <span 
+                          className="mood-emoji" 
+                          title={mood.label} 
+                          aria-label={`Mood: ${mood.label}`}
+                        >
+                          {mood.emoji}
+                        </span>
+                      ) : null;
+                    })()}
                   </strong>
                   <small className="participant-preview">
                     <span className="participant-name user-status">

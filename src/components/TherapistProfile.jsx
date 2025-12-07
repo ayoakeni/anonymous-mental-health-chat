@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { db, auth } from "../utils/firebase";
 import { doc, onSnapshot, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import AppointmentBooking from "./AnonymousDashboard/anonymousAppointmentBooking";
-import "../styles/therapistProfile.css";
+import "../assets/styles/therapistProfile.css";
 
 function TherapistProfile({ therapist, onBack, isOnline }) {
   const [realTimeOnline, setRealTimeOnline] = useState(isOnline);

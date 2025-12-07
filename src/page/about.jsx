@@ -1,17 +1,15 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom'
-import '../styles/about.css';
+import '../assets/styles/about.css';
 import Header from "../components/header"
 
 function About() {
   const [openFaq, setOpenFaq] = useState(null);
 
-  // Toggle FAQ item
   const toggleFaq = (index) => {
     setOpenFaq(openFaq === index ? null : index);
   };
 
-  // FAQ data
   const faqs = [
     {
       question: "Is my privacy protected?",
@@ -23,14 +21,14 @@ function About() {
     },
     {
       question: "Can I access professional therapists?",
-      answer: "Yes, you can schedule sessions with licensed therapists for professional support."
+      answer: "Yes, you can schedule sessions, book an appointment with licensed therapists for professional support."
     }
   ];
 
   return (
     <div className="about-container">
       <Header />
-      {/* Hero Section */}
+
       <section className="hero-section-about">
         <div className="hero-content">
           <h1 className="hero-title">About Our Platform</h1>
@@ -44,7 +42,6 @@ function About() {
         </div>
       </section>
 
-      {/* Features Section */}
       <section className="features-section">
         <h2 className="features-title">Our Core Features</h2>
         <div className="features-grid">
@@ -58,7 +55,7 @@ function About() {
             <i className="feature-icon fas fa-robot"></i>
             <h3>AI Assistance</h3>
             <p>Our AI offers instant, empathetic responses and resources to guide you through challenges.</p>
-            <Link to="/ai-assist" className="feature-cta">Try AI Support</Link>
+            {/* <Link to="/ai-assist" className="feature-cta">Try AI Support</Link> */}
           </div>
           <div className="feature-card">
             <i className="feature-icon fas fa-user-md"></i>
@@ -69,7 +66,7 @@ function About() {
         </div>
       </section>
 
-      {/* Mission Section */}
+
       <section className="mission-section">
         <h2 className="features-title">Our Mission</h2>
         <p className="mission-text">
@@ -77,7 +74,6 @@ function About() {
         </p>
       </section>
 
-      {/* FAQ Section */}
       <section className="faq-section">
         <h2 className="faq-title">Frequently Asked Questions</h2>
         <div className="faq-list">

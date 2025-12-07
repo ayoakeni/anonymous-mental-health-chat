@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../utils/firebase';
-import "../../styles/therapistDashboardProfile.css";
+import "../../assets/styles/therapistDashboardProfile.css";
 
 const TherapistDashboardProfile = ({
   therapistInfo,

@@ -1,4 +1,4 @@
-import "../../styles/therapistDashboardNotification.css";
+import "../../assets/styles/therapistDashboardNotification.css";
 
 function TherapistDashboardNotification({
   notifications,

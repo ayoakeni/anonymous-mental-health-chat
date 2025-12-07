@@ -2,7 +2,7 @@ import { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../utils/firebase";
 import { useNavigate } from "react-router-dom";
-import "../styles/therapistLogin.css";
+import "../assets/styles/therapistLogin.css";
 
 export default function TherapistLogin() {
   const [email, setEmail] = useState("");

@@ -1,4 +1,4 @@
-import "../../styles/therapistDashboardSetting.css";
+import "../../assets/styles/therapistDashboardSetting.css";
 
 export default function TherapistDashboardSetting({
   therapistInfo,

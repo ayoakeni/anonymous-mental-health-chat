@@ -13,7 +13,7 @@ import {
   getDoc,
   Timestamp,
 } from "firebase/firestore";
-import "../../styles/therapistAppointmentsDashboard.css";
+import "../../assets/styles/therapistAppointmentsDashboard.css";
 
 const TherapistAppointmentsDashboard = () => {
   const [appointments, setAppointments] = useState([]);

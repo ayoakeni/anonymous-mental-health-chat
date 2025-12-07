@@ -8,7 +8,7 @@ const moodConfig = {
   sad: { emoji: "😢", label: "Sad" },
   anxious: { emoji: "😣", label: "Anxious" },
   neutral: { emoji: "😐", label: "Neutral" },
-  excited: { emoji: "😠", label: "Angry" },
+  angry: { emoji: "😠", label: "Angry" },
 };
 
 export function useUserMoods(userIds = []) {

@@ -1,4 +1,3 @@
-// src/components/AnonymousDashboard/ProfilePrompt.jsx
 import { useEffect, useState } from "react";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "../../utils/firebase";

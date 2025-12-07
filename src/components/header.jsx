@@ -4,7 +4,7 @@ import { db, auth } from "../utils/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useTheme } from "../context/ThemeContext";
-import "../styles/header.css";
+import "../assets/styles/header.css";
 
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

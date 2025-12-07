@@ -63,7 +63,7 @@ export function useActivePrivateChat(
             aiOffered: true,
             // Clean up old fields if they exist
             pendingTherapist: deleteField(),
-            requestedTherapist: deleteField(), // optional: keep for analytics only
+            requestedTherapist: deleteField(),
           });
         } else {
           // Just resuming
@@ -131,7 +131,7 @@ export function useActivePrivateChat(
       navigate("/therapist-dashboard/private-chat");
     } catch (e) {
       console.error("Failed to end session:", e);
-      showError("Failed to end session properly.");
+      showError("Failed to end session.");
     }
   }, [activeChatId, therapistId, displayName, navigate, showError]);
 

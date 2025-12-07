@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
-import "../../styles/therapistDashboardHome.css";
+import "../../assets/styles/therapistDashboardHome.css";
 
 const getGreeting = () => {
   const hour = new Date().getHours();

@@ -4,7 +4,7 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "../utils/firebase";
 import Header from "../components/header";
-import "../styles/home.css";
+import "../assets/styles/home.css";
 
 function Home() {
 
@@ -107,8 +107,8 @@ function Home() {
           <div className="feature-card">
             <i className="fas fa-robot feature-icon"></i>
             <h3>AI Support</h3>
-            <p>Access 24/7 AI-driven guidance for immediate support.</p>
-            <Link to="/ai-support" className="feature-cta">Try AI Chat</Link>
+            <p>Access 24/7 AI-driven assistance for immediate support, and responses.</p>
+            {/* <Link to="/ai-support" className="feature-cta">Try AI Chat</Link> */}
           </div>
           <div className="feature-card">
             <i className="fas fa-user-md feature-icon"></i>
@@ -165,7 +165,7 @@ function Home() {
             </button>
             <div className="faq-answer">
               <p>
-                Yes, our platform ensures complete anonymity. You can choose a username, and no personal information is shared publicly.
+                Yes, our platform ensures complete anonymity. Username are generated anonymously example "Anonymous234", and no personal information is shared publicly.
               </p>
             </div>
           </div>
@@ -176,7 +176,7 @@ function Home() {
             </button>
             <div className="faq-answer">
               <p>
-                Click "Try AI Chat" to start an anonymous conversation with our AI-driven support system, available 24/7.
+                Ai support works immediately if no therapist is available to attend to you. then you can start conversation with our AI-driven support system, available 24/7.
               </p>
             </div>
           </div>

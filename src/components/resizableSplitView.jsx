@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import "../styles/resizableSplitView.css";
+import "../assets/styles/resizableSplitView.css";
 
 const ResizableSplitView = ({
   leftPanel,
