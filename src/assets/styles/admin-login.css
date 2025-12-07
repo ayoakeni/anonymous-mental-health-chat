@@ -89,6 +89,7 @@
   color: white;
   position: relative;
   overflow: hidden;
+  z-index: 10; 
 }
 
 .admin-login-container .login-card::before {
