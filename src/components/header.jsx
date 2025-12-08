@@ -51,7 +51,7 @@ function Header() {
       } else if (scrollY < lastScrollY) {
         // Scrolling UP
         header.classList.remove('hidden');
-        header.classList.toggle('scrolled', scrollY > 50);
+        header.classList.toggle('scrolled', scrollY > 10);
       }
 
       lastScrollY = scrollY;
