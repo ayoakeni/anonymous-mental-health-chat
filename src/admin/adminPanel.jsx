@@ -26,8 +26,6 @@ const ADMIN_EMAILS = ["admin@yourapp.com", "support@yourapp.com", "dev@yourapp.c
 
 export default function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -59,21 +57,6 @@ export default function AdminPanel() {
       setIsAuthenticated(true);
     }
   }, []);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      if (ADMIN_EMAILS.includes(cred.user.email || "")) {
-        setIsAuthenticated(true);
-      } else {
-        alert("Access denied.");
-        signOut(auth);
-      }
-    } catch (err) {
-      alert("Login failed: " + err.message);
-    }
-  };
 
   useEffect(() => {
     if (!isAuthenticated) return;
