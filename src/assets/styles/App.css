@@ -1360,4 +1360,8 @@
   .chat-box-card {
     max-height: 100%;
   }
+
+  .chat-message {
+    max-width: 100%;
+  }
 }
