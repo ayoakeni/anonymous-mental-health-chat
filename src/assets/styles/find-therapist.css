@@ -2,7 +2,7 @@
   --primary-color: #4a90e2;
   --background-color: #f5f7fa;
   --chat-bg: #ffffff;
-  --text-color: #1e1e1e;
+  --text-color: #666;
   --therapist-bg: #e6f0fa;
   --user-bg: #d9e8ff;
   --ai-bg: #f0f0f0;
@@ -65,12 +65,11 @@
   min-height: 100vh;
   background: var(--background-color);
   color: var(--text-color);
-  font-family: system-ui, -apple-system, sans-serif;
 }
 
 .find-therapist-page .find-therapist-hero {
   background: linear-gradient(135deg, rgba(74, 144, 226, 0.08), rgba(255, 149, 0, 0.08));
-    padding: 5rem 2rem;
+  padding: 3rem 2rem;
   text-align: center;
 }
 
@@ -88,9 +87,9 @@
 }
 
 .find-therapist-page .find-therapist-filters {
-  padding: 1.5rem 1rem;
+  padding: 1rem;
   max-width: 1200px;
-  margin: 0 auto;
+  margin: 0 auto 2rem;
 }
 
 .find-therapist-page .filters-container {
@@ -116,10 +115,11 @@
   transform: translateY(-50%);
   width: 18px;
   height: 18px;
-  color: #777;
+  color: var(--text-color);
 }
 
 .find-therapist-page .search-input {
+  color: var(--text-color);
   width: 100%;
   padding: 0.85rem 0.85rem 0.85rem 2.8rem;
   border: 1px solid var(--input-border);
@@ -144,9 +144,9 @@
 }
 
 .find-therapist-page .find-therapist-stats {
-  padding: 1rem;
+  padding: 1.5rem 1rem;
   max-width: 1200px;
-  margin: 0 auto 2rem;
+  margin: 0 auto;
 }
 
 .find-therapist-page .stats-grid {
@@ -174,7 +174,7 @@
 .find-therapist-page .stat-label {
   margin-top: 0.4rem;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--text-color);
 }
 
 .find-therapist-page .find-therapist-list {
@@ -312,7 +312,7 @@
   font-size: 0.95rem;
   line-height: 1.5;
   margin-bottom: 1rem;
-  color: #444;
+  color: var(--text-color);
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -323,7 +323,7 @@
   font-size: 0.9rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  color: #555;
+  color: var(--text-color);
 }
 
 .find-therapist-page .specialty-tags {
@@ -427,9 +427,9 @@
 
 .find-therapist-page .no-results {
   text-align: center;
-  padding: 3rem 1rem;
+  padding: 0.5rem 1rem;
   font-size: 1.2rem;
-  color: #777;
+  color: var(--text-color);
 }
 
 @media (max-width: 768px) {

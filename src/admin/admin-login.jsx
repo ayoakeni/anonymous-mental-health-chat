@@ -47,6 +47,11 @@ export default function AdminLogin() {
 
   return (
     <div className="admin-login-container">
+      <button onClick={() => navigate("/")} className="back-to-home-btn">
+        <i className="fas fa-arrow-left"></i>
+        <span>Back to Home</span>
+      </button>
+
       <div className="login-container">
         <div className="login-card">
           {/* Logo Section */}

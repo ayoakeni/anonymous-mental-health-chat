@@ -38,6 +38,37 @@
   overflow: hidden;
 }
 
+.admin-login-container .back-to-home-btn {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  z-index: 11;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.admin-login-container .back-to-home-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.admin-login-container .back-to-home-btn i {
+  font-size: 1.1rem;
+}
+
 /* Floating gradient orbs */
 .admin-login-container .orb {
   position: absolute;
@@ -107,6 +138,7 @@
   width: 80px;
   height: 80px;
   margin: 0 auto 20px;
+  color: var(--text);
   background: rgba(99, 102, 241, 0.2);
   border: 2px solid rgba(99, 102, 241, 0.4);
   border-radius: 50%;

@@ -69,8 +69,7 @@ export default function FindTherapist() {
 
     const anonUid = auth.currentUser?.uid;
     if (!anonUid) {
-      alert("Please log in to start a chat.");
-      return;
+      alert("You need to be signed in to message a therapist\n\nPlease go back to the home page and tap “Start Chatting” to continue.");
     }
 
     const uids = [anonUid.slice(0, 8), therapist.uid.slice(0, 8)].sort();
@@ -104,6 +103,27 @@ export default function FindTherapist() {
         </div>
       </section>
 
+      <section className="find-therapist-stats">
+        <div className="stats-grid">
+          <div className="stat-item">
+            <p className="stat-number">{therapists.length}</p>
+            <p className="stat-label">Total Therapists</p>
+          </div>
+          <div className="stat-item">
+            <p className="stat-number online">{therapists.filter(t => t.online).length}</p>
+            <p className="stat-label">Online Now</p>
+          </div>
+          <div className="stat-item">
+            <p className="stat-number">4.8</p>
+            <p className="stat-label">Average Rating</p>
+          </div>
+          <div className="stat-item">
+            <p className="stat-number">24/7</p>
+            <p className="stat-label">Support Available</p>
+          </div>
+        </div>
+      </section>
+
       <section className="find-therapist-filters">
         <div className="filters-container">
           <div className="search-wrapper">
@@ -128,27 +148,6 @@ export default function FindTherapist() {
               </option>
             ))}
           </select>
-        </div>
-      </section>
-
-      <section className="find-therapist-stats">
-        <div className="stats-grid">
-          <div className="stat-item">
-            <p className="stat-number">{therapists.length}</p>
-            <p className="stat-label">Total Therapists</p>
-          </div>
-          <div className="stat-item">
-            <p className="stat-number online">{therapists.filter(t => t.online).length}</p>
-            <p className="stat-label">Online Now</p>
-          </div>
-          <div className="stat-item">
-            <p className="stat-number">4.8</p>
-            <p className="stat-label">Average Rating</p>
-          </div>
-          <div className="stat-item">
-            <p className="stat-number">24/7</p>
-            <p className="stat-label">Support Available</p>
-          </div>
         </div>
       </section>
 
@@ -243,7 +242,7 @@ export default function FindTherapist() {
                     }
                   >
                     <MessageCircle className="icon" />
-                    {therapist.allowPrivateChats ? "Start Chat" : "Chat Unavailable"}
+                    {therapist.allowPrivateChats ? "Start Chat" : "Unavailable"}
                   </button>
 
                     <button
