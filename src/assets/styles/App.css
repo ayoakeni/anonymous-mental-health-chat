@@ -132,6 +132,7 @@
   color: var(--text-color);
   text-align: center;
   width: 100%;
+  padding: 0 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -677,6 +678,7 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  padding: 0 20px;
   color: var(--text-color);
   font-size: 1.2rem;
   opacity: 0.7;
