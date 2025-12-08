@@ -172,7 +172,7 @@ function Header() {
           
           {/* Only show for anonymous */}
           {!user || user.isAnonymous ? (
-            <Link to="/allTherapist" 
+            <Link to="/find-therapist" 
               className="nav-link" 
               onClick={() => setIsMenuOpen(false)}>
               <i className="fas fa-user" aria-hidden="true"></i>
