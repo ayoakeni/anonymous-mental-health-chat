@@ -70,6 +70,7 @@ export default function FindTherapist() {
     const anonUid = auth.currentUser?.uid;
     if (!anonUid) {
       alert("You need to be signed in to message a therapist\n\nPlease go back to the home page and tap “Start Chatting” to continue.");
+      return;
     }
 
     const uids = [anonUid.slice(0, 8), therapist.uid.slice(0, 8)].sort();
