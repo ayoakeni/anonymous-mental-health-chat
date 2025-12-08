@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { collection, query, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "../utils/firebase";
 import { useNavigate } from "react-router-dom";
-// import Header from "../components/Header";
+import Header from "../components/Header";
 import AppointmentBooking from "../components/AnonymousDashboard/anonymousAppointmentBooking";
 import { Search, Star, CheckCircle, Clock, MessageCircle, Calendar } from "lucide-react";
 import "../assets/styles/find-therapist.css";
@@ -95,7 +95,7 @@ export default function FindTherapist() {
 
   return (
     <div className="find-therapist-page">
-      {/* <Header /> */}
+      <Header />
       <section className="find-therapist-hero">
         <div className="hero-content">
           <h1>Find Your Therapist</h1>
