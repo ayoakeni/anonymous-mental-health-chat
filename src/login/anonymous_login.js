@@ -7,33 +7,32 @@ export const loginAnonymously = async () => {
     const result = await signInAnonymously(auth);
     const user = result.user;
 
-    // Check if this anonymous user is banned
     const anonDocRef = doc(db, "anonymousUsers", user.uid);
     const anonDoc = await getDoc(anonDocRef);
 
     if (anonDoc.exists() && anonDoc.data().banned === true) {
+      const reason = anonDoc.data().banReason || "No reason provided";
       await signOut(auth);
-      alert("You have been banned from using this service.");
-      throw new Error("Banned anonymous user");
+      alert(`You have been banned from using this service.\n\nReason: ${reason}`);
+      throw new Error("Banned user attempted login");
     }
 
-    // Generate or retrieve anonymous name (e.g. Anonymous1234)
+    // Proceed only if not banned
     let anonName = localStorage.getItem("anonName");
     if (!anonName) {
       anonName = `Anonymous${Math.floor(1000 + Math.random() * 9000)}`;
       localStorage.setItem("anonName", anonName);
     }
 
-    // Save/update profile
     await setDoc(anonDocRef, {
       anonymousName: anonName,
       createdAt: serverTimestamp(),
       lastSeen: serverTimestamp(),
-      online: true
+      online: true,
+      banned: false
     }, { merge: true });
 
     return user;
-
   } catch (error) {
     console.error("Anonymous login failed:", error);
     throw error;

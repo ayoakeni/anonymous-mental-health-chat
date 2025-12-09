@@ -6,8 +6,8 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, setDoc, getDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { auth, db } from "./utils/firebase";
 
 import NotificationHandler from "./components/notificationHandler";
@@ -19,6 +19,7 @@ import AdminPanel from "./admin/adminPanel";
 import AdminLogin from "./admin/admin-login";
 import TherapistDashboard from "./page/therapistDashboard";
 import AnonymousDashboard from "./page/anonymousDashboard";
+import RealTimeBanGuard from "./components/realTimeBanGuard";
 import "./assets/styles/App.css";
 
 const ADMIN_EMAILS = [
@@ -34,7 +35,6 @@ function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
-
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
@@ -46,10 +46,22 @@ function AuthProvider({ children }) {
 
       setUser(u);
 
-      // ANONYMOUS USER
+      let banUnsub = () => {};
+
       if (u.isAnonymous) {
-        // CHECK IF BANNED BEFORE ANYTHING ELSE
-        const anonDoc = await getDoc(doc(db, "anonymousUsers", u.uid));
+        const anonRef = doc(db, "anonymousUsers", u.uid);
+
+        banUnsub = onSnapshot(anonRef, async (snap) => {
+          if (snap.exists() && snap.data().banned === true) {
+            const reason = snap.data().banReason || "No reason provided";
+            alert(`You have been banned from using this service.\n\nReason: ${reason}`);
+            await signOut(auth);
+            setUser(null);
+            navigate("/", { replace: true });
+          }
+        });
+
+        const anonDoc = await getDoc(anonRef);
         if (anonDoc.exists() && anonDoc.data().banned === true) {
           await signOut(auth);
           alert("You have been banned from using this service.");
@@ -58,7 +70,6 @@ function AuthProvider({ children }) {
           return;
         }
 
-        // Not banned → continue normally
         await setDoc(doc(db, "usersOnline", u.uid), {
           name: "Anonymous User",
           online: true,
@@ -66,18 +77,16 @@ function AuthProvider({ children }) {
         }, { merge: true });
       }
 
-      // THERAPIST USER
       else if (u.email) {
         const therapistRef = doc(db, "therapists", u.uid);
         const snap = await getDoc(therapistRef);
-        const name = snap.exists() ? snap.data().name : u.email;
 
-        await setDoc(therapistRef, {
-          name,
-          email: u.email,
-          online: true,
-          lastSeen: serverTimestamp(),
-        }, { merge: true });
+        if (snap.exists() && snap.data().suspended) {
+          alert("Your therapist account has been suspended.");
+          await signOut(auth);
+          navigate("/therapist-login", { replace: true });
+          return;
+        }
 
         setIsTherapist(true);
 
@@ -87,10 +96,14 @@ function AuthProvider({ children }) {
       }
 
       setLoading(false);
+
+      return () => {
+        if (banUnsub) banUnsub();
+      };
     });
 
     return () => unsub();
-  }, [navigate, location.pathname]);
+  }, [navigate]);
 
   return children({ user, isTherapist, loading });
 }
@@ -108,6 +121,7 @@ export default function App() {
             <Route path="/find-therapist" element={<FindTherapist />} />
             <Route path="/therapist-login" element={<TherapistLogin />} />
             <Route path="/admin-login" element={<AdminLogin />} />
+
             {/* ADMIN PANEL — Protected */}
             <Route
               path="/admin"
@@ -143,7 +157,9 @@ export default function App() {
                 loading ? (
                   <Loader />
                 ) : user && user.isAnonymous ? (
-                  <AnonymousDashboard />
+                  <RealTimeBanGuard>
+                    <AnonymousDashboard />
+                  </RealTimeBanGuard>
                 ) : (
                   <Navigate to="/" replace />
                 )

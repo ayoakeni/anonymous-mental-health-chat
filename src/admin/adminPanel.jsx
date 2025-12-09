@@ -95,7 +95,7 @@ export default function AdminPanel() {
         ...d.data(),
         type: "anonymous",
         name: d.data().anonymousName || "Anonymous User",
-        banned: !!d.data().banned,  // Now supports banned field!
+        banned: !!d.data().banned,
         suspended: false
       }));
       mergeUsers(anon);
@@ -195,19 +195,31 @@ export default function AdminPanel() {
     }
   };
 
-  // Universal Ban/Unban — works for both registered AND anonymous users
   const toggleBan = async (userId, currentStatus, userType) => {
     if (!confirm(currentStatus ? "Unban this user?" : "Ban this user?")) return;
 
     const collectionName = userType === "anonymous" ? "anonymousUsers" : "users";
-    
+
+    let banReason = null;
+    let bannedBy = auth.currentUser?.email || "admin";
+
+    if (!currentStatus) {
+      banReason = prompt("Enter ban reason (shown to user):", "Inappropriate behavior");
+      if (banReason === null) return;
+      if (banReason.trim() === "") banReason = "No reason provided";
+    }
+
     try {
       await updateDoc(doc(db, collectionName, userId), {
         banned: !currentStatus,
-        bannedAt: !currentStatus ? serverTimestamp() : null
+        bannedAt: !currentStatus ? serverTimestamp() : null,
+        banReason: !currentStatus ? banReason?.trim() : null,        // save reason
+        bannedBy: !currentStatus ? bannedBy : null,                  // who banned them
       });
-      alert(currentStatus ? "User unbanned" : "User banned successfully");
+
+      alert(currentStatus ? "User unbanned" : `User banned: "${banReason}"`);
     } catch (err) {
+      console.error(err);
       alert("Failed to update ban status");
     }
   };
@@ -377,8 +389,8 @@ export default function AdminPanel() {
                         <h4>{user.name || user.anonymousName || "Anonymous User"}</h4>
                         <p>
                           {user.email || user.id.slice(0, 10)}...
-                          {user.type === "therapist" && " (Therapist)"}
-                          {user.type === "anonymous" && " (Guest)"}
+                          {user.type === "therapist"}
+                          {user.type === "anonymous"}
                         </p>
                         {user.banned && <span className="banned-tag">BANNED</span>}
                       </div>
@@ -398,7 +410,7 @@ export default function AdminPanel() {
               </div>
             </div>
           )}
-          
+
          {activeTab === "therapists" && (
             <div className="therapists-section">
               <div className="section-header">
