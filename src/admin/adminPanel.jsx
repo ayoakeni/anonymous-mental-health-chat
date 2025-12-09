@@ -12,6 +12,7 @@ import {
   setDoc,
   serverTimestamp,
   writeBatch,
+  where,
   getDocs,
   orderBy,
   addDoc
@@ -224,6 +225,54 @@ export default function AdminPanel() {
     }
   };
 
+  const AppealsTab = () => {
+    const [appeals, setAppeals] = useState([]);
+
+    useEffect(() => {
+      const q = query(
+        collection(db, "anonymousUsers"),
+        where("appealStatus", "==", "pending")
+      );
+      const unsub = onSnapshot(q, (snap) => {
+        setAppeals(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      });
+      return unsub;
+    }, []);
+
+    const handleAppeal = async (userId, decision) => {
+      const response = decision === "rejected"
+        ? prompt("Response to user (optional):")
+        : "Your appeal has been accepted. Welcome back!";
+
+      await updateDoc(doc(db, "anonymousUsers", userId), {
+        appealStatus: decision,
+        appealResponse: response?.trim() || null,
+        appealReviewedAt: serverTimestamp(),
+        appealReviewedBy: auth.currentUser.email,
+        banned: decision === "accepted" ? false : true,
+        banReason: decision === "accepted" ? null : data.banReason, // optional
+      });
+    };
+
+    return (
+      <div className="appeals-section">
+        <h2>Ban Appeals ({appeals.length})</h2>
+        {appeals.map(a => (
+          <div key={a.id} className="appeal-card">
+            <p><strong>{a.anonymousName || "Anonymous User"}</strong> • {a.appealSubmittedAt?.toDate?.().toLocaleDateString()}</p>
+            <p><strong>Ban reason:</strong> {a.banReason}</p>
+            <p><strong>Appeal:</strong> {a.appealMessage}</p>
+            <div className="appeal-actions">
+              <button onClick={() => handleAppeal(a.id, "accepted")} className="btn-accept">Accept & Unban</button>
+              <button onClick={() => handleAppeal(a.id, "rejected")} className="btn-reject">Reject</button>
+            </div>
+          </div>
+        ))}
+        {appeals.length === 0 && <p>No pending appeals</p>}
+      </div>
+    );
+  };
+
   const toggleSuspendTherapist = async (therapistId, currentStatus, name) => {
     if (!confirm(currentStatus ? `Unsuspend ${name}?` : `Suspend ${name}?`)) return;
     await updateDoc(doc(db, "therapists", therapistId), {
@@ -346,6 +395,7 @@ export default function AdminPanel() {
             { id: "users", label: "Users", icon: Users },
             { id: "therapists", label: "Therapists", icon: Shield },
             { id: "chats", label: "Live Chats", icon: MessagesSquare },
+            { id: "appeals", label: "Appeals", icon: AlertCircle },
             { id: "appointments", label: "Appointments", icon: Calendar },
             { id: "announcements", label: "Announcements", icon: Bell },
             { id: "monitor", label: "Monitor Chats", icon: Eye },
@@ -410,6 +460,8 @@ export default function AdminPanel() {
               </div>
             </div>
           )}
+
+          {activeTab === "appeals" && <AppealsTab />}
 
          {activeTab === "therapists" && (
             <div className="therapists-section">

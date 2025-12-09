@@ -1,25 +1,41 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { onSnapshot, doc } from "firebase/firestore";
-import { signOut } from "firebase/auth";
 import { auth, db } from "../utils/firebase";
 
 export default function RealTimeBanGuard({ children }) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    if (!auth.currentUser?.isAnonymous) return;
+    if (!auth.currentUser) return;
 
-    const unsub = onSnapshot(doc(db, "anonymousUsers", auth.currentUser.uid), (snap) => {
-      if (snap.exists() && snap.data().banned) {
-        alert("Your access has been revoked by an administrator.");
-        signOut(auth);
-        navigate("/", { replace: true });
+    const isAnon = auth.currentUser.isAnonymous;
+    const collectionName = isAnon ? "anonymousUsers" : "users";
+
+    const unsub = onSnapshot(doc(db, collectionName, auth.currentUser.uid), (snap) => {
+      if (!snap.exists()) return;
+
+      const data = snap.data();
+
+      // If user is banned AND appeal not accepted → redirect to banned screen
+      if (data.banned === true && data.appealStatus !== "accepted") {
+        // Only redirect if we're not already on /banned to avoid loop
+        if (location.pathname !== "/banned") {
+          navigate("/banned", { replace: true });
+        }
+      }
+
+      // If appeal was ACCEPTED, let them back in automatically
+      if (data.appealStatus === "accepted" && data.banned === false) {
+        if (location.pathname === "/banned") {
+          navigate("/anonymous-dashboard", { replace: true });
+        }
       }
     });
 
     return () => unsub();
-  }, [navigate]);
+  }, [navigate, location.pathname]);
 
   return children;
 }

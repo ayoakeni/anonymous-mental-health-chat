@@ -13,6 +13,7 @@ import { auth, db } from "./utils/firebase";
 import NotificationHandler from "./components/notificationHandler";
 import Home from "./page/home";
 import About from "./page/about";
+import BannedScreen from "./page/bannedScreen";
 import FindTherapist from "./page/findTherapist";
 import TherapistLogin from "./login/therapist_login";
 import AdminPanel from "./admin/adminPanel";
@@ -57,18 +58,10 @@ function AuthProvider({ children }) {
             alert(`You have been banned from using this service.\n\nReason: ${reason}`);
             await signOut(auth);
             setUser(null);
+            setLoading(false);
             navigate("/", { replace: true });
           }
         });
-
-        const anonDoc = await getDoc(anonRef);
-        if (anonDoc.exists() && anonDoc.data().banned === true) {
-          await signOut(auth);
-          alert("You have been banned from using this service.");
-          setUser(null);
-          setLoading(false);
-          return;
-        }
 
         await setDoc(doc(db, "usersOnline", u.uid), {
           name: "Anonymous User",
@@ -82,7 +75,7 @@ function AuthProvider({ children }) {
         const snap = await getDoc(therapistRef);
 
         if (snap.exists() && snap.data().suspended) {
-          alert("Your therapist account has been suspended.");
+          alert("Your account has been suspended.");
           await signOut(auth);
           navigate("/therapist-login", { replace: true });
           return;
@@ -118,6 +111,7 @@ export default function App() {
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/about" element={<About />} />
+            <Route path="/banned" element={<BannedScreen />} />
             <Route path="/find-therapist" element={<FindTherapist />} />
             <Route path="/therapist-login" element={<TherapistLogin />} />
             <Route path="/admin-login" element={<AdminLogin />} />

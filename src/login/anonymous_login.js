@@ -10,17 +10,17 @@ export const loginAnonymously = async () => {
     const anonDocRef = doc(db, "anonymousUsers", user.uid);
     const anonDoc = await getDoc(anonDocRef);
 
+    // BLOCK BANNED USERS FROM RE-LOGGING IN
     if (anonDoc.exists() && anonDoc.data().banned === true) {
-      const reason = anonDoc.data().banReason || "No reason provided";
       await signOut(auth);
-      alert(`You have been banned from using this service.\n\nReason: ${reason}`);
-      throw new Error("Banned user attempted login");
+      const reason = anonDoc.data().banReason || "No reason provided";
+      alert(`You have been banned.\n\nReason: ${reason}`);
+      throw new Error("Banned user");
     }
 
-    // Proceed only if not banned
     let anonName = localStorage.getItem("anonName");
     if (!anonName) {
-      anonName = `Anonymous${Math.floor(1000 + Math.random() * 9000)}`;
+      anonName = `Anonymous${Math.floor(100 + Math.random() * 9000)}`;
       localStorage.setItem("anonName", anonName);
     }
 
@@ -29,7 +29,8 @@ export const loginAnonymously = async () => {
       createdAt: serverTimestamp(),
       lastSeen: serverTimestamp(),
       online: true,
-      banned: false
+      banned: false,
+      banReason: null,
     }, { merge: true });
 
     return user;
@@ -37,7 +38,7 @@ export const loginAnonymously = async () => {
     console.error("Anonymous login failed:", error);
     throw error;
   }
-};
+}
 
 // Helper to get the display name
 export const getAnonName = () => {
