@@ -33,6 +33,7 @@ export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [appointmentFilter, setAppointmentFilter] = useState("all");
 
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -385,6 +386,11 @@ export default function AdminPanel() {
     });
   }, [allUsers, searchTerm, filterStatus]);
 
+  const filteredAppointments = useMemo(() => {
+    if (appointmentFilter === "all") return appointments;
+    return appointments.filter(appt => appt.status === appointmentFilter);
+  }, [appointments, appointmentFilter]);
+
   if (!isAuthenticated) {
     return (
       <div className="admin-panel" style={{ textAlign: "center", padding: "100px" }}>
@@ -598,11 +604,15 @@ export default function AdminPanel() {
           
           {activeTab === "appointments" && (
             <div className="appointments-section">
+              {/* Add a dedicated filter state for appointments */}
               <div className="section-header">
                 <h2>Appointments ({appointments.length})</h2>
                 <div className="search-filter">
-                  <select>
-                    <option>All</option>
+                  <select 
+                    value={appointmentFilter} 
+                    onChange={(e) => setAppointmentFilter(e.target.value)}
+                  >
+                    <option value="all">All Appointments</option>
                     <option value="pending">Pending</option>
                     <option value="confirmed">Confirmed</option>
                     <option value="completed">Completed</option>
@@ -611,11 +621,12 @@ export default function AdminPanel() {
                 </div>
               </div>
 
+              {/* Filtered list using useMemo */}
               <div className="appointments-list">
-                {appointments.length === 0 ? (
-                  <p>No appointments found.</p>
+                {filteredAppointments.length === 0 ? (
+                  <p>No appointments found for this filter.</p>
                 ) : (
-                  appointments.map(appt => (
+                  filteredAppointments.map(appt => (
                     <div key={appt.id} className="appointment-card">
                       <div className="appointment-info">
                         <div className="appointment-user">
@@ -624,8 +635,8 @@ export default function AdminPanel() {
                         <div><strong>Therapist:</strong> {appt.therapistName || "Not assigned"}</div>
                         <div><strong>Date:</strong> {appt.date} at {appt.time}</div>
                         <div><strong>Status:</strong> 
-                          <span className={`status-badge ${appt.status}`}>
-                            {appt.status || "unknown"}
+                          <span className={`status-badge ${appt.status || "unknown"}`}>
+                            {appt.status?.charAt(0).toUpperCase() + appt.status?.slice(1) || "Unknown"}
                           </span>
                         </div>
                         {appt.notes && <div><strong>Notes:</strong> {appt.notes}</div>}
@@ -645,6 +656,12 @@ export default function AdminPanel() {
                           <button className="btn-complete" onClick={() => updateAppointmentStatus(appt.id, "completed")}>
                             Mark Complete
                           </button>
+                        )}
+                        {appt.status === "cancelled" && (
+                          <span className="status-final">Cancelled</span>
+                        )}
+                        {appt.status === "completed" && (
+                          <span className="status-final">Completed</span>
                         )}
                       </div>
                     </div>
