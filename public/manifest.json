@@ -3,7 +3,7 @@
   "short_name": "AnonChat",
   "description": "Connect anonymously with peers, get AI support, or chat privately with licensed therapists. Safe, secure, and judgment-free.",
   "start_url": "/",
-  "display": "standalone",
+  "display": "fullscreen",
   "background_color": "#1e1e2f",
   "theme_color": "#1e1e2f",
   "orientation": "portrait-primary",
