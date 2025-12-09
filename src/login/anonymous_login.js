@@ -1,6 +1,6 @@
 import { signInAnonymously, signOut } from "firebase/auth";
-import { auth, db, doc, setDoc, serverTimestamp } from "../utils/firebase";
-import { getDoc } from "firebase/firestore"
+import { auth, db, doc, serverTimestamp } from "../utils/firebase";
+import {  setDoc, getDoc } from "firebase/firestore"
 
 export const loginAnonymously = async () => {
   try {
