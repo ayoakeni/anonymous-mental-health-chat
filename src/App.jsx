@@ -46,8 +46,19 @@ function AuthProvider({ children }) {
 
       setUser(u);
 
-      // --- ANONYMOUS USER ---
+      // ANONYMOUS USER
       if (u.isAnonymous) {
+        // CHECK IF BANNED BEFORE ANYTHING ELSE
+        const anonDoc = await getDoc(doc(db, "anonymousUsers", u.uid));
+        if (anonDoc.exists() && anonDoc.data().banned === true) {
+          await signOut(auth);
+          alert("You have been banned from using this service.");
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        // Not banned → continue normally
         await setDoc(doc(db, "usersOnline", u.uid), {
           name: "Anonymous User",
           online: true,
@@ -55,7 +66,7 @@ function AuthProvider({ children }) {
         }, { merge: true });
       }
 
-      // --- THERAPIST USER ---
+      // THERAPIST USER
       else if (u.email) {
         const therapistRef = doc(db, "therapists", u.uid);
         const snap = await getDoc(therapistRef);

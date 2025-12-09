@@ -1,22 +1,42 @@
-import { signInAnonymously } from "firebase/auth";
-import { auth, db, doc, setDoc, serverTimestamp } from "../utils/firebase";
+import { signInAnonymously, signOut } from "firebase/auth";
+import { auth, db, doc, setDoc, getDoc, serverTimestamp } from "../utils/firebase";
 
 export const loginAnonymously = async () => {
-  const result = await signInAnonymously(auth);
-  const user = result.user;
+  try {
+    const result = await signInAnonymously(auth);
+    const user = result.user;
 
-  let anonName = localStorage.getItem("anonName");
-  if (!anonName) {
-    anonName = `Anonymous${Math.floor(100 + Math.random() * 900)}`;
-    localStorage.setItem("anonName", anonName);
+    // Check if this anonymous user is banned
+    const anonDocRef = doc(db, "anonymousUsers", user.uid);
+    const anonDoc = await getDoc(anonDocRef);
+
+    if (anonDoc.exists() && anonDoc.data().banned === true) {
+      await signOut(auth);
+      alert("You have been banned from using this service.");
+      throw new Error("Banned anonymous user");
+    }
+
+    // Generate or retrieve anonymous name (e.g. Anonymous1234)
+    let anonName = localStorage.getItem("anonName");
+    if (!anonName) {
+      anonName = `Anonymous${Math.floor(1000 + Math.random() * 9000)}`;
+      localStorage.setItem("anonName", anonName);
+    }
+
+    // Save/update profile
+    await setDoc(anonDocRef, {
+      anonymousName: anonName,
+      createdAt: serverTimestamp(),
+      lastSeen: serverTimestamp(),
+      online: true
+    }, { merge: true });
+
+    return user;
+
+  } catch (error) {
+    console.error("Anonymous login failed:", error);
+    throw error;
   }
-
-  await setDoc(doc(db, "anonymousUsers", user.uid), {
-    anonymousName: anonName,
-    createdAt: serverTimestamp(),
-  }, { merge: true });
-
-  return user;
 };
 
 // Helper to get the display name
