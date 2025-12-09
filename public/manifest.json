@@ -4,7 +4,7 @@
   "description": "Connect anonymously with peers, get AI support, or chat privately with licensed therapists. Safe, secure, and judgment-free.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1e1e2f",
+  "background_color": "#ffffff",
   "theme_color": "#1e1e2f",
   "orientation": "portrait-primary",
   "icons": [
