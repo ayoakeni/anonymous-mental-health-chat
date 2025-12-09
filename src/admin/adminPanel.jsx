@@ -525,7 +525,7 @@ export default function AdminPanel() {
                         <h4>{user.name || user.anonymousName || "Anonymous User"}</h4>
                         <p>
                           {user.email || user.id.slice(0, 10)}...
-                          {user.type === "therapist"}
+                          {user.type === "registered"}
                           {user.type === "anonymous"}
                         </p>
                         {user.banned && <span className="banned-tag">BANNED</span>}
@@ -666,6 +666,7 @@ export default function AdminPanel() {
                         </div>
                         <div><strong>Therapist:</strong> {appt.therapistName || "Not assigned"}</div>
                         <div><strong>Date:</strong> {appt.date} at {appt.time}</div>
+                        <div><strong>Reason:</strong> {appt.reason}</div>
                         <div><strong>Status:</strong> 
                           <span className={`status-badge ${appt.status || "unknown"}`}>
                             {appt.status?.charAt(0).toUpperCase() + appt.status?.slice(1) || "Unknown"}
