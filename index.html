@@ -49,7 +49,6 @@
 
       updateThemeColor();
 
-      // Watch for class changes on <html> (this catches your toggle!)
       const observer = new MutationObserver(updateThemeColor);
       observer.observe(document.documentElement, {
         attributes: true,
