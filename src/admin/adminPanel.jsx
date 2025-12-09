@@ -1,12 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { 
-  signInWithEmailAndPassword, 
   signOut, 
   createUserWithEmailAndPassword 
 } from "firebase/auth";
 import { 
   collection, 
-  query, 
   onSnapshot, 
   doc, 
   updateDoc, 
