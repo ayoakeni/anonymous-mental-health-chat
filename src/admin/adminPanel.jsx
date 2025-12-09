@@ -108,7 +108,6 @@ export default function AdminPanel() {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data(), type: "therapist" }));
       setTherapists(list);
       setStats(s => ({ ...s, therapists: list.length }));
-      mergeUsers(list);
     }));
 
     unsubs.push(onSnapshot(collection(db, "privateChats"), snap => {
@@ -137,10 +136,13 @@ export default function AdminPanel() {
       setAllUsers(prev => {
         const filtered = prev.filter(u => !newList.some(n => n.id === u.id && n.type === u.type));
         const combined = [...filtered, ...newList];
-        const totalBanned = combined.filter(u => u.banned).length;
+        
+        const realUsers = combined.filter(u => u.type === "registered" || u.type === "anonymous");
+        const totalBanned = realUsers.filter(u => u.banned).length;
+
         setStats(s => ({ 
           ...s, 
-          totalUsers: combined.length,
+          totalUsers: realUsers.length,
           bannedUsers: totalBanned 
         }));
         return combined;
@@ -372,18 +374,20 @@ export default function AdminPanel() {
   };
 
   const filteredUsers = useMemo(() => {
-    return allUsers.filter(u => {
-      const term = searchTerm.toLowerCase();
-      const matchesSearch =
-        (u.name?.toLowerCase().includes(term)) ||
-        (u.anonymousName?.toLowerCase().includes(term)) ||
-        (u.email?.toLowerCase().includes(term)) ||
-        u.id.includes(term);
-      const matchesFilter = filterStatus === "all" ||
-        (filterStatus === "online" && u.online) ||
-        (filterStatus === "banned" && u.banned);
-      return matchesSearch && matchesFilter;
-    });
+    return allUsers
+      .filter(u => u.type !== "therapist")
+      .filter(u => {
+        const term = searchTerm.toLowerCase();
+        const matchesSearch =
+          (u.name?.toLowerCase().includes(term)) ||
+          (u.anonymousName?.toLowerCase().includes(term)) ||
+          (u.email?.toLowerCase().includes(term)) ||
+          u.id.includes(term);
+        const matchesFilter = filterStatus === "all" ||
+          (filterStatus === "online" && u.online) ||
+          (filterStatus === "banned" && u.banned);
+        return matchesSearch && matchesFilter;
+      });
   }, [allUsers, searchTerm, filterStatus]);
 
   const filteredAppointments = useMemo(() => {
@@ -501,8 +505,21 @@ export default function AdminPanel() {
                 {filteredUsers.map(user => (
                   <div key={`${user.type}-${user.id}`} className="user-card">
                     <div className="user-info">
-                      <div className={`user-avatar ${user.online ? "online" : "offline"}`}>
-                        {(user.name || user.anonymousName || "U")[0].toUpperCase()}
+                      <div className="user-avatar-wrapper">
+                        {user.profileImage ? (
+                          <img 
+                            src={user.profileImage} 
+                            alt={user.name || user.anonymousName || "User"}
+                            className={`user-avatar-img ${user.online ? "online" : "offline"}`}
+                            onError={(e) => {
+                              e.target.style.display = "none";
+                              e.target.nextElementSibling.style.display = "flex";
+                            }}
+                          />
+                        ) : null}
+                        <div className={`user-avatar-fallback ${user.online ? "online" : "offline"}`}>
+                          {(user.name || user.anonymousName || "U")[0].toUpperCase()}
+                        </div>
                       </div>
                       <div>
                         <h4>{user.name || user.anonymousName || "Anonymous User"}</h4>
@@ -542,7 +559,22 @@ export default function AdminPanel() {
                 {therapists.map(t => (
                   <div key={t.id} className="therapist-card">
                     <div className="therapist-header">
-                      <div className="therapist-avatar">{t.name?.[0]?.toUpperCase() || "T"}</div>
+                      <div className="therapist-avatar-wrapper">
+                        {t.profileImage ? (
+                          <img 
+                            src={t.profileImage} 
+                            alt={t.name}
+                            className={`therapist-avatar-img ${t.online ? "online" : "offline"}`}
+                            onError={(e) => {
+                              e.target.style.display = "none";
+                              e.target.nextElementSibling.style.display = "flex";
+                            }}
+                          />
+                        ) : null}
+                        <div className={`therapist-avatar-fallback ${t.online ? "online" : "offline"}`}>
+                          {t.name?.[0]?.toUpperCase() || "T"}
+                        </div>
+                      </div>
                       <div className="status-badges">
                         <span className={`status-badge ${t.online ? "online" : "offline"}`}>
                           {t.online ? "Online" : "Offline"}

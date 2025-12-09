@@ -20,7 +20,7 @@ export const loginAnonymously = async () => {
 
     let anonName = localStorage.getItem("anonName");
     if (!anonName) {
-      anonName = `Anonymous${Math.floor(100 + Math.random() * 9000)}`;
+      anonName = `Anonymous${Math.floor(100 + Math.random() * 900)}`;
       localStorage.setItem("anonName", anonName);
     }
 
