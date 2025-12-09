@@ -43,6 +43,7 @@ export default function AdminPanel() {
     bannedUsers: 0,
   });
 
+  const [appeals, setAppeals] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [therapists, setTherapists] = useState([]);
   const [chats, setChats] = useState([]);
@@ -116,6 +117,14 @@ export default function AdminPanel() {
       setStats(s => ({ ...s, activeChats: active }));
     }));
 
+    unsubs.push(onSnapshot(
+      query(collection(db, "anonymousUsers"), where("appealStatus", "==", "pending")),
+      (snap) => {
+        const appealList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setAppeals(appealList);
+      }
+    ));
+
     unsubs.push(onSnapshot(collection(db, "appointments"), snap => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       const pending = list.filter(a => a.status === "pending").length;
@@ -168,6 +177,46 @@ export default function AdminPanel() {
       unsubTyping();
     };
   }, [selectedChat]);
+
+  const handleAppealDecision = async (userId, decision) => {
+    const response = decision === "rejected"
+      ? prompt("Response to user (optional):")
+      : "Your appeal has been accepted. Welcome back!";
+
+    if (decision === "rejected" && response === null) return; // User clicked "Cancel"
+
+    try {
+      await updateDoc(doc(db, "anonymousUsers", userId), {
+        appealStatus: decision,
+        appealResponse: response?.trim() || null,
+        appealReviewedAt: serverTimestamp(),
+        appealReviewedBy: auth.currentUser?.email || "admin",
+        banned: decision === "accepted" ? false : true,
+        banReason: decision === "accepted" ? null : undefined,
+      });
+
+      alert(decision === "accepted" ? "Appeal accepted! User unbanned." : "Appeal rejected.");
+    } catch (err) {
+      console.error("Appeal error:", err);
+      alert("Failed to process appeal");
+    }
+  };
+
+  const updateAppointmentStatus = async (apptId, newStatus) => {
+    if (!confirm(`Change appointment status to "${newStatus}"?`)) return;
+
+    try {
+      await updateDoc(doc(db, "appointments", apptId), {
+        status: newStatus,
+        updatedAt: serverTimestamp(),
+        updatedBy: "admin"
+      });
+      alert("Appointment updated!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update appointment");
+    }
+  };
 
   const createTherapist = async () => {
     if (!newTherapist.name || !newTherapist.email || !newTherapist.password) {
@@ -225,50 +274,42 @@ export default function AdminPanel() {
     }
   };
 
-  const AppealsTab = () => {
-    const [appeals, setAppeals] = useState([]);
-
-    useEffect(() => {
-      const q = query(
-        collection(db, "anonymousUsers"),
-        where("appealStatus", "==", "pending")
-      );
-      const unsub = onSnapshot(q, (snap) => {
-        setAppeals(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      });
-      return unsub;
-    }, []);
-
-    const handleAppeal = async (userId, decision) => {
-      const response = decision === "rejected"
-        ? prompt("Response to user (optional):")
-        : "Your appeal has been accepted. Welcome back!";
-
-      await updateDoc(doc(db, "anonymousUsers", userId), {
-        appealStatus: decision,
-        appealResponse: response?.trim() || null,
-        appealReviewedAt: serverTimestamp(),
-        appealReviewedBy: auth.currentUser.email,
-        banned: decision === "accepted" ? false : true,
-        banReason: decision === "accepted" ? null : data.banReason, // optional
-      });
-    };
-
+  const AppealsTab = ({ appeals, onAppealDecision }) => {
     return (
       <div className="appeals-section">
         <h2>Ban Appeals ({appeals.length})</h2>
-        {appeals.map(a => (
-          <div key={a.id} className="appeal-card">
-            <p><strong>{a.anonymousName || "Anonymous User"}</strong> • {a.appealSubmittedAt?.toDate?.().toLocaleDateString()}</p>
-            <p><strong>Ban reason:</strong> {a.banReason}</p>
-            <p><strong>Appeal:</strong> {a.appealMessage}</p>
-            <div className="appeal-actions">
-              <button onClick={() => handleAppeal(a.id, "accepted")} className="btn-accept">Accept & Unban</button>
-              <button onClick={() => handleAppeal(a.id, "rejected")} className="btn-reject">Reject</button>
+        {appeals.length === 0 ? (
+          <p>No pending appeals</p>
+        ) : (
+          appeals.map(a => (
+            <div key={a.id} className="appeal-card">
+              <div className="appeal-header">
+                <p><strong>{a.anonymousName || "Anonymous User"}</strong></p>
+                <p className="appeal-date">
+                  {a.appealSubmittedAt?.toDate?.().toLocaleDateString()}
+                </p>
+              </div>
+              <div className="appeal-content">
+                <p><strong>Ban reason:</strong> {a.banReason || "Not specified"}</p>
+                <p><strong>Appeal message:</strong> {a.appealMessage}</p>
+              </div>
+              <div className="appeal-actions">
+                <button 
+                  onClick={() => onAppealDecision(a.id, "accepted")} 
+                  className="btn-accept"
+                >
+                  Accept & Unban
+                </button>
+                <button 
+                  onClick={() => onAppealDecision(a.id, "rejected")} 
+                  className="btn-reject"
+                >
+                  Reject
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
-        {appeals.length === 0 && <p>No pending appeals</p>}
+          ))
+        )}
       </div>
     );
   };
@@ -412,6 +453,28 @@ export default function AdminPanel() {
         </nav>
 
         <section className="admin-content">
+          {activeTab === "overview" && (
+            <div className="overview-section">
+              <h2>Dashboard Overview</h2>
+              <div className="overview-grid">
+                <div className="overview-card">
+                  <h3>Platform Health</h3>
+                  <p>All systems operational</p>
+                </div>
+                <div className="overview-card">
+                  <h3>Recent Activity</h3>
+                  <p>{stats.activeChats} active therapy sessions</p>
+                  <p>{stats.pendingAppointments} appointments awaiting confirmation</p>
+                </div>
+                <div className="overview-card">
+                  <h3>Moderation Alerts</h3>
+                  <p>{stats.bannedUsers} banned users</p>
+                  <p>{appeals?.length || 0} pending ban appeals</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {activeTab === "users" && (
             <div className="users-section">
               <div className="section-header">
@@ -461,9 +524,7 @@ export default function AdminPanel() {
             </div>
           )}
 
-          {activeTab === "appeals" && <AppealsTab />}
-
-         {activeTab === "therapists" && (
+          {activeTab === "therapists" && (
             <div className="therapists-section">
               <div className="section-header">
                 <h2>Therapist Management</h2>
@@ -529,6 +590,66 @@ export default function AdminPanel() {
                     </button>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "appeals" && <AppealsTab appeals={appeals} onAppealDecision={handleAppealDecision} />}
+          
+          {activeTab === "appointments" && (
+            <div className="appointments-section">
+              <div className="section-header">
+                <h2>Appointments ({appointments.length})</h2>
+                <div className="search-filter">
+                  <select>
+                    <option>All</option>
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="appointments-list">
+                {appointments.length === 0 ? (
+                  <p>No appointments found.</p>
+                ) : (
+                  appointments.map(appt => (
+                    <div key={appt.id} className="appointment-card">
+                      <div className="appointment-info">
+                        <div className="appointment-user">
+                          <strong>User:</strong> {appt.userName || appt.userId?.slice(0, 8)}...
+                        </div>
+                        <div><strong>Therapist:</strong> {appt.therapistName || "Not assigned"}</div>
+                        <div><strong>Date:</strong> {appt.date} at {appt.time}</div>
+                        <div><strong>Status:</strong> 
+                          <span className={`status-badge ${appt.status}`}>
+                            {appt.status || "unknown"}
+                          </span>
+                        </div>
+                        {appt.notes && <div><strong>Notes:</strong> {appt.notes}</div>}
+                      </div>
+                      <div className="appointment-actions">
+                        {appt.status === "pending" && (
+                          <>
+                            <button className="btn-confirm" onClick={() => updateAppointmentStatus(appt.id, "confirmed")}>
+                              Confirm
+                            </button>
+                            <button className="btn-cancel" onClick={() => updateAppointmentStatus(appt.id, "cancelled")}>
+                              Cancel
+                            </button>
+                          </>
+                        )}
+                        {appt.status === "confirmed" && (
+                          <button className="btn-complete" onClick={() => updateAppointmentStatus(appt.id, "completed")}>
+                            Mark Complete
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
