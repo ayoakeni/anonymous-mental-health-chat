@@ -437,14 +437,14 @@
   color: #475569;
 }
 
-.appointments-section {
+.admin-panel .appointments-section {
   padding: 24px;
   background: #f8fafc;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-.appointments-section .section-header {
+.admin-panel .appointments-section .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -453,13 +453,13 @@
   gap: 16px;
 }
 
-.appointments-section .section-header h2 {
+.admin-panel .appointments-section .section-header h2 {
   margin: 0;
   font-size: 1.75rem;
   color: #1e293b;
 }
 
-.appointments-section .section-header select {
+.admin-panel .appointments-section .section-header select {
   padding: 10px 16px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
@@ -467,64 +467,157 @@
   font-size: 1rem;
 }
 
-.appointments-list {
+.admin-panel .appointments-list {
   display: grid;
-  gap: 16px;
+  gap: 32px;
 }
 
-.appointment-card {
+.admin-panel .appointment-card {
   background: white;
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f0f0f0;
   transition: all 0.2s ease;
+}
+
+.admin-panel .appointment-card:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.admin-panel .appointment-card__header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 12px;
 }
 
-.appointment-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(0,0,0,0.1);
-}
-
-.appointment-info {
+.admin-panel .appointment-card__user {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 1;
-  min-width: 300px;
+  align-items: center;
+  gap: 12px;
 }
 
-.appointment-info strong {
-  color: #475569;
-  margin-right: 8px;
+.admin-panel .avatar-placeholder {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  ;
+  font-size: 18px;
 }
 
-.appointment-info .status-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-size: 0.85rem;
+.admin-panel .user-name {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.admin-panel .user-id {
+  font-size: 12px;
+  color: #718096;
+}
+
+.admin-panel .status-badge {
+  padding: 6px 12px;
+  ;
+  border-radius: 20px;
+  font-size: 13px;
   font-weight: 600;
   text-transform: capitalize;
 }
 
-.status-badge.pending    { background: #fef3c7; color: #92400e; }
-.status-badge.confirmed  { background: #d1fae5; color: #065f46; }
-.status-badge.completed  { background: #dbeafe; color: #1e40af; }
-.status-badge.cancelled  { background: #fee2e2; color: #991b1b; }
+.admin-panel .appointment-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
-.appointment-actions {
+.admin-panel .info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 15px;
+}
+
+.admin-panel .info-row.highlight {
+  background: #f8fffe;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+  font-weight: 500;
+}
+
+.admin-panel .label {
+  color: #4a5568;
+  font-weight: 500;
+  min-width: 120px;
+}
+
+.admin-panel .value {
+  color: #2d3748;
+  font-weight: 500;
+  text-align: right;
+  flex: 1;
+}
+
+.admin-panel .note {
+  background: #f7fafc;
+  padding: 10px;
+  border-radius: 8px;
+  font-style: italic;
+  color: #4a5568;
+}
+
+.admin-panel .review-bubble {
+  background: #e6fffa;
+  padding: 12px;
+  border-radius: 12px;
+  font-style: italic;
+  color: #1a202c;
+  border-left: 4px solid #38b2ac;
+}
+
+.admin-panel .rating-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-panel .stars {
+  color: #f6ad55;
+  font-size: 18px;
+}
+
+.admin-panel .rating-number {
+  color: #718096;
+  font-size: 14px;
+}
+
+.admin-panel .text-muted {
+  color: #a0aec0;
+  font-style: italic;
+}
+
+.admin-panel .status-confirmed { background: #d4edda; color: #155724; }
+.admin-panel .status-pending { background: #fff3cd; color: #856404; }
+.admin-panel .status-completed { background: #d1ecf1; color: #0c5460; }
+.admin-panel .status-cancelled { background: #f8d7da; color: #721c24; }
+.admin-panel .status-rejected { background: #f5c6cb; color: #721c24; }
+
+.admin-panel .appointment-actions {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  margin-top: 12px;
 }
 
-.appointment-actions button {
+.admin-panel .appointment-actions button {
   padding: 10px 16px;
   border: none;
   border-radius: 8px;
@@ -534,55 +627,58 @@
   min-width: 100px;
 }
 
-.btn-confirm {
+.admin-panel .btn-confirm {
   background: #10b981;
   color: white;
 }
-.btn-confirm:hover { background: #059669; }
 
-.btn-cancel {
+.admin-panel .btn-confirm:hover { background: #059669; }
+
+.admin-panel .btn-cancel {
   background: #ef4444;
   color: white;
 }
-.btn-cancel:hover { background: #dc2626; }
 
-.btn-complete {
+.admin-panel .btn-cancel:hover { background: #dc2626; }
+
+.admin-panel .btn-complete {
   background: #3b82f6;
   color: white;
 }
-.btn-complete:hover { background: #2563eb; }
+
+.admin-panel .btn-complete:hover { background: #2563eb; }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .appointment-card {
+  .admin-panel .appointment-card {
     flex-direction: column;
     align-items: stretch;
   }
-  .appointment-actions {
+  .admin-panel .appointment-actions {
     justify-content: stretch;
   }
-  .appointment-actions button {
+  .admin-panel .appointment-actions button {
     flex: 1;
   }
 }
 
-.overview-section {
+.admin-panel .overview-section {
   padding: 24px;
 }
 
-.overview-section h2 {
+.admin-panel .overview-section h2 {
   margin-bottom: 24px;
   font-size: 1.9rem;
   color: #1e293b;
 }
 
-.overview-grid {
+.admin-panel .overview-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 20px;
 }
 
-.overview-card {
+.admin-panel .overview-card {
   background: white;
   border-radius: 12px;
   padding: 24px;
@@ -590,32 +686,32 @@
   border: 1px solid #e2e8f0;
 }
 
-.overview-card h3 {
+.admin-panel .overview-card h3 {
   margin: 0 0 12px 0;
   color: #334155;
   font-size: 1.25rem;
 }
 
-.overview-card p {
+.admin-panel .overview-card p {
   margin: 8px 0;
   color: #64748b;
   font-size: 1rem;
 }
 
 /* Empty state */
-.appointments-list p,
-.monitor-placeholder p {
+.admin-panel .appointments-list p,
+.admin-panel .monitor-placeholder p {
   text-align: center;
   color: #64748b;
   font-size: 1.1rem;
   margin-top: 40px;
 }
 
-.user-card:hover,
-.therapist-card:hover,
-.chat-item:hover,
-.monitor-chat-item:hover,
-.appeal-card:hover {
+.admin-panel .user-card:hover,
+.admin-panel .therapist-card:hover,
+.admin-panel .chat-item:hover,
+.admin-panel .monitor-chat-item:hover,
+.admin-panel .appeal-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(0,0,0,0.1);
 }
@@ -665,7 +761,7 @@
   background: #f1f5f9;
 }
 
-.monitor-layout {
+.admin-panel .monitor-layout {
   display: grid;
   grid-template-columns: 320px 1fr;
   height: calc(100vh - 300px);
@@ -675,14 +771,14 @@
   overflow: hidden;
 }
 
-.monitor-sidebar {
+.admin-panel .monitor-sidebar {
   background: white;
   border-right: 1px solid #e5e7eb;
   padding: 16px;
   overflow-y: auto;
 }
 
-.monitor-chat-item {
+.admin-panel .monitor-chat-item {
   padding: 12px;
   border-bottom: 1px solid #f3f4f6;
   cursor: pointer;
@@ -692,16 +788,16 @@
   transition: all 0.2s;
 }
 
-.monitor-chat-item:hover { background: #f3f4f6; }
-.monitor-chat-item.selected { background: #dbeafe; border-left: 4px solid #3b82f6; }
+.admin-panel .monitor-chat-item:hover { background: #f3f4f6; }
+.admin-panel .monitor-chat-item.selected { background: #dbeafe; border-left: 4px solid #3b82f6; }
 
-.monitor-main {
+.admin-panel .monitor-main {
   background: white;
   display: flex;
   flex-direction: column;
 }
 
-.monitor-chat-header {
+.admin-panel .monitor-chat-header {
   padding: 16px;
   border-bottom: 1px solid #e5e7eb;
   display: flex;
@@ -710,23 +806,23 @@
   background: #f8fafc;
 }
 
-.monitor-messages {
+.admin-panel .monitor-messages {
   flex: 1;
   padding: 16px;
   overflow-y: auto;
   background: #f1f5f9;
 }
 
-.monitor-message {
+.admin-panel .monitor-message {
   margin-bottom: 16px;
   display: flex;
 }
 
-.monitor-message.user { justify-content: flex-start; }
-.monitor-message.therapist { justify-content: flex-end; }
-.monitor-message.admin { justify-content: center; }
+.admin-panel .monitor-message.user { justify-content: flex-start; }
+.admin-panel .monitor-message.therapist { justify-content: flex-end; }
+.admin-panel .monitor-message.admin { justify-content: center; }
 
-.message-bubble {
+.admin-panel .message-bubble {
   max-width: 70%;
   padding: 10px 14px;
   border-radius: 18px;
@@ -734,32 +830,32 @@
   color: #1e293b;
 }
 
-.monitor-message.therapist .message-bubble {
+.admin-panel .monitor-message.therapist .message-bubble {
   background: #22c55e;
   color: white;
 }
 
-.monitor-message.admin .message-bubble {
+.admin-panel .monitor-message.admin .message-bubble {
   background: #fef08a;
   color: #854d0e;
   font-weight: 500;
 }
 
-.message-sender {
+.admin-panel .message-sender {
   font-size: 0.75rem;
   opacity: 0.8;
   margin-bottom: 4px;
   font-weight: 600;
 }
 
-.message-time {
+.admin-panel .message-time {
   font-size: 0.7rem;
   opacity: 0.7;
   display: block;
   margin-top: 4px;
 }
 
-.typing-dots span {
+.admin-panel .typing-dots span {
   display: inline-block;
   width: 8px;
   height: 8px;
@@ -769,7 +865,7 @@
   margin: 0 2px;
 }
 
-.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.admin-panel .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
 .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes typing {
@@ -777,7 +873,7 @@
   30% { transform: translateY(-10px); }
 }
 
-.monitor-input {
+.admin-panel .monitor-input {
   padding: 16px;
   border-top: 1px solid #e5e7eb;
   display: flex;
@@ -785,14 +881,14 @@
   background: white;
 }
 
-.monitor-input input {
+.admin-panel .monitor-input input {
   flex: 1;
   padding: 12px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
 }
 
-.monitor-note {
+.admin-panel .monitor-note {
   text-align: center;
   font-size: 0.8rem;
   color: #64748b;
@@ -800,7 +896,7 @@
   font-style: italic;
 }
 
-.monitor-placeholder {
+.admin-panel .monitor-placeholder {
   flex: 1;
   display: flex;
   flex-direction: column;

@@ -675,37 +675,96 @@ export default function AdminPanel() {
                 ) : (
                   filteredAppointments.map(appt => (
                     <div key={appt.id} className="appointment-card">
-                      <div className="appointment-info">
-                        <div className="appointment-user">
-                          <strong>User:</strong> {appt.userName || appt.clientName || appt.displayName || appt.userId?.slice(0, 8) || "Anonymous User"}
+                      <div className="appointment-card__header">
+                        <div className="appointment-card__user">
+                          <div className="avatar-placeholder">
+                            {appt.userName?.[0]?.toUpperCase() || "U"}
+                          </div>
+                          <div>
+                            <div className="user-name">
+                              {appt.userName || appt.clientName || appt.displayName || "Anonymous User"}
+                            </div>
+                            <div className="user-id">ID: {appt.userId?.slice(-8) || "N/A"}</div>
+                          </div>
                         </div>
-                        <div><strong>Therapist:</strong> {appt.therapistName || "Not assigned"}</div>
-                        <div><strong>Appointment Date:</strong> {appt.date} at {appt.time}</div>
-                        <div className="appointment-booked-at">
-                          <strong>Booked on:</strong>{" "}
-                          {appt.createdAt?.toDate?.() ? (
-                            <>
-                              {new Date(appt.createdAt.toDate()).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric"
-                              })}{" "}
-                              at{" "}
-                              {new Date(appt.createdAt.toDate()).toLocaleTimeString("en-US", {
-                                hour: "2-digit",
-                                minute: "2-digit"
-                              })}
-                            </>
-                          ) : (
-                            "Just now"
-                          )}
+
+                        <div className={`status-badge status-${appt.status || "unknown"}`}>
+                          {appt.status ? appt.status.charAt(0).toUpperCase() + appt.status.slice(1) : "Unknown"}
                         </div>
-                        <div><strong>Reason:</strong> {appt.reason}</div>
-                        <div><strong>Status:</strong> 
-                          <span className={`status-badge ${appt.status || "unknown"}`}>
-                            {appt.status?.charAt(0).toUpperCase() + appt.status?.slice(1) || "Unknown"}
+                      </div>
+
+                      <div className="appointment-card__body">
+                        <div className="info-row">
+                          <span className="label">Therapist</span>
+                          <span className="value">{appt.therapistName || "Not assigned"}</span>
+                        </div>
+
+                        <div className="info-row highlight">
+                          <span className="label">Date & Time</span>
+                          <span className="value">
+                            {appt.date} at {appt.time}
                           </span>
                         </div>
+
+                        <div className="info-row">
+                          <span className="label">Booked on</span>
+                          <span className="value">
+                            {appt.createdAt?.toDate?.() ? (
+                              <>
+                                {new Date(appt.createdAt.toDate()).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })}{" "}
+                                <span className="text-muted">at</span>{" "}
+                                {new Date(appt.createdAt.toDate()).toLocaleTimeString("en-US", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </>
+                            ) : (
+                              "Just now"
+                            )}
+                          </span>
+                        </div>
+
+                        {appt.reason && (
+                          <div className="info-row">
+                            <span className="label">Reason</span>
+                            <span className="value">"{appt.reason}"</span>
+                          </div>
+                        )}
+
+                        {appt.notes && (
+                          <div className="info-row">
+                            <span className="label">Therapist Note</span>
+                            <span className="value note">{appt.notes}</span>
+                          </div>
+                        )}
+
+                        <div className="info-row rating-row">
+                          <span className="label">Rating</span>
+                          <div className="rating-display">
+                            {appt.clientRating ? (
+                              <>
+                                <span className="stars">
+                                  {"★★★★★".substring(5 - appt.clientRating)}
+                                  {"☆☆☆☆☆".substring(0, 5 - appt.clientRating)}
+                                </span>
+                                <span className="rating-number">({appt.clientRating}/5)</span>
+                              </>
+                            ) : (
+                              <span className="text-muted">No rating yet</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {appt.clientComment && (
+                          <div className="info-row">
+                            <span className="label">Review</span>
+                            <div className="review-bubble">"{appt.clientComment}"</div>
+                          </div>
+                        )}
                       </div>
                       <div className="appointment-actions">
                         {appt.status === "pending" && (
@@ -836,7 +895,7 @@ export default function AdminPanel() {
         </section>
       </main>
 
-      {/* Create Therapist Modal — unchanged */}
+      {/* Create Therapist Modal */}
       {showCreateTherapist && (
         <div className="modal-overlay" onClick={() => setShowCreateTherapist(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>

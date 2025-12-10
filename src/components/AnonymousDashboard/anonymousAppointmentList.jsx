@@ -238,16 +238,13 @@ function AppointmentsList() {
     setShowRating({ appt, rating: 5, comment: "" });
   };
 
-  /* --------------------------------------------------------------
-     RATING FLOW — FIXED VERSION
-  -------------------------------------------------------------- */
   const confirmRating = async () => {
     if (!showRatingConfirm) return;
 
     const { appt, rating, comment } = showRatingConfirm;
 
     try {
-      // 1. Save rating to the appointment document
+      // 1. Update the appointment with rating
       const apptRef = doc(db, "appointments", appt.id);
       await updateDoc(apptRef, {
         clientRating: rating,
@@ -258,17 +255,14 @@ function AppointmentsList() {
       // 2. Update therapist's average rating
       const therapistId = appt.therapistId || appt.therapistUid;
       if (!therapistId) {
-        console.warn("Therapist ID missing – skipping therapist rating update");
+        console.warn("No therapist ID found, skipping rating update");
       } else {
         const therapistRef = doc(db, "therapists", therapistId);
         const therapistSnap = await getDoc(therapistRef);
 
         if (therapistSnap.exists()) {
           const data = therapistSnap.data();
-          const ratings = [...(data.ratings || []), { 
-            rating, 
-            comment: comment?.trim() || null 
-          }];
+          const ratings = [...(data.ratings || []), { rating, comment: comment?.trim() || null }];
           const avg = ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length;
 
           await updateDoc(therapistRef, {
@@ -283,7 +277,7 @@ function AppointmentsList() {
       setShowRatingConfirm(null);
       setShowRating(null);
     } catch (err) {
-      console.error("Rating submission error:", err);
+      console.error("Rating error:", err);
       showToast("error", "Failed to submit rating. Please try again.");
     }
   };
@@ -546,7 +540,7 @@ function AppointmentsList() {
 
             <div className="appointments-list-wrapper__form-actions">
               <button
-                onClick={() => setShowRatingConfirm({ ...showRating })}
+                onClick={() => setShowRatingConfirm(...showRating)}
                 className="appointments-list-wrapper__save-btn"
               >
                 Submit Rating
