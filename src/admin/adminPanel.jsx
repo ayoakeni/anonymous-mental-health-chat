@@ -134,10 +134,23 @@ export default function AdminPanel() {
 
     const mergeUsers = (newList) => {
       setAllUsers(prev => {
+        // Remove old entries of same type + id
         const filtered = prev.filter(u => !newList.some(n => n.id === u.id && n.type === u.type));
         const combined = [...filtered, ...newList];
-        
+
         const realUsers = combined.filter(u => u.type === "registered" || u.type === "anonymous");
+
+        // Enhanced name resolution
+        realUsers.forEach(user => {
+          if (!user.displayName) {
+            if (user.type === "anonymous") {
+              user.displayName = user.anonymousName || `Anonymous_${user.id.slice(-6)}`;
+            } else {
+              user.displayName = user.name || user.email?.split("@")[0] || "User";
+            }
+          }
+        });
+
         const totalBanned = realUsers.filter(u => u.banned).length;
 
         setStats(s => ({ 
@@ -145,6 +158,7 @@ export default function AdminPanel() {
           totalUsers: realUsers.length,
           bannedUsers: totalBanned 
         }));
+
         return combined;
       });
     };
@@ -522,11 +536,12 @@ export default function AdminPanel() {
                         </div>
                       </div>
                       <div>
-                        <h4>{user.name || user.anonymousName || "Anonymous User"}</h4>
+                        <h4>{user.displayName || "Unknown User"}</h4>
                         <p>
-                          {user.email || user.id.slice(0, 10)}...
-                          {user.type === "registered"}
-                          {user.type === "anonymous"}
+                          <span className="user-type-tag">
+                            {user.type === "registered" ? "Registered" : "Anonymous id"}:
+                          </span>
+                          {user.email || (user.id.slice(0, 10))}
                         </p>
                         {user.banned && <span className="banned-tag">BANNED</span>}
                       </div>
@@ -619,7 +634,7 @@ export default function AdminPanel() {
                 {chats.filter(c => c.activeTherapist).map(chat => (
                   <div key={chat.id} className="chat-item">
                     <div className="chat-details">
-                      <p><strong>User:</strong> {chat.userName || chat.userId?.slice(0, 8)}</p>
+                      <p><strong>User:</strong> {chat.userName || chat.displayName || `User_${chat.userId?.slice(-6)}` || "User"}</p>
                       <p><strong>Therapist:</strong> {chat.activeTherapistName || "Connected"}</p>
                       <p><strong>Last:</strong> {chat.lastMessage || "No messages"}</p>
                     </div>
@@ -662,17 +677,35 @@ export default function AdminPanel() {
                     <div key={appt.id} className="appointment-card">
                       <div className="appointment-info">
                         <div className="appointment-user">
-                          <strong>User:</strong> {appt.userName || appt.userId?.slice(0, 8)}...
+                          <strong>User:</strong> {appt.userName || appt.clientName || appt.displayName || appt.userId?.slice(0, 8) || "Anonymous User"}
                         </div>
                         <div><strong>Therapist:</strong> {appt.therapistName || "Not assigned"}</div>
-                        <div><strong>Date:</strong> {appt.date} at {appt.time}</div>
+                        <div><strong>Appointment Date:</strong> {appt.date} at {appt.time}</div>
+                        <div className="appointment-booked-at">
+                          <strong>Booked on:</strong>{" "}
+                          {appt.createdAt?.toDate?.() ? (
+                            <>
+                              {new Date(appt.createdAt.toDate()).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric"
+                              })}{" "}
+                              at{" "}
+                              {new Date(appt.createdAt.toDate()).toLocaleTimeString("en-US", {
+                                hour: "2-digit",
+                                minute: "2-digit"
+                              })}
+                            </>
+                          ) : (
+                            "Just now"
+                          )}
+                        </div>
                         <div><strong>Reason:</strong> {appt.reason}</div>
                         <div><strong>Status:</strong> 
                           <span className={`status-badge ${appt.status || "unknown"}`}>
                             {appt.status?.charAt(0).toUpperCase() + appt.status?.slice(1) || "Unknown"}
                           </span>
                         </div>
-                        {appt.notes && <div><strong>Notes:</strong> {appt.notes}</div>}
                       </div>
                       <div className="appointment-actions">
                         {appt.status === "pending" && (
@@ -730,7 +763,7 @@ export default function AdminPanel() {
                         onClick={() => setSelectedChat(chat)}
                       >
                         <div>
-                          <p><strong>User:</strong> {chat.userName || chat.userId?.slice(0, 8)}</p>
+                          <p><strong>User:</strong> {chat.userName || chat.displayName || `User_${chat.userId?.slice(-6)}` || "User"}</p>
                           <p><strong>Therapist:</strong> {chat.activeTherapistName || "Connected"}</p>
                           <p className="last-msg-preview">
                             {chat.lastMessage ? chat.lastMessage.substring(0, 40) + "..." : "No messages"}

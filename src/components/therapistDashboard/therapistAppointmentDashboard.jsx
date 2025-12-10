@@ -41,42 +41,58 @@ const TherapistAppointmentsDashboard = () => {
 
   const therapistUid = auth.currentUser?.uid;
 
-  // === 1. Fetch ALL anonymous users ===
+  // === Fetch anonymous users for dropdown ===
   useEffect(() => {
     const q = query(collection(db, "anonymousUsers"));
     const unsub = onSnapshot(q, (snap) => {
       const users = snap.docs.map((d) => ({
         id: d.id,
-        displayName: d.data().anonymousName || "Unknown User",
+        displayName: d.data().anonymousName || `Anonymous ${d.id.slice(-4)}`,
       }));
       setAnonymousUsers(users.sort((a, b) => a.displayName.localeCompare(b.displayName)));
     });
     return unsub;
   }, []);
 
-  // === 2. Fetch ALL appointments ===
+  // === 2. Fetch ALL appointments + resolve deleted users ===
   useEffect(() => {
     if (!therapistUid) return;
 
     const q = query(
       collection(db, "appointments"),
-      where("therapistUid", "==", therapistUid)
+      where("therapistId", "==", therapistUid)
     );
 
     const unsub = onSnapshot(q, async (snap) => {
       const data = await Promise.all(
         snap.docs.map(async (d) => {
-          const appt = { id: d.id, ...d.data() };
+          const raw = d.data();
+          const appt = {
+            id: d.id,
+            ...raw,
+            clientUid: raw.userId || "",
+            clientName: raw.userName || raw.displayName || "Unknown",
+          };
 
-          if (appt.clientType === "anonymous" && appt.clientUid) {
-            const anonSnap = await getDoc(doc(db, "anonymousUsers", appt.clientUid));
-            if (anonSnap.exists()) {
-              appt.clientName = anonSnap.data().anonymousName || "Unknown User";
-            } else {
-              appt.clientName = "Deleted User";
+          // Priority: 1. stored name → 2. fetch from anonymousUsers → 3. fallback
+          if (appt.userName) {
+            appt.displayName = appt.userName;
+          } else if (appt.clientName) {
+            appt.displayName = appt.clientName;
+          } else if (appt.userId) {
+            // Try to fetch current name from anonymousUsers
+            try {
+              const userSnap = await getDoc(doc(db, "anonymousUsers", appt.userId));
+              if (userSnap.exists()) {
+                appt.displayName = userSnap.data().anonymousName || "Anonymous User";
+              } else {
+                appt.displayName = "Deleted User";
+              }
+            } catch (err) {
+              appt.displayName = "Deleted User";
             }
           } else {
-            appt.clientName = appt.clientName || "Client";
+            appt.displayName = "Unknown User";
           }
 
           return appt;
@@ -151,9 +167,9 @@ const TherapistAppointmentsDashboard = () => {
   };
 
   useEffect(() => {
-    if (editingAppt) {
+    if (editingAppt && anonymousUsers.length > 0) {
       setFormData({
-        clientType: editingAppt.clientType || "anonymous",
+        clientType: "anonymous",
         clientUid: editingAppt.clientUid || "",
         clientName: editingAppt.clientName || "",
         date: editingAppt.date || "",
@@ -164,10 +180,10 @@ const TherapistAppointmentsDashboard = () => {
         status: editingAppt.status || "confirmed",
       });
       setShowForm(true);
-    } else if (showForm) {
+    } else if (!editingAppt && showForm) {
       resetForm();
     }
-  }, [editingAppt, showForm]);
+  }, [editingAppt, anonymousUsers]);
 
   // === Validation ===
   const validateForm = () => {
@@ -175,7 +191,7 @@ const TherapistAppointmentsDashboard = () => {
     if (!formData.clientUid) errors.clientUid = "Please select a client";
     if (!formData.date) errors.date = "Date is required";
     if (!formData.time) errors.time = "Time is required";
-    if (!formData.duration || formData.duration < 15) errors.duration = "Min 15 min";
+    if (formData.duration < 15) errors.duration = "Min 15 min";
     if (formData.date && new Date(formData.date) < new Date().setHours(0, 0, 0, 0))
       errors.date = "Cannot be in the past";
     setFormErrors(errors);
@@ -184,12 +200,13 @@ const TherapistAppointmentsDashboard = () => {
 
   // === Client Selection ===
   const handleClientChange = (e) => {
-    const uid = e.target.value;
-    const selected = anonymousUsers.find((u) => u.id === uid);
-    setFormData((prev) => ({
+    const selectedId = e.target.value;
+    const selectedUser = anonymousUsers.find(u => u.id === selectedId);
+    
+    setFormData(prev => ({
       ...prev,
-      clientUid: uid,
-      clientName: selected ? selected.displayName : "",
+      clientUid: selectedId,
+      clientName: selectedUser ? selectedUser.displayName : "",
     }));
   };
 
@@ -209,15 +226,14 @@ const TherapistAppointmentsDashboard = () => {
         : doc(collection(db, "appointments"));
 
       const apptData = {
-        therapistUid,
-        clientType: "anonymous",
-        clientUid: formData.clientUid,
-        clientName: formData.clientName,
+        therapistId: therapistUid,
+        userId: formData.clientUid,
+        userName: formData.clientName,
         date: formData.date,
         time: formData.time,
         duration: parseInt(formData.duration),
-        notes: formData.notes,
-        reason: editingAppt ? formData.reason : "",
+        notes: formData.notes?.trim(),
+        reason: editingAppt ? formData.reason : "Manual booking by therapist",
         status: formData.status,
         updatedAt: Timestamp.now(),
       };
@@ -286,7 +302,7 @@ const TherapistAppointmentsDashboard = () => {
   };
 
   const formatClientDisplay = (appt) => {
-    return appt.clientName || "Unknown User";
+    return appt.displayName || "Unknown User";
   };
 
   const filteredAppointments = filter === "All"
@@ -353,8 +369,12 @@ const TherapistAppointmentsDashboard = () => {
                   value={formData.clientUid}
                   onChange={handleClientChange}
                   className={`input ${formErrors.clientUid ? "input-error" : ""}`}
+                  disabled={anonymousUsers.length === 0}
+                  required
                 >
-                  <option value="">Select a client</option>
+                  <option value="">
+                    {anonymousUsers.length === 0 ? "Loading clients..." : "Select a client"}
+                  </option>
                   {anonymousUsers.map((user) => (
                     <option key={user.id} value={user.id}>
                       {user.displayName}
@@ -533,7 +553,9 @@ const TherapistAppointmentsDashboard = () => {
                     key={appt.id}
                     className={appt.status === "pending" ? "pending-row" : ""}
                   >
-                    <td>{formatClientDisplay(appt)}</td>
+                    <td className={appt.displayName === "Deleted User" ? "status-deleted" : ""}>
+                      {formatClientDisplay(appt)}
+                    </td>
                     <td>{formatDateTime(appt.date, appt.time)}</td>
                     <td>{appt.duration} min</td>
                     <td className={`status-${appt.status.toLowerCase()}`}>

@@ -52,8 +52,7 @@ function AppointmentsList() {
 
     const q = query(
       collection(db, "appointments"),
-      where("clientUid", "==", clientUid),
-      where("clientType", "==", "anonymous")
+      where("userId", "==", clientUid)
     );
 
     const unsub = onSnapshot(q, async (snap) => {
@@ -133,9 +132,10 @@ function AppointmentsList() {
       const newId = `${clientUid}_${appt.therapistUid}_${date}_${time.replace(":", "")}`;
 
       await setDoc(doc(db, "appointments", newId), {
-        clientType: "anonymous",
-        clientUid,
-        therapistUid: appt.therapistUid,
+        userId: clientUid,
+        userName: appt.userName || "Anonymous User",
+        therapistId: appt.therapistId,
+        therapistName: appt.therapistName,
         date,
         time,
         reason: appt.reason,

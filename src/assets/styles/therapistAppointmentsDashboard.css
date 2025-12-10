@@ -137,6 +137,11 @@
   border-bottom: 1px solid var(--input-border);
 }
 
+.appointments-list .status-deleted {
+  color: #999;
+  font-style: italic;
+}
+
 /* Sticky Header */
 .appointments-list .appointments-table thead th {
   position: sticky;

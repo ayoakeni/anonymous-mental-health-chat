@@ -11,7 +11,7 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { format, addDays } from "date-fns";
-import "../../assets/styles/anonymousAppointmentBooking.css"
+import "../../assets/styles/anonymousAppointmentBooking.css";
 
 const TIME_SLOTS = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"];
 
@@ -25,13 +25,20 @@ function AppointmentBooking({ therapist, onClose }) {
   const [bookedSlots, setBookedSlots] = useState({});
   const navigate = useNavigate();
 
-  const clientUid = auth.currentUser?.uid;
+  const currentUser = auth.currentUser;
+  const clientUid = currentUser?.uid;
   const therapistUid = therapist?.uid;
+  const therapistName = therapist?.name || "Unknown Therapist";
+
+  // For anonymous users, we can use a fallback name
+  const clientName = currentUser?.displayName ||
+                     currentUser?.email?.split("@")[0] ||
+                     (currentUser ? `User_${currentUser.uid.slice(0, 6)}` : "Anonymous User");
 
   const minDate = format(new Date(), "yyyy-MM-dd");
   const maxDate = format(addDays(new Date(), 30), "yyyy-MM-dd");
 
-  // === Load booked slots for this therapist ===
+  // Load booked slots for this therapist
   useEffect(() => {
     if (!therapistUid) return;
 
@@ -72,12 +79,13 @@ function AppointmentBooking({ therapist, onClose }) {
 
     try {
       const cleanTime = selectedTime.replace(":", "");
-      const appointmentId = `${clientUid}_${therapistUid}_${selectedDate}_${cleanTime}`;
+      const appointmentId = `${clientUid || "anon"}_${therapistUid}_${selectedDate}_${cleanTime}`;
 
       await setDoc(doc(db, "appointments", appointmentId), {
-        clientType: "anonymous",
-        clientUid,
-        therapistUid,
+        userId: clientUid,
+        userName: clientName,
+        therapistId: therapistUid,
+        therapistName: therapistName,
         date: selectedDate,
         time: selectedTime,
         reason: reason.trim(),
@@ -91,8 +99,8 @@ function AppointmentBooking({ therapist, onClose }) {
         navigate("/anonymous-dashboard/appointments-list");
       }, 2000);
     } catch (err) {
-      console.error(err);
-      setError("Failed to book. Please try again.");
+      console.error("Booking error:", err);
+      setError("Failed to book appointment. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -110,8 +118,8 @@ function AppointmentBooking({ therapist, onClose }) {
 
           {success ? (
             <div className="success-message">
-              <p>Appointment requested!</p>
-              <p>Redirecting...</p>
+              <p>Appointment requested successfully!</p>
+              <p>Redirecting to your appointments...</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit}>
@@ -164,7 +172,7 @@ function AppointmentBooking({ therapist, onClose }) {
               <button
                 type="submit"
                 className="submit-btn"
-                disabled={isSubmitting || !selectedDate || !selectedTime}
+                disabled={isSubmitting || !selectedDate || !selectedTime || !reason.trim()}
               >
                 {isSubmitting ? "Booking..." : "Request Appointment"}
               </button>
