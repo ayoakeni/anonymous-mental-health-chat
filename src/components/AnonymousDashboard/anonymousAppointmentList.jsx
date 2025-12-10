@@ -80,7 +80,7 @@ function AppointmentsList() {
     return unsub;
   }, [clientUid]);
 
-/* --------------------------------------------------------------
+  /* --------------------------------------------------------------
      FOREGROUND PUSH NOTIFICATIONS – **every** message
   -------------------------------------------------------------- */
   useEffect(() => {
@@ -238,9 +238,16 @@ function AppointmentsList() {
     setShowRating({ appt, rating: 5, comment: "" });
   };
 
+  /* --------------------------------------------------------------
+     RATING FLOW — FIXED VERSION
+  -------------------------------------------------------------- */
   const confirmRating = async () => {
+    if (!showRatingConfirm) return;
+
     const { appt, rating, comment } = showRatingConfirm;
+
     try {
+      // 1. Save rating to the appointment document
       const apptRef = doc(db, "appointments", appt.id);
       await updateDoc(apptRef, {
         clientRating: rating,
@@ -248,25 +255,36 @@ function AppointmentsList() {
         ratedAt: serverTimestamp(),
       });
 
-      const therapistRef = doc(db, "therapists", appt.therapistUid);
-      const therapistSnap = await getDoc(therapistRef);
-      if (therapistSnap.exists()) {
-        const data = therapistSnap.data();
-        const ratings = (data.ratings || []).concat([{ rating, comment }]);
-        const avg = ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length;
+      // 2. Update therapist's average rating
+      const therapistId = appt.therapistId || appt.therapistUid;
+      if (!therapistId) {
+        console.warn("Therapist ID missing – skipping therapist rating update");
+      } else {
+        const therapistRef = doc(db, "therapists", therapistId);
+        const therapistSnap = await getDoc(therapistRef);
 
-        await updateDoc(therapistRef, {
-          rating: parseFloat(avg.toFixed(2)),
-          ratings,
-          totalRatings: ratings.length,
-        });
+        if (therapistSnap.exists()) {
+          const data = therapistSnap.data();
+          const ratings = [...(data.ratings || []), { 
+            rating, 
+            comment: comment?.trim() || null 
+          }];
+          const avg = ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length;
+
+          await updateDoc(therapistRef, {
+            rating: parseFloat(avg.toFixed(2)),
+            ratings,
+            totalRatings: ratings.length,
+          });
+        }
       }
 
       showToast("success", "Thank you for your feedback!");
       setShowRatingConfirm(null);
       setShowRating(null);
     } catch (err) {
-      showToast("error", "Failed to submit rating.");
+      console.error("Rating submission error:", err);
+      showToast("error", "Failed to submit rating. Please try again.");
     }
   };
 
@@ -528,7 +546,7 @@ function AppointmentsList() {
 
             <div className="appointments-list-wrapper__form-actions">
               <button
-                onClick={() => setShowRatingConfirm(showRating)}
+                onClick={() => setShowRatingConfirm({ ...showRating })}
                 className="appointments-list-wrapper__save-btn"
               >
                 Submit Rating

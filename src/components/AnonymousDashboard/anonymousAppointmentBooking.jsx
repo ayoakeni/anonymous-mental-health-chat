@@ -29,6 +29,25 @@ function AppointmentBooking({ therapist, onClose }) {
   const clientUid = currentUser?.uid;
   const therapistUid = therapist?.uid;
   const therapistName = therapist?.name || "Unknown Therapist";
+  const [clientDisplayName, setClientDisplayName] = useState("Anonymous User");
+
+  useEffect(() => {
+    if (!clientUid) {
+      setClientDisplayName("Anonymous User");
+      return;
+    }
+
+    const unsub = onSnapshot(doc(db, "anonymousUsers", clientUid), (snap) => {
+      if (snap.exists()) {
+        const name = snap.data().anonymousName?.trim();
+        setClientDisplayName(name || `User_${clientUid.slice(-6)}`);
+      } else {
+        setClientDisplayName(`User_${clientUid.slice(-6)}`);
+      }
+    });
+
+    return unsub;
+  }, [clientUid]);
 
   // For anonymous users, we can use a fallback name
   const clientName = currentUser?.displayName ||
@@ -83,7 +102,7 @@ function AppointmentBooking({ therapist, onClose }) {
 
       await setDoc(doc(db, "appointments", appointmentId), {
         userId: clientUid,
-        userName: clientName,
+        userName: clientDisplayName,
         therapistId: therapistUid,
         therapistName: therapistName,
         date: selectedDate,

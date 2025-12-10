@@ -70,32 +70,39 @@ const TherapistAppointmentsDashboard = () => {
           const appt = {
             id: d.id,
             ...raw,
-            clientUid: raw.userId || "",
-            clientName: raw.userName || raw.displayName || "Unknown",
+            clientUid: raw.userId || "", // keep for form editing
           };
 
-          // Priority: 1. stored name → 2. fetch from anonymousUsers → 3. fallback
-          if (appt.userName) {
-            appt.displayName = appt.userName;
-          } else if (appt.clientName) {
-            appt.displayName = appt.clientName;
-          } else if (appt.userId) {
-            // Try to fetch current name from anonymousUsers
+          let displayName = "Unknown User";
+
+          // PRIORITY 1: Use stored userName (this is the name saved at booking time)
+          if (raw.userName && raw.userName.trim() !== "") {
+            displayName = raw.userName.trim();
+          }
+          // PRIORITY 2: If no stored name, try to fetch current anonymousName
+          else if (raw.userId) {
             try {
-              const userSnap = await getDoc(doc(db, "anonymousUsers", appt.userId));
+              const userSnap = await getDoc(doc(db, "anonymousUsers", raw.userId));
               if (userSnap.exists()) {
-                appt.displayName = userSnap.data().anonymousName || "Anonymous User";
+                const name = userSnap.data().anonymousName;
+                displayName = name ? name.trim() : `Anonymous ${raw.userId.slice(-4)}`;
               } else {
-                appt.displayName = "Deleted User";
+                displayName = "Deleted User";
               }
             } catch (err) {
-              appt.displayName = "Deleted User";
+              displayName = "Deleted User";
             }
-          } else {
-            appt.displayName = "Unknown User";
+          }
+          // PRIORITY 3: Final fallback
+          else {
+            displayName = "Unknown User";
           }
 
-          return appt;
+          return {
+            ...appt,
+            displayName, // final resolved name for table
+            clientName: raw.userName || displayName, // for editing form
+          };
         })
       );
 
@@ -164,8 +171,10 @@ const TherapistAppointmentsDashboard = () => {
       reason: "",
       status: "confirmed",
     });
+    setFormErrors({});
   };
 
+  // Form Reset & Edit
   useEffect(() => {
     if (editingAppt && anonymousUsers.length > 0) {
       setFormData({
@@ -180,10 +189,10 @@ const TherapistAppointmentsDashboard = () => {
         status: editingAppt.status || "confirmed",
       });
       setShowForm(true);
-    } else if (!editingAppt && showForm) {
+    } else if (showForm && !editingAppt) {
       resetForm();
     }
-  }, [editingAppt, anonymousUsers]);
+  }, [editingAppt, anonymousUsers, showForm]);
 
   // === Validation ===
   const validateForm = () => {
@@ -339,6 +348,7 @@ const TherapistAppointmentsDashboard = () => {
           <button
             onClick={() => {
               setEditingAppt(null);
+              resetForm();
               setShowForm(true);
             }}
             className="create-appointment-btn"
