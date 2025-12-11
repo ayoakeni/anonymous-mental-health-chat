@@ -453,59 +453,99 @@ function AppointmentsList() {
       {view === "list" && (
         <>
           <h3>Your Appointments</h3>
-          {appointments.map((appt) => (
-            <div key={appt.id} className="appointments-list-wrapper__appointment-item">
-              <div className="appointments-list-wrapper__appointment-header">
-                <div className="appointments-list-wrapper__appointment-name">{appt.therapistName}</div>
-                <div className="appointments-list-wrapper__appointment-datetime">
-                  {format(new Date(appt.date), "MMM d, yyyy")} at {appt.time}
+          <div className="appointments-grid">
+            {appointments.map((appt) => (
+              <div key={appt.id} className="appointment-card">
+                {/* Header with Therapist & Status */}
+                <div className="appointment-card__header">
+                  <div className="appointment-card__therapist">
+                    <div className="therapist-avatar">
+                      {appt.therapistName?.[0]?.toUpperCase() || "T"}
+                    </div>
+                    <div>
+                      <div className="therapist-name">{appt.therapistName || "Unknown Therapist"}</div>
+                      <div className="appointment-date">
+                        {format(new Date(appt.date), "MMM d, yyyy")} at {appt.time}
+                      </div>
+                    </div>
+                  </div>
+                  <span className={`status-badge status-${appt.status || "unknown"}`}>
+                    {appt.status ? appt.status.charAt(0).toUpperCase() + appt.status.slice(1) : "Unknown"}
+                  </span>
+                </div>
+
+                {/* Body */}
+                <div className="appointment-card__body">
+                  {appt.reason && (
+                    <div className="info-row">
+                      <span className="label">Reason</span>
+                      <span className="value">"{appt.reason}"</span>
+                    </div>
+                  )}
+
+                  {appt.notes && (
+                    <div className="info-row">
+                      <span className="label">Therapist Note</span>
+                      <div className="therapist-note">"{appt.notes}"</div>
+                    </div>
+                  )}
+
+                  <div className="info-row rating-row">
+                    <span className="label">Your Rating</span>
+                    <div className="rating-display">
+                      {appt.clientRating ? (
+                        <>
+                          <span className="stars filled">
+                            {"★".repeat(appt.clientRating)}
+                            {"☆".repeat(5 - appt.clientRating)}
+                          </span>
+                          <span className="rating-text">{appt.clientRating}/5</span>
+                        </>
+                      ) : (
+                        <span className="no-rating">Not rated yet</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {appt.clientComment && (
+                    <div className="info-row">
+                      <span className="label">Your Review</span>
+                      <div className="client-review">"{appt.clientComment}"</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer Actions */}
+                <div className="appointment-card__footer">
+                  {["pending", "confirmed"].includes(appt.status) && (
+                    <>
+                      <button
+                        onClick={() => setShowReschedule(appt)}
+                        className="action-btn reschedule-btn"
+                      >
+                        Reschedule
+                      </button>
+                      <button
+                        onClick={() => initiateCancel(appt.id, appt.therapistName)}
+                        className="action-btn cancel-btn"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )}
+
+                  {appt.status === "completed" && !appt.clientRating && (
+                    <button
+                      onClick={() => initiateRating(appt)}
+                      className="action-btn rate-btn"
+                    >
+                      Rate Session
+                    </button>
+                  )}
                 </div>
               </div>
-              <p className="appointments-list-wrapper__appointment-reason">
-                <em>"{appt.reason || "No reason given"}"</em>
-              </p>
-
-              <div className="appointments-list-wrapper__appointment-footer">
-                <span className={`appointments-list-wrapper__appointment-status ${getStatusColor(appt.status)}`}>
-                  {appt.status.charAt(0).toUpperCase() + appt.status.slice(1)}
-                </span>
-
-                {/* Cancel / Reschedule */}
-                {["pending", "confirmed"].includes(appt.status) && (
-                  <>
-                    <button
-                      onClick={() => setShowReschedule(appt)}
-                      className="appointments-list-wrapper__action-btn appointments-list-wrapper__reschedule-btn"
-                    >
-                      Reschedule
-                    </button>
-                    <button
-                      onClick={() => initiateCancel(appt.id, appt.therapistName)}
-                      className="appointments-list-wrapper__action-btn appointments-list-wrapper__cancel-btn"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                )}
-
-                {/* Rate Session */}
-                {appt.status === "completed" && !appt.clientRating && (
-                  <button
-                    onClick={() => initiateRating(appt)}
-                    className="appointments-list-wrapper__action-btn appointments-list-wrapper__rate-btn"
-                  >
-                    Rate Session
-                  </button>
-                )}
-
-                {appt.clientRating && (
-                  <div className="appointments-list-wrapper__client-rating">
-                    You rated: {'★'.repeat(appt.clientRating)}{'☆'.repeat(5 - appt.clientRating)}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </>
       )}
 
