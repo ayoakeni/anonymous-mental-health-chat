@@ -129,12 +129,17 @@ function AppointmentsList() {
     setSubmittingReschedule(true);
     try {
       const { appt, date, time } = rescheduleData;
-      const newId = `${clientUid}_${appt.therapistUid}_${date}_${time.replace(":", "")}`;
+      const therapistId = appt.therapistId || appt.therapistUid;
+      if (!therapistId) {
+        throw new Error("Therapist ID not found");
+      }
+
+      const newId = `${clientUid}_${therapistId}_${date}_${time.replace(":", "")}`;
 
       await setDoc(doc(db, "appointments", newId), {
         userId: clientUid,
         userName: appt.userName || "Anonymous User",
-        therapistId: appt.therapistId,
+        therapistId: therapistId,
         therapistName: appt.therapistName,
         date,
         time,
@@ -149,8 +154,8 @@ function AppointmentsList() {
       setRescheduleData(null);
       setShowReschedule(null);
     } catch (err) {
-      console.error(err);
-      showToast("error", "Failed to reschedule.");
+      console.error("Reschedule error:", err);
+      showToast("error", "Failed to reschedule. Please try again.");
     } finally {
       setSubmittingReschedule(false);
     }
@@ -169,9 +174,15 @@ function AppointmentsList() {
     const maxDate = format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), "yyyy-MM-dd");
 
     useEffect(() => {
+      const therapistId = appt.therapistId || appt.therapistUid;
+      if (!therapistId) {
+        console.warn("No therapist ID found for rescheduling");
+        return;
+      }
+
       const q = query(
         collection(db, "appointments"),
-        where("therapistUid", "==", appt.therapistUid),
+        where("therapistId", "==", therapistId),
         where("status", "in", ["pending", "confirmed"])
       );
       const unsub = onSnapshot(q, (snap) => {

@@ -85,14 +85,6 @@ export default function FindTherapist() {
     });
   };
 
-  if (loading) {
-    return (
-      <div className="find-therapist-loading">
-        <p><span className="spinner"></span> Loading therapists...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="find-therapist-page">
       <Header />
@@ -152,7 +144,11 @@ export default function FindTherapist() {
       </section>
 
       <section className="find-therapist-list">
-        {filteredTherapists.length === 0 ? (
+        {loading ? ( 
+        <div className="find-therapist-loading">
+          <p><span className="spinner"></span> Loading therapists...</p>
+        </div>
+        ) : filteredTherapists.length === 0 ? (
           <p className="no-results">No therapists found matching your criteria.</p>
         ) : (
           <div className="therapist-grid">
