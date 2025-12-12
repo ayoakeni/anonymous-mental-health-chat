@@ -29,6 +29,7 @@ function AppointmentBooking({ therapist, onClose }) {
   const clientUid = currentUser?.uid;
   const therapistUid = therapist?.uid;
   const therapistName = therapist?.name || "Unknown Therapist";
+  const therapistProfileImage = therapist?.profileImage
   const [clientDisplayName, setClientDisplayName] = useState("Anonymous User");
 
   useEffect(() => {
@@ -105,6 +106,7 @@ function AppointmentBooking({ therapist, onClose }) {
         userName: clientDisplayName,
         therapistId: therapistUid,
         therapistName: therapistName,
+        profileImage: therapistProfileImage,
         date: selectedDate,
         time: selectedTime,
         reason: reason.trim(),

@@ -15,7 +15,7 @@ import {
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns";
 import NotificationHandler from "../notificationHandler";
 import { onMessageListener } from "../../utils/requestForToken";
-import "../../assets/styles/anonymousAppointmentList.css"
+import "../../assets/styles/anonymousAppointmentList.css";
 
 function AppointmentsList() {
   const [appointments, setAppointments] = useState([]);
@@ -45,7 +45,7 @@ function AppointmentsList() {
   };
 
   /* --------------------------------------------------------------
-     FETCH APPOINTMENTS
+     FETCH APPOINTMENTS + THERAPIST DATA (including profileImage)
   -------------------------------------------------------------- */
   useEffect(() => {
     if (!clientUid) return;
@@ -61,9 +61,14 @@ function AppointmentsList() {
           const appt = { id: d.id, ...d.data() };
           if (appt.therapistUid) {
             const therapistSnap = await getDoc(doc(db, "therapists", appt.therapistUid));
-            appt.therapistName = therapistSnap.exists()
-              ? therapistSnap.data().name || "Unknown Therapist"
-              : "Deleted Therapist";
+            if (therapistSnap.exists()) {
+              const therapistData = therapistSnap.data();
+              appt.therapistName = therapistData.name || "Unknown Therapist";
+              appt.therapistImage = therapistData.profileImage || null;
+            } else {
+              appt.therapistName = "Deleted Therapist";
+              appt.therapistImage = null;
+            }
           }
           return appt;
         })
@@ -81,7 +86,7 @@ function AppointmentsList() {
   }, [clientUid]);
 
   /* --------------------------------------------------------------
-     FOREGROUND PUSH NOTIFICATIONS – **every** message
+     FOREGROUND PUSH NOTIFICATIONS
   -------------------------------------------------------------- */
   useEffect(() => {
     const unsubscribe = onMessageListener((payload) => {
@@ -90,10 +95,8 @@ function AppointmentsList() {
         showToast("info", `${title}: ${body}`);
       }
     });
-
-    // Cleanup when component unmounts
     return unsubscribe;
-  }, []);   // <-- runs once, listener stays alive
+  }, []);
 
   /* --------------------------------------------------------------
      CANCEL FLOW
@@ -130,16 +133,14 @@ function AppointmentsList() {
     try {
       const { appt, date, time } = rescheduleData;
       const therapistId = appt.therapistId || appt.therapistUid;
-      if (!therapistId) {
-        throw new Error("Therapist ID not found");
-      }
+      if (!therapistId) throw new Error("Therapist ID not found");
 
       const newId = `${clientUid}_${therapistId}_${date}_${time.replace(":", "")}`;
 
       await setDoc(doc(db, "appointments", newId), {
         userId: clientUid,
         userName: appt.userName || "Anonymous User",
-        therapistId: therapistId,
+        therapistId,
         therapistName: appt.therapistName,
         date,
         time,
@@ -175,10 +176,7 @@ function AppointmentsList() {
 
     useEffect(() => {
       const therapistId = appt.therapistId || appt.therapistUid;
-      if (!therapistId) {
-        console.warn("No therapist ID found for rescheduling");
-        return;
-      }
+      if (!therapistId) return;
 
       const q = query(
         collection(db, "appointments"),
@@ -255,7 +253,6 @@ function AppointmentsList() {
     const { appt, rating, comment } = showRatingConfirm;
 
     try {
-      // 1. Update the appointment with rating
       const apptRef = doc(db, "appointments", appt.id);
       await updateDoc(apptRef, {
         clientRating: rating,
@@ -263,14 +260,10 @@ function AppointmentsList() {
         ratedAt: serverTimestamp(),
       });
 
-      // 2. Update therapist's average rating
       const therapistId = appt.therapistId || appt.therapistUid;
-      if (!therapistId) {
-        console.warn("No therapist ID found, skipping rating update");
-      } else {
+      if (therapistId) {
         const therapistRef = doc(db, "therapists", therapistId);
         const therapistSnap = await getDoc(therapistRef);
-
         if (therapistSnap.exists()) {
           const data = therapistSnap.data();
           const ratings = [...(data.ratings || []), { rating, comment: comment?.trim() || null }];
@@ -308,9 +301,9 @@ function AppointmentsList() {
     return (
       <div className="appointments-list-wrapper__calendar-view">
         <div className="appointments-list-wrapper__calendar-header">
-          <button onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1))}>Prev</button>
+          <button onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1))}>‹ Prev</button>
           <h4>{format(selectedMonth, "MMMM yyyy")}</h4>
-          <button onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1))}>Next</button>
+          <button onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1))}>Next ›</button>
         </div>
         <div className="appointments-list-wrapper__calendar-grid">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
@@ -430,20 +423,8 @@ function AppointmentsList() {
     );
   }
 
-  const getStatusColor = (status) => {
-    const map = {
-      pending: "status-pending",
-      confirmed: "status-confirmed",
-      completed: "status-completed",
-      cancelled: "status-cancelled",
-      rejected: "status-rejected",
-    };
-    return map[status] || "status-pending";
-  };
-
   return (
     <div className="appointments-list-wrapper">
-      {/* Notification Handler */}
       <NotificationHandler />
 
       {toast && (
@@ -451,27 +432,28 @@ function AppointmentsList() {
           {toast.message}
         </div>
       )}
-      {/* View Toggle */}
+
       <div className="appointments-list-wrapper__view-toggle">
         <button className={view === "list" ? "active" : ""} onClick={() => setView("list")}>List</button>
         <button className={view === "calendar" ? "active" : ""} onClick={() => setView("calendar")}>Calendar</button>
       </div>
 
-      {/* Calendar View */}
       {view === "calendar" && <CalendarView />}
 
-      {/* List View */}
       {view === "list" && (
         <>
           <h3>Your Appointments</h3>
           <div className="appointments-grid">
             {appointments.map((appt) => (
               <div key={appt.id} className="appointment-card">
-                {/* Header with Therapist & Status */}
                 <div className="appointment-card__header">
                   <div className="appointment-card__therapist">
                     <div className="therapist-avatar">
-                      {appt.therapistName?.[0]?.toUpperCase() || "T"}
+                      {appt.profileImage ? (
+                        <img src={appt.profileImage} alt={appt.therapistName} />
+                      ) : (
+                        <span>{appt.therapistName?.[0]?.toUpperCase() || "T"}</span>
+                      )}
                     </div>
                     <div>
                       <div className="therapist-name">{appt.therapistName || "Unknown Therapist"}</div>
@@ -485,7 +467,6 @@ function AppointmentsList() {
                   </span>
                 </div>
 
-                {/* Body */}
                 <div className="appointment-card__body">
                   {appt.reason && (
                     <div className="info-row">
@@ -526,30 +507,20 @@ function AppointmentsList() {
                   )}
                 </div>
 
-                {/* Footer Actions */}
                 <div className="appointment-card__footer">
                   {["pending", "confirmed"].includes(appt.status) && (
                     <>
-                      <button
-                        onClick={() => setShowReschedule(appt)}
-                        className="action-btn reschedule-btn"
-                      >
+                      <button onClick={() => setShowReschedule(appt)} className="action-btn reschedule-btn">
                         Reschedule
                       </button>
-                      <button
-                        onClick={() => initiateCancel(appt.id, appt.therapistName)}
-                        className="action-btn cancel-btn"
-                      >
+                      <button onClick={() => initiateCancel(appt.id, appt.therapistName)} className="action-btn cancel-btn">
                         Cancel
                       </button>
                     </>
                   )}
 
                   {appt.status === "completed" && !appt.clientRating && (
-                    <button
-                      onClick={() => initiateRating(appt)}
-                      className="action-btn rate-btn"
-                    >
+                    <button onClick={() => initiateRating(appt)} className="action-btn rate-btn">
                       Rate Session
                     </button>
                   )}
@@ -560,7 +531,6 @@ function AppointmentsList() {
         </>
       )}
 
-      {/* Modals */}
       {showReschedule && <RescheduleModal appt={showReschedule} onClose={() => setShowReschedule(null)} />}
 
       {showRating && (
@@ -580,7 +550,7 @@ function AppointmentsList() {
                 </button>
               ))}
             </div>
-            
+
             <textarea
               placeholder="Optional: Share your thoughts..."
               value={showRating.comment}
@@ -591,7 +561,7 @@ function AppointmentsList() {
 
             <div className="appointments-list-wrapper__form-actions">
               <button
-                onClick={() => setShowRatingConfirm(...showRating)}
+                onClick={() => setShowRatingConfirm(showRating)}
                 className="appointments-list-wrapper__save-btn"
               >
                 Submit Rating
@@ -604,7 +574,6 @@ function AppointmentsList() {
         </div>
       )}
 
-      {/* Confirmation Modals */}
       <CancelConfirmModal />
       <RescheduleConfirmModal />
       <RatingConfirmModal />
