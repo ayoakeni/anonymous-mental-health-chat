@@ -63,7 +63,7 @@ export function useParticipantNames(participantUids = []) {
         anonSnap.forEach((d) => {
           found.set(
             d.id,
-            d.data().anonymousName ?? `Anon_${d.id.slice(0, 4)}`
+            d.data().anonymousName ?? `Anonymous user_${d.id.slice(0, 4)}`
           );
         });
       }
@@ -71,7 +71,7 @@ export function useParticipantNames(participantUids = []) {
       // 3. Fill in defaults for any still-missing uids
       uids.forEach((uid) => {
         if (!found.has(uid)) {
-          found.set(uid, `Anon_${uid.slice(0, 4)}`);
+          found.set(uid, `Deleted user_${uid.slice(0, 4)}`);
         }
       });
 

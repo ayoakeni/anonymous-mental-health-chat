@@ -295,8 +295,8 @@ function AnonymousGroupChatSplitView({
               anonRef,
               (anonSnap) => {
                 names[uid] = anonSnap.exists()
-                  ? anonSnap.data().anonymousName || `Anonymous_${uid.slice(0, 3)}`
-                  : `Anonymous_${uid.slice(0, 3)}`;
+                  ? anonSnap.data().anonymousName || `Anonymous user_${uid.slice(0, 3)}`
+                  : `Deleted user_${uid.slice(0, 3)}`;
                 setParticipantNames({ ...names });
               },
               (err) => {
