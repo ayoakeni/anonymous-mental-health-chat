@@ -391,14 +391,8 @@ function AnonymousGroupChatSplitView({
           reactions: {},
           pinned: false,
         });
-        tx.set(doc(db, "typingStatus", userId), {
-          typing: false,
-          name: displayName,
-          timestamp: serverTimestamp(),
-        });
         tx.update(groupRef, { unreadCount: increment(1) });
       });
-
       // Add user message to pendingMessages for instant feedback
       setPendingMessages((prev) => [
         ...prev,

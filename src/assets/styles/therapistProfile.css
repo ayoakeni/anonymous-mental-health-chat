@@ -65,6 +65,10 @@
   margin-left: auto;
 }
 
+.verified {
+  color: var(--online-color);
+}
+
 .therapist-profile .avatarWrapper {
   display: flex;
   align-items: center;

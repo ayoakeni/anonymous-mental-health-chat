@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { db, auth } from "../utils/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import AppointmentBooking from "./AnonymousDashboard/anonymousAppointmentBooking";
+import {
+  Verified
+} from "lucide-react";
 import "../assets/styles/therapistProfile.css";
 
 function TherapistProfile({ therapist, onBack, isOnline }) {
@@ -75,14 +78,14 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
       </div>
 
       <h3>
-        {therapist.name}{" "}
+        {therapist.name}
+        <div className="badges">
+          {therapist.rating >= 4 && <span className="top-rated">Top Rated</span>}
+          {therapist.verified && <Verified size={17} className="verified"/>}
+        </div>{" "}
         <span className={`status ${realTimeOnline ? "online" : "offline"}`}>
           ● {realTimeOnline ? "Online" : "Offline"}
         </span>
-        <div className="badges">
-          {therapist.rating >= 4 && <span className="top-rated">Top Rated</span>}
-          {therapist.verified && <span className="verified">Verified Therapist</span>}
-        </div>
       </h3>
 
       <p><strong>Gender:</strong> {therapist.gender || "Not specified"}</p>

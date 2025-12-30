@@ -23,16 +23,21 @@ export const useTypingStatus = (displayName, chatId) => {
     const typingRef = doc(db, "typingStatus", chatId);
 
     const unsub = onSnapshot(typingRef, (snap) => {
-      const data = snap.data() || {};
+      if (!snap.exists()) {
+        setTypingUsers([]);
+        return;
+      }
+
+      const data = snap.data();
       const now = Date.now();
 
       const activeUsers = Object.entries(data.users || {})
         .filter(([uid, info]) => {
+          // Never show own typing indicator to yourself
           if (uid === auth.currentUser?.uid) return false;
           if (!info.typing) return false;
-          // Use client-side timestamp fallback
           const lastUpdate = info.clientTimestamp || 0;
-          return now - lastUpdate < 5000;
+          return now - lastUpdate < 5000; // 5-second window
         })
         .map(([_, info]) => info.name);
 
@@ -42,26 +47,39 @@ export const useTypingStatus = (displayName, chatId) => {
     return () => unsub();
   }, [chatId]);
 
-  // Send typing status — using client timestamp
+  // Send typing status — ALWAYS use updateDoc
   const sendTypingStatus = useCallback((isTyping) => {
     if (!chatId || !auth.currentUser?.uid) return;
 
     const typingRef = doc(db, "typingStatus", chatId);
     const field = `users.${auth.currentUser.uid}`;
 
-    const payload = {
-      [field]: {
-        name: displayName || "Someone",
-        typing: isTyping,
-        clientTimestamp: Date.now(), // ← This works 100%
-      },
-    };
-
-    // Remove timestamp field when stopping
-    if (!isTyping) {
-      updateDoc(typingRef, { [field]: deleteField() });
+    if (isTyping) {
+      updateDoc(typingRef, {
+        [field]: {
+          name: displayName || "Someone",
+          typing: true,
+          clientTimestamp: Date.now(),
+        },
+      }).catch(() => {
+        // If doc doesn't exist, create it
+        setDoc(typingRef, {
+          users: {
+            [auth.currentUser.uid]: {
+              name: displayName || "Someone",
+              typing: true,
+              clientTimestamp: Date.now(),
+            },
+          },
+        });
+      });
     } else {
-      setDoc(typingRef, payload, { merge: true });
+      // Remove only this user's typing field
+      updateDoc(typingRef, {
+        [field]: deleteField(),
+      }).catch((err) => {
+        console.warn("Failed to clear typing status:", err);
+      });
     }
   }, [chatId, displayName]);
 
@@ -81,7 +99,7 @@ export const useTypingStatus = (displayName, chatId) => {
     }
   }, [chatId, sendTypingStatus]);
 
-  // Cleanup
+  // Cleanup on unmount or chat change
   useEffect(() => {
     return () => {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
