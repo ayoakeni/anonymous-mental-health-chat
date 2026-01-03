@@ -140,11 +140,6 @@ function TherapistDashboard() {
     navigate
   );
 
-  // APPOINTMENTS
-  const appointmentsData = useAppointments(therapistId, showError);
-  const appointments = appointmentsData.appointments ?? [];
-  const clients = appointmentsData.clients ?? [];
-
   const { onlineTherapists, isTherapistAvailable } = useOnlineTherapists(showError);
 
   const {
@@ -343,8 +338,6 @@ function TherapistDashboard() {
             path="/appointments"
             element={
               <TherapistAppointmentsDashboard
-                appointments={appointments}
-                clients={clients}
                 showError={showError}
                 formatTimestamp={formatTimestamp}
               />

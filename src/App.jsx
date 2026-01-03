@@ -25,9 +25,6 @@ import "./assets/styles/App.css";
 
 const ADMIN_EMAILS = [
   "admin@yourapp.com",
-  "support@yourapp.com",
-  "dev@yourapp.com",
-  "yourname@gmail.com"
 ];
 
 function AuthProvider({ children }) {

@@ -26,7 +26,7 @@ import {
 
 import "../assets/styles/admin.css";
 
-const ADMIN_EMAILS = ["admin@yourapp.com", "support@yourapp.com", "dev@yourapp.com"];
+const ADMIN_EMAILS = ["admin@yourapp.com"];
 
 export default function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
