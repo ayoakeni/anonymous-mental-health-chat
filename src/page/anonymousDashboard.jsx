@@ -13,7 +13,7 @@ import AnonymousPrivateChatSplitView from "../components/AnonymousDashboard/anon
 import AppointmentsList from "../components/AnonymousDashboard/anonymousAppointmentList";
 import { useUserNames } from "../hooks/useUserNames";
 import { useHideSidebarMobile } from "../hooks/useHideSidebarMobile";
-import { useRemovePaddingBottomMobile } from "../hooks/useRemovePaddingBottomMobile"
+import { useRemovePaddingBottomMobile } from "../hooks/useRemovePaddingBottomMobile";
 import MoodTracker from "../components/moodTracker";
 import { DateTime } from 'luxon';
 import "../assets/styles/anonymousDashboard.css";

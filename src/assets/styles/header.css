@@ -187,15 +187,16 @@
   100% { transform: scale(1); opacity: 1; }
 }
 
-.header .sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+.header .nav-link-find-therapist {
+  display: flex; 
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   border: 0;
+}
+
+.header .nav-link-find-therapist i {
+  height: 18px;
 }
 
 @media (max-width: 768px) {

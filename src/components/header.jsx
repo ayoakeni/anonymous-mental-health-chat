@@ -4,6 +4,8 @@ import { db, auth } from "../utils/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useTheme } from "../context/ThemeContext";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
+import { useOnlineCount } from "../hooks/useOnlineCount";
 import "../assets/styles/header.css";
 
 function Header() {
@@ -16,6 +18,9 @@ function Header() {
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [user, setUser] = useState(null);
   const liveIndicatorRef = useRef(null);
+  // Online Status Tracking
+  useOnlineStatus();
+  const onlineCount = useOnlineCount();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -175,8 +180,10 @@ function Header() {
             <Link to="/find-therapist" 
               className="nav-link" 
               onClick={() => setIsMenuOpen(false)}>
-              <i className="fas fa-user" aria-hidden="true"></i>
-              <span className="sr-only">All Therapists</span>
+              <span className="nav-link-find-therapist">
+                <i className="fas fa-user" aria-hidden="true"></i>
+                Find a Therapists
+              </span>
             </Link>
           ) : null}
 
@@ -188,7 +195,7 @@ function Header() {
             aria-live="polite"
           >
             <i className="fas fa-circle live-indicator-icon"></i>
-            <span>{onlineUsers} users online</span>
+            <span>{onlineCount} user{onlineCount !== 1 ? 's' : ''} online</span>
           </div>
 
           {/* Therapist Mode Badge — only on public pages */}
