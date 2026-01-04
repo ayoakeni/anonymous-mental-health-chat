@@ -5,23 +5,67 @@ import { ai } from "../utils/firebase";
 const model = getGenerativeModel(ai, { model: "gemini-flash-latest" });
 
 // Supportive AI response function
-export const getAIResponse = async (message) => {
+export const getAIResponse = async (userMessage, previousMessages = []) => {
   try {
-    const prompt = `
-    You are a supportive mental health assistant. 
-    Respond kindly, with empathy and encouragement, 
-    but remember you are not a professional therapist."
-    
-    User message: "${message}"
-    `;
+    const relevantMessages = previousMessages
+      .filter(m => m.text && (m.role === "user" || m.role === "ai"))
+      .map(m => ({
+        role: m.role === "ai" ? "model" : "user",
+        parts: [{ text: m.text }],
+      }));
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    let history = [...relevantMessages];
 
-    return text || "I'm here to listen. Can you tell me more about how you're feeling?";
+    // Remove the last message if it's from the user (since we're sending a new one)
+    if (history.length > 0 && history[history.length - 1].role === "user") {
+      history.pop();
+    }
+
+    // Extra safety: remove any consecutive duplicate roles
+    history = history.filter((msg, index) => {
+      if (index === 0) return true;
+      return msg.role !== history[index - 1].role;
+    });
+
+    // If empty or doesn't start with user, add a greeting
+    if (history.length === 0 || history[0].role !== "user") {
+      history.unshift({
+        role: "user",
+        parts: [{ text: "Hello" }],
+      });
+    }
+
+    const chat = model.startChat({ history });
+    const result = await chat.sendMessage(userMessage || " ");
+    return result.response.text();
+
   } catch (error) {
-    console.error("Firebase AI error:", error);
-    return "Sorry, I’m having trouble responding right now.";
+    console.error("Gemini AI error:", error);
+
+    // FALLBACK HERE
+    if (
+      error.message?.includes("invalid-content") ||
+      error.message?.includes("role") ||
+      error.message?.includes("can't follow")
+    ) {
+      try {
+        console.warn("Gemini rejected history. Retrying with minimal context...");
+
+        const chat = model.startChat({ history: [] });
+
+        const result = await chat.sendMessage(
+          "You are a warm, empathetic support assistant helping someone who may be feeling distressed. " +
+          "Respond kindly and supportively to their latest message: \"" + (userMessage || "").trim() + "\""
+        );
+
+        return result.response.text();
+      } catch (retryError) {
+        console.error("Even retry failed:", retryError);
+      }
+    }
+
+    // Fallback if everything fails
+    return "Sorry, I’m having trouble responding right now. Please try again in a moment.";
   }
 };
 

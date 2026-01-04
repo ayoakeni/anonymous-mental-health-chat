@@ -495,9 +495,12 @@ function AnonymousPrivateChatSplitView({
       if (aiActive && !hasTherapist) {
         setAiTyping(true);
         try {
-          const aiInputMessages = mapMessagesForAI(messages);
-          const aiResponse = await getAIResponse(newMessage || " ", aiInputMessages);
-          const aiFullText = `"${newMessage || "Attachment"}"\n\n${aiResponse}`;
+          const allPreviousMessages = [...messages, ...pendingMessages]
+          .filter(m => m.role === "user" || m.role === "ai")
+          .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
+          const aiResponse = await getAIResponse(newMessage.trim() || " ", allPreviousMessages);
+          const quotedUserMessage = `"${newMessage.trim() || "Attachment"}"\n\n`;
+          const aiFullText = quotedUserMessage + aiResponse;
 
           await runTransaction(db, async (tx) => {
             tx.set(doc(collection(chatRef, "messages")), {
@@ -556,9 +559,12 @@ function AnonymousPrivateChatSplitView({
           });
           try {
             setAiTyping(true);
-            const aiInputMessages = mapMessagesForAI(messages);
-            const aiResponse = await getAIResponse("Start conversation", aiInputMessages);
-            const aiFullText = aiResponse;
+            const allPreviousMessages = [...messages, ...pendingMessages]
+            .filter(m => m.role === "user" || m.role === "ai")
+            .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
+            const aiResponse = await getAIResponse(newMessage.trim() || " ", allPreviousMessages);
+            const quotedUserMessage = `"${newMessage.trim() || "Attachment"}"\n\n`;
+            const aiFullText = quotedUserMessage + aiResponse;
             transaction.set(doc(collection(chatRef, "messages")), {
               text: aiFullText,
               role: "ai",
