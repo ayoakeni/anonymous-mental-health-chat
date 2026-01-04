@@ -5,6 +5,7 @@ import {
   Navigate,
   useLocation,
   useNavigate,
+  Link,
 } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
@@ -23,9 +24,7 @@ import AnonymousDashboard from "./page/anonymousDashboard";
 import RealTimeBanGuard from "./components/realTimeBanGuard";
 import "./assets/styles/App.css";
 
-const ADMIN_EMAILS = [
-  "admin@yourapp.com",
-];
+const ADMIN_EMAILS = ["admin@yourapp.com"];
 
 function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -33,6 +32,7 @@ function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
@@ -59,12 +59,6 @@ function AuthProvider({ children }) {
             navigate("/", { replace: true });
           }
         });
-
-        await setDoc(doc(db, "usersOnline", u.uid), {
-          name: "Anonymous User",
-          online: true,
-          lastSeen: serverTimestamp(),
-        }, { merge: true });
       }
 
       else if (u.email) {
@@ -95,72 +89,94 @@ function AuthProvider({ children }) {
     return () => unsub();
   }, [navigate]);
 
-  return children({ user, isTherapist, loading });
+  return children({ user, isTherapist, loading, location });
 }
 
 export default function App() {
+  const currentYear = new Date().getFullYear();
+
   return (
     <>
       <NotificationHandler />
       <AuthProvider>
-        {({ user, isTherapist, loading }) => (
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Home />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/banned" element={<BannedScreen />} />
-            <Route path="/find-therapist" element={<FindTherapist />} />
-            <Route path="/therapist-login" element={<TherapistLogin />} />
-            <Route path="/admin-login" element={<AdminLogin />} />
+        {({ user, isTherapist, loading, location }) => {
+          // Define which paths should show the footer
+          const showFooter =
+            location.pathname === "/" ||
+            location.pathname === "/about" ||
+            location.pathname === "/find-therapist" ||
+            location.pathname === "/banned";
 
-            {/* ADMIN PANEL — Protected */}
-            <Route
-              path="/admin"
-              element={
-                loading ? (
-                  <Loader />
-                ) : user && !user.isAnonymous && user.email && ADMIN_EMAILS.includes(user.email) ? (
-                  <AdminPanel />
-                ) : (
-                  <Navigate to="/admin-login" replace />
-                )
-              }
-            />
+          return (
+            <>
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<Home />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/banned" element={<BannedScreen />} />
+                <Route path="/find-therapist" element={<FindTherapist />} />
+                <Route path="/therapist-login" element={<TherapistLogin />} />
+                <Route path="/admin-login" element={<AdminLogin />} />
 
-            {/* Therapist Dashboard */}
-            <Route
-              path="/therapist-dashboard/*"
-              element={
-                loading ? (
-                  <Loader />
-                ) : user && !user.isAnonymous && isTherapist ? (
-                  <TherapistDashboard />
-                ) : (
-                  <Navigate to="/therapist-login" replace />
-                )
-              }
-            />
+                {/* Protected Routes */}
+                <Route
+                  path="/admin"
+                  element={
+                    loading ? (
+                      <Loader />
+                    ) : user && !user.isAnonymous && user.email && ADMIN_EMAILS.includes(user.email) ? (
+                      <AdminPanel />
+                    ) : (
+                      <Navigate to="/admin-login" replace />
+                    )
+                  }
+                />
 
-            {/* Anonymous Dashboard */}
-            <Route
-              path="/anonymous-dashboard/*"
-              element={
-                loading ? (
-                  <Loader />
-                ) : user && user.isAnonymous ? (
-                  <RealTimeBanGuard>
-                    <AnonymousDashboard />
-                  </RealTimeBanGuard>
-                ) : (
-                  <Navigate to="/" replace />
-                )
-              }
-            />
+                <Route
+                  path="/therapist-dashboard/*"
+                  element={
+                    loading ? (
+                      <Loader />
+                    ) : user && !user.isAnonymous && isTherapist ? (
+                      <TherapistDashboard />
+                    ) : (
+                      <Navigate to="/therapist-login" replace />
+                    )
+                  }
+                />
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        )}
+                <Route
+                  path="/anonymous-dashboard/*"
+                  element={
+                    loading ? (
+                      <Loader />
+                    ) : user && user.isAnonymous ? (
+                      <RealTimeBanGuard>
+                        <AnonymousDashboard />
+                      </RealTimeBanGuard>
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
+                />
+
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+
+              {/* Footer: Only show on public pages */}
+              {showFooter && (
+                <footer className="footer">
+                  <p>&copy; 2025 - {currentYear} Anonymous Mental Health Support. All rights reserved.</p>
+                  <div className="footer-links">
+                    <Link to="/privacy">Privacy Policy</Link>
+                    <Link to="/terms">Terms of Service</Link>
+                    <a href="mailto:ayoakeni64@gmail.com">Contact Us</a>
+                  </div>
+                </footer>
+              )}
+            </>
+          );
+        }}
       </AuthProvider>
     </>
   );

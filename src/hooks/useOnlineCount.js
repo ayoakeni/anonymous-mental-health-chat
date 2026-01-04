@@ -12,7 +12,7 @@ export function useOnlineCount() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setOnlineCount(snapshot.size); // Perfect for counting!
+      setOnlineCount(snapshot.size);
     });
 
     return unsubscribe;

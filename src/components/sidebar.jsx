@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import '../assets/styles/sidebar.css';
 
 const Sidebar = ({
@@ -14,6 +15,8 @@ const Sidebar = ({
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const sidebarRef = useRef(null);
+  // Online Status Tracking
+  useOnlineStatus();
 
   // Detect screen size (mobile ≤ 484px)
   useEffect(() => {

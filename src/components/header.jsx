@@ -4,7 +4,6 @@ import { db, auth } from "../utils/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useTheme } from "../context/ThemeContext";
-import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useOnlineCount } from "../hooks/useOnlineCount";
 import "../assets/styles/header.css";
 
@@ -13,13 +12,9 @@ function Header() {
   const menuRef = useRef(null);
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const { isDarkMode, toggleDarkMode } = useTheme();
-  const [onlineUsers, setOnlineUsers] = useState(0);
-  const [therapistsOnline, setTherapistsOnline] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [user, setUser] = useState(null);
   const liveIndicatorRef = useRef(null);
-  // Online Status Tracking
-  useOnlineStatus();
   const onlineCount = useOnlineCount();
 
   useEffect(() => {
@@ -74,33 +69,6 @@ function Header() {
     onScroll();
 
     return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  // Online users count
-  useEffect(() => {
-    const unsubscribe = onSnapshot(
-      collection(db, "usersOnline"),
-      (snapshot) => {
-        const count = snapshot.docs.length;
-        const therapists = snapshot.docs.filter((doc) =>
-          doc.data().role === "therapist"
-        ).length;
-        setOnlineUsers(count);
-        setTherapistsOnline(therapists);
-
-        if (liveIndicatorRef.current) {
-          liveIndicatorRef.current.classList.add("updated");
-          setTimeout(() => {
-            if (liveIndicatorRef.current) {
-              liveIndicatorRef.current.classList.remove("updated");
-            }
-          }, 500);
-        }
-      },
-      (error) => console.error("Error fetching online users:", error)
-    );
-
-    return () => unsubscribe();
   }, []);
 
   // Listen to auth state
@@ -190,7 +158,7 @@ function Header() {
           <div
             ref={liveIndicatorRef}
             className="live-indicator"
-            title={`${onlineUsers} users online (${therapistsOnline} therapists, ${onlineUsers - therapistsOnline} peers)`}
+            title={`${onlineCount} user${onlineCount !== 1 ? 's' : ''} online`}
             role="status"
             aria-live="polite"
           >

@@ -1,12 +1,14 @@
 import { useEffect } from "react";
 import { auth, db } from "../utils/firebase";
-import { doc, setDoc, serverTimestamp, onSnapshot, collection, query, where } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { getAnonName } from "../login/anonymous_login";
 
 export function useOnlineStatus() {
   useEffect(() => {
     if (!auth.currentUser) return;
 
     const userId = auth.currentUser.uid;
+    const displayName = getAnonName();
     const onlineRef = doc(db, "usersOnline", userId);
 
     // Mark as online
@@ -14,7 +16,7 @@ export function useOnlineStatus() {
       setDoc(onlineRef, {
         online: true,
         lastSeen: serverTimestamp(),
-        name: auth.currentUser.isAnonymous ? "Anonymous User" : auth.currentUser.displayName || "User",
+        name: displayName || "Anonymous User",
       }, { merge: true });
     };
 

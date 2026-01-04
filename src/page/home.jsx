@@ -154,15 +154,6 @@ function Home() {
           </div>
         </div>
       </section>
-
-      <footer className="footer">
-        <p>&copy; {new Date().getFullYear()} Anonymous Mental Health Support. All rights reserved.</p>
-        <div className="footer-links">
-          <Link to="/privacy">Privacy Policy</Link>
-          <Link to="/terms">Terms of Service</Link>
-          <a href="mailto:support@mentalhealthapp.com">Contact Us</a>
-        </div>
-      </footer>
     </div>
   );
 }
