@@ -674,7 +674,10 @@ function AnonymousGroupChatSplitView({
                 {isMobile && activeGroup && (
                   <i 
                     className="fa-solid fa-arrow-left mobile-back-btn"
-                    onClick={() => setActiveGroupId(null)}
+                    onClick={() => {
+                      setActiveGroupId(null);
+                      navigate("/anonymous-dashboard/group-chat");
+                    }}
                     aria-label="Back to chat list"
                   ></i>
                 )}
