@@ -37,20 +37,20 @@ export function useOnlineStatus() {
     window.addEventListener("beforeunload", handleUnload);
 
     // Also handle visibility change (tab hidden)
-    const handleVisibility = () => {
-      if (document.hidden) {
-        goOffline();
-      } else {
-        goOnline();
-      }
-    };
+    // const handleVisibility = () => {
+    //   if (document.hidden) {
+    //     goOffline();
+    //   } else {
+    //     goOnline();
+    //   }
+    // };
 
-    document.addEventListener("visibilitychange", handleVisibility);
+    // document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
       window.removeEventListener("beforeunload", handleUnload);
-      document.removeEventListener("visibilitychange", handleVisibility);
-      goOffline(); // cleanup
+      // document.removeEventListener("visibilitychange", handleVisibility);
+      goOffline();
     };
   }, []);
 }

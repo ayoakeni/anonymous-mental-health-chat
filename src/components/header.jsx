@@ -14,7 +14,6 @@ function Header() {
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [user, setUser] = useState(null);
-  const liveIndicatorRef = useRef(null);
   const onlineCount = useOnlineCount();
 
   useEffect(() => {
@@ -156,7 +155,6 @@ function Header() {
           ) : null}
 
           <div
-            ref={liveIndicatorRef}
             className="live-indicator"
             title={`${onlineCount} user${onlineCount !== 1 ? 's' : ''} online`}
             role="status"
