@@ -17,6 +17,7 @@ const AnonymousDashboardHome = ({
   groupChats = [],
   privateChats = [],
   displayName,
+  userId,
   anonNames = {},
   formatTimestamp,
 }) => {
@@ -215,9 +216,6 @@ const AnonymousDashboardHome = ({
             <ul className="chat-list">
               {recentChats.map((chat) => {
                 const lastTs = chat.lastMessage?.timestamp;
-                const unreadCount =
-                  chat.type === "group" ? chat.unreadCount : chat.unreadCountForUser;
-
                 return (
                   <li key={`${chat.type}-${chat.id}`} className="chat-card">
                     <div
@@ -249,9 +247,10 @@ const AnonymousDashboardHome = ({
                         <span className="message-timestamp">
                           {renderTimestamp(lastTs)}
                         </span>
-                        {unreadCount > 0 && (
-                          <span className="unread-badge">{unreadCount}</span>
-                        )}
+                        {(() => {
+                          const personalUnread = chat.unreadCount?.[userId] || 0;
+                          return personalUnread > 0 && <span className="unread-badge">{personalUnread}</span>;
+                        })()}
                       </div>
                     </div>
                   </li>

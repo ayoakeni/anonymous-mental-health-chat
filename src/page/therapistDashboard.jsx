@@ -198,10 +198,15 @@ function TherapistDashboard() {
   }, [location.pathname, groupId, chatId, activeGroupId, activeChatId]);
 
   // ────── UNREAD COUNTS ──────
-  const totalGroupUnread = useMemo(
-    () => groupChats.reduce((s, g) => s + (g.unreadCount || 0), 0),
-    [groupChats]
+  const currentUserId = auth.currentUser?.uid;
+  const totalGroupUnread = useMemo(() => 
+    groupChats.reduce((sum, group) => {
+      const personalCount = group.unreadCount?.[currentUserId] || 0;
+      return sum + personalCount;
+    }, 0),
+    [groupChats, currentUserId]
   );
+  
   const privateUnread = useMemo(
     () =>
       privateChats.reduce(

@@ -44,14 +44,18 @@ function AnonymousDashboard() {
   const [showMoodPopup, setShowMoodPopup] = useState(false);
   const errorTimeoutRef = useRef(null);
   const moodModalRef = useRef(null);
+  const currentUserId = auth.currentUser?.uid;
 
-  const totalGroupUnread = useMemo(() =>
-    groupChats.reduce((sum, group) => sum + (group.unreadCount || 0), 0),
-    [groupChats]
+  const totalGroupUnread = useMemo(() => 
+    groupChats.reduce((sum, group) => {
+      const personalCount = group.unreadCount?.[currentUserId] || 0;
+      return sum + personalCount;
+    }, 0),
+    [groupChats, currentUserId]
   );
 
-  const privateUnreadCount = useMemo(() =>
-    privateChats.reduce((sum, chat) => sum + (chat.unreadCountForTherapist || 0), 0),
+  const privateUnreadCount = useMemo(() => 
+    privateChats.reduce((sum, chat) => sum + (chat.unreadCountForUser || 0), 0), 
     [privateChats]
   );
 
@@ -376,6 +380,7 @@ function AnonymousDashboard() {
                 groupChats={groupChats}
                 privateChats={privateChats}
                 displayName={displayName}
+                userId={userId}
                 anonNames={anonNames}
                 formatTimestamp={formatTimestamp}
               />

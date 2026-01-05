@@ -185,9 +185,10 @@ function TherapistDashboardHome({
                             {formatTimestamp(group.lastMessage?.timestamp)?.timeStr}
                           </span>
                         </span>
-                        {group.unreadCount > 0 && (
-                          <span className="unread-badge">{group.unreadCount}</span>
-                        )}
+                        {(() => {
+                          const personalUnread = group.unreadCount?.[therapistId] || 0;
+                          return personalUnread > 0 && <span className="unread-badge">{personalUnread}</span>;
+                        })()}
                       </div>
                     </div>
                   </div>

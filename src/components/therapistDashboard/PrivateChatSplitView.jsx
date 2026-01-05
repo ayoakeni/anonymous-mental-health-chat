@@ -3,7 +3,6 @@ import ChatMessage from "./ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
 import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import EmojiPicker from "emoji-picker-react";
-import LeaveChatButton from "../LeaveChatButton";
 import { useTypingStatus } from "../../hooks/useTypingStatus";
 
 /* -------------------------------------------------------------
@@ -69,6 +68,7 @@ function PrivateChatSplitView({
   const isInsideChat = useIsInsideChat();
   const [menuOpen, setMenuOpen] = useState(false);
   const fileInputRef = useRef(null);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   /* ------------------- SCROLL LOGIC ------------------- */
   useEffect(() => {
@@ -297,13 +297,55 @@ function PrivateChatSplitView({
 
                 {menuOpen && (
                   <div className="chat-options-menu">
-                    {/* Leave Chat */}
-                    <LeaveChatButton type="private" therapistInfo={therapistInfo} onLeave={leavePrivateChat} />
+                    {/* Leave Button */}
+                    <div className="menu-item leave-button" onClick={() => setShowLeaveConfirm(true)}>
+                      <i className="fas fa-sign-out-alt"></i>
+                      <span>End Chat</span>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
+            {/* Confirmation Modal */}
+            {showLeaveConfirm && (
+              <div className="modal-backdrop-leave" onClick={() => setShowLeaveConfirm(false)}>
+                <div className="confirm-modal-leave" onClick={(e) => e.stopPropagation()}>
+                  <div className="confirm-modal-content">
+                    <h3>End this private chat?</h3>
+                    <p>
+                      You’re about to end this one-on-one conversation.<br />
+                      Once ended:
+                    </p>
+                    <ul className="confirm-list">
+                      <li>No new messages can be sent or received in this conversation</li>
+                      <li>This chat and its history will no longer appear in your chat list</li>
+                      <li>The chat will only reappear in your list if the user sends you a new message in the future</li>
+                    </ul>
+                    <p className="confirm-question">
+                      Are you sure you want to end this chat?
+                    </p>
+                    <small className="privacy-note">
+                      Your past messages remain private and secure.
+                    </small>
+                  </div>
 
+                  <div className="button-group">
+                    <button className="btn-cancel" onClick={() => setShowLeaveConfirm(false)}>
+                      Cancel
+                    </button>
+                    <button
+                      className="btn-confirm-leave"
+                      onClick={() => {
+                        leavePrivateChat();
+                        setShowLeaveConfirm(false);
+                      }}
+                    >
+                      End Chat
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {selectedTherapist && (
               <div className="therapist-profile-card">
                 <button onClick={() => setSelectedTherapist(null)}>Back</button>

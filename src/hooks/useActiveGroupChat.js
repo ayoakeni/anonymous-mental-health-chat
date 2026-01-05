@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { db, storage, serverTimestamp } from "../utils/firebase";
 import {
-  doc, collection, query, orderBy, onSnapshot, limit, getDocs, startAfter,
+  doc, collection, query, orderBy, onSnapshot, limit, getDocs, deleteField, startAfter,
   runTransaction, arrayUnion, arrayRemove
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -26,6 +26,36 @@ export function useActiveGroupChat(
   const unsubEvents = useRef(() => {});
   const unsubPart = useRef(() => {});
   const navigate = useNavigate();
+
+  // Mark as read when opening chat
+  useEffect(() => {
+    if (!activeGroupId || !therapistId) return;
+
+    const groupRef = doc(db, "groupChats", activeGroupId);
+
+    const markAsRead = async () => {
+      try {
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(groupRef);
+          if (!snap.exists()) return;
+
+          const data = snap.data();
+          if (data.participants?.includes(therapistId)) {
+            tx.update(groupRef, {
+              [`unreadCount.${therapistId}`]: 0
+            });
+          }
+        });
+      } catch (err) {
+        console.error("Failed to mark group as read:", err);
+      }
+    };
+
+    markAsRead();
+    const interval = setInterval(markAsRead, 30_000);
+
+    return () => clearInterval(interval);
+  }, [activeGroupId, therapistId]);
   
   // ---------- JOIN ----------
   const join = useCallback(async (groupId = activeGroupId) => {
@@ -35,7 +65,14 @@ export function useActiveGroupChat(
       await runTransaction(db, async (tx) => {
         const snap = await tx.get(groupRef);
         if (!snap.exists()) throw new Error("Group not found");
-        tx.update(groupRef, { participants: arrayUnion(therapistId), unreadCount: 0 });
+        tx.update(groupRef, { participants: arrayUnion(therapistId), [`unreadCount.${therapistId}`]: 0 });
+        tx.set(doc(collection(groupRef, "events")), {
+          type: "join",
+          user: "System",
+          text: `${displayName} has joined the group.`,
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
         tx.set(doc(db, "therapists", therapistId), { lastSeenGroupChat: serverTimestamp() }, { merge: true });
       });
       setInChat(true);
@@ -50,16 +87,22 @@ export function useActiveGroupChat(
     const groupRef = doc(db, "groupChats", activeGroupId);
     try {
       await runTransaction(db, async (tx) => {
-        tx.update(groupRef, { participants: arrayRemove(therapistId) });
+        tx.update(groupRef, {
+          participants: arrayRemove(therapistId),
+          [`unreadCount.${therapistId}`]: deleteField()
+        });
         tx.set(doc(collection(groupRef, "events")), {
           type: "leave",
-          user: displayName,
+          user: "System",
+          text: `${displayName} has left the group.`,
+          role: "system",
           timestamp: serverTimestamp(),
         });
         tx.set(doc(db, "therapists", therapistId), { lastSeenGroupChat: serverTimestamp() }, { merge: true });
       });
       setMessages([]);
       setEvents([]);
+      showError("You've left the group. You can rejoin anytime.");
       navigate("/therapist-dashboard/group-chat");
       setInChat(false);
       setParticipants([]);
@@ -76,7 +119,11 @@ export function useActiveGroupChat(
 
     let fileUrl = "";
     if (file) {
-      if (file.size > 5 * 1024 * 1024) return showError("File too large (>5 MB)");
+      if (file.size > 5 * 1024 * 1024) {
+        showError("File too large (>5 MB)");
+        setIsSending(false);
+        return;
+      }
       const storageRef = ref(storage, `groupChats/${activeGroupId}/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
       fileUrl = await getDownloadURL(storageRef);
@@ -84,22 +131,49 @@ export function useActiveGroupChat(
 
     try {
       await runTransaction(db, async (tx) => {
+        const groupRef = doc(db, "groupChats", activeGroupId);
+
+        // ALL READS FIRST
+        const groupSnap = await tx.get(groupRef);
+        if (!groupSnap.exists()) {
+          throw new Error("Group chat does not exist");
+        }
+
+        const currentParticipants = groupSnap.data()?.participants || [];
+        const currentUnread = groupSnap.data()?.unreadCount || {};
+
+        // ALL WRITES AFTER READS
         const msgRef = doc(collection(db, `groupChats/${activeGroupId}/messages`));
         tx.set(msgRef, {
           text: text || "",
           fileUrl,
           userId: therapistId,
-          displayName,
+          displayName: displayName,
           role: "therapist",
           timestamp: serverTimestamp(),
           pinned: false,
           reactions: {},
         });
-        tx.update(doc(db, "groupChats", activeGroupId), {
-          lastMessage: { text: text || "Attachment", displayName, timestamp: serverTimestamp() },
+
+        // Increment unread counts for everyone except sender
+        const updatedUnread = { ...currentUnread };
+        currentParticipants.forEach(uid => {
+          if (uid !== therapistId) {
+            updatedUnread[uid] = (updatedUnread[uid] || 0) + 1;
+          }
+        });
+
+        tx.update(groupRef, {
+          lastMessage: {
+            text: text || "Attachment",
+            displayName: displayName,
+            timestamp: serverTimestamp()
+          },
+          unreadCount: updatedUnread
         });
       });
     } catch (e) {
+      console.error("Send message error:", e);
       showError("Failed to send message.");
     } finally {
       setIsSending(false);
@@ -140,42 +214,57 @@ export function useActiveGroupChat(
   const pinMessage = async (msgId, currentPinned = false) => {
     if (!activeGroupId) return;
 
-    const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
     const groupRef = doc(db, "groupChats", activeGroupId);
+    const messagesCollection = collection(db, `groupChats/${activeGroupId}/messages`);
+    const msgRef = doc(messagesCollection, msgId);
 
-    await runTransaction(db, async (tx) => {
-      const msgSnap = await tx.get(msgRef);
-      if (!msgSnap.exists()) return;
+    try {
+      await runTransaction(db, async (tx) => {
+        // Read the target message
+        const msgSnap = await tx.get(msgRef);
+        if (!msgSnap.exists()) {
+          throw new Error("Message does not exist");
+        }
 
-      const msg = msgSnap.data();
+        // If we're pinning (not unpinning), we need to unpin all others
+        let docsToUnpin = [];
+        if (!currentPinned) {
+          // Read ALL messages in the collection using transaction-safe reads
+          const allMessagesSnap = await tx.get(query(messagesCollection));
+          allMessagesSnap.docs.forEach((doc) => {
+            if (doc.id !== msgId && doc.data().pinned) {
+              docsToUnpin.push(doc.ref);
+            }
+          });
+        }
 
-      // Unpin all others first
-      if (!currentPinned) {
-        const allMsgs = await getDocs(collection(db, `groupChats/${activeGroupId}/messages`));
-        allMsgs.forEach((d) => {
-          if (d.data().pinned) {
-            tx.update(d.ref, { pinned: false, pinnedBy: null });
-          }
+        // Unpin other messages
+        docsToUnpin.forEach((ref) => {
+          tx.update(ref, { pinned: false, pinnedBy: null });
         });
-      }
 
-      // Toggle pin + store who pinned it
-      tx.update(msgRef, {
-        pinned: !currentPinned,
-        pinnedBy: !currentPinned ? displayName : null,
-      });
+        // Toggle the target message
+        tx.update(msgRef, {
+          pinned: !currentPinned,
+          pinnedBy: !currentPinned ? displayName : null,
+        });
 
-      // System event (still shows in chat)
-      tx.set(doc(collection(groupRef, "events")), {
-        type: "pin",
-        user: displayName,
-        text: !currentPinned
-          ? `${displayName} pinned a message`
-          : `${displayName} unpinned a message`,
-        role: "system",
-        timestamp: serverTimestamp(),
+        // Add system event
+        const eventRef = doc(collection(groupRef, "events"));
+        tx.set(eventRef, {
+          type: "pin",
+          user: displayName,
+          text: !currentPinned
+            ? `${displayName} pinned a message`
+            : `${displayName} unpinned a message`,
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
       });
-    });
+    } catch (e) {
+      console.error("Failed to pin/unpin message:", e);
+      showError("Failed to pin/unpin message.");
+    }
   };
 
   // ---------- LOAD MORE ----------

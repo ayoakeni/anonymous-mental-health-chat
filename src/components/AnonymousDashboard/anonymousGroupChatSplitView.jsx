@@ -12,7 +12,7 @@ import {
   arrayRemove,
   runTransaction,
   limit,
-  increment,
+  deleteField,
   getDoc,
   getDocs,
   startAfter,
@@ -21,11 +21,9 @@ import { useTypingStatus } from "../../hooks/useTypingStatus";
 import ChatMessage from "../therapistDashboard/ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
 import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
-import LeaveChatButton from "../LeaveChatButton";
 import EmojiPicker from "emoji-picker-react";
 import TherapistProfile from "../TherapistProfile";
-import { getAIResponse } from "../../utils/AiChatIntegration";
-import { mapMessagesForAI } from "../../utils/AiChatIntegration";
+import { getAIResponse, mapMessagesForAI} from "../../utils/AiChatIntegration";
 
 /* -------------------------------------------------------------
    Simple media-query hook (no external deps)
@@ -52,7 +50,6 @@ function AnonymousGroupChatSplitView({
   isLoadingChats,
   formatTimestamp,
   getTimestampMillis,
-  isLoadingNames,
   displayName,
   userId,
   showError,
@@ -81,6 +78,7 @@ function AnonymousGroupChatSplitView({
   const { typingUsers, handleTyping } = useTypingStatus(displayName, activeGroupId ? activeGroupId : null);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isInsideChat = useIsInsideChat();
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   // Memoize active group to avoid repeated find calls
   const activeGroup = useMemo(() => 
@@ -318,13 +316,62 @@ function AnonymousGroupChatSplitView({
     return () => unsubscribes.forEach((unsub) => unsub());
   }, [participants]);
 
+  const incrementUnreadCounts = (participants, unreadCount, senderId) => {
+    const updated = { ...unreadCount };
+    participants.forEach(uid => {
+      if (uid !== senderId && uid !== "ai") {
+        updated[uid] = (updated[uid] || 0) + 1;
+      }
+    });
+    return updated;
+  };
+
+  useEffect(() => {
+    if (!activeGroupId || !userId) return;
+
+    const groupRef = doc(db, "groupChats", activeGroupId);
+
+    const markAsRead = async () => {
+      try {
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(groupRef);
+          if (!snap.exists()) return;
+
+          const data = snap.data();
+          if (data.participants?.includes(userId)) {
+            // Only reset this user's unread count
+            tx.update(groupRef, {
+              [`unreadCount.${userId}`]: 0
+            });
+          }
+        });
+      } catch (err) {
+        console.error("Failed to mark group chat as read:", err);
+      }
+    };
+
+    markAsRead();
+
+    // Periodically mark as read while tab is open
+    const interval = setInterval(markAsRead, 30_000);
+
+    return () => clearInterval(interval);
+  }, [activeGroupId, userId]);
+
   // Join group chat
   const joinGroupChat = async (groupId) => {
     if (!userId) return;
     try {
       const groupRef = doc(db, "groupChats", groupId);
       await runTransaction(db, async (transaction) => {
-        transaction.update(groupRef, { participants: arrayUnion(userId) });
+        transaction.update(groupRef, { participants: arrayUnion(userId), [`unreadCount.${userId}`]: 0});
+        transaction.set(doc(collection(groupRef, "events")), {
+          type: "join",
+          user: "System",
+          text: `${displayName} has joined the group.`,
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
       });
       setActiveGroupId(groupId);
       navigate(`/anonymous-dashboard/group-chat/${groupId}`);
@@ -341,16 +388,20 @@ function AnonymousGroupChatSplitView({
     try {
       const groupRef = doc(db, "groupChats", activeGroupId);
       await runTransaction(db, async (transaction) => {
-        transaction.update(groupRef, { participants: arrayRemove(userId) });
+        transaction.update(groupRef, {
+          participants: arrayRemove(userId),
+          [`unreadCount.${userId}`]: deleteField()
+        });
         transaction.set(doc(collection(groupRef, "events")), {
           type: "leave",
-          user: displayName,
-          text: `${displayName} has left the chat.`,
+          user: "System",
+          text: `${displayName} has left the group.`,
           role: "system",
           timestamp: serverTimestamp(),
         });
       });
       setActiveGroupId(null);
+      showError("You've left the group. You can rejoin anytime.");
       navigate("/anonymous-dashboard/group-chat");
     } catch (err) {
       console.error("Error leaving group chat:", err);
@@ -364,22 +415,34 @@ function AnonymousGroupChatSplitView({
     if (!userId || !activeGroupId) return;
     setIsSending(true);
 
-    try {
-      let fileUrl = null;
-      if (file) {
-        const storageRef = ref(storage, `groupChats/${activeGroupId}/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file);
-        fileUrl = await getDownloadURL(storageRef);
+    let fileUrl = null;
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        showError("File too large (>5 MB)");
+        setIsSending(false);
+        return;
       }
+      const storageRef = ref(storage, `groupChats/${activeGroupId}/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      fileUrl = await getDownloadURL(storageRef);
+    }
 
+    try {
       const isAiTrigger = newMessage.toLowerCase().includes("@ai");
       const cleanUserText = newMessage.replace(/@ai/gi, "").trim();
 
       const groupRef = doc(db, "groupChats", activeGroupId);
       const messagesRef = collection(db, `groupChats/${activeGroupId}/messages`);
 
-      // User message transaction
+      // === USER MESSAGE TRANSACTION ===
       await runTransaction(db, async (tx) => {
+        // READ FIRST
+        const groupSnap = await tx.get(groupRef);
+        if (!groupSnap.exists()) throw new Error("Group does not exist");
+        const participants = groupSnap.data()?.participants || [];
+        const unreadCount = groupSnap.data()?.unreadCount || {};
+
+        // THEN ALL WRITES
         const userMsgRef = doc(messagesRef);
         tx.set(userMsgRef, {
           text: cleanUserText || "",
@@ -391,9 +454,18 @@ function AnonymousGroupChatSplitView({
           reactions: {},
           pinned: false,
         });
-        tx.update(groupRef, { unreadCount: increment(1) });
+
+        tx.update(groupRef, {
+          lastMessage: {
+            text: cleanUserText || "Attachment",
+            displayName,
+            timestamp: serverTimestamp(),
+          },
+          unreadCount: incrementUnreadCounts(participants, unreadCount, userId),
+        });
       });
-      // Add user message to pendingMessages for instant feedback
+
+      // Optimistic UI update
       setPendingMessages((prev) => [
         ...prev,
         {
@@ -412,6 +484,7 @@ function AnonymousGroupChatSplitView({
       setNewMessage("");
       setShowEmojiPicker(false);
 
+      // === AI RESPONSE (if triggered) ===
       if (isAiTrigger) {
         setAiTyping(true);
         try {
@@ -419,8 +492,14 @@ function AnonymousGroupChatSplitView({
           const aiResponse = await getAIResponse(cleanUserText || "Continue", aiInput);
           const aiFullText = `${displayName}: ${cleanUserText}\n\n${aiResponse}`;
 
-          // AI message transaction
           await runTransaction(db, async (tx) => {
+            // READ FIRST
+            const groupSnap = await tx.get(groupRef);
+            if (!groupSnap.exists()) throw new Error("Group does not exist");
+            const participants = groupSnap.data()?.participants || [];
+            const unreadCount = groupSnap.data()?.unreadCount || {};
+
+            // THEN WRITES
             const aiMsgRef = doc(messagesRef);
             tx.set(aiMsgRef, {
               text: aiFullText,
@@ -432,17 +511,17 @@ function AnonymousGroupChatSplitView({
               reactions: {},
               pinned: false,
             });
+
             tx.update(groupRef, {
               lastMessage: {
                 text: aiFullText,
                 displayName: "Support Assistant",
                 timestamp: serverTimestamp(),
               },
-              unreadCount: increment(1),
+              unreadCount: incrementUnreadCounts(participants, unreadCount, userId),
             });
           });
 
-          // Add AI message to pendingMessages for instant feedback
           setPendingMessages((prev) => [
             ...prev,
             {
@@ -460,7 +539,15 @@ function AnonymousGroupChatSplitView({
         } catch (aiErr) {
           console.error("AI error:", aiErr);
           const errText = "Sorry, I couldn’t respond right now. Please try again later.";
+
           await runTransaction(db, async (tx) => {
+            // READ FIRST
+            const groupSnap = await tx.get(groupRef);
+            if (!groupSnap.exists()) throw new Error("Group does not exist");
+            const participants = groupSnap.data()?.participants || [];
+            const unreadCount = groupSnap.data()?.unreadCount || {};
+
+            // THEN WRITES
             const errRef = doc(messagesRef);
             tx.set(errRef, {
               text: errText,
@@ -472,17 +559,17 @@ function AnonymousGroupChatSplitView({
               reactions: {},
               pinned: false,
             });
+
             tx.update(groupRef, {
               lastMessage: {
                 text: errText,
                 displayName: "System",
                 timestamp: serverTimestamp(),
               },
-              unreadCount: increment(1),
+              unreadCount: incrementUnreadCounts(participants, unreadCount, userId),
             });
           });
 
-          // Add error message to pendingMessages
           setPendingMessages((prev) => [
             ...prev,
             {
@@ -535,40 +622,55 @@ function AnonymousGroupChatSplitView({
   const pinMessage = async (msgId, currentPinned = false) => {
     if (!activeGroupId) return;
 
-    const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
     const groupRef = doc(db, "groupChats", activeGroupId);
+    const messagesCollection = collection(db, `groupChats/${activeGroupId}/messages`);
+    const msgRef = doc(messagesCollection, msgId);
 
     try {
       await runTransaction(db, async (tx) => {
+        // Read the target message
         const msgSnap = await tx.get(msgRef);
-        if (!msgSnap.exists()) return;
+        if (!msgSnap.exists()) {
+          throw new Error("Message does not exist");
+        }
 
+        // If we're pinning (not unpinning), we need to unpin all others
+        let docsToUnpin = [];
         if (!currentPinned) {
-          const all = await getDocs(collection(db, `groupChats/${activeGroupId}/messages`));
-          all.forEach((d) => {
-            if (d.data().pinned) {
-              tx.update(d.ref, { pinned: false, pinnedBy: null });
+          // Read ALL messages in the collection using transaction-safe reads
+          const allMessagesSnap = await tx.get(query(messagesCollection));
+          allMessagesSnap.docs.forEach((doc) => {
+            if (doc.id !== msgId && doc.data().pinned) {
+              docsToUnpin.push(doc.ref);
             }
           });
         }
 
+        // Unpin other messages
+        docsToUnpin.forEach((ref) => {
+          tx.update(ref, { pinned: false, pinnedBy: null });
+        });
+
+        // Toggle the target message
         tx.update(msgRef, {
           pinned: !currentPinned,
           pinnedBy: !currentPinned ? displayName : null,
         });
 
-        tx.set(doc(collection(groupRef, "events")), {
+        // Add system event
+        const eventRef = doc(collection(groupRef, "events"));
+        tx.set(eventRef, {
           type: "pin",
           user: displayName,
-          text: currentPinned
-            ? `${displayName} unpinned a message`
-            : `${displayName} pinned a message`,
+          text: !currentPinned
+            ? `${displayName} pinned a message`
+            : `${displayName} unpinned a message`,
           role: "system",
           timestamp: serverTimestamp(),
         });
       });
     } catch (e) {
-      console.error(e);
+      console.error("Failed to pin/unpin message:", e);
       showError("Failed to pin/unpin message.");
     }
   };
@@ -638,7 +740,10 @@ function AnonymousGroupChatSplitView({
                         <span className="meta-time">{timeStr || "N/A"}</span>
                       </div>
                     ) : null}
-                    {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
+                    {(() => {
+                      const personalUnread = group.unreadCount?.[userId] || 0;
+                      return personalUnread > 0 && <span className="unread-badge">{personalUnread}</span>;
+                    })()}
                   </div>
                 </div>
               </div>
@@ -801,11 +906,47 @@ function AnonymousGroupChatSplitView({
                     <div className="menu-divider"></div>
 
                     {/* Leave Button */}
-                    <LeaveChatButton type="group" onLeave={leaveGroupChat} />
+                    <div className="menu-item leave-button" onClick={() => setShowLeaveConfirm(true)}>
+                      <i className="fas fa-sign-out-alt"></i>
+                      <span>Leave Group</span>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
+            {/* Confirmation Modal */}
+            {showLeaveConfirm && (
+              <div className="modal-backdrop-leave" onClick={() => setShowLeaveConfirm(false)}>
+                <div className="confirm-modal-leave" onClick={(e) => e.stopPropagation()}>
+                  <div className="confirm-modal-content">
+                    <h3>Leave this group?</h3>
+                    <ul className="confirm-list">
+                      <li>You will no longer see new messages</li>
+                      <li>You will be removed from the participant list</li>
+                      <li>You can rejoin anytime from the group list</li>
+                    </ul>
+                    <p className="confirm-question">
+                      Are you sure you want to leave this group?
+                    </p>
+                  </div>
+
+                  <div className="button-group">
+                    <button className="btn-cancel" onClick={() => setShowLeaveConfirm(false)}>
+                      Cancel
+                    </button>
+                    <button
+                      className="btn-confirm-leave"
+                      onClick={() => {
+                        leaveGroupChat();
+                        setShowLeaveConfirm(false);
+                      }}
+                    >
+                      Leave Group
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Pinned Message */}
             {combinedGroupChat.some((msg) => msg.pinned) && (
               <div className="pinned-message"

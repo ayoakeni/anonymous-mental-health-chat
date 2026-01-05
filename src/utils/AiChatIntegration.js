@@ -1,8 +1,18 @@
 import { getGenerativeModel } from "firebase/ai";
 import { ai } from "../utils/firebase";
 
-// Gemini model
-const model = getGenerativeModel(ai, { model: "gemini-flash-latest" });
+  // Gemini model
+  const model = getGenerativeModel(ai, {
+    model: "gemini-flash-latest",
+    systemInstruction: {
+      role: "system",
+      parts: [{
+        text: `You are a supportive mental health assistant. 
+        Respond kindly, with empathy and encouragement, 
+        but remember you are not a professional therapist.`.trim()
+      }]
+    }
+  });
 
 // Supportive AI response function
 export const getAIResponse = async (userMessage, previousMessages = []) => {

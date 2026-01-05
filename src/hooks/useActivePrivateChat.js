@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { db, storage, serverTimestamp } from "../utils/firebase";
 import {
-  doc, collection, query, orderBy, onSnapshot, limit, getDocs, startAfter,
+  doc, collection, query, orderBy, onSnapshot, limit, getDocs, increment, startAfter,
   runTransaction, arrayUnion, arrayRemove, deleteField
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -75,7 +75,7 @@ export function useActivePrivateChat(
 
         tx.set(doc(collection(chatRef, "events")), {
           type: "join",
-          user: displayName,
+          user: "System",
           text: `${displayName} has joined the chat.`,
           role: "system",
           timestamp: serverTimestamp(),
@@ -115,7 +115,7 @@ export function useActivePrivateChat(
         // keep history of who ended it
         tx.set(doc(collection(chatRef, "events")), {
           type: "leave",
-          user: displayName,
+          user: "System",
           text: `${displayName} has ended the session.`,
           role: "system",
           timestamp: serverTimestamp(),
@@ -126,7 +126,7 @@ export function useActivePrivateChat(
       setMessages([]);
       setEvents([]);
       setInChat(false);
-
+      showError("You've ended the session.", false);
       // Navigate back to list
       navigate("/therapist-dashboard/private-chat");
     } catch (e) {
@@ -164,6 +164,7 @@ export function useActivePrivateChat(
           lastMessage: displayName + ": " + text || "Attachment",
           lastUpdated: serverTimestamp(),
           unreadCountForTherapist: 0,
+          unreadCountForUser: increment(1),
         });
       });
     } catch (e) {

@@ -23,7 +23,6 @@ import { mapMessagesForAI } from "../../utils/AiChatIntegration";
 import ChatMessage from "../therapistDashboard/ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
 import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
-import LeaveChatButton from "../LeaveChatButton";
 import EmojiPicker from "emoji-picker-react";
 
 const useMediaQuery = (query) => {
@@ -64,6 +63,7 @@ function AnonymousPrivateChatSplitView({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
@@ -111,11 +111,16 @@ function AnonymousPrivateChatSplitView({
 
     const chatRef = doc(db, "privateChats", activeChatId);
 
-    updateDoc(chatRef, { lastSeenAt: serverTimestamp() }).catch(() => {});
+    const markAsRead = () => {
+      updateDoc(chatRef, {
+        lastSeenAt: serverTimestamp(),
+        unreadCountForUser: 0,
+      }).catch(() => {});
+    };
 
-    const interval = setInterval(() => {
-      updateDoc(chatRef, { lastSeenAt: serverTimestamp() }).catch(() => {});
-    }, 30_000);
+    markAsRead();
+
+    const interval = setInterval(markAsRead, 30_000);
 
     return () => clearInterval(interval);
   }, [activeChatId, userId]);
@@ -369,6 +374,13 @@ function AnonymousPrivateChatSplitView({
               aiActive: false,
             });
           }
+          transaction.set(doc(collection(chatRef, "events")), {
+            type: "join",
+            user: "System",
+            text: `${displayName} has join the chat.`,
+            role: "system",
+            timestamp: serverTimestamp(),
+          });
           if (!data.participants.includes(userId)) {
             transaction.update(chatRef, { participants: arrayUnion(userId) });
           }
@@ -397,8 +409,8 @@ function AnonymousPrivateChatSplitView({
         });
         transaction.set(doc(collection(chatRef, "events")), {
           type: "leave",
-          user: displayName,
-          text: `${displayName} has left the chat.`,
+          user: "System",
+          text: `${displayName} has ended the chat.`,
           role: "system",
           timestamp: serverTimestamp(),
         });
@@ -406,10 +418,11 @@ function AnonymousPrivateChatSplitView({
 
       await new Promise(r => setTimeout(r, 600));
       setActiveChatId(null);
+      showError("You have ended the chat.");
       navigate("/anonymous-dashboard/private-chat");
     } catch (err) {
-      console.error("Error leaving private chat:", err);
-      showError("Failed to leave chat.");
+      console.error("Error ending private chat:", err);
+      showError("Failed to end chat.");
     }
   };
 
@@ -512,6 +525,7 @@ function AnonymousPrivateChatSplitView({
             tx.update(chatRef, {
               lastMessage: `Support Assistant: ${aiResponse}`,
               lastUpdated: serverTimestamp(),
+              unreadCountForUser: increment(1),
             });
           });
 
@@ -576,6 +590,7 @@ function AnonymousPrivateChatSplitView({
             transaction.update(chatRef, {
               lastMessage: aiFullText,
               lastUpdated: serverTimestamp(),
+              unreadCountForUser: increment(1),
             });
 
             setPendingMessages((prev) => [
@@ -829,12 +844,51 @@ function AnonymousPrivateChatSplitView({
 
               {menuOpen && (
                 <div className="chat-options-menu">
-                  <LeaveChatButton type="private" onLeave={leavePrivateChat} />
+                  {/* Leave Button */}
+                  <div className="menu-item leave-button" onClick={() => setShowLeaveConfirm(true)}>
+                    <i className="fas fa-sign-out-alt"></i>
+                    <span>End Chat</span>
+                  </div>
                 </div>
               )}
             </div>
           </div>
+          {/* Confirmation Modal */}
+          {showLeaveConfirm && (
+            <div className="modal-backdrop-leave" onClick={() => setShowLeaveConfirm(false)}>
+              <div className="confirm-modal-leave" onClick={(e) => e.stopPropagation()}>
+                <div className="confirm-modal-content">
+                  <h3>Ready to end this chat?</h3>
+                  <ul className="confirm-list">
+                    <li>No new messages can be sent or received</li>
+                    <li>This chat and its history will disappear from your list</li>
+                    <li>It will reappear (with full history) only if you message this therapist again from their profile</li>
+                  </ul>
+                  <p className="confirm-question">
+                    Are you sure you’d like to end this chat now?
+                  </p>
+                  <small className="privacy-note">
+                    Your past messages remain private and secure.
+                  </small>
+                </div>
 
+                <div className="button-group">
+                  <button className="btn-cancel" onClick={() => setShowLeaveConfirm(false)}>
+                    Cancel
+                  </button>
+                  <button
+                    className="btn-confirm-leave"
+                    onClick={() => {
+                      leavePrivateChat();
+                      setShowLeaveConfirm(false);
+                    }}
+                  >
+                    End chat
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="chat-box" role="log" aria-live="polite" ref={chatBoxRef}>
             {isLoadingChat ? (
               <div className="loading-messages">

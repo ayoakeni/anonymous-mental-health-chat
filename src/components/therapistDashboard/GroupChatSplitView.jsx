@@ -4,7 +4,6 @@ import ChatMessage from "./ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
 import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import EmojiPicker from "emoji-picker-react";
-import LeaveChatButton from "../LeaveChatButton";
 import { useTypingStatus } from "../../hooks/useTypingStatus";
 
 /* -------------------------------------------------------------
@@ -30,7 +29,6 @@ function GroupChatSplitView({
   activeGroupId,
   isGroupChatOpen,
   inGroupChat,
-  therapistsOnline,
   participants,
   isSendingGroup,
   isParticipantsOpen,
@@ -65,6 +63,7 @@ function GroupChatSplitView({
   const isUserAtBottom = useRef(true);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isInsideChat = useIsInsideChat();
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   // Memoize active group to avoid repeated find calls
   const activeGroup = useMemo(() => 
@@ -187,7 +186,10 @@ function GroupChatSplitView({
                         <span className="meta-time">{timeStr}</span>
                       </div>
                     ) : null}
-                    {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
+                    {(() => {
+                      const personalUnread = group.unreadCount?.[therapistId] || 0;
+                      return personalUnread > 0 && <span className="unread-badge">{personalUnread}</span>;
+                    })()}
                   </div>
                 </div>
               </div>
@@ -276,12 +278,48 @@ function GroupChatSplitView({
 
                     <div className="menu-divider"></div>
 
-                    {/* Leave Chat */}
-                    <LeaveChatButton type="group" therapistInfo={therapistInfo} onLeave={leaveGroupChat} />
+                    {/* Leave Button */}
+                    <div className="menu-item leave-button" onClick={() => setShowLeaveConfirm(true)}>
+                      <i className="fas fa-sign-out-alt"></i>
+                      <span>Leave Group</span>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
+            {/* Confirmation Modal */}
+            {showLeaveConfirm && (
+              <div className="modal-backdrop-leave" onClick={() => setShowLeaveConfirm(false)}>
+                <div className="confirm-modal-leave" onClick={(e) => e.stopPropagation()}>
+                  <div className="confirm-modal-content">
+                    <h3>Leave this group?</h3>
+                    <ul className="confirm-list">
+                      <li>You will no longer see new messages</li>
+                      <li>You will be removed from the participant list</li>
+                      <li>You can rejoin anytime from the group list</li>
+                    </ul>
+                    <p className="confirm-question">
+                      Are you sure you want to leave this group?
+                    </p>
+                  </div>
+
+                  <div className="button-group">
+                    <button className="btn-cancel" onClick={() => setShowLeaveConfirm(false)}>
+                      Cancel
+                    </button>
+                    <button
+                      className="btn-confirm-leave"
+                      onClick={() => {
+                        leaveGroupChat();
+                        setShowLeaveConfirm(false);
+                      }}
+                    >
+                      Leave Group
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {combinedGroupChat.some((msg) => msg.pinned) && (
               <div className="pinned-message"
                 onClick={() => {
@@ -313,6 +351,7 @@ function GroupChatSplitView({
               </div>
             )}
           </div>
+          
           <div className="chat-box" ref={chatBoxRef} role="log" aria-live="polite">
             {isLoadingMessages ? (
               <div className="loading-messages">
