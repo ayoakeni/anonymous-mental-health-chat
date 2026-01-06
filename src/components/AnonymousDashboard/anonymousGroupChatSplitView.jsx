@@ -18,7 +18,7 @@ import {
   startAfter,
 } from "firebase/firestore";
 import { useTypingStatus } from "../../hooks/useTypingStatus";
-import ChatMessage from "../therapistDashboard/ChatMessage";
+import ChatMessage from "../ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
 import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import EmojiPicker from "emoji-picker-react";

@@ -20,7 +20,7 @@ import {
 import { useTypingStatus } from "../../hooks/useTypingStatus";
 import { getAIResponse } from "../../utils/AiChatIntegration";
 import { mapMessagesForAI } from "../../utils/AiChatIntegration";
-import ChatMessage from "../therapistDashboard/ChatMessage";
+import ChatMessage from "../ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
 import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import EmojiPicker from "emoji-picker-react";
