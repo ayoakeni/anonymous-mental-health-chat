@@ -135,13 +135,19 @@ function AnonymousDashboard() {
     };
   }, [navigate, showError]);
 
-  // Fetch group chats
+  // Fetch ALL group chats (so users can see ones they left)
   useEffect(() => {
     const q = query(collection(db, "groupChats"), limit(50));
+
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const chats = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        const chats = snapshot.docs.map((doc) => ({ 
+          id: doc.id, 
+          ...doc.data(),
+          // helper flag for easy UI checks
+          isMember: doc.data().participants?.includes(userId) || false
+        }));
         setGroupChats(chats);
         setIsLoadingChats(false);
       },
@@ -151,8 +157,9 @@ function AnonymousDashboard() {
         setIsLoadingChats(false);
       }
     );
+
     return () => unsubscribe();
-  }, [showError]);
+  }, [userId, showError]);
 
   // Fetch private chats — include those you left
   useEffect(() => {

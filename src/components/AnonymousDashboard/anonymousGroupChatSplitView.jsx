@@ -623,46 +623,49 @@ function AnonymousGroupChatSplitView({
     if (!activeGroupId) return;
 
     const groupRef = doc(db, "groupChats", activeGroupId);
-    const messagesCollection = collection(db, `groupChats/${activeGroupId}/messages`);
-    const msgRef = doc(messagesCollection, msgId);
+    const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
 
     try {
       await runTransaction(db, async (tx) => {
-        // Read the target message
-        const msgSnap = await tx.get(msgRef);
+        // Read the group document and the target message
+        const [groupSnap, msgSnap] = await Promise.all([
+          tx.get(groupRef),
+          tx.get(msgRef),
+        ]);
+
+        if (!groupSnap.exists()) {
+          throw new Error("Group does not exist");
+        }
         if (!msgSnap.exists()) {
           throw new Error("Message does not exist");
         }
 
-        // If we're pinning (not unpinning), we need to unpin all others
-        let docsToUnpin = [];
-        if (!currentPinned) {
-          // Read ALL messages in the collection using transaction-safe reads
-          const allMessagesSnap = await tx.get(query(messagesCollection));
-          allMessagesSnap.docs.forEach((doc) => {
-            if (doc.id !== msgId && doc.data().pinned) {
-              docsToUnpin.push(doc.ref);
-            }
-          });
+        const currentPinnedId = groupSnap.data().pinnedMessageId || null;
+
+        // If we're pinning a new message, unpin the old one if different
+        if (!currentPinned && currentPinnedId && currentPinnedId !== msgId) {
+          const oldMsgRef = doc(db, `groupChats/${activeGroupId}/messages`, currentPinnedId);
+          tx.update(oldMsgRef, { pinned: false, pinnedBy: null });
         }
 
-        // Unpin other messages
-        docsToUnpin.forEach((ref) => {
-          tx.update(ref, { pinned: false, pinnedBy: null });
+        // Toggle the target message
+        const newPinned = !currentPinned;
+        tx.update(msgRef, {
+          pinned: newPinned,
+          pinnedBy: newPinned ? displayName : null,
         });
 
-        // Toggle the target message
-        tx.update(msgRef, {
-          pinned: !currentPinned,
-          pinnedBy: !currentPinned ? displayName : null,
+        // Update the group document with the new pinned ID (or null if unpinning)
+        tx.update(groupRef, {
+          pinnedMessageId: newPinned ? msgId : null,
         });
 
         // Add system event
         const eventRef = doc(collection(groupRef, "events"));
         tx.set(eventRef, {
           type: "pin",
-          user: displayName,
-          text: !currentPinned
+          user: "System",
+          text: newPinned
             ? `${displayName} pinned a message`
             : `${displayName} unpinned a message`,
           role: "system",
@@ -713,37 +716,55 @@ function AnonymousGroupChatSplitView({
           groupChats.map((group) => {
             const lastTs = group.lastMessage?.timestamp;
             const { dateStr, timeStr } = formatTimestamp(lastTs);
+            const isMember = group.isMember;
+
             return (
               <div
                 key={group.id}
-                className={`chat-card ${activeGroupId === group.id ? "selected" : ""}`}
+                className={`chat-card ${activeGroupId === group.id ? "selected" : ""} ${!isMember ? "left-group" : ""}`}
                 onClick={() => {
-                  joinGroupChat(group.id);
+                  if (isMember || activeGroupId === group.id) {
+                    joinGroupChat(group.id);
+                  } else {
+                    joinGroupChat(group.id);
+                  }
                 }}
               >
                 <div className="chat-card-inner">
                   <div className="chat-avater-content">
-                    <span className="therapist-avatar">{group.name?.[0] || "G"}</span>
+                    <span className={`therapist-avatar ${!isMember ? "grayed" : ""}`}>
+                      {group.name?.[0] || "G"}
+                    </span>
                     <div className="chat-card-content">
-                      <strong className="chat-card-title">{group.name || "Unnamed Group"}</strong>
-                      <small className="chat-card-preview">
-                        {group.lastMessage
-                          ? `${group.lastMessage.displayName || "Anonymous"}: ${group.lastMessage.text}`
-                          : "No messages yet"}
+                      <strong className={`chat-card-title ${!isMember ? "grayed-text" : ""}`}>
+                        {group.name || "Unnamed Group"}
+                        {!isMember && <span className="left-badge"> (Left)</span>}
+                      </strong>
+                      <small className={`chat-card-preview ${!isMember ? "grayed-text" : ""}`}>
+                        {isMember ? (
+                          group.lastMessage
+                            ? `${group.lastMessage.displayName || "Anonymous"}: ${group.lastMessage.text}`
+                            : "No messages yet"
+                        ) : (
+                          "You left this group • Tap to rejoin"
+                        )}
                       </small>
                     </div>
                   </div>
                   <div className="chat-card-meta">
-                    {lastTs ? (
+                    {lastTs && isMember && (
                       <div className="message-timestamp">
                         <span className="meta-date">{dateStr || "N/A"}</span>
                         <span className="meta-time">{timeStr || "N/A"}</span>
                       </div>
-                    ) : null}
-                    {(() => {
+                    )}
+                    {isMember && (() => {
                       const personalUnread = group.unreadCount?.[userId] || 0;
                       return personalUnread > 0 && <span className="unread-badge">{personalUnread}</span>;
                     })()}
+                    {!isMember && (
+                      <span className="rejoin-hint">Rejoin</span>
+                    )}
                   </div>
                 </div>
               </div>

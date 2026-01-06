@@ -313,8 +313,7 @@ function PrivateChatSplitView({
                   <div className="confirm-modal-content">
                     <h3>End this private chat?</h3>
                     <p>
-                      You’re about to end this one-on-one conversation.<br />
-                      Once ended:
+                      You’re about to end this one-on-one conversation.
                     </p>
                     <ul className="confirm-list">
                       <li>No new messages can be sent or received in this conversation</li>

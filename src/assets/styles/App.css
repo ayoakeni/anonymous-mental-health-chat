@@ -154,6 +154,40 @@
   filter: brightness(100%);
 }
 
+.chat-card.left-group {
+  opacity: 0.6;
+  background-color: #f8f8f8;
+  border-left: 4px solid #ccc;
+}
+
+.chat-card.left-group:hover {
+  opacity: 0.85;
+  background-color: #f0f0f0;
+}
+
+.chat-card .grayed {
+  opacity: 0.5;
+}
+
+.chat-card .grayed-text {
+  color: #888;
+  font-style: italic;
+}
+
+.chat-card .left-badge {
+  font-size: 0.8em;
+  color: #999;
+  margin-left: 6px;
+}
+
+.chat-card .rejoin-hint {
+  font-size: 0.8em;
+  color: #666;
+  background: #e0e0e0;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
 .chat-card.selected {
   background: var(--user-bg);
   border-left: 4px solid var(--primary-color);
@@ -687,7 +721,7 @@
 }
 
 .confirm-modal-leave {
-  background: white;
+  background: var(--background-color);
   border-radius: 16px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
   max-width: 440px;
@@ -707,21 +741,21 @@
   margin: 0 0 16px;
   font-size: 1.5rem;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--text-color);
 }
 
 .confirm-modal-content p {
   margin: 0 0 20px;
   font-size: 1rem;
   line-height: 1.6;
-  color: #34495e;
+  color: var(--text-color);
 }
 
 .confirm-list {
   text-align: left;
   margin: 20px 0;
   padding-left: 22px;
-  color: #2d3436;
+  color: var(--text-color);
   font-size: 0.98rem;
 }
 
@@ -734,7 +768,7 @@
   margin: 28px 0 0;
   font-weight: 600;
   font-size: 1.05rem;
-  color: #2c3e50;
+  color: var(--text-color);
 }
 
 .confirm-modal-leave .privacy-note {

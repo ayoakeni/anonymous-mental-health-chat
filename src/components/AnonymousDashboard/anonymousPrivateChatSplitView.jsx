@@ -509,8 +509,8 @@ function AnonymousPrivateChatSplitView({
         setAiTyping(true);
         try {
           const allPreviousMessages = [...messages, ...pendingMessages]
-          .filter(m => m.role === "user" || m.role === "ai")
-          .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
+            .filter(m => m.role === "user" || m.role === "ai")
+            .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
           const aiResponse = await getAIResponse(newMessage.trim() || " ", allPreviousMessages);
           const quotedUserMessage = `"${newMessage.trim() || "Attachment"}"\n\n`;
           const aiFullText = quotedUserMessage + aiResponse;
@@ -573,11 +573,26 @@ function AnonymousPrivateChatSplitView({
           });
           try {
             setAiTyping(true);
+            // Get conversation context (oldest first - CORRECT for AI)
             const allPreviousMessages = [...messages, ...pendingMessages]
-            .filter(m => m.role === "user" || m.role === "ai")
-            .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
-            const aiResponse = await getAIResponse(newMessage.trim() || " ", allPreviousMessages);
-            const quotedUserMessage = `"${newMessage.trim() || "Attachment"}"\n\n`;
+              .filter(m => m.role === "user" || m.role === "ai")
+              .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
+            const recentUserMessages = [...messages, ...pendingMessages]
+              .filter(m => m.role === "user" && m.text !== "Yes" && m.text !== "No")
+              .sort((a, b) => getTimestampMillis(b.timestamp) - getTimestampMillis(a.timestamp));
+            // Find the LAST real user message (most recent, excluding "Yes"/"No")
+            const lastUserText = recentUserMessages.length > 0 
+              ? recentUserMessages[0].text 
+              : (recentUserMessages[0]?.fileUrl ? "Attachment" : "Hello");
+
+            const hasAttachment = recentUserMessages.length > 0 && recentUserMessages[0]?.fileUrl;
+
+            const quotedUserMessage = hasAttachment 
+              ? `"Attachment"\n\n` 
+              : `"${lastUserText}"\n\n`;
+
+            const aiResponse = await getAIResponse(lastUserText, allPreviousMessages);
+
             const aiFullText = quotedUserMessage + aiResponse;
             transaction.set(doc(collection(chatRef, "messages")), {
               text: aiFullText,

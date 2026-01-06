@@ -215,46 +215,49 @@ export function useActiveGroupChat(
     if (!activeGroupId) return;
 
     const groupRef = doc(db, "groupChats", activeGroupId);
-    const messagesCollection = collection(db, `groupChats/${activeGroupId}/messages`);
-    const msgRef = doc(messagesCollection, msgId);
+    const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
 
     try {
       await runTransaction(db, async (tx) => {
-        // Read the target message
-        const msgSnap = await tx.get(msgRef);
+        // Read the group document and the target message
+        const [groupSnap, msgSnap] = await Promise.all([
+          tx.get(groupRef),
+          tx.get(msgRef),
+        ]);
+
+        if (!groupSnap.exists()) {
+          throw new Error("Group does not exist");
+        }
         if (!msgSnap.exists()) {
           throw new Error("Message does not exist");
         }
 
-        // If we're pinning (not unpinning), we need to unpin all others
-        let docsToUnpin = [];
-        if (!currentPinned) {
-          // Read ALL messages in the collection using transaction-safe reads
-          const allMessagesSnap = await tx.get(query(messagesCollection));
-          allMessagesSnap.docs.forEach((doc) => {
-            if (doc.id !== msgId && doc.data().pinned) {
-              docsToUnpin.push(doc.ref);
-            }
-          });
+        const currentPinnedId = groupSnap.data().pinnedMessageId || null;
+
+        // If we're pinning a new message, unpin the old one if different
+        if (!currentPinned && currentPinnedId && currentPinnedId !== msgId) {
+          const oldMsgRef = doc(db, `groupChats/${activeGroupId}/messages`, currentPinnedId);
+          tx.update(oldMsgRef, { pinned: false, pinnedBy: null });
         }
 
-        // Unpin other messages
-        docsToUnpin.forEach((ref) => {
-          tx.update(ref, { pinned: false, pinnedBy: null });
+        // Toggle the target message
+        const newPinned = !currentPinned;
+        tx.update(msgRef, {
+          pinned: newPinned,
+          pinnedBy: newPinned ? displayName : null,
         });
 
-        // Toggle the target message
-        tx.update(msgRef, {
-          pinned: !currentPinned,
-          pinnedBy: !currentPinned ? displayName : null,
+        // Update the group document with the new pinned ID (or null if unpinning)
+        tx.update(groupRef, {
+          pinnedMessageId: newPinned ? msgId : null,
         });
 
         // Add system event
         const eventRef = doc(collection(groupRef, "events"));
         tx.set(eventRef, {
           type: "pin",
-          user: displayName,
-          text: !currentPinned
+          user: "System",
+          text: newPinned
             ? `${displayName} pinned a message`
             : `${displayName} unpinned a message`,
           role: "system",

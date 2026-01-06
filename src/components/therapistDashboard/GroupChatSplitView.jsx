@@ -158,38 +158,56 @@ function GroupChatSplitView({
           groupChats.map((group) => {
             const lastTs = group.lastMessage?.timestamp;
             const { dateStr, timeStr } = formatTimestamp(lastTs || null);
+            const isMember = group.isMember;
+
             return (
               <div
                 key={group.id}
-                className={`chat-card ${activeGroupId === group.id ? "selected" : ""}`}
+                className={`chat-card 
+                  ${activeGroupId === group.id ? "selected" : ""} 
+                  ${!isMember ? "left-group" : ""}`}
                 onClick={() => {
                   navigate(`/therapist-dashboard/group-chat/${group.id}`);
+                  // Always try to join — safe if already member (arrayUnion is idempotent)
                   joinGroupChat(group.id);
                 }}
+                style={{ cursor: "pointer" }}
               >
                 <div className="chat-card-inner">
                   <div className="chat-avater-content">
-                    <span className="therapist-avatar">{group.name?.[0] || "U"}</span>
+                    <span className={`therapist-avatar ${!isMember ? "grayed" : ""}`}>
+                      {group.name?.[0] || "G"}
+                    </span>
                     <div className="chat-card-content">
-                      <strong className="chat-card-title">{group.name || "Unnamed Group"}</strong>
-                      <small className="chat-card-preview">
-                        {group.lastMessage
-                          ? `${group.lastMessage.displayName || "Anonymous"}: ${group.lastMessage.text}`
-                          : "No messages yet"}
+                      <strong className={`chat-card-title ${!isMember ? "grayed-text" : ""}`}>
+                        {group.name || "Unnamed Group"}
+                        {!isMember && <span className="left-badge"> (Left)</span>}
+                      </strong>
+                      <small className={`chat-card-preview ${!isMember ? "grayed-text" : ""}`}>
+                        {isMember ? (
+                          group.lastMessage
+                            ? `${group.lastMessage.displayName || "Someone"}: ${group.lastMessage.text}`
+                            : "No messages yet"
+                        ) : (
+                          "You left this group • Tap to rejoin"
+                        )}
                       </small>
                     </div>
                   </div>
                   <div className="chat-card-meta">
-                    {lastTs ? (
+                    {lastTs && isMember && (
                       <div className="message-timestamp">
                         <span className="meta-date">{dateStr}</span>
                         <span className="meta-time">{timeStr}</span>
                       </div>
-                    ) : null}
-                    {(() => {
+                    )}
+                    {isMember && (() => {
                       const personalUnread = group.unreadCount?.[therapistId] || 0;
                       return personalUnread > 0 && <span className="unread-badge">{personalUnread}</span>;
                     })()}
+                    {!isMember && (
+                      <span className="rejoin-hint">Rejoin</span>
+                    )}
                   </div>
                 </div>
               </div>

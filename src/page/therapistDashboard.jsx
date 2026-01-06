@@ -20,11 +20,11 @@ import { useActiveGroupChat } from "../hooks/useActiveGroupChat";
 import { useActivePrivateChat } from "../hooks/useActivePrivateChat";
 import { useParticipantNames } from "../hooks/useParticipantNames";
 import { useUserNames } from "../hooks/useUserNames";
-import { useAppointments } from "../hooks/useAppointments";
 import { useOnlineTherapists } from "../hooks/useOnlineTherapists";
 import { useNotifications } from "../hooks/useNotifications";
 import { useHideSidebarMobile } from "../hooks/useHideSidebarMobile";
 import { useRemovePaddingBottomMobile } from "../hooks/useRemovePaddingBottomMobile"
+import "../assets/styles/therapistDashboard.css";
 function TherapistDashboard() {
   const navigate = useNavigate();
   const { groupId, chatId } = useParams();
