@@ -1,9 +1,52 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useContext } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { auth } from "../utils/firebase";
+import { AuthContext } from "../App";
+import { loginAnonymously } from "../login/anonymous_login";
 import Header from "../components/header";
 import "../assets/styles/home.css";
 
 function Home() {
+  const navigate = useNavigate();
+  const [loadingAction, setLoadingAction] = useState(null);
+  const { showGlobalError } = useContext(AuthContext);
+
+  const handleJoinAnonymous = async (targetPath, actionType) => {
+    // Prevent double clicks
+    if (loadingAction !== null) return;
+
+    setLoadingAction(actionType);
+
+    try {
+      const currentUser = auth.currentUser;
+
+      // Block therapists
+      if (currentUser && !currentUser.isAnonymous) {
+        showGlobalError(
+          "This feature is only available in anonymous mode. Please use your Therapist Dashboard instead."
+        );
+        setLoadingAction(null);
+        return;
+      }
+
+      // Already signed in anonymously, go directly, no login needed
+      if (currentUser && currentUser.isAnonymous) {
+        navigate(targetPath);
+        setLoadingAction(null);
+        return;
+      }
+
+      // Not signed in, sign in anonymously
+      await loginAnonymously(showGlobalError);
+      navigate(targetPath);
+    } catch (err) {
+      console.error("Failed to join anonymously:", err);
+      showGlobalError("Failed to join. Please try again.");
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const testimonials = [
     {
@@ -44,9 +87,13 @@ function Home() {
             A safe, secure space to connect with peers, access AI-driven support, or chat privately with licensed therapists.
           </p>
           <div className="hero-cta">
-            <Link to="/anonymous-dashboard" className="cta-button primary">
-              Start Chatting
-            </Link>
+            <button
+              className="cta-button primary"
+              onClick={() => handleJoinAnonymous("/anonymous-dashboard", "start")}
+              disabled={loadingAction !== null}
+            >
+              {loadingAction === "start" ? "Starting chat..." : "Start Chatting"}
+            </button>
             <Link to="/about" className="cta-button secondary">
               Learn More
             </Link>
@@ -63,13 +110,18 @@ function Home() {
             <i className="fas fa-users feature-icon"></i>
             <h3>Peer Support</h3>
             <p>Share experiences anonymously with a supportive community.</p>
-            <Link to="/anonymous-dashboard/group-chat" className="feature-cta">Join Now</Link>
+            <button
+              className="feature-cta"
+              onClick={() => handleJoinAnonymous("/anonymous-dashboard/group-chat", "group")}
+              disabled={loadingAction !== null}
+            >
+              {loadingAction === "group" ? "Joining..." : "Join Now"}
+            </button>
           </div>
           <div className="feature-card">
             <i className="fas fa-robot feature-icon"></i>
             <h3>AI Support</h3>
             <p>Access 24/7 AI-driven assistance for immediate support, and responses.</p>
-            {/* <Link to="/ai-support" className="feature-cta">Try AI Chat</Link> */}
           </div>
           <div className="feature-card">
             <i className="fas fa-user-md feature-icon"></i>
@@ -79,6 +131,8 @@ function Home() {
           </div>
         </div>
       </section>
+
+      {/* Rest of your sections (testimonials, stories, FAQ) remain unchanged */}
       <section className="testimonials-section" aria-labelledby="testimonials-title">
         <h2 id="testimonials-title" className="testimonials-title">
           What Our Community Says
@@ -104,7 +158,7 @@ function Home() {
           </button>
         </div>
       </section>
-      
+
       <section className="stories-section">
         <h2>Community Stories</h2>
         <div className="stories-grid">

@@ -74,6 +74,7 @@
   border-radius: var(--border-radius);
   font-size: 0.9rem;
   font-weight: 500;
+  outline: none;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -168,7 +169,7 @@
 .appointments-list .appointments-table td.status-cancelled,
 .appointments-list .appointments-table td.status-rejected { color: var(--error-color); }
 
-.appointments-list .appointments-table td[class^="status-"] {
+.appointments-list .appointments-table td[className^="status-"] {
   font-weight: 600;
 }
 

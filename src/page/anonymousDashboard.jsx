@@ -3,7 +3,7 @@ import { useNavigate, Routes, Route, useParams, useLocation } from "react-router
 import { db, auth } from "../utils/firebase";
 import { collection, query, onSnapshot, serverTimestamp, doc, arrayRemove, runTransaction, where, limit,
 } from "firebase/firestore";
-import { loginAnonymously, getAnonName } from "../login/anonymous_login";
+import { getAnonName } from "../login/anonymous_login";
 import useNotificationSound from "../hooks/useNotificationSound";
 import { formatTimestamp, getTimestampMillis } from "../hooks/useTimestampUtils";
 import Sidebar from "../components/sidebar";
@@ -14,12 +14,12 @@ import AppointmentsList from "../components/AnonymousDashboard/anonymousAppointm
 import { useUserNames } from "../hooks/useUserNames";
 import { useHideSidebarMobile } from "../hooks/useHideSidebarMobile";
 import { useRemovePaddingBottomMobile } from "../hooks/useRemovePaddingBottomMobile";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import MoodTracker from "../components/moodTracker";
 import { DateTime } from 'luxon';
 import "../assets/styles/anonymousDashboard.css";
 
 function AnonymousDashboard() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { groupId, chatId } = useParams();
 
@@ -45,6 +45,8 @@ function AnonymousDashboard() {
   const errorTimeoutRef = useRef(null);
   const moodModalRef = useRef(null);
   const currentUserId = auth.currentUser?.uid;
+  // Online Status Tracking
+  useOnlineStatus();
 
   const totalGroupUnread = useMemo(() => 
     groupChats.reduce((sum, group) => {
@@ -108,32 +110,6 @@ function AnonymousDashboard() {
     setActiveGroupId(groupId || null);
     setActiveChatId(chatId || null);
   }, [groupId, chatId]);
-
-  // Authenticate anonymous user
-  useEffect(() => {
-    let isMounted = true;
-
-    const initializeAuth = async () => {
-      try {
-        await loginAnonymously();
-        if (isMounted && !auth.currentUser) {
-          navigate("/");
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error("Anonymous login failed:", err);
-          showError("Authentication failed. Please refresh.");
-          navigate("/");
-        }
-      }
-    };
-
-    initializeAuth();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [navigate, showError]);
 
   // Fetch ALL group chats (so users can see ones they left)
   useEffect(() => {
@@ -271,6 +247,7 @@ function AnonymousDashboard() {
   // Auto-leave chats on tab close
   useEffect(() => {
     if (!userId) return;
+    const safeDisplayName = displayName || "Anonymous User";
     let isReloading = false;
     const debouncedLeave = async () => {
       if (isReloading) return;
@@ -286,8 +263,8 @@ function AnonymousDashboard() {
               });
               transaction.set(doc(collection(privateChatRef, "events")), {
                 type: "leave",
-                user: displayName,
-                text: `${displayName} has left the chat.`,
+                user: safeDisplayName,
+                text: `${safeDisplayName} has left the chat.`,
                 role: "system",
                 timestamp: serverTimestamp(),
               });
@@ -302,8 +279,8 @@ function AnonymousDashboard() {
               });
               transaction.set(doc(collection(groupChatRef, "events")), {
                 type: "leave",
-                user: displayName,
-                text: `${displayName} has left the chat.`,
+                user: safeDisplayName,
+                text: `${safeDisplayName} has left the chat.`,
                 role: "system",
                 timestamp: serverTimestamp(),
               });
@@ -405,6 +382,7 @@ function AnonymousDashboard() {
                 getTimestampMillis={getTimestampMillis}
                 displayName={displayName}
                 userId={userId}
+                anonNames={anonNames}
                 showError={showError}
                 playNotification={playNotification}
               />

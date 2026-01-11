@@ -367,7 +367,7 @@ const TherapistAppointmentsDashboard = () => {
             <div className="modal-header">
               <h4>{editingAppt ? "Edit" : "Create"} Appointment</h4>
               <button className="modal-close-btn" onClick={closeModal} aria-label="Close">
-                <i class="fas fa-times"></i>
+                <i className="fas fa-times"></i>
               </button>
             </div>
             <form onSubmit={handleSubmit} className="appointment-form">

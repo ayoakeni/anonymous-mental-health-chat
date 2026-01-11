@@ -7,7 +7,7 @@ export function useOnlineCount() {
 
   useEffect(() => {
     const q = query(
-      collection(db, "usersOnline"),
+      collection(db, "anonymousUsers"),
       where("online", "==", true)
     );
 

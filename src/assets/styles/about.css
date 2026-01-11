@@ -79,13 +79,16 @@
   justify-content: center;
 }
 
-.cta-button {
+.about-container .cta-button {
   padding: 12px 24px;
   border-radius: var(--border-radius);
+  border: none;
   text-decoration: none;
+  outline: none;
+  cursor: pointer;
   font-size: 1rem;
   font-weight: 600;
-  transition: background 0.3s, transform 0.3s;
+  transition: background 0.3s, transform 0.3s box-shadow 0.3s;
 }
 
 .cta-button.primary {
@@ -183,6 +186,10 @@
   background: var(--primary-color);
   color: #ffffff;
   border-radius: var(--border-radius);
+  border: none;
+  text-decoration: none;
+  outline: none;
+  cursor: pointer;
   text-decoration: none;
   font-size: 0.9rem;
   transition: background 0.3s, transform 0.3s;

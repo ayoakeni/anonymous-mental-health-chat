@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
-import ChatMessage from "./ChatMessage";
+import ChatMessage from "../ChatMessage";
 import ResizableSplitView from "../../components/resizableSplitView";
 import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import EmojiPicker from "emoji-picker-react";
@@ -32,8 +32,6 @@ function PrivateChatSplitView({
   inChat,
   isValidatingChat,
   chatError,
-  isTherapistAvailable,
-  activeTherapists,
   selectedTherapist,
   setSelectedTherapist,
   combinedPrivateChat,
@@ -54,6 +52,7 @@ function PrivateChatSplitView({
   therapistInfo,
   toggleReaction,
   deleteMessage,
+  pinMessage,
   isLoadingChats,
   formatTimestamp,
   onEmojiClick: parentOnEmojiClick,
@@ -69,6 +68,7 @@ function PrivateChatSplitView({
   const [menuOpen, setMenuOpen] = useState(false);
   const fileInputRef = useRef(null);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [replyTo, setReplyTo] = useState(null);
 
   /* ------------------- SCROLL LOGIC ------------------- */
   useEffect(() => {
@@ -86,6 +86,25 @@ function PrivateChatSplitView({
     chatBox.addEventListener("scroll", handleScroll);
     return () => chatBox.removeEventListener("scroll", handleScroll);
   }, [hasMoreMessages, isLoadingMessages, loadMoreMessages, chatBoxRef]);
+
+  // Scroll to pinned message or replied message
+  const scrollToMessage = useCallback((msgId) => {
+    const el = document.getElementById(`msg-${msgId}`);
+    if (!el) return;
+
+    // Remove existing highlight
+    document.querySelectorAll(".message-highlight").forEach(e => {
+      e.classList.remove("message-highlight");
+    });
+
+    // Highlight and scroll
+    el.classList.add("message-highlight");
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    setTimeout(() => {
+      el.classList.remove("message-highlight");
+    }, 1600);
+  }, []);
 
   // Menu ellipsis
   useEffect(() => {
@@ -116,20 +135,34 @@ function PrivateChatSplitView({
     [setNewPrivateMessage, setShowEmojiPicker]
   );
 
+  const handleReply = (message) => {
+    setReplyTo(message);
+    // Focus the input
+    document.querySelector(".inputInsert")?.focus();
+  };
+
+  const handleSend = useCallback((text = "", file = null) => {
+    if (!text.trim() && !file) return;
+    sendPrivateMessage(text.trim(), file, replyTo);
+    setNewPrivateMessage("");
+    setReplyTo(null);
+  }, [sendPrivateMessage, replyTo]);
+
   // File validation helper
   const handleFileChange = useCallback(
     (file) => {
-      if (
-        file &&
-        (file.size > 5 * 1024 * 1024 ||
-          !["image/", "application/pdf"].some((type) => file.type.startsWith(type)))
-      ) {
-        showError("Invalid file: too large or unsupported type");
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        showError("File too large (max 5 MB)");
         return;
       }
-      sendPrivateMessage(file);
+      if (!["image/", "application/pdf"].some((type) => file.type.startsWith(type))) {
+        showError("Only images and PDFs are supported");
+        return;
+      }
+      handleSend("", file);
     },
-    [sendPrivateMessage, showError]
+    [handleSend, showError]
   );
 
   /* ------------------- LEFT PANEL (Chat List) ------------------- */
@@ -345,6 +378,42 @@ function PrivateChatSplitView({
                 </div>
               </div>
             )}
+            {combinedPrivateChat.some((msg) => msg.pinned) && (
+              <div
+                className="pinned-message"
+                onClick={() => {
+                  const pinnedMsg = combinedPrivateChat.find(m => m.pinned);
+                  if (pinnedMsg) scrollToMessage(pinnedMsg.id);
+                }}
+                style={{ cursor: "pointer" }}
+                title="Click to jump to pinned message"
+              >
+                <span className="pin-text-icon">
+                  <i className="fas fa-thumbtack pinned-icon"></i>
+                  <span className="pinned-text">
+                    <strong>{combinedPrivateChat.find(m => m.pinned)?.pinnedBy || "Someone"}:</strong>{" "}
+                    <span>
+                      {(() => {
+                        const pinnedMsg = combinedPrivateChat.find(m => m.pinned);
+                        return pinnedMsg?.text || (pinnedMsg?.fileUrl ? "Attachment" : "");
+                      })()}
+                    </span>
+                  </span>
+                </span>
+                {therapistId && (
+                  <button
+                    className="unpin-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const pinnedMsg = combinedPrivateChat.find(m => m.pinned);
+                      if (pinnedMsg) pinMessage(pinnedMsg.id, true);
+                    }}
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                )}
+              </div>
+            )}
             {selectedTherapist && (
               <div className="therapist-profile-card">
                 <button onClick={() => setSelectedTherapist(null)}>Back</button>
@@ -367,9 +436,14 @@ function PrivateChatSplitView({
                     <ChatMessage
                       msg={msg}
                       toggleReaction={toggleReaction}
+                      currentUserId={therapistId}
+                      isPrivateChat={true}
+                      scrollToMessage={scrollToMessage}
                       deleteMessage={(msgId) => deleteMessage(msgId, "private")}
+                      pinMessage={pinMessage}
                       therapistInfo={therapistInfo}
                       handleTherapistClick={handleTherapistClick}
+                      onReply={handleReply}
                     />
                   </div>
                 ))
@@ -391,6 +465,23 @@ function PrivateChatSplitView({
               <div ref={privateMessagesEndRef} />
             </div>
             <div className="chat-input-box">
+              {replyTo && (
+                <div className="reply-preview">
+                  <div className="reply-preview-content">
+                    <strong>Replying to {replyTo.displayName}:</strong>
+                    <div className="reply-preview-text">
+                      {replyTo.text || (replyTo.fileUrl ? "Attachment" : "")}
+                    </div>
+                  </div>
+                  <button
+                    className="cancel-reply-btn"
+                    onClick={() => setReplyTo(null)}
+                    aria-label="Cancel reply"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                </div>
+              )}
               <div className="chat-input">
                 <button
                   className="emoji-btn"
@@ -412,10 +503,7 @@ function PrivateChatSplitView({
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
-                      if (newPrivateMessage.trim()) {
-                        sendPrivateMessage(newPrivateMessage);
-                        setNewPrivateMessage("");
-                      }
+                      handleSend(newPrivateMessage);
                     }
                   }}
                   aria-label="Message input"
@@ -438,12 +526,7 @@ function PrivateChatSplitView({
 
                 <button
                   className="send-btn"
-                  onClick={() => {
-                    if (newPrivateMessage.trim()) {
-                      sendPrivateMessage(newPrivateMessage);
-                      setNewPrivateMessage("");
-                    }
-                  }}
+                  onClick={() => handleSend(newPrivateMessage)}
                   disabled={isSendingPrivate}
                   aria-label="Send message"
                   >

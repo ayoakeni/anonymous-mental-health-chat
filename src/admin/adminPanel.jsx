@@ -77,7 +77,7 @@ export default function AdminPanel() {
 
     const unsubs = [];
 
-    unsubs.push(onSnapshot(collection(db, "usersOnline"), snap => {
+    unsubs.push(onSnapshot(collection(db, "anonymousUsers"), snap => {
       setStats(s => ({ ...s, onlineUsers: snap.size }));
     }));
 

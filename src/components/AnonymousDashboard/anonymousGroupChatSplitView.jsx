@@ -79,6 +79,7 @@ function AnonymousGroupChatSplitView({
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isInsideChat = useIsInsideChat();
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [replyTo, setReplyTo] = useState(null);
 
   // Memoize active group to avoid repeated find calls
   const activeGroup = useMemo(() => 
@@ -106,26 +107,7 @@ function AnonymousGroupChatSplitView({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, groupEvents, pendingMessages]);
-
-  // Scroll to pinned message by ID 
-  const scrollToMessage = useCallback((msgId) => {
-    const el = document.getElementById(`msg-${msgId}`);
-    if (!el) return;
-
-    // Remove any existing highlight
-    document.querySelectorAll(".message-highlight").forEach(e => {
-      e.classList.remove("message-highlight");
-    });
-
-    // Highlight class
-    el.classList.add("message-highlight");
-    // Scroll into view
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    setTimeout(() => {
-      el.classList.remove("message-highlight");
-    }, 1600);
-  }, []);
-
+  
   // Load more messages (pagination)
   const loadMoreMessages = useCallback(async () => {
     if (!activeGroupId || !hasMoreMessages || isLoadingChat) return;
@@ -151,15 +133,6 @@ function AnonymousGroupChatSplitView({
     }
   }, [activeGroupId, hasMoreMessages, isLoadingChat, messages, setMessages, setHasMoreMessages, showError]);
 
-  // Reset invalid activeGroupId
-  useEffect(() => {
-    if (activeGroupId && !groupChats.find(g => g.id === activeGroupId)) {
-      console.warn(`Active group ${activeGroupId} not found in groupChats, resetting`);
-      setActiveGroupId(null);
-      navigate("/anonymous-dashboard/group-chat");
-    }
-  }, [activeGroupId, groupChats, navigate, setActiveGroupId]);
-  
   // Handle scroll to load more messages
   useEffect(() => {
     const chatBox = chatBoxRef.current;
@@ -173,6 +146,34 @@ function AnonymousGroupChatSplitView({
     chatBox.addEventListener("scroll", handleScroll);
     return () => chatBox.removeEventListener("scroll", handleScroll);
   }, [hasMoreMessages, isLoadingChat, activeGroupId, loadMoreMessages]);
+
+  // Scroll to pinned message or replied message 
+  const scrollToMessage = useCallback((msgId) => {
+    const el = document.getElementById(`msg-${msgId}`);
+    if (!el) return;
+
+    // Remove any existing highlight
+    document.querySelectorAll(".message-highlight").forEach(e => {
+      e.classList.remove("message-highlight");
+    });
+
+    // Highlight class
+    el.classList.add("message-highlight");
+    // Scroll into view
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => {
+      el.classList.remove("message-highlight");
+    }, 1600);
+  }, []);
+  
+  // Reset invalid activeGroupId
+  useEffect(() => {
+    if (activeGroupId && !groupChats.find(g => g.id === activeGroupId)) {
+      console.warn(`Active group ${activeGroupId} not found in groupChats, resetting`);
+      setActiveGroupId(null);
+      navigate("/anonymous-dashboard/group-chat");
+    }
+  }, [activeGroupId, groupChats, navigate, setActiveGroupId]);
   
   // Fetch online therapists with default name
   useEffect(() => {
@@ -375,6 +376,7 @@ function AnonymousGroupChatSplitView({
       });
       setActiveGroupId(groupId);
       navigate(`/anonymous-dashboard/group-chat/${groupId}`);
+      document.querySelector(".inputInsert")?.focus();
     } catch (err) {
       console.error("Error joining group chat:", err);
       showError("Failed to join group chat. Please try again.");
@@ -410,7 +412,7 @@ function AnonymousGroupChatSplitView({
   };
 
   // Send message
-  const sendMessage = async (file = null) => {
+  const sendMessage = async (file = null, replyTo = null) => {
     if (!newMessage.trim() && !file) return;
     if (!userId || !activeGroupId) return;
     setIsSending(true);
@@ -453,6 +455,12 @@ function AnonymousGroupChatSplitView({
           timestamp: serverTimestamp(),
           reactions: {},
           pinned: false,
+          replyTo: replyTo ? {
+            id: replyTo.id,
+            displayName: replyTo.displayName,
+            text: replyTo.text,
+            fileUrl: replyTo.fileUrl || null,
+          } : null,
         });
 
         tx.update(groupRef, {
@@ -478,6 +486,12 @@ function AnonymousGroupChatSplitView({
           timestamp: { toMillis: () => Date.now() },
           reactions: {},
           pinned: false,
+          replyTo: replyTo ? {
+            id: replyTo.id,
+            displayName: replyTo.displayName,
+            text: replyTo.text,
+            fileUrl: replyTo.fileUrl || null,
+          } : null,
         },
       ]);
 
@@ -510,6 +524,12 @@ function AnonymousGroupChatSplitView({
               fileUrl: null,
               reactions: {},
               pinned: false,
+              replyTo: replyTo ? {
+                id: replyTo.id,
+                displayName: replyTo.displayName,
+                text: replyTo.text,
+                fileUrl: replyTo.fileUrl || null,
+              } : null,
             });
 
             tx.update(groupRef, {
@@ -534,6 +554,12 @@ function AnonymousGroupChatSplitView({
               fileUrl: null,
               reactions: {},
               pinned: false,
+              replyTo: replyTo ? {
+                id: replyTo.id,
+                displayName: replyTo.displayName,
+                text: replyTo.text,
+                fileUrl: replyTo.fileUrl || null,
+              } : null,
             },
           ]);
         } catch (aiErr) {
@@ -558,6 +584,12 @@ function AnonymousGroupChatSplitView({
               fileUrl: null,
               reactions: {},
               pinned: false,
+              replyTo: replyTo ? {
+                id: replyTo.id,
+                displayName: replyTo.displayName,
+                text: replyTo.text,
+                fileUrl: replyTo.fileUrl || null,
+              } : null,
             });
 
             tx.update(groupRef, {
@@ -582,6 +614,12 @@ function AnonymousGroupChatSplitView({
               fileUrl: null,
               reactions: {},
               pinned: false,
+              replyTo: replyTo ? {
+                id: replyTo.id,
+                displayName: replyTo.displayName,
+                text: replyTo.text,
+                fileUrl: replyTo.fileUrl || null,
+              } : null,
             },
           ]);
         } finally {
@@ -593,88 +631,73 @@ function AnonymousGroupChatSplitView({
       showError("Failed to send message.");
     } finally {
       setIsSending(false);
+      setReplyTo(null);
     }
   };
 
   // Toggle reaction
   const toggleReaction = async (msgId, reactionType) => {
     if (!userId || !activeGroupId) return;
+
     const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
+
     try {
       await runTransaction(db, async (transaction) => {
         const msgSnap = await transaction.get(msgRef);
         if (!msgSnap.exists()) return;
+
         const reactions = msgSnap.data().reactions || {};
-        const currentReactions = reactions[reactionType] || [];
-        const updatedReactions = currentReactions.includes(userId)
-          ? currentReactions.filter((id) => id !== userId)
-          : [...currentReactions, userId];
-        const updated = { ...reactions, [reactionType]: updatedReactions };
-        transaction.update(msgRef, { reactions: updated });
+        const currentUserId = userId;
+
+        // Define the two possible reaction types
+        const reactionTypes = ["heart", "thumbsUp"];
+        const otherType = reactionTypes.find(t => t !== reactionType);
+
+        // Check user's current reactions
+        const hasThisReaction = reactions[reactionType]?.includes(currentUserId) || false;
+        const hasOtherReaction = reactions[otherType]?.includes(currentUserId) || false;
+
+        // Build updated reactions object
+        const updatedReactions = { ...reactions };
+
+        if (hasThisReaction) {
+          // User already has this reaction → remove it
+          updatedReactions[reactionType] = (reactions[reactionType] || []).filter(
+            id => id !== currentUserId
+          );
+          // Also remove any other reaction (just in case)
+          if (hasOtherReaction) {
+            updatedReactions[otherType] = (reactions[otherType] || []).filter(
+              id => id !== currentUserId
+            );
+          }
+        } else {
+          // User is adding this reaction → add it
+          updatedReactions[reactionType] = [
+            ...(reactions[reactionType] || []),
+            currentUserId
+          ];
+
+          // Remove any other reaction this user had
+          if (hasOtherReaction) {
+            updatedReactions[otherType] = (reactions[otherType] || []).filter(
+              id => id !== currentUserId
+            );
+          }
+        }
+
+        // Clean up empty arrays (optional, keeps data tidy)
+        Object.keys(updatedReactions).forEach(key => {
+          if (updatedReactions[key]?.length === 0) {
+            delete updatedReactions[key];
+          }
+        });
+
+        transaction.update(msgRef, { reactions: updatedReactions });
       });
     } catch (err) {
       console.error("Error toggling reaction:", err);
       showError("Failed to update reaction. Please try again.");
-    }
-  };
-
-  // ---------- PIN MESSAGE ----------
-  const pinMessage = async (msgId, currentPinned = false) => {
-    if (!activeGroupId) return;
-
-    const groupRef = doc(db, "groupChats", activeGroupId);
-    const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
-
-    try {
-      await runTransaction(db, async (tx) => {
-        // Read the group document and the target message
-        const [groupSnap, msgSnap] = await Promise.all([
-          tx.get(groupRef),
-          tx.get(msgRef),
-        ]);
-
-        if (!groupSnap.exists()) {
-          throw new Error("Group does not exist");
-        }
-        if (!msgSnap.exists()) {
-          throw new Error("Message does not exist");
-        }
-
-        const currentPinnedId = groupSnap.data().pinnedMessageId || null;
-
-        // If we're pinning a new message, unpin the old one if different
-        if (!currentPinned && currentPinnedId && currentPinnedId !== msgId) {
-          const oldMsgRef = doc(db, `groupChats/${activeGroupId}/messages`, currentPinnedId);
-          tx.update(oldMsgRef, { pinned: false, pinnedBy: null });
-        }
-
-        // Toggle the target message
-        const newPinned = !currentPinned;
-        tx.update(msgRef, {
-          pinned: newPinned,
-          pinnedBy: newPinned ? displayName : null,
-        });
-
-        // Update the group document with the new pinned ID (or null if unpinning)
-        tx.update(groupRef, {
-          pinnedMessageId: newPinned ? msgId : null,
-        });
-
-        // Add system event
-        const eventRef = doc(collection(groupRef, "events"));
-        tx.set(eventRef, {
-          type: "pin",
-          user: "System",
-          text: newPinned
-            ? `${displayName} pinned a message`
-            : `${displayName} unpinned a message`,
-          role: "system",
-          timestamp: serverTimestamp(),
-        });
-      });
-    } catch (e) {
-      console.error("Failed to pin/unpin message:", e);
-      showError("Failed to pin/unpin message.");
     }
   };
 
@@ -683,6 +706,18 @@ function AnonymousGroupChatSplitView({
     setNewMessage(newMessage + emojiData.emoji);
     setShowEmojiPicker(false);
   };
+
+  const handleReply = (message) => {
+    setReplyTo(message);
+    document.querySelector(".inputInsert")?.focus();
+  };
+
+  const handleSend = useCallback((text = "", file = null) => {
+    if (!text.trim() && !file) return;
+    sendMessage(text.trim(), file, replyTo);
+    setNewMessage("");
+    setReplyTo(null);
+  }, [sendMessage, replyTo]);
 
   // Handle therapist click to view profile
   const handleTherapistClick = async (msg) => {
@@ -970,7 +1005,8 @@ function AnonymousGroupChatSplitView({
             )}
             {/* Pinned Message */}
             {combinedGroupChat.some((msg) => msg.pinned) && (
-              <div className="pinned-message"
+              <div
+                className="pinned-message"
                 onClick={() => {
                   const pinnedMsg = combinedGroupChat.find(m => m.pinned);
                   if (pinnedMsg) scrollToMessage(pinnedMsg.id);
@@ -981,8 +1017,13 @@ function AnonymousGroupChatSplitView({
                 <span className="pin-text-icon">
                   <i className="fas fa-thumbtack pinned-icon"></i>
                   <span className="pinned-text">
-                    <strong>{combinedGroupChat.find(m => m.pinned)?.pinnedBy}:</strong>{" "}
-                    <span>{combinedGroupChat.find((msg) => msg.pinned)?.text || ""}</span>
+                    <strong>{combinedGroupChat.find(m => m.pinned)?.pinnedBy || "Someone"}:</strong>{" "}
+                    <span>
+                      {(() => {
+                        const pinnedMsg = combinedGroupChat.find(m => m.pinned);
+                        return pinnedMsg?.text || (pinnedMsg?.fileUrl ? "Attachment" : "");
+                      })()}
+                    </span>
                   </span>
                 </span>
               </div>
@@ -1004,11 +1045,14 @@ function AnonymousGroupChatSplitView({
                     <ChatMessage
                       msg={msg}
                       toggleReaction={msg.id.startsWith("pending-") ? () => {} : toggleReaction}
+                      currentUserId={userId}
+                      currentView="anonymous"
+                      isPrivateChat={false}
                       therapistInfo={{ role: isTherapist ? "therapist" : "user" }}
                       handleTherapistClick={handleTherapistClick}
-                      pinMessage={isTherapist ? pinMessage : undefined}
                       scrollToMessage={scrollToMessage}
-                      isTherapist={isTherapist}
+                      therapistId={isTherapist ? userId : null}
+                      onReply={handleReply}
                     />
                   </div>
                 );
@@ -1035,6 +1079,23 @@ function AnonymousGroupChatSplitView({
             <div ref={messagesEndRef} />
           </div>
           <div className="chat-input-box">
+            {replyTo && (
+              <div className="reply-preview">
+                <div className="reply-preview-content">
+                  <strong>Replying to {replyTo.displayName}:</strong>
+                  <div className="reply-preview-text">
+                    {replyTo.text || (replyTo.fileUrl ? "Attachment" : "")}
+                  </div>
+                </div>
+                <button
+                  className="cancel-reply-btn"
+                  onClick={() => setReplyTo(null)}
+                  aria-label="Cancel reply"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+            )}
             <div className="chat-input">
               <button
                 className="emoji-btn"
@@ -1055,7 +1116,7 @@ function AnonymousGroupChatSplitView({
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    sendMessage();
+                    handleSend(newMessage);
                   }
                 }}
                 aria-label="Message input"
@@ -1065,7 +1126,12 @@ function AnonymousGroupChatSplitView({
                 type="file"
                 id="group-file-upload"
                 style={{ display: "none" }}
-                onChange={(e) => sendMessage(e.target.files[0])}
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    handleSend("", file);
+                  }
+                }}
                 aria-label="Upload file"
               />
               <button
@@ -1075,7 +1141,7 @@ function AnonymousGroupChatSplitView({
               >
                 <i className="fa-solid fa-paperclip"></i>
               </button>
-              <button className="send-btn" onClick={() => sendMessage()} disabled={isSending} aria-label="Send message">
+              <button className="send-btn" onClick={() => handleSend(newMessage)} disabled={isSending} aria-label="Send message">
                 {isSending ? <span className="spinner small"></span> : <i className="fa-solid fa-paper-plane"></i>}
               </button>
             </div>

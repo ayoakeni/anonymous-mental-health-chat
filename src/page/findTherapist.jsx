@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useContext } from "react";
+import { AuthContext } from "../App";
 import { collection, query, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../utils/firebase";
 import { useNavigate } from "react-router-dom";
@@ -8,19 +9,22 @@ import { Search, Star, CheckCircle, Clock, MessageCircle, Calendar } from "lucid
 import "../assets/styles/find-therapist.css";
 
 export default function FindTherapist() {
+  const navigate = useNavigate();
+  const { showGlobalError } = useContext(AuthContext);
+
   const [therapists, setTherapists] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("all");
   const [loading, setLoading] = useState(true);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const [showBooking, setShowBooking] = useState(false);
-  const navigate = useNavigate();
+  const [chatLoading, setChatLoading] = useState(false);
 
   useEffect(() => {
     const q = query(collection(db, "therapists"));
     const unsub = onSnapshot(q, async (snapshot) => {
       const therapistsData = await Promise.all(
-        snapshot.docs.map(docSnap => {
+        snapshot.docs.map((docSnap) => {
           const data = docSnap.data();
           return {
             id: docSnap.id,
@@ -35,7 +39,7 @@ export default function FindTherapist() {
         })
       );
 
-      setTherapists(therapistsData.filter(t => t.verified !== false));
+      setTherapists(therapistsData.filter((t) => t.verified !== false));
       setLoading(false);
     });
 
@@ -43,51 +47,91 @@ export default function FindTherapist() {
   }, []);
 
   const specialties = useMemo(() => {
-    const all = therapists.flatMap(t => t.specialties || []);
+    const all = therapists.flatMap((t) => t.specialties || []);
     return ["all", ...new Set(all)];
   }, [therapists]);
 
   const filteredTherapists = useMemo(() => {
-    return therapists.filter(t => {
-      const matchesSearch = 
+    return therapists.filter((t) => {
+      const matchesSearch =
         t.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.position?.position?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.specialties?.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
+        t.specialties?.some((s) => s.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      const matchesSpecialty = selectedSpecialty === "all" || 
-        t.specialties?.includes(selectedSpecialty);
+      const matchesSpecialty =
+        selectedSpecialty === "all" || t.specialties?.includes(selectedSpecialty);
 
       return matchesSearch && matchesSpecialty;
     });
   }, [therapists, searchTerm, selectedSpecialty]);
 
   const startPrivateChat = async (therapist) => {
-    if (!therapist.allowPrivateChats) {
-      alert("This therapist is not accepting private chats right now.\n\nYou can still book a session with them!");
+    if (chatLoading) return;
+    setChatLoading(true);
+
+    try {
+      const currentUser = auth.currentUser;
+
+      // Must be signed in anonymously
+      if (!currentUser || !currentUser.isAnonymous) {
+        showGlobalError(
+          "You need to be signed in anonymously to start a private chat. Go back to home and tap “Start Chatting” to begin."
+        );
+        setChatLoading(false);
+        return;
+      }
+
+      // Check if therapist allows chats
+      if (!therapist.allowPrivateChats) {
+        showGlobalError(
+          "This therapist is not accepting private chats right now. You can still book a session with them!"
+        );
+        setChatLoading(false);
+        return;
+      }
+
+      // Create chat ID
+      const anonUid = currentUser.uid;
+      const uids = [anonUid.slice(0, 8), therapist.uid.slice(0, 8)].sort();
+      const chatId = `${uids[0]}_${uids[1]}`;
+
+      // Delay to allow (Starting chat...) button to update visually
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      // Now navigate
+      navigate(`/anonymous-dashboard/private-chat/${chatId}`, {
+        state: {
+          selectChatId: chatId,
+          therapistId: therapist.uid,
+          therapistName: therapist.name,
+        },
+      });
+    } catch (err) {
+      console.error("Failed to start private chat:", err);
+      showGlobalError("Failed to start chat. Please try again.");
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const handleBookSession = (therapist) => {
+    const currentUser = auth.currentUser;
+    // Block if not signed in anonymously
+    if (!currentUser || !currentUser.isAnonymous) {
+      showGlobalError(
+        "You need to be signed in anonymously to book a session. Go back to home and tap “Start Chatting” to begin."
+      );
       return;
     }
-
-    const anonUid = auth.currentUser?.uid;
-    if (!anonUid) {
-      alert("You need to be signed in to message a therapist\n\nPlease go back to the home page and tap “Start Chatting” to continue.");
-      return;
-    }
-
-    const uids = [anonUid.slice(0, 8), therapist.uid.slice(0, 8)].sort();
-    const chatId = `${uids[0]}_${uids[1]}`;
-
-    navigate(`/anonymous-dashboard/private-chat/${chatId}`, {
-      state: {
-        selectChatId: chatId,
-        therapistId: therapist.uid,
-        therapistName: therapist.name,
-      },
-    });
+    // Proceed for valid anonymous users
+    setSelectedTherapist(therapist);
+    setShowBooking(true);
   };
 
   return (
     <div className="find-therapist-page">
       <Header />
+
       <section className="find-therapist-hero">
         <div className="hero-content">
           <h1>Find Your Therapist</h1>
@@ -102,7 +146,9 @@ export default function FindTherapist() {
             <p className="stat-label">Total Therapists</p>
           </div>
           <div className="stat-item">
-            <p className="stat-number online">{therapists.filter(t => t.online).length}</p>
+            <p className="stat-number online">
+              {therapists.filter((t) => t.online).length}
+            </p>
             <p className="stat-label">Online Now</p>
           </div>
           <div className="stat-item">
@@ -134,7 +180,7 @@ export default function FindTherapist() {
             onChange={(e) => setSelectedSpecialty(e.target.value)}
             className="specialty-filter"
           >
-            {specialties.map(spec => (
+            {specialties.map((spec) => (
               <option key={spec} value={spec}>
                 {spec === "all" ? "All Specialties" : spec}
               </option>
@@ -144,22 +190,24 @@ export default function FindTherapist() {
       </section>
 
       <section className="find-therapist-list">
-        {loading ? ( 
-        <div className="find-therapist-loading">
-          <p><span className="spinner"></span> Loading therapists...</p>
-        </div>
+        {loading ? (
+          <div className="find-therapist-loading">
+            <p>
+              <span className="spinner"></span> Loading therapists...
+            </p>
+          </div>
         ) : filteredTherapists.length === 0 ? (
           <p className="no-results">No therapists found matching your criteria.</p>
         ) : (
           <div className="therapist-grid">
-            {filteredTherapists.map(therapist => (
+            {filteredTherapists.map((therapist) => (
               <article key={therapist.id} className="therapist-card">
                 <header className="therapist-header">
                   <div className="therapist-info">
                     <div className="therapist-avatar-wrapper">
                       {therapist.profileImage ? (
-                        <img 
-                          src={therapist.profileImage} 
+                        <img
+                          src={therapist.profileImage}
                           alt={therapist.name}
                           className="therapist-avatar-img"
                         />
@@ -172,7 +220,9 @@ export default function FindTherapist() {
                     </div>
                     <div>
                       <h3>{therapist.name}</h3>
-                      <p className="position">{therapist.position?.position || therapist.position}</p>
+                      <p className="position">
+                        {therapist.position?.position || therapist.position}
+                      </p>
                     </div>
                   </div>
                   {therapist.verified && (
@@ -185,7 +235,8 @@ export default function FindTherapist() {
 
                 <div className="therapist-body">
                   <p className="bio">
-                    {therapist.profile || "Dedicated mental health professional ready to support you."}
+                    {therapist.profile ||
+                      "Dedicated mental health professional ready to support you."}
                   </p>
 
                   {therapist.specialties && therapist.specialties.length > 0 && (
@@ -193,7 +244,9 @@ export default function FindTherapist() {
                       <p className="label">Specialties</p>
                       <div className="specialty-tags">
                         {therapist.specialties.map((spec, i) => (
-                          <span key={i} className="specialty-tag">{spec}</span>
+                          <span key={i} className="specialty-tag">
+                            {spec}
+                          </span>
                         ))}
                       </div>
                     </div>
@@ -204,7 +257,9 @@ export default function FindTherapist() {
                       {[...Array(5)].map((_, i) => (
                         <Star
                           key={i}
-                          className={`star ${i < Math.floor(therapist.rating) ? "filled" : ""}`}
+                          className={`star ${
+                            i < Math.floor(therapist.rating) ? "filled" : ""
+                          }`}
                         />
                       ))}
                     </div>
@@ -228,29 +283,50 @@ export default function FindTherapist() {
                   </div>
 
                   <div className="therapist-actions">
-                  <button
-                    onClick={() => startPrivateChat(therapist)}
-                    className={`btn-chat ${!therapist.allowPrivateChats ? 'unavailable' : ''}`}
-                    title={
-                      !therapist.allowPrivateChats
-                        ? "This therapist is not accepting private chats right now"
-                        : "Start a private chat"
-                    }
-                  >
-                    <MessageCircle className="icon" />
-                    {therapist.allowPrivateChats ? "Start Chat" : "Unavailable"}
-                  </button>
+                    {/* Hide buttons (and show note) only if logged in as therapist */}
+                    {!auth.currentUser || auth.currentUser.isAnonymous ? (
+                      <>
+                        <button
+                          onClick={() => startPrivateChat(therapist)}
+                          className={`btn-chat ${
+                            !therapist.allowPrivateChats || chatLoading ? "unavailable" : ""
+                          }`}
+                          disabled={chatLoading}
+                          title={
+                            !therapist.allowPrivateChats
+                              ? "This therapist is not accepting private chats right now"
+                              : chatLoading
+                              ? "Starting chat..."
+                              : "Start a private chat"
+                          }
+                        >
+                          {chatLoading ? (
+                            <>
+                              <span className="spinner-small"></span>
+                              Starting...
+                            </>
+                          ) : (
+                            <>
+                              <MessageCircle className="icon" />
+                              {therapist.allowPrivateChats ? "Start Chat" : "Unavailable"}
+                            </>
+                          )}
+                        </button>
 
-                    <button
-                      onClick={() => {
-                        setSelectedTherapist(therapist);
-                        setShowBooking(true);
-                      }}
-                      className="btn-book"
-                    >
-                      <Calendar className="icon" />
-                      Book Session
-                    </button>
+                        <button
+                          onClick={() => handleBookSession(therapist)}
+                          className="btn-book"
+                          title="Book a Session"
+                        >
+                          <Calendar className="icon" />
+                          Book Session
+                        </button>
+                      </>
+                    ) : (
+                      <p className="therapist-note">
+                        These features are for clients only. Use your Therapist Dashboard to manage sessions.
+                      </p>
+                    )}
                   </div>
                 </div>
               </article>
@@ -258,6 +334,7 @@ export default function FindTherapist() {
           </div>
         )}
       </section>
+
       {showBooking && selectedTherapist && (
         <AppointmentBooking
           therapist={selectedTherapist}

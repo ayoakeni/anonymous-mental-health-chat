@@ -5,11 +5,15 @@ const ChatMessage = memo(
   ({
     msg,
     toggleReaction,
+    currentUserId,
+    currentView,
+    isPrivateChat = false,
     deleteMessage,
     pinMessage,
     therapistId,
     handleTherapistClick,
     scrollToMessage,
+    onReply,
     isAiOffer = false,
     onAiYes,
     onAiNo,
@@ -46,10 +50,24 @@ const ChatMessage = memo(
       );
     }
 
-    // Normal message rendering
+    // Helper to get clean text for quoting (remove file indicators, trim)
+    const getQuoteText = () => {
+      let text = msg.text || msg.message || "";
+      if (msg.fileUrl) text = text || "Attachment";
+      return text.trim();
+    };
+
+    const shouldShowName = !isPrivateChat;
+
+    const shouldMakeTherapistClickable = 
+      currentView === "anonymous" && 
+      msg.role === "therapist" && 
+      !isPrivateChat;
+
     return (
-      <p
-        className={`chat-message ${
+      <div className={`chat-message 
+        ${msg.deleted ? 'deleted' : ''} 
+        ${
           msg.role === "therapist"
             ? "therapist"
             : msg.role === "ai"
@@ -58,106 +76,190 @@ const ChatMessage = memo(
             ? "system"
             : "user"
         }`}
-        onClick={() => handleTherapistClick(msg)}
+        id={`msg-${msg.id}`}
       >
-        <strong>{msg.displayName || msg.user || "Anonymous"}</strong>{" "}
-        <div className="message-content-time">
-          {msg.role === "ai" ? (
-            <>
-              {msg.text.split("\n\n").map((part, index) => (
-                <span
-                  key={index}
-                  className={index === 0 ? "ai-user-quote" : "ai-response"}
-                >
-                  {part}
-                </span>
-              ))}
-            </>
-          ) : (
-            <span>{msg.text || msg.message}</span>
+        <div className="message-content">
+          {shouldShowName && (
+            <div className="message-header">
+              <strong
+                className={shouldMakeTherapistClickable ? "clickable-name" : ""}
+                {...(shouldMakeTherapistClickable && {
+                  onClick: () => handleTherapistClick(msg),
+                  title: "Click to see profile",
+                })}
+              >
+                {msg.displayName || msg.user || "Anonymous"}
+              </strong>
+            </div>
           )}
-          {msg.fileUrl && (
-            <a
-              href={msg.fileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="attachment-link"
-            >
-              <i className="fa-solid fa-paperclip"></i> View Attachment
-            </a>
-          )}
-          <span className="message-pin-timestamp">
-            {msg.pinned && (
+
+          <div className="message-content-time">
+            {/* Reply quote block – shown when this message is replying to another */}
+            {!msg.deleted && msg.replyTo && (
               <div
-                className="pinned-label"
+                className="reply-quote"
                 onClick={(e) => {
                   e.stopPropagation();
-                  scrollToMessage(msg.id);
+                  if (msg.replyTo?.id) {
+                    scrollToMessage(msg.replyTo.id);
+                  }
                 }}
-                title="Jump to this pinned message"
+                title="Click to jump to original message"
               >
-                <i className="fas fa-thumbtack"></i>Pinned by <strong>{msg.pinnedBy || "Unknown"}</strong>
+                <div className="reply-quote-content">
+                  <strong className={shouldMakeTherapistClickable ? "clickable-name" : ""}>{msg.replyTo.displayName || "Anonymous"}</strong>
+                  <div className="reply-quote-text">
+                    {msg.replyTo.text || (msg.replyTo.fileUrl ? "Attachment" : "Original message")}
+                  </div>
+                  {msg.replyTo.fileUrl && (
+                    <div className="reply-quote-attachment">
+                      <i className="fa-solid fa-paperclip"></i> Attachment
+                    </div>
+                  )}
+                </div>
               </div>
             )}
-            <span className="message-time">{formatMessageTime(msg.timestamp)}</span>
-          </span>
 
-          <span className="message-reactions">
-            <i
-              className="fa-solid fa-heart reaction"
-              style={{ color: msg.reactions?.heart?.length > 0 ? "red" : "gray" }}
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleReaction(msg.id, "heart");
-              }}
-            ></i>
-            <i
-              className="fa-solid fa-thumbs-up reaction"
-              style={{ color: msg.reactions?.thumbsUp?.length > 0 ? "blue" : "gray" }}
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleReaction(msg.id, "thumbsUp");
-              }}
-            ></i>
-          </span>
+            {msg.deleted ? (
+              <em className="deleted-message">This message was deleted</em>
+            ) : msg.role === "ai" ? (
+              <>
+                {msg.text.split("\n\n").map((part, index) => (
+                  <span
+                    key={index}
+                    className={index === 0 ? "ai-user-quote" : "ai-response"}
+                  >
+                    <div className="ai-user-quote-text">
+                      {part}
+                    </div>
+                  </span>
+                ))}
+              </>
+            ) : (
+              <span>{msg.text || msg.message}</span>
+            )}
 
-          <span className="message-reactions-view">
-            <i className="fa-solid fa-heart reaction" style={{ color: msg.reactions?.heart?.length > 0 ? "red" : "gray" }}>
-              {msg.reactions?.heart?.length || 0}
-            </i>
-            <i className="fa-solid fa-thumbs-up reaction" style={{ color: msg.reactions?.thumbsUp?.length > 0 ? "blue" : "gray" }}>
-              {msg.reactions?.thumbsUp?.length || 0}
-            </i>
-          </span>
-        </div>
+            {!msg.deleted && msg.fileUrl && (
+              <a
+                href={msg.fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="attachment-link"
+              >
+                <i className="fa-solid fa-paperclip"></i> View Attachment
+              </a>
+            )}
 
-        {msg.role !== "system" && therapistId && (
-          <div className="message-actions">
-            <button
-              className="pin-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                pinMessage(msg.id, msg.pinned);
-              }}
-              title={msg.pinned ? "Unpin" : "Pin to top"}
-            >
-              {msg.pinned ? <i className="fas fa-thumbtack pinned"></i> : <i className="fas fa-thumbtack"></i>}
-            </button>
-            {msg.userId === therapistId && (
-              <button
-                className="delete-btn"
+            <span className="message-pin-timestamp">
+              {!msg.deleted && msg.pinned && (
+                <div
+                  className="pinned-label"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    scrollToMessage(msg.id);
+                  }}
+                  title="Jump to this pinned message"
+                >
+                  <i className="fas fa-thumbtack"></i> Pinned by <strong>{msg.pinnedBy || "Unknown"}</strong>
+                </div>
+              )}
+              <span className="message-time">{formatMessageTime(msg.timestamp)}</span>
+            </span>          
+          </div>
+          {!msg.deleted && msg.role !== "system" && (
+            <span className="message-reactions">
+              <i
+                className={`fa-solid fa-heart reaction ${
+                  msg.reactions?.heart?.includes(currentUserId) ? "user-reacted" : ""
+                }`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  deleteMessage(msg.id);
+                  toggleReaction(msg.id, "heart");
                 }}
-                title="Delete this message"
+              ></i>
+              <i
+                className={`fa-solid fa-thumbs-up reaction ${
+                  msg.reactions?.thumbsUp?.includes(currentUserId) ? "user-reacted" : ""
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleReaction(msg.id, "thumbsUp");
+                }}
+              ></i>
+            </span>
+          )}
+          {/* Message actions (pin, delete, reply) */}
+          {!msg.deleted && msg.role !== "system" && (
+            <div className="message-actions">
+              {/* Reply button */}
+              <button
+                className="reply-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReply?.({
+                    id: msg.id,
+                    displayName: msg.displayName || msg.user || "Anonymous",
+                    text: getQuoteText(),
+                    fileUrl: msg.fileUrl,
+                  });
+                }}
+                title="Reply to this message"
               >
-                <i className="fas fa-trash"></i>
+                <i className="fas fa-reply"></i>
               </button>
+
+              {/* Pin button (only for therapists) */}
+              {therapistId && (
+                <button
+                  className="pin-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    pinMessage(msg.id, msg.pinned);
+                  }}
+                  title={msg.pinned ? "Unpin" : "Pin this message"}
+                >
+                  {msg.pinned ? <i className="fas fa-thumbtack pinned"></i> : <i className="fas fa-thumbtack"></i>}
+                </button>
+              )}
+
+              {/* Delete button (only own message + therapist) */}
+              {msg.userId === therapistId && (
+                <button
+                  className="delete-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteMessage(msg.id);
+                  }}
+                  title="Delete this message"
+                >
+                  <i className="fas fa-trash"></i>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        {!msg.deleted && msg.role !== "system" && (
+          <span className="message-reactions-view">
+            {msg.reactions?.heart && (
+              <i
+                className={`fa-solid fa-heart reaction ${
+                  msg.reactions?.heart?.includes(currentUserId) ? "user-reacted" : ""
+                }`}
+              >
+                {msg.reactions?.heart?.length || 0}
+              </i>
             )}
-          </div>
+            {msg.reactions?.thumbsUp && (
+            <i
+              className={`fa-solid fa-thumbs-up reaction ${
+                msg.reactions?.thumbsUp?.includes(currentUserId) ? "user-reacted" : ""
+              }`}
+            >
+              {msg.reactions?.thumbsUp?.length || 0}
+            </i>)}
+          </span>
         )}
-      </p>
+      </div>
     );
   }
 );

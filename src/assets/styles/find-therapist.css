@@ -358,7 +358,15 @@
 .find-therapist-page .therapist-actions {
   display: flex;
   gap: 0.75rem;
-  margin-top: 1.5rem;
+  margin-top: 1.4rem;
+}
+
+.find-therapist-page .therapist-actions .therapist-note {
+  font-size: 0.875rem;
+  color: #666;
+  text-align: center;
+  padding: 0 1rem;
+  font-style: italic;
 }
 
 .find-therapist-page .btn-chat,
@@ -380,6 +388,20 @@
 .find-therapist-page .btn-chat {
   background: var(--primary-color);
   color: white;
+}
+
+.find-therapist-page .btn-chat .spinner-small {
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid var(--primary-color);
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .find-therapist-page .btn-book {

@@ -107,7 +107,9 @@ function TherapistDashboard() {
     pinMessage: pinGroupMsg,
     loadMore: loadMoreGroup,
     hasMore: groupHasMore,
-    loading: groupLoading,
+    isInitialLoading,
+    isLoadingOlder,
+    markAsRead: markGroupAsRead,
   } = useActiveGroupChat(
     activeGroupId,
     therapistId,
@@ -124,6 +126,7 @@ function TherapistDashboard() {
     sendMessage: sendPrivMsg,
     toggleReaction: togglePrivReaction,
     deleteMessage: deletePrivMsg,
+    pinMessage: pinPrivateMsg,
     loadMore: loadMorePrivate,
     hasMore: privHasMore,
     loading: privLoading,
@@ -257,7 +260,8 @@ function TherapistDashboard() {
     setIsParticipantsOpen,
     combinedGroupChat,
     chatBoxRef: useRef(null),
-    isLoadingMessages: groupLoading,
+    isInitialLoading,
+    isLoadingOlder,
     hasMoreMessages: groupHasMore,
     loadMoreMessages: loadMoreGroup,
     showEmojiPicker,
@@ -278,6 +282,7 @@ function TherapistDashboard() {
     showError,
     groupMessagesEndRef,
     navigate,
+    markAsRead: markGroupAsRead,
   };
 
   const privateProps = {
@@ -306,6 +311,7 @@ function TherapistDashboard() {
     therapistInfo,
     toggleReaction: togglePrivReaction,
     deleteMessage: deletePrivMsg,
+    pinMessage: pinPrivateMsg,
     isLoadingChats: isLoadingPrivateChats,
     formatTimestamp,
     onEmojiClick: (e) => setNewPrivateMessage((p) => p + e.emoji),

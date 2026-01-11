@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback, createContext } from "react";
 import {
   Routes,
   Route,
@@ -8,7 +8,11 @@ import {
   Link,
 } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, setDoc, getDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  onSnapshot,
+} from "firebase/firestore";
 import { auth, db } from "./utils/firebase";
 
 import NotificationHandler from "./components/notificationHandler";
@@ -24,6 +28,8 @@ import AnonymousDashboard from "./page/anonymousDashboard";
 import RealTimeBanGuard from "./components/realTimeBanGuard";
 import "./assets/styles/App.css";
 
+export const AuthContext = createContext(null);
+
 const ADMIN_EMAILS = ["admin@yourapp.com"];
 
 function AuthProvider({ children }) {
@@ -33,8 +39,49 @@ function AuthProvider({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Global error state
+  const [globalError, setGlobalError] = useState(null);
+  const [isErrorFading, setIsErrorFading] = useState(false);
+  const errorTimeoutRef = useRef(null);
+
+  const showGlobalError = useCallback((msg, autoDismiss = true) => {
+    if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+    setGlobalError(msg);
+    setIsErrorFading(false);
+
+    if (autoDismiss) {
+      errorTimeoutRef.current = setTimeout(() => {
+        setIsErrorFading(true);
+        setTimeout(() => {
+          setGlobalError(null);
+          setIsErrorFading(false);
+        }, 300);
+      }, 5000);
+    }
+  }, []);
+
+  const closeGlobalError = useCallback(() => {
+    setIsErrorFading(true);
+    setTimeout(() => {
+      setGlobalError(null);
+      setIsErrorFading(false);
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current);
+        errorTimeoutRef.current = null;
+      }
+    }, 300);
+  }, []);
+
+  // Cleanup timeout on unmount
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
+    return () => {
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+    };
+  }, []);
+
+  // Auth state listener
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, async (u) => {
       if (!u) {
         setUser(null);
         setIsTherapist(false);
@@ -43,53 +90,83 @@ function AuthProvider({ children }) {
       }
 
       setUser(u);
+      setLoading(true);
 
       let banUnsub = () => {};
 
-      if (u.isAnonymous) {
-        const anonRef = doc(db, "anonymousUsers", u.uid);
+      try {
+        if (u.isAnonymous) {
+          const anonRef = doc(db, "anonymousUsers", u.uid);
+          banUnsub = onSnapshot(anonRef, async (snap) => {
+            if (snap.exists() && snap.data().banned === true) {
+              const reason = snap.data().banReason || "No reason provided";
+              showGlobalError(`You have been banned from using this service.\n\nReason: ${reason}`);
+              await signOut(auth);
+              setUser(null);
+              setIsTherapist(false);
+              setLoading(false);
+              navigate("/", { replace: true });
+            }
+          });
+        } else if (u.email) {
+          const therapistRef = doc(db, "therapists", u.uid);
+          const snap = await getDoc(therapistRef);
 
-        banUnsub = onSnapshot(anonRef, async (snap) => {
-          if (snap.exists() && snap.data().banned === true) {
-            const reason = snap.data().banReason || "No reason provided";
-            alert(`You have been banned from using this service.\n\nReason: ${reason}`);
+          if (snap.exists() && snap.data().suspended) {
+            showGlobalError("Your account has been suspended.");
             await signOut(auth);
-            setUser(null);
+            navigate("/therapist-login", { replace: true });
             setLoading(false);
-            navigate("/", { replace: true });
+            return;
           }
-        });
-      }
 
-      else if (u.email) {
-        const therapistRef = doc(db, "therapists", u.uid);
-        const snap = await getDoc(therapistRef);
+          setIsTherapist(true);
 
-        if (snap.exists() && snap.data().suspended) {
-          alert("Your account has been suspended.");
-          await signOut(auth);
-          navigate("/therapist-login", { replace: true });
-          return;
+          if (location.pathname === "/therapist-login") {
+            navigate("/therapist-dashboard/", { replace: true });
+          }
         }
-
-        setIsTherapist(true);
-
-        if (location.pathname === "/therapist-login") {
-          navigate("/therapist-dashboard/", { replace: true });
-        }
+      } catch (err) {
+        console.error("Auth check error:", err);
+        showGlobalError("Failed to verify account status.");
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
 
       return () => {
         if (banUnsub) banUnsub();
       };
     });
 
-    return () => unsub();
-  }, [navigate]);
+    return () => unsubAuth();
+  }, [navigate, location.pathname, showGlobalError]);
 
-  return children({ user, isTherapist, loading, location });
+  const value = {
+    user,
+    isTherapist,
+    loading,
+    location,
+    globalError,
+    isErrorFading,
+    showGlobalError,
+    closeGlobalError,
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children(value)}
+    </AuthContext.Provider>
+  );
+}
+
+function Loader() {
+  return (
+    <div className="loaderbox" role="status" aria-label="Loading...">
+      <span className="loader">
+        <img src="/anonymous-logo.png" alt="" className="loader-logo-image" />
+      </span>
+    </div>
+  );
 }
 
 export default function App() {
@@ -99,8 +176,15 @@ export default function App() {
     <>
       <NotificationHandler />
       <AuthProvider>
-        {({ user, isTherapist, loading, location }) => {
-          // Define which paths should show the footer
+        {({
+          user,
+          isTherapist,
+          loading,
+          location,
+          globalError,
+          isErrorFading,
+          closeGlobalError,
+        }) => {
           const showFooter =
             location.pathname === "/" ||
             location.pathname === "/about" ||
@@ -109,6 +193,20 @@ export default function App() {
 
           return (
             <>
+              {/* Global Error Toast */}
+              {globalError && (
+                <div className={`error-toast ${isErrorFading ? "fade-out" : ""}`}>
+                  <span>{globalError}</span>
+                  <button
+                    className="error-close-btn"
+                    onClick={closeGlobalError}
+                    aria-label="Close error"
+                  >
+                    <i className="fa-solid fa-times"></i>
+                  </button>
+                </div>
+              )}
+
               <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<Home />} />
@@ -163,7 +261,7 @@ export default function App() {
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
 
-              {/* Footer: Only show on public pages */}
+              {/* Footer */}
               {showFooter && (
                 <footer className="footer">
                   <p>&copy; 2025 - {currentYear} Anonymous Mental Health Support. All rights reserved.</p>
@@ -179,15 +277,5 @@ export default function App() {
         }}
       </AuthProvider>
     </>
-  );
-}
-
-function Loader() {
-  return (
-    <div className="loaderbox" role="status" aria-label="Loading...">
-      <span className="loader">
-        <img src="/anonymous-logo.png" alt="" className="loader-logo-image" />
-      </span>
-    </div>
   );
 }

@@ -1,10 +1,52 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom'
+import { useState, useContext } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { auth } from "../utils/firebase";
+import { AuthContext } from "../App";
+import { loginAnonymously } from "../login/anonymous_login";
 import '../assets/styles/about.css';
-import Header from "../components/header"
+import Header from "../components/header";
 
 function About() {
+  const navigate = useNavigate();
   const [openFaq, setOpenFaq] = useState(null);
+  const [loadingAction, setLoadingAction] = useState(null);
+  const { showGlobalError } = useContext(AuthContext);
+
+  const handleJoinAnonymous = async (targetPath, actionType) => {
+    // Prevent double clicks
+    if (loadingAction !== null) return;
+
+    setLoadingAction(actionType);
+
+    try {
+      const currentUser = auth.currentUser;
+
+      // Block therapists
+      if (currentUser && !currentUser.isAnonymous) {
+        showGlobalError(
+          "This feature is only available in anonymous mode. Please use your Therapist Dashboard instead."
+        );
+        setLoadingAction(null);
+        return;
+      }
+
+      // Already signed in anonymously, go directly, no login needed
+      if (currentUser && currentUser.isAnonymous) {
+        navigate(targetPath);
+        setLoadingAction(null);
+        return;
+      }
+
+      // Not signed in, sign in anonymously
+      await loginAnonymously(showGlobalError);
+      navigate(targetPath);
+    } catch (err) {
+      console.error("Failed to join anonymously:", err);
+      showGlobalError("Failed to join the chat. Please try again.");
+    } finally {
+      setLoadingAction(null);
+    }
+  };
 
   const toggleFaq = (index) => {
     setOpenFaq(openFaq === index ? null : index);
@@ -36,7 +78,13 @@ function About() {
             We provide anonymous mental health support through real-time peer chat, AI-driven assistance, and professional therapist access.
           </p>
           <div className="hero-cta">
-            <Link to="/anonymous-dashboard" className="cta-button primary">Join the Community</Link>
+            <button
+              className="cta-button primary"
+              onClick={() => handleJoinAnonymous("/anonymous-dashboard", "community")}
+              disabled={loadingAction !== null}
+            >
+              {loadingAction === "community" ? "Joining Community..." : "Join the Community"}
+            </button>
             <Link to="/learn-more" className="cta-button secondary">Learn More</Link>
           </div>
         </div>
@@ -49,13 +97,18 @@ function About() {
             <i className="feature-icon fas fa-comments"></i>
             <h3>Peer Support</h3>
             <p>Connect anonymously with others in real-time to share experiences and support each other.</p>
-            <a href="/anonymous-dashboard/group-chat" className="feature-cta">Join Chat</a>
+            <button
+              className="feature-cta"
+              onClick={() => handleJoinAnonymous("/anonymous-dashboard/group-chat", "group")}
+              disabled={loadingAction !== null}
+            >
+              {loadingAction === "group" ? "Joining Chat..." : "Join Chat"}
+            </button>
           </div>
           <div className="feature-card">
             <i className="feature-icon fas fa-robot"></i>
             <h3>AI Assistance</h3>
             <p>Our AI offers instant, empathetic responses and resources to guide you through challenges.</p>
-            {/* <Link to="/ai-assist" className="feature-cta">Try AI Support</Link> */}
           </div>
           <div className="feature-card">
             <i className="feature-icon fas fa-user-md"></i>
@@ -65,7 +118,6 @@ function About() {
           </div>
         </div>
       </section>
-
 
       <section className="mission-section">
         <h2 className="features-title">Our Mission</h2>

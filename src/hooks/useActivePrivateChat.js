@@ -83,6 +83,7 @@ export function useActivePrivateChat(
       });
 
       setInChat(true);
+      document.querySelector(".inputInsert")?.focus();
     } catch (e) {
       console.error("Join failed:", e);
       setChatError(e.message || "Failed to join chat");
@@ -136,7 +137,7 @@ export function useActivePrivateChat(
   }, [activeChatId, therapistId, displayName, navigate, showError]);
 
   // ---------- SEND ----------
-  const sendMessage = async (text, file = null) => {
+  const sendMessage = async (text, file = null, replyTo = null) => {
     if (!text.trim() && !file) return;
     if (!activeChatId) return;
     setIsSending(true);
@@ -159,6 +160,14 @@ export function useActivePrivateChat(
           displayName,
           role: "therapist",
           timestamp: serverTimestamp(),
+          pinned: false,
+          reactions: {},
+          replyTo: replyTo ? {
+            id: replyTo.id,
+            displayName: replyTo.displayName,
+            text: replyTo.text,
+            fileUrl: replyTo.fileUrl || null,
+          } : null,
         });
         tx.update(doc(db, "privateChats", activeChatId), {
           lastMessage: displayName + ": " + text || "Attachment",
@@ -176,32 +185,151 @@ export function useActivePrivateChat(
 
   // ---------- REACTION ----------
   const toggleReaction = async (msgId, emoji) => {
+    if (!activeChatId || !therapistId) return;
     const msgRef = doc(db, `privateChats/${activeChatId}/messages`, msgId);
-    await runTransaction(db, async (tx) => {
-      const snap = await tx.get(msgRef);
-      if (!snap.exists()) return;
-      const reactions = snap.data().reactions || {};
-      const list = reactions[emoji] || [];
-      const updated = list.includes(therapistId)
-        ? list.filter(id => id !== therapistId)
-        : [...list, therapistId];
-      tx.update(msgRef, { [`reactions.${emoji}`]: updated });
-    });
+
+    try {
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(msgRef);
+        if (!snap.exists()) return;
+
+        const reactions = snap.data().reactions || {};
+        const currentUserId = therapistId;
+
+        // Supported reactions — add more here if you expand later
+        const reactionTypes = ["heart", "thumbsUp"];
+        const otherType = reactionTypes.find(t => t !== emoji);
+
+        // Check if user already reacted with this emoji or the other one
+        const hasThis = reactions[emoji]?.includes(currentUserId) || false;
+        const hasOther = otherType && (reactions[otherType]?.includes(currentUserId) || false);
+
+        // Build updated reactions
+        const updatedReactions = { ...reactions };
+
+        if (hasThis) {
+          // Remove this reaction
+          updatedReactions[emoji] = (reactions[emoji] || []).filter(id => id !== currentUserId);
+        } else {
+          // Add this reaction
+          updatedReactions[emoji] = [...(reactions[emoji] || []), currentUserId];
+        }
+
+        // Always remove the other reaction if it exists
+        if (hasOther && otherType) {
+          updatedReactions[otherType] = (reactions[otherType] || []).filter(id => id !== currentUserId);
+        }
+
+        // Clean up empty arrays to keep Firestore tidy
+        Object.keys(updatedReactions).forEach(key => {
+          if (updatedReactions[key]?.length === 0) {
+            delete updatedReactions[key];
+          }
+        });
+
+        // If no reactions left at all, optionally clear the field (Firestore will remove it)
+        const finalReactions = Object.keys(updatedReactions).length === 0 ? deleteField() : updatedReactions;
+
+        tx.update(msgRef, { reactions: finalReactions });
+      });
+    } catch (err) {
+      console.error("Error toggling reaction:", err);
+      showError("Failed to update reaction.");
+    }
   };
 
   // ---------- DELETE ----------
   const deleteMessage = async (msgId) => {
-    await runTransaction(db, async (tx) => {
-      const msgRef = doc(db, `privateChats/${activeChatId}/messages`, msgId);
-      tx.delete(msgRef);
-      tx.set(doc(collection(db, `privateChats/${activeChatId}/events`)), {
-        type: "delete",
-        user: displayName,
-        text: `Message deleted by ${displayName}`,
-        role: "system",
-        timestamp: serverTimestamp(),
+    if (!activeChatId || !therapistId) return;
+
+    try {
+      await runTransaction(db, async (tx) => {
+        const msgRef = doc(db, `privateChats/${activeChatId}/messages`, msgId);
+
+        // Get the message to verify ownership
+        const msgSnap = await tx.get(msgRef);
+        if (!msgSnap.exists()) {
+          throw new Error("Message does not exist");
+        }
+
+        const msgData = msgSnap.data();
+        if (msgData.userId !== therapistId) {
+          throw new Error("You can only delete your own messages");
+        }
+
+        tx.update(msgRef, {
+          messageDeleted: "This message was deleted",
+          deleted: true,
+          deletedAt: serverTimestamp(),
+          deletedBy: displayName,
+        });
       });
-    });
+
+      showError("Message deleted", "success");
+    } catch (e) {
+      console.error("Failed to delete message:", e);
+      showError("Failed to delete message. try again later.");
+    }
+  };
+
+  // ---------- PIN MESSAGE ----------
+  const pinMessage = async (msgId, currentPinned = false) => {
+    if (!activeChatId) return;
+
+    const privateRef = doc(db, "privateChats", activeChatId);
+    const msgRef = doc(db, `privateChats/${activeChatId}/messages`, msgId);
+
+    try {
+      await runTransaction(db, async (tx) => {
+        // Read the private chat document and the target message
+        const [privateSnap, msgSnap] = await Promise.all([
+          tx.get(privateRef),
+          tx.get(msgRef),
+        ]);
+
+        if (!privateSnap.exists()) {
+          throw new Error("Private chat does not exist");
+        }
+        if (!msgSnap.exists()) {
+          throw new Error("Message does not exist");
+        }
+
+        const currentPinnedId = privateSnap.data().pinnedMessageId || null;
+
+        // If we're pinning a new message, unpin the old one if different
+        if (!currentPinned && currentPinnedId && currentPinnedId !== msgId) {
+          const oldMsgRef = doc(db, `privateChats/${activeChatId}/messages`, currentPinnedId);
+          tx.update(oldMsgRef, { pinned: false, pinnedBy: null });
+        }
+
+        // Toggle the target message
+        const newPinned = !currentPinned;
+        tx.update(msgRef, {
+          pinned: newPinned,
+          pinnedBy: newPinned ? displayName : null,
+        });
+
+        // Update the private chat document with the new pinned ID (or null if unpinning)
+        tx.update(privateRef, {
+          pinnedMessageId: newPinned ? msgId : null,
+        });
+
+        // Add system event
+        const eventRef = doc(collection(privateRef, "events"));
+        tx.set(eventRef, {
+          type: "pin",
+          user: "System",
+          text: newPinned
+            ? `${displayName} pinned a message`
+            : `${displayName} unpinned a message`,
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
+      });
+    } catch (e) {
+      console.error("Failed to pin/unpin message:", e);
+      showError("Failed to pin/unpin message.");
+    }
   };
 
   // ---------- LOAD MORE ----------
@@ -290,6 +418,7 @@ export function useActivePrivateChat(
     isSendingPrivate: isSending,
     toggleReaction,
     deleteMessage,
+    pinMessage,
     loadMore,
   };
 }

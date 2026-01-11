@@ -86,10 +86,13 @@
 }
 
 .cta-button {
-  padding: 14px 28px;
+  padding: 12px 24px;
   border-radius: var(--border-radius);
+  border: none;
   text-decoration: none;
-  font-size: 1.1rem;
+  outline: none;
+  cursor: pointer;
+  font-size: 1rem;
   font-weight: 600;
   transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
 }

@@ -201,7 +201,7 @@ const AnonymousDashboardHome = ({
       <div className="welcome-header">
         <h2>
           <span className="greeting">{getGreeting()},</span>
-          <span className="highlight">{displayName || "Anonymous"}</span>!
+          <span className="highlight">{displayName || "Anonymous User"}</span>!
         </h2>
         <p className="subtext">
           Explore your chats, log your mood, try a daily task, or connect with a therapist.

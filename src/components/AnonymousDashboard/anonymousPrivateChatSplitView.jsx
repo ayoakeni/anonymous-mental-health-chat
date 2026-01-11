@@ -64,6 +64,7 @@ function AnonymousPrivateChatSplitView({
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [replyTo, setReplyTo] = useState(null);
 
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
@@ -98,6 +99,25 @@ function AnonymousPrivateChatSplitView({
     const therapist = activeTherapists.find(t => t.uid === currentTherapistUid);
     return therapist ? "online" : "offline";
   }, [currentTherapistUid, activeTherapists]);
+
+  // Scroll to pinned message or replied message
+  const scrollToMessage = useCallback((msgId) => {
+    const el = document.getElementById(`msg-${msgId}`);
+    if (!el) return;
+
+    // Remove existing highlight
+    document.querySelectorAll(".message-highlight").forEach(e => {
+      e.classList.remove("message-highlight");
+    });
+
+    // Highlight and scroll
+    el.classList.add("message-highlight");
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    setTimeout(() => {
+      el.classList.remove("message-highlight");
+    }, 1600);
+  }, []);
 
   useEffect(() => {
     const selectId = location.state?.selectChatId;
@@ -388,6 +408,7 @@ function AnonymousPrivateChatSplitView({
       });
       setActiveChatId(chatId);
       navigate(`/anonymous-dashboard/private-chat/${chatId}`);
+      document.querySelector(".inputInsert")?.focus();
     } catch (err) {
       console.error("Error joining private chat:", err);
       showError("Failed to join private chat.");
@@ -426,7 +447,7 @@ function AnonymousPrivateChatSplitView({
     }
   };
 
-  const sendMessage = async (file = null) => {
+  const sendMessage = async (file = null, replyTo = null) => {
     if (!newMessage.trim() && !file) return;
     if (!userId || !activeChatId) return;
 
@@ -486,6 +507,13 @@ function AnonymousPrivateChatSplitView({
           role: "user",
           timestamp: serverTimestamp(),
           reactions: {},
+          pinned: false,
+          replyTo: replyTo ? {
+            id: replyTo.id,
+            displayName: replyTo.displayName,
+            text: replyTo.text,
+            fileUrl: replyTo.fileUrl || null,
+          } : null,
         });
       });
 
@@ -499,6 +527,13 @@ function AnonymousPrivateChatSplitView({
         role: "user",
         timestamp: { toMillis: () => Date.now() },
         reactions: {},
+        pinned: false,
+        replyTo: replyTo ? {
+          id: replyTo.id,
+          displayName: replyTo.displayName,
+          text: replyTo.text,
+          fileUrl: replyTo.fileUrl || null,
+        } : null,
       }]);
 
       setNewMessage("");
@@ -563,6 +598,13 @@ function AnonymousPrivateChatSplitView({
           role: "user",
           timestamp: serverTimestamp(),
           read: false,
+          pinned: false,
+          replyTo: replyTo ? {
+            id: replyTo.id,
+            displayName: replyTo.displayName,
+            text: replyTo.text,
+            fileUrl: replyTo.fileUrl || null,
+          } : null,
         });
         if (choice === "yes") {
           transaction.update(chatRef, { aiActive: true, aiOffered: false });
@@ -601,6 +643,13 @@ function AnonymousPrivateChatSplitView({
               timestamp: serverTimestamp(),
               fileUrl: null,
               reactions: {},
+              pinned: false,
+              replyTo: replyTo ? {
+                id: replyTo.id,
+                displayName: replyTo.displayName,
+                text: replyTo.text,
+                fileUrl: replyTo.fileUrl || null,
+              } : null,
             });
             transaction.update(chatRef, {
               lastMessage: aiFullText,
@@ -618,6 +667,13 @@ function AnonymousPrivateChatSplitView({
                 role: "user",
                 timestamp: { toMillis: () => Date.now() },
                 read: false,
+                pinned: false,
+                replyTo: replyTo ? {
+                  id: replyTo.id,
+                  displayName: replyTo.displayName,
+                  text: replyTo.text,
+                  fileUrl: replyTo.fileUrl || null,
+                } : null,
               },
               {
                 id: `pending-system-${Date.now()}`,
@@ -633,6 +689,13 @@ function AnonymousPrivateChatSplitView({
                 timestamp: { toMillis: () => Date.now() },
                 fileUrl: null,
                 reactions: {},
+                pinned: false,
+                replyTo: replyTo ? {
+                  id: replyTo.id,
+                  displayName: replyTo.displayName,
+                  text: replyTo.text,
+                  fileUrl: replyTo.fileUrl || null,
+                } : null,
               },
             ]);
           } catch (err) {
@@ -658,6 +721,13 @@ function AnonymousPrivateChatSplitView({
                 role: "user",
                 timestamp: { toMillis: () => Date.now() },
                 read: false,
+                pinned: false,
+                replyTo: replyTo ? {
+                  id: replyTo.id,
+                  displayName: replyTo.displayName,
+                  text: replyTo.text,
+                  fileUrl: replyTo.fileUrl || null,
+                } : null,
               },
               {
                 id: `pending-system-${Date.now()}`,
@@ -685,6 +755,13 @@ function AnonymousPrivateChatSplitView({
               role: "user",
               timestamp: { toMillis: () => Date.now() },
               read: false,
+              pinned: false,
+              replyTo: replyTo ? {
+                id: replyTo.id,
+                displayName: replyTo.displayName,
+                text: replyTo.text,
+                fileUrl: replyTo.fileUrl || null,
+              } : null,
             },
             {
               id: `pending-system-${Date.now()}`,
@@ -704,31 +781,90 @@ function AnonymousPrivateChatSplitView({
     }
   };
 
+  // Toggle reaction
   const toggleReaction = async (msgId, reactionType) => {
     if (!userId || !activeChatId) return;
+
     const msgRef = doc(db, `privateChats/${activeChatId}/messages`, msgId);
+
     try {
       await runTransaction(db, async (transaction) => {
         const msgSnap = await transaction.get(msgRef);
         if (!msgSnap.exists()) return;
+
         const reactions = msgSnap.data().reactions || {};
-        const currentReactions = reactions[reactionType] || [];
-        const updatedReactions = currentReactions.includes(userId)
-          ? currentReactions.filter((id) => id !== userId)
-          : [...currentReactions, userId];
-        const updated = { ...reactions, [reactionType]: updatedReactions };
-        transaction.update(msgRef, { reactions: updated });
+        const currentUserId = userId;
+
+        // Define the two possible reaction types
+        const reactionTypes = ["heart", "thumbsUp"];
+        const otherType = reactionTypes.find(t => t !== reactionType);
+
+        // Check user's current reactions
+        const hasThisReaction = reactions[reactionType]?.includes(currentUserId) || false;
+        const hasOtherReaction = reactions[otherType]?.includes(currentUserId) || false;
+
+        // Build updated reactions object
+        const updatedReactions = { ...reactions };
+
+        if (hasThisReaction) {
+          // User already has this reaction → remove it
+          updatedReactions[reactionType] = (reactions[reactionType] || []).filter(
+            id => id !== currentUserId
+          );
+          // Also remove any other reaction (just in case)
+          if (hasOtherReaction) {
+            updatedReactions[otherType] = (reactions[otherType] || []).filter(
+              id => id !== currentUserId
+            );
+          }
+        } else {
+          // User is adding this reaction → add it
+          updatedReactions[reactionType] = [
+            ...(reactions[reactionType] || []),
+            currentUserId
+          ];
+
+          // Remove any other reaction this user had
+          if (hasOtherReaction) {
+            updatedReactions[otherType] = (reactions[otherType] || []).filter(
+              id => id !== currentUserId
+            );
+          }
+        }
+
+        // Clean up empty arrays (optional, keeps data tidy)
+        Object.keys(updatedReactions).forEach(key => {
+          if (updatedReactions[key]?.length === 0) {
+            delete updatedReactions[key];
+          }
+        });
+
+        transaction.update(msgRef, { reactions: updatedReactions });
       });
     } catch (err) {
       console.error("Error toggling reaction:", err);
       showError("Failed to update reaction. Please try again.");
     }
   };
-
+  
+  // Handle emoji click
   const onEmojiClick = (emojiData) => {
     setNewMessage(newMessage + emojiData.emoji);
     setShowEmojiPicker(false);
   };
+
+  const handleReply = (message) => {
+    setReplyTo(message);
+    // Focus the input
+    document.querySelector(".inputInsert")?.focus();
+  };
+
+  const handleSend = useCallback((text = "", file = null) => {
+    if (!text.trim() && !file) return;
+    sendMessage(text.trim(), file, replyTo);
+    setNewMessage("");
+    setReplyTo(null);
+  }, [sendMessage, replyTo]);
 
   const combinedPrivateChat = [...messages, ...events, ...pendingMessages]
   .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
@@ -904,6 +1040,31 @@ function AnonymousPrivateChatSplitView({
               </div>
             </div>
           )}
+          {/* Pinned Message */}
+          {combinedPrivateChat.some((msg) => msg.pinned) && (
+            <div
+              className="pinned-message"
+              onClick={() => {
+                const pinnedMsg = combinedPrivateChat.find(m => m.pinned);
+                if (pinnedMsg) scrollToMessage(pinnedMsg.id);
+              }}
+              style={{ cursor: "pointer" }}
+              title="Click to jump to pinned message"
+            >
+              <span className="pin-text-icon">
+                <i className="fas fa-thumbtack pinned-icon"></i>
+                <span className="pinned-text">
+                  <strong>{combinedPrivateChat.find(m => m.pinned)?.pinnedBy || "Someone"}:</strong>{" "}
+                  <span>
+                    {(() => {
+                      const pinnedMsg = combinedPrivateChat.find(m => m.pinned);
+                      return pinnedMsg?.text || (pinnedMsg?.fileUrl ? "Attachment" : "");
+                    })()}
+                  </span>
+                </span>
+              </span>
+            </div>
+          )}
           <div className="chat-box" role="log" aria-live="polite" ref={chatBoxRef}>
             {isLoadingChat ? (
               <div className="loading-messages">
@@ -918,13 +1079,17 @@ function AnonymousPrivateChatSplitView({
                   <ChatMessage
                     msg={msg}
                     toggleReaction={msg.id.startsWith("pending-") ? () => {} : toggleReaction}
+                    currentUserId={userId}
+                    isPrivateChat={true}
                     therapistInfo={{ role: "user" }}
                     handleTherapistClick={() => {}}
+                    scrollToMessage={scrollToMessage}
                     isAiOffer={msg.type === "ai-offer" && !aiEnabled}
                     onAiYes={() => handleAiChoice("yes")}
                     onAiNo={() => handleAiChoice("no")}
                     aiTyping={aiTyping}
                     isSending={isSending}
+                    onReply={handleReply}
                   />
                 </div>
               ))
@@ -949,6 +1114,23 @@ function AnonymousPrivateChatSplitView({
             <div ref={messagesEndRef} />
           </div>
           <div className="chat-input-box">
+            {replyTo && (
+              <div className="reply-preview">
+                <div className="reply-preview-content">
+                  <strong>Replying to {replyTo.displayName}:</strong>
+                  <div className="reply-preview-text">
+                    {replyTo.text || (replyTo.fileUrl ? "Attachment" : "")}
+                  </div>
+                </div>
+                <button
+                  className="cancel-reply-btn"
+                  onClick={() => setReplyTo(null)}
+                  aria-label="Cancel reply"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+            )}
             <div className="chat-input">
               <button
                 className="emoji-btn"
@@ -970,7 +1152,7 @@ function AnonymousPrivateChatSplitView({
                 onKeyDown={e => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    sendMessage();
+                    handleSend(newMessage);
                   }
                 }}
                 aria-label="Message input"
@@ -981,7 +1163,12 @@ function AnonymousPrivateChatSplitView({
                 type="file"
                 ref={fileInputRef}
                 style={{ display: "none" }}
-                onChange={e => sendMessage(e.target.files[0])}
+                onChange={e => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    handleSend("", file);
+                  }
+                }}
                 aria-label="Upload file"
               />
               <button
@@ -995,7 +1182,7 @@ function AnonymousPrivateChatSplitView({
 
               <button
                 className="send-btn"
-                onClick={() => sendMessage()}
+                onClick={() => handleSend(newMessage)}
                 disabled={isSending || aiTyping}
                 aria-label="Send message"
               >

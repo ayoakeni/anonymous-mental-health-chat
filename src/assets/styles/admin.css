@@ -768,7 +768,7 @@
   gap: 16px;
   background: #f9fafb;
   border-radius: 12px;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .admin-panel .monitor-sidebar {
