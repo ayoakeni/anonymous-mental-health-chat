@@ -95,7 +95,6 @@ function GroupChatSplitView({
   const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(null);
   const [lastReadIndex, setLastReadIndex] = useState(-1);
   const [initialScrollDone, setInitialScrollDone] = useState(false);
-  const [hasJumpedToFirstUnread, setHasJumpedToFirstUnread] = useState(false);
   const prevCombinedLength = useRef(0);
   const prevLastMsgId = useRef(null);
 
@@ -114,7 +113,6 @@ function GroupChatSplitView({
     if (atBottom && (wasNotAtBottom || firstUnreadMessageId)) {
       setNewMessagesSinceLastScroll(0);
       setFirstUnreadMessageId(null);
-      setHasJumpedToFirstUnread(false);
       markAsRead();
       setLastReadIndex(combinedGroupChat.length);
     }
@@ -153,60 +151,19 @@ function GroupChatSplitView({
   useEffect(() => {
     if (initialScrollDone || isLoadingMessages || combinedGroupChat.length === 0) return;
 
-    // We only do this once on mount / when switching to this chat
-    const unreadCount = activeGroup?.unreadCount?.[therapistId] || 0;
+    const firstUnreadIndex = Math.max(0, lastReadIndex);
+    const targetEl = document.getElementById(`msg-${combinedGroupChat[firstUnreadIndex]?.id}`);
 
-    // Case 1: There ARE unread messages → scroll to first unread
-    if (unreadCount > 0 && lastReadIndex >= 0 && lastReadIndex < combinedGroupChat.length) {
-      const firstUnreadIndex = lastReadIndex; // first message after last read
-      const targetEl = document.getElementById(`msg-${combinedGroupChat[firstUnreadIndex]?.id}`);
-
-      if (targetEl && chatBoxRef.current) {
-        // Scroll so the unread divider (or first unread) is nicely visible near the top
-        const offset = targetEl.offsetTop - 80; // adjust 80–120px depending on your divider height
-        chatBoxRef.current.scrollTo({
-          top: offset,
-          behavior: "auto" // instant on initial load
-        });
-
-        // Optional: highlight the first unread for a moment
-        targetEl.classList.add("message-highlight");
-        setTimeout(() => targetEl.classList.remove("message-highlight"), 2200);
-      } else {
-        // Fallback: go to bottom if element not ready yet
-        groupMessagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
-      }
-    }
-    // Case 2: No unread messages → just go to bottom (most common when re-entering)
-    else {
+    if (targetEl) {
+      targetEl.scrollIntoView({ behavior: "auto", block: "start" });
+    } else {
       groupMessagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
     }
 
     setInitialScrollDone(true);
     isInitial.current = false;
-
-    // Give DOM a moment to settle, then update scroll state
-    setTimeout(handleScroll, 150);
-
-  }, [
-    initialScrollDone,
-    isLoadingMessages,
-    combinedGroupChat,
-    lastReadIndex,
-    activeGroup,
-    therapistId,
-    groupMessagesEndRef,
-    handleScroll
-  ]);
-
-  useEffect(() => {
-    if (!initialScrollDone) return;
-    const unread = activeGroup?.unreadCount?.[therapistId] || 0;
-    if (unread > 0 && !isUserAtBottom.current) {
-      setNewMessagesSinceLastScroll(unread);
-      setShowScrollToBottom(true);
-    }
-  }, [initialScrollDone, activeGroup, therapistId, isUserAtBottom.current]);
+    setTimeout(handleScroll, 100);
+  }, [initialScrollDone, isLoadingMessages, combinedGroupChat, lastReadIndex, groupMessagesEndRef, handleScroll]);
 
   useEffect(() => {
     const currentCount = combinedGroupChat?.length || 0;
@@ -236,7 +193,8 @@ function GroupChatSplitView({
     else {
       if (!isUserAtBottom.current) {
         setNewMessagesSinceLastScroll((prev) => prev + added);
-        setHasJumpedToFirstUnread(false);
+
+        // Set first unread ONLY if we still don't have it
         // (protects against race conditions / very fast messages)
         setFirstUnreadMessageId((current) => current || newMsgs[0]?.id);
       } 
@@ -267,10 +225,8 @@ function GroupChatSplitView({
   }, [markAsRead, combinedGroupChat.length]);
 
   const scrollToNewMessages = useCallback(() => {
-    // If we've already jumped to first unread → go to bottom instead
-    if (hasJumpedToFirstUnread || !firstUnreadMessageId) {
+    if (!firstUnreadMessageId) {
       scrollToBottom();
-      setHasJumpedToFirstUnread(false);
       return;
     }
 
@@ -278,7 +234,7 @@ function GroupChatSplitView({
     if (el && chatBoxRef.current) {
       const containerTop = chatBoxRef.current.getBoundingClientRect().top;
       const msgTop = el.getBoundingClientRect().top;
-      const offset = msgTop - containerTop - 60;
+      const offset = msgTop - containerTop - 400;
 
       chatBoxRef.current.scrollBy({
         top: offset,
@@ -287,15 +243,10 @@ function GroupChatSplitView({
 
       el.classList.add("message-highlight");
       setTimeout(() => el.classList.remove("message-highlight"), 1800);
-
-      // Mark that we've already jumped to first unread
-      setHasJumpedToFirstUnread(true);
     } else {
-      // Fallback if message element not found yet
       scrollToBottom();
-      setHasJumpedToFirstUnread(true);
     }
-  }, [firstUnreadMessageId, hasJumpedToFirstUnread, scrollToBottom]);
+  }, [firstUnreadMessageId, scrollToBottom]);
 
   // For pin and reply quote
   const scrollToMessage = useCallback((msgId) => {
@@ -621,19 +572,20 @@ function GroupChatSplitView({
                 ))}
               </>
             )}
+
+            {/* Typing indicator */}
+            {!typingUsers.length > 0 && (
+              <p className="typing-indicator">
+                {typingUsers.map(u => typeof u === "string" ? u : u?.name || "Someone").join(", ")}{" "}
+                {typingUsers.length === 1 ? "is" : "are"} typing
+                <div className="typing-dots">
+                  <span></span><span></span><span></span>
+                </div>
+              </p>
+            )}
+
             <div ref={groupMessagesEndRef} />
           </div>
-          
-          {/* Typing indicator */}
-          {typingUsers.length > 0 && (
-            <p className="typing-indicator">
-              {typingUsers.map(u => typeof u === "string" ? u : u?.name || "Someone").join(", ")}{" "}
-              {typingUsers.length === 1 ? "is" : "are"} typing
-              <div className="typing-dots">
-                <span></span><span></span><span></span>
-              </div>
-            </p>
-          )}
 
           {showScrollToBottom && (
             <button 

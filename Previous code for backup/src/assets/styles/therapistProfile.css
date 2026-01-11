@@ -1,0 +1,217 @@
+:root {
+  --primary-color: #4a90e2; /* Primary blue for buttons and accents */
+  --background-color: #f5f7fa; /* Light background */
+  --profile-bg: rgba(255, 255, 255, 0.9); /* Translucent profile card background */
+  --text-color: #1e1e1e; /* Default text color */
+  --border-radius: 8px;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  --input-border: #ccc;
+  --online-color: #28a745; /* Green for online status */
+  --offline-color: #dc3545; /* Red for offline status */
+  --rating-color: #ffd700; /* Gold for rating stars */
+}
+
+/* Dark theme */
+.dark {
+  --background-color: #1e1e2f;
+  --profile-bg: rgba(42, 42, 59, 0.9);
+  --text-color: #e0e0e0;
+  --input-border: #555;
+}
+
+.therapist-profile {
+  /* padding: 20px; */
+  background: var(--profile-bg);
+  border-radius: var(--border-radius);
+  position: relative;
+}
+
+.therapist-profile .close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 8px;
+  background: none;
+  border: none;
+  color: var(--text-color);
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.therapist-profile .close-button:hover {
+  color: var(--primary-color);
+}
+
+.therapist-profile h3 {
+  font-size: 1.6rem;
+  color: var(--text-color);
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.therapist-profile h3 .badges {
+  display: inline;
+  width: fit-content;
+  margin-left: 5px;
+}
+
+.therapist-profile .badges .top-rated {
+  background-color: var(--offline-color);
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.verified {
+  color: var(--online-color);
+}
+
+.therapist-profile .avatarWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  overflow: hidden;
+  margin: 0 auto 15px;
+  border-radius: 50%;
+  border: 3px solid var(--input-border);
+  transition: transform 0.3s ease;
+}
+
+.therapist-profile .avatarWrapper:hover {
+  transform: scale(1.05);
+}
+
+.therapist-profile .avatarWrapper.online {
+  border: 3px solid var(--online-color);
+}
+
+.therapist-profile .avatar {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+}
+
+.therapist-profile .avatarPlaceholder {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: var(--text-color);
+  background: var(--primary-color);
+  font-weight: 600;
+}
+
+.therapist-profile p {
+  font-size: 1rem;
+  color: var(--text-color);
+  margin: 10px 0;
+  line-height: 1.5;
+}
+
+.therapist-profile p strong {
+  font-weight: 600;
+}
+
+.therapist-profile .status {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.therapist-profile .status.online {
+  color: var(--online-color);
+}
+
+.therapist-profile .status.offline {
+  color: var(--offline-color);
+}
+
+.therapist-profile .rating {
+  color: var(--rating-color);
+  font-size: 1.1rem;
+}
+
+.therapist-profile .action-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.therapist-profile .action-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.therapist-profile .chat-button {
+  background: var(--primary-color);
+  color: #fff;
+}
+
+.therapist-profile .chat-button:hover {
+  background: #357abd;
+}
+
+.therapist-profile .chat-button.unavailable {
+  background: #a0a0a0;
+  cursor: not-allowed;
+}
+
+.therapist-profile .appointment-button {
+  background: #28a745;
+  color: #fff;
+}
+
+.therapist-profile .appointment-button:hover {
+  background: #218838;
+}
+
+.therapist-profile .specialties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.therapist-profile .specialty-tag {
+  padding: 5px 10px;
+  background: var(--primary-color);
+  color: #fff;
+  font-weight: 600;
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+
+.profile-completion {
+  font-size: 1rem;
+  color: #28a745;
+  font-weight: 600;
+}
+
+/* Responsive design */
+@media (max-width: 600px) {
+  .modal {
+    width: 95%;
+  }
+
+  /* .therapist-profile {
+    padding: 15px;
+  } */
+
+  .therapist-profile .action-buttons {
+    flex-direction: column;
+  }
+
+  .therapist-profile .action-button {
+    width: 100%;
+  }
+}

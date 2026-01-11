@@ -1,0 +1,505 @@
+.appointments-list-wrapper {
+  padding: 1.5rem;
+  color: var(--text-color);
+}
+
+.appointments-list-wrapper h3,
+.appointments-list-wrapper h4 {
+  margin: 0 0 1rem;
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------------
+   VIEW TOGGLE
+   ------------------------------------------------------------------ */
+.appointments-list-wrapper__view-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+.appointments-list-wrapper__view-toggle button {
+  padding: 0.6rem 1.2rem;
+  border: 1px solid var(--input-border);
+  background: var(--highlight-bg);
+  color: var(--text-color);
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.appointments-list-wrapper__view-toggle button.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+/* Loading spinner */
+.appointments-list-spinner {
+  text-align: center;
+  padding: 3rem 1rem;
+  font-size: 1.1rem;
+  color: var(--text-color);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.appointments-list-spinner .spinner-list {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--input-border);
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  margin: 0 auto 1rem;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ------------------------------------------------------------------
+   APPOINTMENT GRID & CARD
+   ------------------------------------------------------------------ */
+.appointments-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  margin-top: 1rem;
+}
+
+.appointments-grid .appointment-card {
+  background: var(--highlight-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.appointments-grid .appointment-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 16px 32px rgba(0,0,0,0.16);
+  border-color: var(--primary-color);
+}
+
+.appointments-grid .appointment-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 3px;
+  padding: 1.4rem 1.4rem 0;
+}
+
+.appointments-grid .appointment-card__therapist {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+}
+
+.appointments-grid .therapist-avatar {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, var(--primary-color), #5a67d8);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.4rem;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+}
+
+.appointments-grid .therapist-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.appointments-grid .therapist-avatar span {
+  font-size: 1.4rem;
+}
+
+.appointments-grid .therapist-name {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--text-color);
+  max-width: 148px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.appointments-grid .appointment-date {
+  font-size: 0.9rem;
+  color: var(--secondary-color);
+  margin-top: 4px;
+}
+
+/* Status Badge */
+.appointments-grid .status-badge {
+  padding: 0.35rem 0.75rem;
+  border-radius: 2rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+.appointments-grid .status-pending   { background: #fffbeb; color: #92400e; border: 1px solid #f59e0b; }
+.appointments-grid .status-confirmed { background: #ecfdf5; color: #166534; border: 1px solid #10b981; }
+.appointments-grid .status-completed { background: #f0f9ff; color: #0c4a6e; border: 1px solid #0ea5e9; }
+.appointments-grid .status-cancelled { background: #fee2e2; color: #991b1b; border: 1px solid #ef4444; }
+.appointments-grid .status-rejected  { background: #f3f4f6; color: #4b5563; border: 1px solid #6b7280; }
+
+.appointments-grid .appointment-card__body {
+  padding: 1.2rem 1.4rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.appointments-grid .info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.95rem;
+}
+
+.appointments-grid .info-row .label {
+  font-weight: 600;
+  color: var(--secondary-color);
+  min-width: 100px;
+}
+
+.appointments-grid .info-row .value {
+  flex: 1;
+  text-align: right;
+  color: var(--text-color);
+  line-height: 1.4;
+}
+
+.appointments-grid .therapist-note,
+.appointments-grid .client-review {
+  background: rgba(74, 144, 226, 0.08);
+  padding: 0.8rem;
+  border-radius: 10px;
+  font-style: italic;
+  border-left: 4px solid var(--primary-color);
+  color: var(--text-color);
+}
+
+.appointments-grid .rating-row .rating-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.appointments-grid .stars {
+  font-size: 1.3rem;
+  letter-spacing: 2px;
+}
+
+.appointments-grid .stars.filled {
+  color: #fbbf24;
+}
+
+.appointments-grid .no-rating {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.appointments-grid .rating-text {
+  font-size: 0.9rem;
+  color: var(--secondary-color);
+}
+
+.appointments-grid .appointment-card__footer {
+  padding: 1rem 1.4rem 1.4rem;
+  display: flex;
+  gap: 0.8rem;
+  border-top: 1px solid var(--input-border);
+  margin-top: auto;
+}
+
+.appointments-grid .action-btn {
+  flex: 1;
+  padding: 0.8rem;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.appointments-grid .reschedule-btn { background: #dbeafe; color: #1e40af; }
+.appointments-grid .cancel-btn     { background: #fee2e2; color: #991b1b; }
+.appointments-grid .rate-btn       { background: #dcfce7; color: #166534; }
+
+.appointments-grid .action-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+}
+
+/* Calendar View */
+.appointments-list-wrapper__calendar-view {
+  background: var(--highlight-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+.appointments-list-wrapper__calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.appointments-list-wrapper__calendar-header button {
+  background:none; border:none; font-size:1.4rem; cursor:pointer; color:var(--text-color);
+}
+.appointments-list-wrapper__calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+}
+.appointments-list-wrapper__calendar-day-header {
+  text-align:center; font-weight:600; font-size:0.8rem; color:var(--secondary-color);
+}
+.appointments-list-wrapper__calendar-day {
+  min-height:80px; border:1px solid var(--input-border);
+  border-radius:0.5rem; padding:0.5rem; font-size:0.8rem; position:relative;
+  background: var(--input-bg);
+  color: var(--text-color);
+  display: flex;
+  flex-direction: column;
+}
+.appointments-list-wrapper__calendar-day.today {
+  background:var(--primary-color); color:white;
+}
+.appointments-list-wrapper__calendar-day.has-appt {
+  background:#e8f5e8;
+}
+.appointments-list-wrapper__day-number { font-weight:600; }
+.appointments-list-wrapper__calendar-appt {
+  font-size:0.7rem; background:#4caf50; color:white;
+  padding:0.1rem 0.3rem; border-radius:0.3rem;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  margin-top: 4px;
+}
+
+/* ------------------------------------------------------------------
+   MODALS
+   ------------------------------------------------------------------ */
+.appointments-list-wrapper__modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.5); backdrop-filter: blur(5px);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 1000;
+}
+.appointments-list-wrapper__modal {
+  background: var(--chat-bg);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: var(--shadow);
+  max-height: 80vh;
+  overflow-y: auto;
+  color: var(--text-color);
+}
+.appointments-list-wrapper__modal h4 {
+  margin: 0 0 1rem;
+  color: var(--text-color);
+  font-size: 1.2rem;
+}
+
+/* Form Controls */
+.appointments-list-wrapper__form-group { margin-bottom: 1rem; }
+.appointments-list-wrapper__form-group label {
+  display: block; margin-bottom: .5rem; color: var(--text-color); font-weight: 600; font-size: .95rem;
+}
+.appointments-list-wrapper__form-group input,
+.appointments-list-wrapper__form-group textarea,
+.appointments-list-wrapper__input {
+  width: 100%; padding: .75rem;
+  border: 1px solid var(--input-border); border-radius: var(--border-radius);
+  background: var(--input-bg); color: var(--text-color);
+  font-size: 0.95rem;
+}
+.appointments-list-wrapper__form-group input:focus,
+.appointments-list-wrapper__form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(74,144,226,0.2);
+}
+
+/* Time Slots */
+.appointments-list-wrapper__time-slots {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: .6rem;
+}
+.appointments-list-wrapper__time-slot {
+  padding: .75rem .5rem; border: 1px solid var(--input-border);
+  border-radius: var(--border-radius); background: var(--highlight-bg);
+  color: var(--text-color); cursor: pointer; font-size: .9rem;
+  text-align: center; transition: all .2s;
+}
+.appointments-list-wrapper__time-slot:hover:not(.booked) {
+  background: var(--user-bg); border-color: var(--primary-color);
+}
+.appointments-list-wrapper__time-slot.selected {
+  background: var(--primary-color); color: white; border-color: var(--primary-color);
+}
+.appointments-list-wrapper__time-slot.booked {
+  background: var(--system-bg); color: #999; cursor: not-allowed;
+}
+
+/* Form Actions */
+.appointments-list-wrapper__form-actions {
+  display: flex; gap: .5rem; margin-top: 1rem;
+}
+.appointments-list-wrapper__form-actions button {
+  flex: 1; padding: .7rem; border: none; border-radius: .5rem; font-weight: 600;
+  cursor: pointer;
+}
+.appointments-list-wrapper__form-actions button:first-child {
+  background: var(--primary-color); color: white;
+}
+.appointments-list-wrapper__cancel-btn {
+  background: var(--highlight-bg); color: var(--text-color); border: 1px solid var(--input-border);
+}
+.appointments-list-wrapper__cancel-btn:hover { background: #e0e0e0; }
+
+/* Save / Danger Buttons */
+.appointments-list-wrapper__save-btn,
+.appointments-list-wrapper__danger-btn {
+  flex: 1; padding: 0.75rem 1rem; border: none; border-radius: 0.5rem;
+  font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+}
+.appointments-list-wrapper__save-btn { background: var(--primary-color); color: white; }
+.appointments-list-wrapper__save-btn:hover:not(:disabled) { background: #357abd; transform: translateY(-1px); }
+.appointments-list-wrapper__danger-btn { background: var(--error-color); color: white; }
+.appointments-list-wrapper__danger-btn:hover:not(:disabled) { background: #e53935; transform: translateY(-1px); }
+
+/* ------------------------------------------------------------------
+   RATING STARS
+   ------------------------------------------------------------------ */
+.appointments-list-wrapper__star-rating { margin: 1rem 0; text-align: center; }
+.appointments-list-wrapper__star {
+  font-size: 2rem; background: none; border: none;
+  color: #ccc; cursor: pointer; transition: color 0.2s;
+}
+.appointments-list-wrapper__star.filled { color: #ffc107; }
+
+/* ------------------------------------------------------------------
+   TOAST NOTIFICATIONS
+   ------------------------------------------------------------------ */
+.appointments-list-wrapper__toast {
+  position: fixed; top: 1rem; right: 1rem;
+  padding: 1rem 1.5rem; border-radius: 0.75rem;
+  color: white; font-weight: 600; font-size: 0.95rem;
+  z-index: 2000; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  animation: slideInToast 0.3s ease forwards;
+  min-width: 240px; max-width: 320px;
+  display: flex; align-items: center; gap: 0.75rem;
+}
+.appointments-list-wrapper__toast.success  { background: linear-gradient(135deg, #2e7d32, #1b5e20); border-left: 4px solid #4caf50; }
+.appointments-list-wrapper__toast.error    { background: linear-gradient(135deg, #c62828, #b71c1c); border-left: 4px solid #f44336; }
+.appointments-list-wrapper__toast.info     { background: linear-gradient(135deg, #1565c0, #0d47a1); border-left: 4px solid #2196f3; }
+
+.appointments-list-wrapper__toast::before {
+  font-weight: bold; font-size: 1.2rem;
+}
+.appointments-list-wrapper__toast.success::before  { content: "Checkmark"; }
+.appointments-list-wrapper__toast.error::before    { content: "Warning"; }
+.appointments-list-wrapper__toast.info::before     { content: "Info"; }
+
+@keyframes slideInToast { from {transform: translateX(100%); opacity:0} to {transform: translateX(0); opacity:1} }
+.appointments-list-wrapper__toast.fade-out { animation: fadeOutToast 0.4s ease forwards; }
+@keyframes fadeOutToast { to {transform: translateX(100%); opacity:0} }
+
+/* ------------------------------------------------------------------
+   EMPTY & LOADING STATES
+   ------------------------------------------------------------------ */
+.appointments-list-wrapper__empty,
+.appointments-list-wrapper .appointments-list-wrapper__modal p {
+  text-align: center; 
+  padding: 2rem 1rem;
+  color: var(--text-color); 
+  opacity: .7; 
+  font-style: italic;
+  font-size: 1rem;
+}
+
+/* ------------------------------------------------------------------
+   DARK MODE ADJUSTMENTS
+   ------------------------------------------------------------------ */
+@media (prefers-color-scheme: dark) {
+  .appointments-list-wrapper__calendar-day.has-appt { background: #1a3a1a; }
+  .appointments-list-wrapper__calendar-appt { background: #2e7d32; }
+  .appointments-list-wrapper__cancel-btn:hover { background: #4b5563; }
+}
+
+/* Rating modal */
+.appointments-list-wrapper .rating-modal {
+  max-width:380px; 
+  text-align:center;
+}
+
+.appointments-list-wrapper .star-rating { 
+  margin:1rem 0; 
+}
+
+.appointments-list-wrapper .star {
+  font-size:2rem; 
+  background:none; 
+  border:none;
+  color:#ccc; 
+  cursor:pointer;
+}
+.appointments-list-wrapper .star.filled { 
+  color:#ffc107; 
+}
+
+/* Dark mode overrides */
+@media (prefers-color-scheme: dark) {
+  .appointments-list-wrapper .calendar-day.has-appt { 
+    background:#1a3a1a; 
+  }
+  .appointments-list-wrapper .calendar-appt { 
+    background:#2e7d32; 
+  }
+}
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+  .appointments-list-wrapper { 
+    padding: 20px;
+  }
+
+  .appointments-list-wrapper .appointment-header { 
+    flex-direction:column; 
+    align-items:flex-start; 
+  }
+
+  .appointments-grid .therapist-name {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 484px) {
+  .appointments-list-wrapper__calendar-day {
+    min-height: fit-content; 
+    height: fit-content; 
+  }
+
+  .appointments-grid .therapist-name {
+    max-width: 148px;
+  }
+}

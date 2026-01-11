@@ -1,0 +1,119 @@
+.resizable-split-container {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Panels */
+.resizable-left,
+.resizable-right {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.resizable-left   { flex: 0 0 auto; }
+.resizable-right  { flex: 1 1 0; }
+
+/* Splitter */
+.resizable-splitter {
+  width: 6px;
+  background: #555;
+  cursor: e-resize;
+  user-select: none;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.resizable-splitter:hover   { background: #3a4a6b; }
+.resizable-splitter:active  { background: #1e1e2f; }
+
+/* Grip lines */
+.resizable-splitter::before,
+.resizable-splitter::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 20px;
+  background: #4a90e2;
+  transform: translate(-50%, -50%);
+}
+.resizable-splitter::after { left: calc(50% + 2px); }
+
+/* Visual cue when hitting a limit */
+.resizable-splitter.limit-min { background: #e74c3c !important; }
+.resizable-splitter.limit-max { background: #27ae60 !important; }
+
+/* -------------------------------------------------------------
+   Mobile-only helpers
+   ------------------------------------------------------------- */
+.mobile-chat-wrapper {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.mobile-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.3s ease, opacity 0.25s ease;
+  transition: all 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+  background: var(--bg-color);
+}
+
+.mobile-panel.hidden {
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.mobile-panel:not(.hidden) {
+  transform: translateX(0);
+  opacity: 1;
+  z-index: 10;
+}
+
+/* Back button that appears only on mobile when a chat is open */
+.mobile-back-btn {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: var(--text-color);
+  cursor: pointer;
+  font-weight: 600;
+  margin-right: 10px;
+  transition: all 0.2s;
+}
+.mobile-back-btn:hover {
+  color: var(--primary-color);
+}
+
+/* Chat box on mobile uses the whole height */
+@media (max-width: 768px) {
+  .mobile-chat-wrapper .chat-box {
+    flex: 1;
+    height: auto;
+  }
+  .mobile-chat-wrapper .chat-input {
+    position: sticky;
+    bottom: 0;
+    background: var(--chat-input-bg);
+  }
+}
+
+@media (max-width: 484px) {
+  .mobile-chat-wrapper {
+    height: 100vh;
+    padding-bottom: 60px;
+  }
+  .mobile-chat-wrapper.no-bottom-padding {
+    padding-bottom: 0 !important;
+  }
+}

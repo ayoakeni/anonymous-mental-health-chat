@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    
+    <!-- Primary Meta -->
+    <meta name="description" content="Connect anonymously with peers, get AI support, or chat privately with licensed therapists. Safe, secure, and judgment-free." />
+    <meta name="robots" content="index, follow" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Open Graph / Twitter / Favicons -->
+    <meta property="og:title" content="Anonymous Mental Health Support Chat" />
+    <meta property="og:description" content="Safe, private peer support and licensed therapy — all anonymously." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://anonymous-mental-health-chat.vercel.app/" />
+    <meta property="og:image" content="https://anonymous-mental-health-chat.vercel.app/anonymous-logo-og.png" />
+    
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Anonymous Mental Health Support Chat" />
+    <meta name="twitter:description" content="Safe, private peer support and licensed therapy — all anonymously." />
+    <meta name="twitter:image" content="https://anonymous-mental-health-chat.vercel.app/anonymous-logo-og.png" />
+
+    <link rel="icon" href="/anonymous-logo.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/anonymous-logo.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/anonymous-logo.png" />
+    <link rel="apple-touch-icon" href="/anonymous-logo.png" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <title>Anonymous Mental Health Support Chat</title>
+
+    <script>
+      function updateThemeColor() {
+        const isDark = document.documentElement.classList.contains('dark');
+        const color = isDark ? '#1e1e2f' : '#ffffff';
+
+        let meta = document.querySelector('meta[name="theme-color"]');
+        if (!meta) {
+          meta = document.createElement('meta');
+          meta.name = 'theme-color';
+          document.head.appendChild(meta);
+        }
+        meta.content = color;
+      }
+
+      updateThemeColor();
+
+      const observer = new MutationObserver(updateThemeColor);
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class']
+      });
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/index.jsx"></script>
+  </body>
+</html>

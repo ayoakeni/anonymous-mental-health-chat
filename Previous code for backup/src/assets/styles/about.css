@@ -1,0 +1,320 @@
+:root {
+  --primary-color: #4a90e2;
+  --background-color: #f5f7fa;
+  --card-bg: #ffffff;
+  --text-color: #1e1e1e;
+  --accent-color: #10b981;
+  --secondary-color: #6b7280;
+  --border-radius: 8px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --gradient-bg: linear-gradient(135deg, #4a90e2 0%, #7e3ff2 100%);
+}
+
+.dark {
+  --background-color: #1e1e2f;
+  --card-bg: #2a2a3b;
+  --text-color: #e0e0e0;
+  --secondary-color: #9ca3af;
+  --gradient-bg: linear-gradient(135deg, #3b82f6 0%, #a855f7 100%);
+  --accent-color: #34d399;
+}
+
+.about-container {
+  background: var(--background-color);
+  min-height: 100vh;
+  color: var(--text-color);
+}
+
+/* Hero Section */
+.hero-section-about {
+  background:  rgba(0, 0, 0, 0.6) url('../image/fog-mountains-with-hot-air-balloons.jpg') center/cover no-repeat;
+  background-blend-mode: overlay;
+  color: #ffffff;
+  text-align: center;
+  padding: 100px 20px;
+  position: relative;
+  overflow: hidden;
+  animation: fadeIn 1s ease-in-out;
+}
+
+.hero-section-about::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, rgba(0, 0, 0, 0.2) 100%);
+  animation: pulse 10s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.2); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 0.3; }
+}
+
+.hero-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.hero-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  animation: fadeIn 1s ease-in;
+}
+
+.hero-subtitle {
+  font-size: 1.2rem;
+  max-width: 600px;
+  margin: 0 auto 30px;
+  opacity: 0.9;
+}
+
+.hero-cta {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.about-container .cta-button {
+  padding: 12px 24px;
+  border-radius: var(--border-radius);
+  border: none;
+  text-decoration: none;
+  outline: none;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: background 0.3s, transform 0.3s box-shadow 0.3s;
+}
+
+.cta-button.primary {
+  background: #ffffff;
+  color: var(--primary-color);
+  box-shadow: var(--shadow);
+}
+
+.cta-button.primary:hover {
+  background: #f5f5f5;
+  transform: translateY(-2px);
+}
+
+.cta-button.secondary {
+  background: transparent;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+}
+
+.cta-button.secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .hero-section-about {
+    padding: 50px 15px;
+  }
+  .hero-title {
+    font-size: 2rem;
+  }
+  .hero-subtitle {
+    font-size: 1rem;
+  }
+  .hero-cta {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+/* Features Section */
+.features-section {
+  max-width: 1200px;
+  margin: 50px auto;
+  padding: 0 20px;
+  text-align: center;
+}
+
+.features-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 30px;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.feature-card {
+  background: var(--card-bg);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.feature-icon {
+  font-size: 2.5rem;
+  color: var(--primary-color);
+  margin-bottom: 15px;
+}
+
+.feature-card h3 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.feature-card p {
+  font-size: 0.95rem;
+  opacity: 0.8;
+}
+
+.feature-cta {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 8px 16px;
+  background: var(--primary-color);
+  color: #ffffff;
+  border-radius: var(--border-radius);
+  border: none;
+  text-decoration: none;
+  outline: none;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: background 0.3s, transform 0.3s;
+}
+
+.feature-cta:hover {
+  background: #357abd;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Mission Section */
+.mission-section {
+  max-width: 800px;
+  margin: 50px auto;
+  padding: 0 20px;
+  text-align: center;
+}
+
+.mission-text {
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+/* FAQ Section */
+.faq-section {
+  max-width: 800px;
+  margin: 50px auto;
+  padding: 0 20px;
+  text-align: center;
+}
+
+.faq-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 30px;
+}
+
+.faq-list {
+  text-align: left;
+}
+
+.faq-item {
+  margin-bottom: 10px;
+}
+
+.faq-question {
+  background: var(--card-bg);
+  border: 1px solid var(--primary-color);
+  border-radius: var(--border-radius);
+  padding: 12px;
+  width: 100%;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-color);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.3s;
+}
+
+.faq-question:hover {
+  background: rgba(74, 144, 226, 0.1);
+}
+
+.faq-question i {
+  transition: transform 0.3s;
+}
+
+.faq-item.open .faq-question i {
+  transform: rotate(180deg);
+}
+
+.faq-answer {
+  display: none;
+  padding: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--primary-color);
+  border-top: none;
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+  font-size: 0.95rem;
+}
+
+.faq-item.open .faq-answer {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .faq-question {
+    font-size: 0.95rem;
+  }
+  .faq-answer {
+    font-size: 0.9rem;
+  }
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 30px 20px;
+  background: var(--chat-bg);
+  color: var(--text-color);
+  font-size: 0.9rem;
+  border-top: 1px solid var(--input-border);
+}
+
+.footer-links {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+.footer-links a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.footer-links a:hover {
+  text-decoration: underline;
+}

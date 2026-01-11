@@ -1,0 +1,915 @@
+.admin-panel {
+  min-height: 100vh;
+  background: #f8fafc;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #1e293b;
+}
+
+.admin-panel .admin-login-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.admin-panel .login-card {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 3rem;
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.admin-panel .login-icon {
+  width: 80px;
+  height: 80px;
+  color: white;
+  margin-bottom: 1.5rem;
+}
+
+.admin-panel .login-card h1 {
+  color: white;
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+}
+
+.admin-panel .login-form input {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1rem;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.2);
+  color: white;
+  font-size: 1.1rem;
+}
+
+.admin-panel .login-form input::placeholder { color: rgba(255,255,255,0.8); }
+
+.admin-panel .login-form button {
+  width: 100%;
+  padding: 1rem;
+  background: white;
+  color: #667eea;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.admin-panel .login-form button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+/* Header */
+.admin-panel .admin-header {
+  background: white;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  padding: 1rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.admin-panel .header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-panel .header-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.admin-panel .header-icon {
+  width: 48px;
+  height: 48px;
+  color: #6366f1;
+}
+
+.admin-panel .header-title h1 {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.admin-panel .logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-panel .logout-btn:hover {
+  background: #dc2626;
+}
+
+/* Main */
+.admin-panel .admin-main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Stats */
+.admin-panel .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.admin-panel .stat-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  text-align: center;
+  transition: transform 0.3s;
+}
+
+.admin-panel .stat-card:hover { transform: translateY(-8px); }
+
+.admin-panel .stat-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+.admin-panel .stat-icon.blue { background: #dbeafe; color: #3b82f6; }
+.admin-panel .stat-icon.green { background: #d1fae5; color: #10b981; }
+.admin-panel .stat-icon.purple { background: #e9d5ff; color: #8b5cf6; }
+.admin-panel .stat-icon.yellow { background: #fef9c3; color: #f59e0b; }
+.admin-panel .stat-icon.orange { background: #fed7aa; color: #f97316; }
+.admin-panel .stat-icon.red { background: #fecaca; color: #ef4444; }
+
+.admin-panel .stat-card h3 {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.admin-panel .stat-card p {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0.5rem 0 0;
+}
+
+/* Tabs */
+.admin-panel .admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.admin-panel .tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  background: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  transition: all 0.3s;
+}
+
+.admin-panel .tab-btn.active {
+  background: #6366f1;
+  color: white;
+  transform: translateY(-4px);
+  box-shadow: 0 15px 30px rgba(99,102,241,0.4);
+}
+
+.admin-panel .tab-icon { width: 20px; height: 20px; }
+
+/* Content */
+.admin-panel .admin-content {
+  background: white;
+  border-radius: 24px;
+  padding: 3rem;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+}
+
+/* Users Section */
+.admin-panel .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.admin-panel .search-filter {
+  display: flex;
+  gap: 1rem;
+}
+
+.admin-panel .search-box {
+  position: relative;
+}
+
+.admin-panel .search-box input {
+  padding: 1rem 1rem 1rem 3rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  width: 300px;
+}
+
+.admin-panel .search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  color: #64748b;
+}
+
+.admin-panel .users-list { display: grid; gap: 1rem; }
+
+.admin-panel .user-card {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-panel .user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.admin-panel .action-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-panel .action-btn.ban { background: #ef4444; color: white; }
+.admin-panel .action-btn.unban { background: #22c55e; color: white; }
+
+/* Therapist Grid */
+.admin-panel .therapist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.admin-panel .therapist-card {
+  background: linear-gradient(135deg, #f0e7ff 0%, #fce7f3 100%);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.admin-panel .therapist-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.admin-panel .user-avatar-wrapper,
+.admin-panel .therapist-avatar-wrapper {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.admin-panel .user-avatar-img,
+.admin-panel .therapist-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.admin-panel .user-avatar-fallback,
+.admin-panel .therapist-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.admin-panel .user-avatar-img ~ .user-avatar-fallback,
+.admin-panel .therapist-avatar-img ~ .therapist-avatar-fallback {
+  display: none;
+}
+
+.admin-panel .status-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.admin-panel .status-badge.online { background: #22c55e; color: white; }
+.admin-panel .status-badge.offline { background: #94a3b8; color: white; }
+
+.admin-panel .therapist-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.admin-panel .btn-view { background: #6366f1; color: white; }
+.admin-panel .btn-suspend { background: #ef4444; color: white; }
+
+.admin-panel .therapist-actions button {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Modal */
+.admin-panel .modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.admin-panel .modal {
+  background: white;
+  border-radius: 24px;
+  padding: 3rem;
+  width: 100%;
+  max-width: 600px;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.3);
+}
+
+.admin-panel .modal h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.admin-panel .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.admin-panel .full-width { grid-column: span 2; }
+
+.admin-panel .modal input,
+.admin-panel .modal select {
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 1rem;
+}
+
+.admin-panel .modal-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.admin-panel .btn-primary,
+.admin-panel .btn-secondary {
+  flex: 1;
+  padding: 1rem;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.admin-panel .btn-primary {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+}
+
+.admin-panel .btn-secondary {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.admin-panel .appointments-section {
+  padding: 24px;
+  background: #f8fafc;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.admin-panel .appointments-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.admin-panel .appointments-section .section-header h2 {
+  margin: 0;
+  font-size: 1.75rem;
+  color: #1e293b;
+}
+
+.admin-panel .appointments-section .section-header select {
+  padding: 10px 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  font-size: 1rem;
+}
+
+.admin-panel .appointments-list {
+  display: grid;
+  gap: 32px;
+}
+
+.admin-panel .appointment-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f0f0f0;
+  transition: all 0.2s ease;
+}
+
+.admin-panel .appointment-card:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.admin-panel .appointment-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.admin-panel .appointment-card__user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-panel .avatar-placeholder {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  ;
+  font-size: 18px;
+}
+
+.admin-panel .user-name {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.admin-panel .user-id {
+  font-size: 12px;
+  color: #718096;
+}
+
+.admin-panel .status-badge {
+  padding: 6px 12px;
+  ;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.admin-panel .appointment-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-panel .info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 15px;
+}
+
+.admin-panel .info-row.highlight {
+  background: #f8fffe;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+  font-weight: 500;
+}
+
+.admin-panel .label {
+  color: #4a5568;
+  font-weight: 500;
+  min-width: 120px;
+}
+
+.admin-panel .value {
+  color: #2d3748;
+  font-weight: 500;
+  text-align: right;
+  flex: 1;
+}
+
+.admin-panel .note {
+  background: #f7fafc;
+  padding: 10px;
+  border-radius: 8px;
+  font-style: italic;
+  color: #4a5568;
+}
+
+.admin-panel .review-bubble {
+  background: #e6fffa;
+  padding: 12px;
+  border-radius: 12px;
+  font-style: italic;
+  color: #1a202c;
+  border-left: 4px solid #38b2ac;
+}
+
+.admin-panel .rating-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-panel .stars {
+  color: #f6ad55;
+  font-size: 18px;
+}
+
+.admin-panel .rating-number {
+  color: #718096;
+  font-size: 14px;
+}
+
+.admin-panel .text-muted {
+  color: #a0aec0;
+  font-style: italic;
+}
+
+.admin-panel .status-confirmed { background: #d4edda; color: #155724; }
+.admin-panel .status-pending { background: #fff3cd; color: #856404; }
+.admin-panel .status-completed { background: #d1ecf1; color: #0c5460; }
+.admin-panel .status-cancelled { background: #f8d7da; color: #721c24; }
+.admin-panel .status-rejected { background: #f5c6cb; color: #721c24; }
+
+.admin-panel .appointment-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.admin-panel .appointment-actions button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 100px;
+}
+
+.admin-panel .btn-confirm {
+  background: #10b981;
+  color: white;
+}
+
+.admin-panel .btn-confirm:hover { background: #059669; }
+
+.admin-panel .btn-cancel {
+  background: #ef4444;
+  color: white;
+}
+
+.admin-panel .btn-cancel:hover { background: #dc2626; }
+
+.admin-panel .btn-complete {
+  background: #3b82f6;
+  color: white;
+}
+
+.admin-panel .btn-complete:hover { background: #2563eb; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .admin-panel .appointment-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .admin-panel .appointment-actions {
+    justify-content: stretch;
+  }
+  .admin-panel .appointment-actions button {
+    flex: 1;
+  }
+}
+
+.admin-panel .overview-section {
+  padding: 24px;
+}
+
+.admin-panel .overview-section h2 {
+  margin-bottom: 24px;
+  font-size: 1.9rem;
+  color: #1e293b;
+}
+
+.admin-panel .overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.admin-panel .overview-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  border: 1px solid #e2e8f0;
+}
+
+.admin-panel .overview-card h3 {
+  margin: 0 0 12px 0;
+  color: #334155;
+  font-size: 1.25rem;
+}
+
+.admin-panel .overview-card p {
+  margin: 8px 0;
+  color: #64748b;
+  font-size: 1rem;
+}
+
+/* Empty state */
+.admin-panel .appointments-list p,
+.admin-panel .monitor-placeholder p {
+  text-align: center;
+  color: #64748b;
+  font-size: 1.1rem;
+  margin-top: 40px;
+}
+
+.admin-panel .user-card:hover,
+.admin-panel .therapist-card:hover,
+.admin-panel .chat-item:hover,
+.admin-panel .monitor-chat-item:hover,
+.admin-panel .appeal-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+}
+
+/* Announcements */
+.admin-panel .announcements-section {
+  text-align: center;
+}
+
+.admin-panel .announcement-box {
+  background: linear-gradient(to right, #6366f1, #ec4899);
+  border-radius: 32px;
+  padding: 3rem;
+  max-width: 800px;
+  margin: 0 auto;
+  box-shadow: 0 25px 50px rgba(99,102,241,0.4);
+}
+
+.admin-panel .announcement-box textarea {
+  width: 100%;
+  height: 200px;
+  padding: 2rem;
+  font-size: 1.25rem;
+  border: none;
+  border-radius: 16px;
+  resize: none;
+  margin-bottom: 2rem;
+}
+
+.admin-panel .send-announcement-btn {
+  width: 100%;
+  padding: 1.5rem;
+  background: white;
+  color: #6366f1;
+  border: none;
+  border-radius: 16px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.admin-panel .send-announcement-btn:hover {
+  background: #f1f5f9;
+}
+
+.admin-panel .monitor-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  height: calc(100vh - 300px);
+  gap: 16px;
+  background: #f9fafb;
+  border-radius: 12px;
+  overflow-y: auto;
+}
+
+.admin-panel .monitor-sidebar {
+  background: white;
+  border-right: 1px solid #e5e7eb;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.admin-panel .monitor-chat-item {
+  padding: 12px;
+  border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
+  position: relative;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  transition: all 0.2s;
+}
+
+.admin-panel .monitor-chat-item:hover { background: #f3f4f6; }
+.admin-panel .monitor-chat-item.selected { background: #dbeafe; border-left: 4px solid #3b82f6; }
+
+.admin-panel .monitor-main {
+  background: white;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-panel .monitor-chat-header {
+  padding: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+}
+
+.admin-panel .monitor-messages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  background: #f1f5f9;
+}
+
+.admin-panel .monitor-message {
+  margin-bottom: 16px;
+  display: flex;
+}
+
+.admin-panel .monitor-message.user { justify-content: flex-start; }
+.admin-panel .monitor-message.therapist { justify-content: flex-end; }
+.admin-panel .monitor-message.admin { justify-content: center; }
+
+.admin-panel .message-bubble {
+  max-width: 70%;
+  padding: 10px 14px;
+  border-radius: 18px;
+  background: #e0e7ff;
+  color: #1e293b;
+}
+
+.admin-panel .monitor-message.therapist .message-bubble {
+  background: #22c55e;
+  color: white;
+}
+
+.admin-panel .monitor-message.admin .message-bubble {
+  background: #fef08a;
+  color: #854d0e;
+  font-weight: 500;
+}
+
+.admin-panel .message-sender {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.admin-panel .message-time {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  display: block;
+  margin-top: 4px;
+}
+
+.admin-panel .typing-dots span {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+  animation: typing 1.4s infinite;
+  margin: 0 2px;
+}
+
+.admin-panel .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-10px); }
+}
+
+.admin-panel .monitor-input {
+  padding: 16px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 8px;
+  background: white;
+}
+
+.admin-panel .monitor-input input {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+}
+
+.admin-panel .monitor-note {
+  text-align: center;
+  font-size: 0.8rem;
+  color: #64748b;
+  padding: 8px;
+  font-style: italic;
+}
+
+.admin-panel .monitor-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .admin-panel .stats-grid { grid-template-columns: 1fr 1fr; }
+  .admin-panel .admin-tabs { justify-content: center; }
+  .admin-panel .section-header { flex-direction: column; align-items: stretch; }
+  .admin-panel .search-filter { width: 100%; }
+  .admin-panel .search-box input { width: 100%; }
+}

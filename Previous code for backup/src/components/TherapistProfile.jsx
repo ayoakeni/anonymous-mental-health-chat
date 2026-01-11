@@ -1,0 +1,147 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { db, auth } from "../utils/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
+import AppointmentBooking from "./AnonymousDashboard/anonymousAppointmentBooking";
+import {
+  Verified
+} from "lucide-react";
+import "../assets/styles/therapistProfile.css";
+
+function TherapistProfile({ therapist, onBack, isOnline }) {
+  const [realTimeOnline, setRealTimeOnline] = useState(isOnline);
+  const [allowPrivateChats, setAllowPrivateChats] = useState(true);
+  const [showBooking, setShowBooking] = useState(false);
+  const navigate = useNavigate();
+
+  // ---------- real-time online / chat-settings ----------
+  useEffect(() => {
+    if (!therapist?.uid) return;
+    const therapistRef = doc(db, "therapists", therapist.uid);
+    const unsubscribe = onSnapshot(
+      therapistRef,
+      (snap) => {
+        if (snap.exists()) {
+          setRealTimeOnline(snap.data().online ?? false);
+          setAllowPrivateChats(snap.data().chatSettings?.allowPrivateChats ?? true);
+        }
+      },
+      (err) => console.error(err)
+    );
+    return () => unsubscribe();
+  }, [therapist?.uid]);
+
+  // ---------- START PRIVATE CHAT ----------
+  const startPrivateChat = async () => {
+    if (!allowPrivateChats) {
+      alert("This therapist is not accepting private chats right now.\n\nYou can still book a session with them!");
+      return;
+    }
+
+    const anonUid = auth.currentUser?.uid;
+    if (!anonUid) return;
+
+    const uids = [anonUid.slice(0, 8), therapist.uid.slice(0, 8)].sort();
+    const chatId = `${uids[0]}_${uids[1]}`;
+
+    // Just open the chat screen — do NOT create the document!
+    navigate(`/anonymous-dashboard/private-chat/${chatId}`, {
+      state: {
+        selectChatId: chatId,
+        therapistId: therapist.uid,
+        therapistName: therapist.name
+      }
+    });
+    onBack?.();
+  };
+
+  if (!therapist) return null;
+
+  return (
+    <div className="therapist-profile">
+      <button className="close-button" onClick={onBack}>
+        <i className="fa-solid fa-times"></i>
+      </button>
+
+      <div className={`avatarWrapper ${realTimeOnline ? "online" : ""}`}>
+        {therapist.profileImage ? (
+          <img
+            src={therapist.profileImage}
+            alt={therapist.name}
+            className="avatar"
+          />
+        ) : (
+          <div className="avatarPlaceholder">
+            {therapist.name?.[0]?.toUpperCase() || 'T'}
+          </div>
+        )}
+      </div>
+
+      <h3>
+        {therapist.name}
+        <div className="badges">
+          {therapist.rating >= 4 && <span className="top-rated">Top Rated</span>}
+          {therapist.verified && <Verified size={17} className="verified"/>}
+        </div>{" "}
+        <span className={`status ${realTimeOnline ? "online" : "offline"}`}>
+          ● {realTimeOnline ? "Online" : "Offline"}
+        </span>
+      </h3>
+
+      <p><strong>Gender:</strong> {therapist.gender || "Not specified"}</p>
+      <p><strong>Position:</strong> {therapist.position || "Not specified"}</p>
+      <p><strong>About:</strong> {therapist.profile || "No description available"}</p>
+      <p>
+        <strong>Rating:</strong>{" "}
+        <span className="rating">
+          {therapist.rating > 0 ? (
+            <>
+              {'★'.repeat(Math.floor(therapist.rating))}
+              {therapist.rating % 1 >= 0.5 && '☆'}
+              <span className="ratingValue"> {therapist.rating.toFixed(1)}</span>
+              {therapist.totalRatings > 0 && ` (${therapist.totalRatings} reviews)`}
+            </>
+          ) : (
+            "No ratings yet"
+          )}
+        </span>
+      </p>
+
+      <div className="specialties">
+        {(therapist.specialties || ["Not specified"]).map((s, i) => (
+          <span key={i} className="specialty-tag">{s}</span>
+        ))}
+      </div>
+
+      <div className="profile-completion">
+        Profile Completion: {therapist.profile && therapist.gender && therapist.position ? 90 : 60}%
+      </div>
+
+      <div className="action-buttons">
+        <button
+          onClick={startPrivateChat}
+          className={`action-button chat-button ${!allowPrivateChats ? 'unavailable' : ''}`}
+          title={
+            !allowPrivateChats
+              ? "This therapist is not accepting private chats right now"
+              : "Start a private chat"
+          }
+        >
+          Start Private Chat
+        </button>
+
+        <button className="action-button appointment-button" onClick={() => setShowBooking(true)}>
+          Book Appointment
+        </button>
+      </div>
+      {showBooking && (
+        <AppointmentBooking
+          therapist={therapist}
+          onClose={() => setShowBooking(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+export default TherapistProfile;

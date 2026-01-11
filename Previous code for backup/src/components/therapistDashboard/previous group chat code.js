@@ -6,12 +6,16 @@ import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import EmojiPicker from "emoji-picker-react";
 import { useTypingStatus } from "../../hooks/useTypingStatus";
 
+/* -------------------------------------------------------------
+   Simple media-query hook (no external deps)
+   ------------------------------------------------------------- */
 const useMediaQuery = (query) => {
   const [matches, setMatches] = useState(false);
 
   useEffect(() => {
     const m = window.matchMedia(query);
     setMatches(m.matches);
+
     const handler = (e) => setMatches(e.matches);
     m.addEventListener("change", handler);
     return () => m.removeEventListener("change", handler);
@@ -49,16 +53,14 @@ function GroupChatSplitView({
   formatTimestamp,
   onEmojiClick: parentOnEmojiClick,
   isLoadingNames,
+  isLoadingMessages,
   hasMoreMessages,
   loadMoreMessages,
-  isLoadingMessages,
-  isInitialLoading,
-  isLoadingOlder,
   navigate,
-  markAsRead,
 }) {
   const { groupId } = useParams();
   const chatBoxRef = useRef(null);
+  const isUserAtBottom = useRef(true);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isInsideChat = useIsInsideChat();
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
@@ -75,264 +77,88 @@ function GroupChatSplitView({
     activeGroupId && isGroupChatOpen && inGroupChat ? activeGroupId : null
   );
 
-  // Close menu on outside click
+  // Menu ellipsis
   useEffect(() => {
     const closeMenu = (e) => {
+      // Only close if click is outside the entire menu container
       if (!e.target.closest(".leave-participant") && !e.target.closest(".chat-options-menu")) {
         setIsParticipantsOpen(false);
       }
     };
-    if (isParticipantsOpen) document.addEventListener("click", closeMenu);
-    return () => document.removeEventListener("click", closeMenu);
+    if (isParticipantsOpen) {
+      document.addEventListener("click", closeMenu);
+    }
+    return () => {
+      document.removeEventListener("click", closeMenu);
+    };
   }, [isParticipantsOpen]);
 
-  // ─── Scroll & unread logic ───
-  const isUserAtBottom = useRef(true);
-  const isInitial = useRef(true);
-  const prevMessageCount = useRef(0);
-  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
-  const [newMessagesSinceLastScroll, setNewMessagesSinceLastScroll] = useState(0);
-  const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(null);
-  const [lastReadIndex, setLastReadIndex] = useState(-1);
-  const [initialScrollDone, setInitialScrollDone] = useState(false);
-  const [hasJumpedToFirstUnread, setHasJumpedToFirstUnread] = useState(false);
-  const prevCombinedLength = useRef(0);
-  const prevLastMsgId = useRef(null);
-
-  const handleScroll = useCallback(() => {
-    if (!chatBoxRef.current) return;
-
-    const { scrollTop, scrollHeight, clientHeight } = chatBoxRef.current;
-    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-    const atBottom = distanceFromBottom <= 120;
-
-    const wasNotAtBottom = !isUserAtBottom.current;
-    isUserAtBottom.current = atBottom;
-    setShowScrollToBottom(!atBottom);
-
-    // ─── When user finally reaches bottom ───
-    if (atBottom && (wasNotAtBottom || firstUnreadMessageId)) {
-      setNewMessagesSinceLastScroll(0);
-      setFirstUnreadMessageId(null);
-      setHasJumpedToFirstUnread(false);
-      markAsRead();
-      setLastReadIndex(combinedGroupChat.length);
-    }
-
-    // load more when near top...
-    if (scrollTop <= 180 && hasMoreMessages && !isLoadingMessages) {
-      loadMoreMessages();
-    }
-  }, [hasMoreMessages, isLoadingMessages, loadMoreMessages, markAsRead, combinedGroupChat.length]);
-
+  // Track if user is at the bottom of the chat
   useEffect(() => {
     const chatBox = chatBoxRef.current;
     if (!chatBox) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = chatBox;
+      isUserAtBottom.current = scrollHeight - scrollTop <= clientHeight + 50;
+      if (scrollTop === 0 && hasMoreMessages && !isLoadingMessages) {
+        loadMoreMessages();
+      }
+    };
+
     chatBox.addEventListener("scroll", handleScroll);
-    handleScroll();
     return () => chatBox.removeEventListener("scroll", handleScroll);
-  }, [handleScroll]);
+  }, [hasMoreMessages, isLoadingMessages, loadMoreMessages]);
 
+  // Auto-scroll only if user is at the bottom
   useEffect(() => {
-    const currLen = combinedGroupChat.length;
-    const addedCount = currLen - prevCombinedLength.current;
-    if (addedCount > 0 && combinedGroupChat[currLen - 1]?.id === prevLastMsgId.current) {
-      setLastReadIndex(prev => prev + addedCount);
+    if (isUserAtBottom.current && groupMessagesEndRef.current) {
+      groupMessagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-    prevCombinedLength.current = currLen;
-    prevLastMsgId.current = combinedGroupChat[currLen - 1]?.id;
-  }, [combinedGroupChat]);
+  }, [combinedGroupChat, groupMessagesEndRef]);
 
-  useEffect(() => {
-    if (lastReadIndex !== -1 || isLoadingMessages || combinedGroupChat.length === 0) return;
-    const unread = activeGroup?.unreadCount?.[therapistId] || 0;
-    setLastReadIndex(combinedGroupChat.length - unread);
-    setInitialScrollDone(false);
-  }, [lastReadIndex, isLoadingMessages, combinedGroupChat, activeGroup, therapistId]);
-
-  useEffect(() => {
-    if (initialScrollDone || isLoadingMessages || combinedGroupChat.length === 0) return;
-
-    // We only do this once on mount / when switching to this chat
-    const unreadCount = activeGroup?.unreadCount?.[therapistId] || 0;
-
-    // Case 1: There ARE unread messages → scroll to first unread
-    if (unreadCount > 0 && lastReadIndex >= 0 && lastReadIndex < combinedGroupChat.length) {
-      const firstUnreadIndex = lastReadIndex; // first message after last read
-      const targetEl = document.getElementById(`msg-${combinedGroupChat[firstUnreadIndex]?.id}`);
-
-      if (targetEl && chatBoxRef.current) {
-        // Scroll so the unread divider (or first unread) is nicely visible near the top
-        const offset = targetEl.offsetTop - 80; // adjust 80–120px depending on your divider height
-        chatBoxRef.current.scrollTo({
-          top: offset,
-          behavior: "auto" // instant on initial load
-        });
-
-        // Optional: highlight the first unread for a moment
-        targetEl.classList.add("message-highlight");
-        setTimeout(() => targetEl.classList.remove("message-highlight"), 2200);
-      } else {
-        // Fallback: go to bottom if element not ready yet
-        groupMessagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
-      }
-    }
-    // Case 2: No unread messages → just go to bottom (most common when re-entering)
-    else {
-      groupMessagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
-    }
-
-    setInitialScrollDone(true);
-    isInitial.current = false;
-
-    // Give DOM a moment to settle, then update scroll state
-    setTimeout(handleScroll, 150);
-
-  }, [
-    initialScrollDone,
-    isLoadingMessages,
-    combinedGroupChat,
-    lastReadIndex,
-    activeGroup,
-    therapistId,
-    groupMessagesEndRef,
-    handleScroll
-  ]);
-
-  useEffect(() => {
-    if (!initialScrollDone) return;
-    const unread = activeGroup?.unreadCount?.[therapistId] || 0;
-    if (unread > 0 && !isUserAtBottom.current) {
-      setNewMessagesSinceLastScroll(unread);
-      setShowScrollToBottom(true);
-    }
-  }, [initialScrollDone, activeGroup, therapistId, isUserAtBottom.current]);
-
-  useEffect(() => {
-    const currentCount = combinedGroupChat?.length || 0;
-    if (currentCount <= prevMessageCount.current) return;
-
-    if (isLoadingOlder) {
-      // Older messages being prepended don't treat as "new"
-      prevMessageCount.current = currentCount;
-      return;
-    }
-
-    if (isInitial.current) {
-      prevMessageCount.current = currentCount;
-      return;
-    }
-
-    const added = currentCount - prevMessageCount.current;
-    const newMsgs = combinedGroupChat.slice(-added);
-
-    const isSelfOrSystem = newMsgs.every(
-      (msg) => msg.role === "system" || msg.userId === therapistId
-    );
-
-    if (isSelfOrSystem) {
-      setLastReadIndex((prev) => prev + added);
-    } 
-    else {
-      if (!isUserAtBottom.current) {
-        setNewMessagesSinceLastScroll((prev) => prev + added);
-        setHasJumpedToFirstUnread(false);
-        // (protects against race conditions / very fast messages)
-        setFirstUnreadMessageId((current) => current || newMsgs[0]?.id);
-      } 
-      else {
-        // User was watching live → auto follow
-        groupMessagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-        setNewMessagesSinceLastScroll(0);
-        setFirstUnreadMessageId(null);
-        markAsRead();
-        setLastReadIndex(combinedGroupChat.length);
-      }
-    }
-
-    prevMessageCount.current = currentCount;
-  }, [combinedGroupChat, therapistId, isUserAtBottom.current, isLoadingOlder, markAsRead, groupMessagesEndRef]);
-
-  const scrollToBottom = useCallback(() => {
-    if (groupMessagesEndRef.current && chatBoxRef.current) {
-      chatBoxRef.current.scrollTo({
-        top: groupMessagesEndRef.current.offsetTop,
-        behavior: "smooth"
-      });
-      setNewMessagesSinceLastScroll(0);
-      setFirstUnreadMessageId(null);
-      markAsRead();
-      setLastReadIndex(combinedGroupChat.length);
-    }
-  }, [markAsRead, combinedGroupChat.length]);
-
-  const scrollToNewMessages = useCallback(() => {
-    // If we've already jumped to first unread → go to bottom instead
-    if (hasJumpedToFirstUnread || !firstUnreadMessageId) {
-      scrollToBottom();
-      setHasJumpedToFirstUnread(false);
-      return;
-    }
-
-    const el = document.getElementById(`msg-${firstUnreadMessageId}`);
-    if (el && chatBoxRef.current) {
-      const containerTop = chatBoxRef.current.getBoundingClientRect().top;
-      const msgTop = el.getBoundingClientRect().top;
-      const offset = msgTop - containerTop - 60;
-
-      chatBoxRef.current.scrollBy({
-        top: offset,
-        behavior: "smooth"
-      });
-
-      el.classList.add("message-highlight");
-      setTimeout(() => el.classList.remove("message-highlight"), 1800);
-
-      // Mark that we've already jumped to first unread
-      setHasJumpedToFirstUnread(true);
-    } else {
-      // Fallback if message element not found yet
-      scrollToBottom();
-      setHasJumpedToFirstUnread(true);
-    }
-  }, [firstUnreadMessageId, hasJumpedToFirstUnread, scrollToBottom]);
-
-  // For pin and reply quote
+  // Scroll to a pinned message or replied message
   const scrollToMessage = useCallback((msgId) => {
     const el = document.getElementById(`msg-${msgId}`);
     if (!el) return;
 
-    document.querySelectorAll(".message-highlight").forEach(e => e.classList.remove("message-highlight"));
+    document.querySelectorAll(".message-highlight").forEach(e => {
+      e.classList.remove("message-highlight");
+    });
+
     el.classList.add("message-highlight");
+
     el.scrollIntoView({ behavior: "smooth", block: "center" });
-    setTimeout(() => el.classList.remove("message-highlight"), 1600);
+    setTimeout(() => {
+      el.classList.remove("message-highlight");
+    }, 1600);
   }, []);
 
   // Join group chat when groupId changes
   useEffect(() => {
-    if (groupId && groupId !== activeGroupId) joinGroupChat(groupId);
+    if (groupId && groupId !== activeGroupId) {
+      joinGroupChat(groupId);
+    }
   }, [groupId, activeGroupId, joinGroupChat]);
 
   const onEmojiClick = useCallback((emojiData) => {
-    setReply(prev => prev + emojiData.emoji);
+    setReply((prev) => prev + emojiData.emoji);
     setShowEmojiPicker(false);
   }, [setReply, setShowEmojiPicker]);
 
   const handleReply = (message) => {
     setReplyTo(message);
+    // Focus the input
     document.querySelector(".inputInsert")?.focus();
   };
 
   const handleSend = useCallback((text = "", file = null) => {
-    const trimmed = text.trim();
-    if (trimmed || file) {
-      sendReply(trimmed, file, replyTo);
-      setReply("");
-      setReplyTo(null);
-    }
+    sendReply(text.trim(), file, replyTo);
+    setReply("");
+    setReplyTo(null);
   }, [sendReply, replyTo]);
 
-  // LEFT PANEL
+  // LEFT PANEL: Chat List
   const leftPanel = (
     <div className="chat-box-card">
       <h3>Group Chats</h3>
@@ -404,13 +230,11 @@ function GroupChatSplitView({
       </div>
     </div>
   );
-
-  // RIGHT PANEL
+  // RIGHT PANEL: Active Chat
   const rightPanel = (
     <div className="chat-box-container">
       {activeGroupId && isGroupChatOpen && inGroupChat ? (
         <div className="group-chat-box">
-          {/* Header, modal, pinned message */}
           <div className="chat-header">
             <div className="detailLeave">
               <div className="chat-avater">
@@ -528,7 +352,8 @@ function GroupChatSplitView({
               </div>
             )}
             {combinedGroupChat.some((msg) => msg.pinned) && (
-              <div className="pinned-message"
+              <div
+                className="pinned-message"
                 onClick={() => {
                   const pinnedMsg = combinedGroupChat.find(m => m.pinned);
                   if (pinnedMsg) scrollToMessage(pinnedMsg.id);
@@ -539,8 +364,13 @@ function GroupChatSplitView({
                 <span className="pin-text-icon">
                   <i className="fas fa-thumbtack pinned-icon"></i>
                   <span className="pinned-text">
-                    <strong>{combinedGroupChat.find(m => m.pinned)?.pinnedBy}:</strong>{" "}
-                    <span>{combinedGroupChat.find((msg) => msg.pinned)?.text || ""}</span>
+                    <strong>{combinedGroupChat.find(m => m.pinned)?.pinnedBy || "Someone"}:</strong>{" "}
+                    <span>
+                      {(() => {
+                        const pinnedMsg = combinedGroupChat.find(m => m.pinned);
+                        return pinnedMsg?.text || (pinnedMsg?.fileUrl ? "Attachment" : "");
+                      })()}
+                    </span>
                   </span>
                 </span>
                 {therapistId && (
@@ -558,99 +388,56 @@ function GroupChatSplitView({
               </div>
             )}
           </div>
-
+          
           <div className="chat-box" ref={chatBoxRef} role="log" aria-live="polite">
-            {/* INITIAL LOADING - only first time */}
-            {isInitialLoading && combinedGroupChat.length === 0 && (
-              <div className="loading-messages-box">
-                <div className="loading-messages">
-                  <div className="spinner"></div>
-                  <p>Loading messages...</p>
-                </div>
+            {isLoadingMessages ? (
+              <div className="loading-messages">
+                <div className="spinner"></div>
+                <p>Loading messages...</p>
               </div>
-            )}
-
-            {/* NO MESSAGES - after initial load */}
-            {!isInitialLoading && combinedGroupChat.length === 0 && (
+            ) : combinedGroupChat.length === 0 ? (
               <p className="no-message">No messages in this group yet.</p>
-            )}
-
-            {/* ─── CHAT CONTENT (only after initial load) ─── */}
-            {!isInitialLoading && combinedGroupChat.length > 0 && (
-              <>
-                {/* LOADING OLDER - only when scrolling up */}
-                {isLoadingOlder && (
-                  <div className="loading-older-messages">
-                    <div className="spinner small"></div>
-                    <p>Loading older messages...</p>
+            ) : (
+              combinedGroupChat.map((msg, index) => (
+                <React.Fragment key={`${msg.id}-${msg.type || "message"}`}>
+                  {msg.isNew && index > 0 && !combinedGroupChat[index - 1].isNew && (
+                    <div className="new-messages-divider">New Messages</div>
+                  )}
+                  <div className={`message ${msg.isNew ? "new-message" : ""}`} id={`msg-${msg.id}`}>
+                    <ChatMessage
+                      msg={msg}
+                      toggleReaction={toggleReaction}
+                      currentUserId={therapistId}
+                      currentView="therapist"
+                      isPrivateChat={false}
+                      deleteMessage={deleteMessage}
+                      pinMessage={pinMessage}
+                      scrollToMessage={scrollToMessage}
+                      therapistInfo={therapistInfo}
+                      therapistId={therapistId}
+                      handleTherapistClick={handleTherapistClick}
+                      onReply={handleReply}
+                    />
                   </div>
-                )}
-
-                {combinedGroupChat.map((msg, index) => (
-                  <React.Fragment key={`${msg.id}-${msg.type || "message"}`}>
-                    {/* unread divider logic */}
-                    {lastReadIndex >= 0 &&
-                      index === lastReadIndex &&
-                      newMessagesSinceLastScroll > 0 &&
-                      !isUserAtBottom.current && (
-                        <div className="new-messages-divider">
-                          <div className="new-messages">
-                            {newMessagesSinceLastScroll} new message{newMessagesSinceLastScroll > 1 ? "s" : ""}
-                          </div>
-                        </div>
-                      )
-                    }
-
-                    <div className="message" id={`msg-${msg.id}`}>
-                      <ChatMessage
-                        msg={msg}
-                        toggleReaction={toggleReaction}
-                        currentUserId={therapistId}
-                        currentView="therapist"
-                        isPrivateChat={false}
-                        deleteMessage={deleteMessage}
-                        pinMessage={pinMessage}
-                        scrollToMessage={scrollToMessage}
-                        therapistInfo={therapistInfo}
-                        therapistId={therapistId}
-                        handleTherapistClick={handleTherapistClick}
-                        onReply={handleReply}
-                      />
-                    </div>
-                  </React.Fragment>
-                ))}
-              </>
+                </React.Fragment>
+              ))
+            )}
+            {/* Typing Indicator */}
+            {typingUsers.length > 0 && (
+              <p className="typing-indicator">
+                {typingUsers
+                  .map(u => typeof u === "string" ? u : u?.name || "Someone")
+                  .join(", ")}{" "}
+                {typingUsers.length === 1 ? "is" : "are"} typing
+                <div className="typing-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </p>
             )}
             <div ref={groupMessagesEndRef} />
           </div>
-          
-          {/* Typing indicator */}
-          {typingUsers.length > 0 && (
-            <p className="typing-indicator">
-              {typingUsers.map(u => typeof u === "string" ? u : u?.name || "Someone").join(", ")}{" "}
-              {typingUsers.length === 1 ? "is" : "are"} typing
-              <div className="typing-dots">
-                <span></span><span></span><span></span>
-              </div>
-            </p>
-          )}
-
-          {showScrollToBottom && (
-            <button 
-              className="scroll-to-bottom-btn" 
-              onClick={scrollToNewMessages} 
-              aria-label="Jump to new messages"
-            >
-              <i className="fas fa-chevron-down"></i>
-              {newMessagesSinceLastScroll > 0 && (
-                <span className="new-messages-badge">
-                  {newMessagesSinceLastScroll > 99 ? "99+" : newMessagesSinceLastScroll}
-                </span>
-              )}
-            </button>
-          )}
-
-          {/* Input */}
           <div className="chat-input-box">
             {replyTo && (
               <div className="reply-preview">
@@ -660,12 +447,15 @@ function GroupChatSplitView({
                     {replyTo.text || (replyTo.fileUrl ? "Attachment" : "")}
                   </div>
                 </div>
-                <button className="cancel-reply-btn" onClick={() => setReplyTo(null)}>
+                <button
+                  className="cancel-reply-btn"
+                  onClick={() => setReplyTo(null)}
+                  aria-label="Cancel reply"
+                >
                   <i className="fas fa-times"></i>
                 </button>
               </div>
             )}
-
             <div className="chat-input">
               <button
                 className="emoji-btn"
@@ -697,7 +487,9 @@ function GroupChatSplitView({
                 style={{ display: "none" }}
                 onChange={(e) => {
                   const file = e.target.files[0];
-                  if (file) handleSend("", file);
+                  if (file) {
+                    handleSend("", file);
+                  }
                 }}
                 aria-label="Upload file"
               />
@@ -705,19 +497,16 @@ function GroupChatSplitView({
                 className="attach-btn"
                 onClick={() => document.getElementById("group-file-upload").click()}
                 aria-label="Attach file"
-              >
+                >
                 <i className="fa-solid fa-paperclip"></i>
               </button>
-              <button
-                className="send-btn"
+              <button className="send-btn" 
                 onClick={() => handleSend(reply)}
                 disabled={isSendingGroup}
-                aria-label="Send message"
-              >
+                aria-label="Send message">
                 {isSendingGroup ? <span className="spinner small"></span> : <i className="fa-solid fa-paper-plane"></i>}
               </button>
             </div>
-
             {showEmojiPicker && <EmojiPicker onEmojiClick={parentOnEmojiClick || onEmojiClick} />}
           </div>
         </div>
@@ -732,10 +521,15 @@ function GroupChatSplitView({
   /* ------------------- RENDER LOGIC ------------------- */
   if (isMobile) {
     const showChat = activeGroupId && isGroupChatOpen && inGroupChat;
+
     return (
       <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`.trim()}>
-        <div className={`mobile-panel ${showChat ? 'hidden' : ''}`}>{leftPanel}</div>
-        <div className={`mobile-panel ${!showChat ? 'hidden' : ''}`}>{rightPanel}</div>
+        <div className={`mobile-panel ${showChat ? 'hidden' : ''}`.trim()}>
+          {leftPanel}
+        </div>
+        <div className={`mobile-panel ${!showChat ? 'hidden' : ''}`.trim()}>
+          {rightPanel}
+        </div>
       </div>
     );
   }

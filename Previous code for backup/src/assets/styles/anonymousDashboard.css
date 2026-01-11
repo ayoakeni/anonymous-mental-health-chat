@@ -1,0 +1,346 @@
+:root {
+  --primary-color: #4a90e2;
+  --background-color: #f5f7fa;
+  --chat-bg: #ffffff;
+  --text-color: #1e1e1e;
+  --therapist-bg: #e6f0fa;
+  --user-bg: #d9e8ff;
+  --ai-bg: #f0f0f0;
+  --system-bg: #f9fafb;
+  --border-radius: 8px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --input-bg: #ffffff;
+  --input-border: #d1d5db;
+  --accent-color: #34c759;
+  --secondary-color: #ff9500;
+  --error-color: #ff3b30;
+  --badge-bg: #ef4444;
+  --highlight-bg: #f3f4f6;
+}
+
+.dark {
+  --background-color: #1e1e2f;
+  --chat-bg: #2a2a3b;
+  --text-color: #e0e0e0;
+  --therapist-bg: #3a4a6b;
+  --user-bg: #4a6b9b;
+  --ai-bg: #3b3b4b;
+  --system-bg: #2e2e4b;
+  --input-bg: #2a2a3b;
+  --chat-input-bg: #1e1e2f;
+  --input-border: #555;
+  --badge-bg: #f87171;
+  --highlight-bg: #374151;
+}
+
+.anonymous-dashboard ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.anonymous-dashboard ::-webkit-scrollbar-track {
+  background: var(--system-bg);
+}
+
+.anonymous-dashboard ::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
+}
+
+.anonymous-dashboard .modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.anonymous-dashboard .modal {
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  background: var(--chat-bg);
+  padding: 24px;
+}
+
+.anonymous-dashboard .mood-modal {
+  max-width: 400px;
+  width: 90%;
+  background: var(--chat-bg);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  padding: 24px;
+  text-align: center;
+}
+
+.anonymous-dashboard .mood-modal .mood-modal-checkin {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 12px;
+}
+
+.anonymous-dashboard .mood-modal .mood-modal-question {
+  font-size: 1rem;
+  color: var(--text-color);
+  opacity: 0.7;
+  margin-bottom: 16px;
+}
+
+.anonymous-dashboard .mood-modal {
+  height: fit-content;
+}
+
+.anonymous-dashboard .mood-modal .mood-tracker {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 185px;
+  overflow-y: auto;
+  padding-top: 3px;
+  margin-bottom: 16px;
+}
+
+.anonymous-dashboard .mood-modal .mood-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+
+.anonymous-dashboard .mood-modal .mood-button {
+  background: var(--input-bg);
+  border: 2px solid var(--input-border);
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.anonymous-dashboard .mood-modal .mood-button:hover {
+  background: var(--therapist-bg);
+  border-color: var(--secondary-color);
+}
+
+.anonymous-dashboard .mood-modal .mood-button.selected {
+  background: var(--secondary-color);
+  color: white;
+  border-color: var(--secondary-color);
+}
+
+.anonymous-dashboard .mood-modal .log-mood-button {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: filter 0.3s ease;
+}
+
+.anonymous-dashboard .mood-modal .log-mood-button:hover {
+  filter: brightness(80%);
+}
+
+.anonymous-dashboard .mood-modal .log-mood-button:disabled {
+  background: var(--input-border);
+  cursor: not-allowed;
+}
+
+.anonymous-dashboard .mood-modal .last-mood {
+  padding: 12px;
+  background: var(--highlight-bg);
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+  color: var(--text-color);
+  text-align: center;
+}
+
+.anonymous-dashboard .mood-modal .last-mood.error {
+  background: var(--error-color);
+  color: white;
+  padding: 12px;
+  border-radius: var(--border-radius);
+  text-align: center;
+}
+
+.anonymous-dashboard .mood-modal .retry-button {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.3s ease;
+}
+
+.anonymous-dashboard .mood-modal .retry-button:hover {
+  background: var(--accent-color);
+}
+
+.anonymous-dashboard .mood-modal .retry-button:disabled {
+  background: var(--input-border);
+  cursor: not-allowed;
+}
+
+.anonymous-dashboard .mood-modal .meta-date,
+.anonymous-dashboard .mood-modal .meta-time {
+  font-size: 0.75rem;
+  color: var(--text-color);
+  opacity: 0.6;
+  display: inline-block;
+}
+
+.anonymous-dashboard .mood-modal .meta-time {
+  margin-left: 4px;
+}
+
+.mood-modal .button-container {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.anonymous-dashboard .mood-modal .dismiss-mood-button {
+  background: var(--secondary-color);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: filter 0.3s ease;
+}
+
+.anonymous-dashboard .mood-modal .dismiss-mood-button:hover {
+  filter: brightness(80%);
+}
+
+.anonymous-dashboard .modal::-webkit-scrollbar,
+.anonymous-dashboard .mood-modal::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.anonymous-dashboard .modal::-webkit-scrollbar-track,
+.anonymous-dashboard .mood-modal::-webkit-scrollbar-track {
+  background: var(--system-bg);
+}
+
+.anonymous-dashboard .modal::-webkit-scrollbar-thumb,
+.anonymous-dashboard .mood-modal::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
+}
+/* AI Offer Card - Centered & Beautiful */
+.ai-offer-wrapper {
+  text-align: center;
+  margin: 20px 0;
+}
+
+.ai-offer-card {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 18px 24px;
+  max-width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(74, 144, 226, 0.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  .ai-offer-card {
+    background: rgba(42, 42, 59, 0.95);
+    border-color: rgba(74, 144, 226, 0.5);
+  }
+}
+
+.ai-offer-text {
+  margin: 0 0 16px 0;
+  font-size: 0.95rem;
+  color: #333;
+  line-height: 1.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ai-offer-text {
+    color: #e0e0e0;
+  }
+}
+
+.ai-offer-text strong {
+  color: var(--secondary-color);
+  font-weight: 700;
+  background: linear-gradient(90deg, #376293, var(--secondary-color));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: pulse 2s infinite;
+}
+
+.ai-offer-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.ai-yes-btn,
+.ai-no-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.ai-yes-btn {
+  background: #4a90e2;
+  color: white;
+}
+
+.ai-yes-btn:hover:not(:disabled) {
+  background: #357abd;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4);
+}
+
+.ai-no-btn {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.ai-no-btn:hover:not(:disabled) {
+  background: #dee2e6;
+  transform: translateY(-1px);
+}
+
+.ai-yes-btn:disabled,
+.ai-no-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}

@@ -1007,11 +1007,6 @@
   padding: 1rem 1rem 0;
   font-size: 0.9rem;
   color: #fff;
-  position: fixed;
-  top: 70px;
-  left: 0;
-  right: 0;
-  z-index: 1;
 }
 
 .loading-older-messages .spinner,

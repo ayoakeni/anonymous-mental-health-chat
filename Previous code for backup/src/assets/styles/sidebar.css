@@ -1,0 +1,342 @@
+:root {
+  --primary-color: #3b82f6; /* Primary blue for buttons and accents */
+  --background-color: #f5f7fa; /* Light background */
+  --sidebar-bg: #f5f7fa; /* Sidebar background */
+  --text-color: #ffffff; /* Sidebar text color */
+  --active-bg: #3b82f6; /* Active/hover background */
+  --border-radius: 8px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --badge-bg: #ef4444; /* Badge background */
+}
+
+.dark {
+  --background-color: #1a1a2e;
+  --sidebar-bg: #1e1e2f;
+  --text-color: #e0e0e0;
+}
+
+body.no-scroll {
+  overflow: hidden;
+}
+
+.sidebar {
+  background-color: var(--sidebar-bg);
+  color: var(--text-color);
+  width: 250px;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  border-right: 1px solid #313131;
+  padding: 10px;
+  padding-right: 0;
+  transition: width 0.3s ease-in-out, padding 0.3s ease-in-out;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar.closed {
+  width: 69px;
+  padding-right: 10px;
+}
+
+.sideConBox {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 999;
+  transition: background-color 0.3s ease;
+}
+
+.sideConBox.open {
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+.sidebar .logo-side:last-child {
+  width: fit-content;
+}
+
+.toggle-btn {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 10px 15px;
+  margin-bottom: 10px;
+  align-self: flex-start;
+  transition: color 0.2s;
+}
+
+.toggle-btn:hover {
+  color: var(--primary-color);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  flex: 1;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 10px;
+  white-space: nowrap;
+}
+
+.sidebar.closed .list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  flex: 1;
+  height: 100vh;
+  padding-right: 0;
+  overflow-y: auto;
+  border-top: 1px solid #333;
+  border-bottom: 1px solid #333;
+  padding: 10px 0;
+  align-self: flex-start;
+}
+
+.sidebar.closed .list::-webkit-scrollbar {
+  width: 0px;
+}
+
+.list a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.sidebar.open .list a:first-child {
+  border-top: 1px solid #333;
+  padding-top: 10px;
+}
+
+/* Tooltip for closed state */
+.sidebar.closed .list .logOut:hover::after,
+.sidebar.closed .list a:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 60px;
+  transform: translateY(-50%);
+  background: var(--primary-color);
+  color: #ffffff;
+  padding: 5px 10px;
+  border-radius: var(--border-radius);
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 100;
+  box-shadow: var(--shadow);
+}
+
+.list .iconBadge {
+  display: flex;
+  align-items: cente;
+  padding: 10px;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 16px;
+}
+
+.sidebar.closed .list .iconBadge {
+  justify-content: center;
+}
+
+.sidebar.closed .list .iconBadge .link-text {
+  display: none;
+}
+
+.list .iconBadge:hover,
+.list .iconBadge:focus {
+  color: #ffffff;
+  background-color: var(--active-bg);
+  outline: none;
+}
+
+.list .iconBadge.active {
+  color: #ffffff;
+  background-color: var(--active-bg);
+  font-weight: 600;
+}
+
+.list .iconBadge i {
+  margin-right: 10px;
+  font-size: 20px;
+  min-width: 18px;
+  text-align: center;
+  transition: transform 0.2s;
+}
+
+.sidebar.closed .list .iconBadge i {
+  margin-right: 0;
+}
+
+.list .iconBadge:hover i{
+  transform: scale(1.2);
+}
+
+.link-text {
+  display: inline-block;
+}
+
+.list .iconBadge .badge {
+  background-color: var(--badge-bg);
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.sidebar.closed .list .iconBadge {
+ position: relative;
+}
+
+.sidebar.closed .list .iconBadge .badge {
+  position: absolute;
+  top:-8px !important;
+  right: 18px !important;
+  font-size: 10px;
+  padding: 2px 6px;
+  min-width: 16px;
+  text-align: center;
+}
+
+.divider {
+  border-top: 1px solid #333;
+}
+
+.divider.closed {
+  border-top: 1px solid #333;
+  margin: 5px 0;
+}
+
+.sidebar.closed .divider {
+  display: none;
+}
+
+.sidebar .logo-image {
+  height: 30px;
+  margin-top: 10px;
+  padding: 0 10px;
+}
+
+.sidebar.closed .logo-image {
+  margin-top: 15px;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 250px;
+    position: fixed;
+  }
+
+  .sidebar.open {
+    width: 250px;
+    padding-right: 0;
+  }
+
+  .sidebar.open .list .iconBadge .link-text {
+    display: inline-block;
+  }
+
+  .toggle-btn {
+    display: block;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   MOBILE (≤484px) – BOTTOM BAR
+   ────────────────────────────────────────────────────────────── */
+@media (max-width: 484px) {
+  .sidebar {
+    right: 0;
+    top: auto;
+    height: 60px;
+    width: 100%;
+    padding: 0 8px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-evenly;
+    box-shadow: 0 -2px 10px rgba(0,0,0,.2);
+    transition: none;
+  }
+
+  /* hide toggle button */
+  .sidebar .toggle-btn { display: none; }
+
+  /* list becomes horizontal */
+  .sidebar.closed .list {
+    flex-direction: row;
+    flex: 1;
+    height: 60px;
+    overflow: visible;
+    padding: 0;
+    gap: 0;
+    align-items: center;
+    justify-content: space-around;
+    border: none;
+  }
+
+  .sidebar.closed .list > * {
+    flex: 1;
+    max-width: 40px;
+    text-align: center;
+  }
+  .sidebar.closed{width: 100%;}
+
+  .sidebar.closed .list a {
+    height: fit-content;
+  }
+
+  .sidebar.closed .list a:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  /* hide all text */
+  .sidebar .link-text { display: none !important; }
+
+  /* icons */
+  .sidebar.closed .list .iconBadge {
+    padding: 10px 0;
+    margin: 0;
+    font-size: 22px;
+    justify-content: center;
+  }
+  .sidebar .iconBadge i {
+    margin: 0;
+    font-size: 18px;
+  }
+
+  /* badge on top-right of icon */
+  .sidebar .list .iconBadge .badge {
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    font-size: 10px;
+    padding: 2px 5px;
+    min-width: 14px;
+  }
+
+  /* hide logo & divider */
+  .sidebar .logo-side,
+  .sidebar .list .logOut,
+  .sidebar .divider { display: none; }
+
+  /* safe-area */
+  .sidebar { padding-bottom: env(safe-area-inset-bottom); }
+
+  /* tooltip above the bar */
+  .sidebar.closed .list .logOut:hover::after,
+  .sidebar.closed .list a:hover::after {
+    top: -40px;
+    left: auto;
+    transform: translateX(-50%);
+  }
+}
