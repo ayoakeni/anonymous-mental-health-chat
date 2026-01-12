@@ -136,6 +136,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  padding: 20px;
 }
 
 .profileContainer .formGroup {
@@ -425,6 +426,10 @@ select.input {
   .profileContainer .viewMode:hover {
     transform: none;
     box-shadow: none;
+  }
+
+  .profileContainer .editForm {
+    padding: 0;
   }
 
   .profileContainer .avatarWrapper,

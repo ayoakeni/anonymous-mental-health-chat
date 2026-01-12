@@ -335,7 +335,7 @@ export function useActiveGroupChat(
         collection(db, `groupChats/${activeGroupId}/messages`),
         orderBy("timestamp", "asc"),
         endBefore(earliestTimestamp.current),
-        limitToLast(5)
+        limitToLast(30)
       );
       const snap = await getDocs(q);
       const newMsgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -344,7 +344,7 @@ export function useActiveGroupChat(
         const filteredNew = newMsgs.filter(m => !existingIds.has(m.id));
         return [...filteredNew, ...prev];
       });
-      setHasMore(snap.docs.length === 5);
+      setHasMore(snap.docs.length === 30);
       if (snap.docs.length > 0) {
         earliestTimestamp.current = newMsgs[0].timestamp;
       }
@@ -387,13 +387,13 @@ export function useActiveGroupChat(
       const q = query(
         collection(groupRef, "messages"),
         orderBy("timestamp", "asc"),
-        limitToLast(30)
+        limitToLast(15)
       );
       try {
         const snap = await getDocs(q);
         const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setMessages(msgs);
-        setHasMore(snap.docs.length === 30);
+        setHasMore(snap.docs.length === 15);
         if (msgs.length > 0) {
           latestTimestamp.current = msgs[msgs.length - 1].timestamp;
           earliestTimestamp.current = msgs[0].timestamp;

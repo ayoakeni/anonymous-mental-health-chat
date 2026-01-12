@@ -91,6 +91,7 @@ function GroupChatSplitView({
   const isInitial = useRef(true);
   const prevMessageCount = useRef(0);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [initialPositioningDone, setInitialPositioningDone] = useState(false);
   const [newMessagesSinceLastScroll, setNewMessagesSinceLastScroll] = useState(0);
   const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(null);
   const [lastReadIndex, setLastReadIndex] = useState(-1);
@@ -98,6 +99,21 @@ function GroupChatSplitView({
   const [hasJumpedToFirstUnread, setHasJumpedToFirstUnread] = useState(false);
   const prevCombinedLength = useRef(0);
   const prevLastMsgId = useRef(null);
+
+  useEffect(() => {
+    setInitialScrollDone(false);
+    setInitialPositioningDone(false);
+    setLastReadIndex(-1);
+    setNewMessagesSinceLastScroll(0);
+    setFirstUnreadMessageId(null);
+    setHasJumpedToFirstUnread(false);
+    setShowScrollToBottom(false);
+    isInitial.current = true;
+
+    if (chatBoxRef.current) {
+      chatBoxRef.current.scrollTop = 0;
+    }
+  }, [activeGroupId]);
 
   const handleScroll = useCallback(() => {
     if (!chatBoxRef.current) return;
@@ -120,7 +136,7 @@ function GroupChatSplitView({
     }
 
     // load more when near top...
-    if (scrollTop <= 180 && hasMoreMessages && !isLoadingMessages) {
+    if (scrollTop <= 400 && hasMoreMessages && !isLoadingMessages && initialPositioningDone) {
       loadMoreMessages();
     }
   }, [hasMoreMessages, isLoadingMessages, loadMoreMessages, markAsRead, combinedGroupChat.length]);
@@ -171,6 +187,11 @@ function GroupChatSplitView({
   }, [lastReadIndex, isLoadingMessages, combinedGroupChat, activeGroup, therapistId]);
 
   useEffect(() => {
+    console.log("INITIAL SCROLL TRIGGERED", { 
+      group: activeGroupId, 
+      initialScrollDone, 
+      messages: combinedGroupChat.length 
+    });
     if (initialScrollDone || isLoadingMessages || combinedGroupChat.length === 0) return;
 
     // We only do this once on mount / when switching to this chat
@@ -205,8 +226,10 @@ function GroupChatSplitView({
     setInitialScrollDone(true);
     isInitial.current = false;
 
-    // Give DOM a moment to settle, then update scroll state
-    setTimeout(handleScroll, 150);
+    setTimeout(() => {
+      setInitialPositioningDone(true);
+      handleScroll();
+    }, 250);
 
   }, [
     initialScrollDone,
@@ -216,7 +239,8 @@ function GroupChatSplitView({
     activeGroup,
     therapistId,
     groupMessagesEndRef,
-    handleScroll
+    handleScroll,
+    activeGroupId
   ]);
 
   useEffect(() => {
@@ -349,6 +373,9 @@ function GroupChatSplitView({
       sendReply(trimmed, file, replyTo);
       setReply("");
       setReplyTo(null);
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
     }
   }, [sendReply, replyTo]);
 
@@ -646,13 +673,13 @@ function GroupChatSplitView({
           
           {/* Typing indicator */}
           {typingUsers.length > 0 && (
-            <p className="typing-indicator">
+            <div className="typing-indicator">
               {typingUsers.map(u => typeof u === "string" ? u : u?.name || "Someone").join(", ")}{" "}
               {typingUsers.length === 1 ? "is" : "are"} typing
               <div className="typing-dots">
                 <span></span><span></span><span></span>
               </div>
-            </p>
+            </div>
           )}
 
           {showScrollToBottom && (

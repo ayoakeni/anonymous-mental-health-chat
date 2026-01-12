@@ -1007,8 +1007,8 @@
   padding: 1rem 1rem 0;
   font-size: 0.9rem;
   color: #fff;
-  position: fixed;
-  top: 70px;
+  position: sticky;
+  top: 0px;
   left: 0;
   right: 0;
   z-index: 1;
