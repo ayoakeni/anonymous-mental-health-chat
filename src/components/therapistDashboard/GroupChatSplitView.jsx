@@ -126,6 +126,26 @@ function GroupChatSplitView({
   }, [hasMoreMessages, isLoadingMessages, loadMoreMessages, markAsRead, combinedGroupChat.length]);
 
   useEffect(() => {
+    if (!isLoadingOlder || !chatBoxRef.current) return;
+
+    const container = chatBoxRef.current;
+    const prevHeight = container.scrollHeight;
+    const prevTop = container.scrollTop;
+
+    const timer = setTimeout(() => {
+      const heightAdded = container.scrollHeight - prevHeight;
+      const targetTop = prevTop + heightAdded - 120;
+
+      container.scrollTo({
+        top: targetTop,
+        behavior: "auto"
+      });
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [isLoadingOlder, combinedGroupChat]);
+
+  useEffect(() => {
     const chatBox = chatBoxRef.current;
     if (!chatBox) return;
     chatBox.addEventListener("scroll", handleScroll);

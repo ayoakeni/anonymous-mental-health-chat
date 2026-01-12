@@ -387,13 +387,13 @@ export function useActiveGroupChat(
       const q = query(
         collection(groupRef, "messages"),
         orderBy("timestamp", "asc"),
-        limitToLast(5)
+        limitToLast(30)
       );
       try {
         const snap = await getDocs(q);
         const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setMessages(msgs);
-        setHasMore(snap.docs.length === 5);
+        setHasMore(snap.docs.length === 30);
         if (msgs.length > 0) {
           latestTimestamp.current = msgs[msgs.length - 1].timestamp;
           earliestTimestamp.current = msgs[0].timestamp;

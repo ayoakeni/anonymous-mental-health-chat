@@ -39,12 +39,11 @@
 }
 
 .anonymous-dashboard ::-webkit-scrollbar-track {
-  background: var(--system-bg);
+  margin: 4px;
 }
 
 .anonymous-dashboard ::-webkit-scrollbar-thumb {
   background: var(--primary-color);
-  border-radius: 4px;
 }
 
 .anonymous-dashboard .modal-backdrop {
