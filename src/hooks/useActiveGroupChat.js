@@ -226,6 +226,32 @@ export function useActiveGroupChat(
 
         tx.update(msgRef, { reactions: finalReactions });
       });
+      setMessages(prev => prev.map(msg => {
+        if (msg.id !== msgId) return msg;
+        const reactions = { ...msg.reactions || {} };
+        const currentUserId = therapistId;
+        const reactionTypes = ["heart", "thumbsUp"];
+        const otherType = reactionTypes.find(t => t !== emoji);
+
+        const hasThis = reactions[emoji]?.includes(currentUserId) || false;
+        const hasOther = otherType && (reactions[otherType]?.includes(currentUserId) || false);
+
+        if (hasThis) {
+          reactions[emoji] = reactions[emoji].filter(id => id !== currentUserId);
+        } else {
+          reactions[emoji] = [...(reactions[emoji] || []), currentUserId];
+        }
+
+        if (hasOther && otherType) {
+          reactions[otherType] = reactions[otherType].filter(id => id !== currentUserId);
+        }
+
+        // Clean up empty
+        Object.keys(reactions).forEach(key => {
+          if (reactions[key].length === 0) delete reactions[key];
+        });
+        return { ...msg, reactions };
+      }));
     } catch (err) {
       console.error("Error toggling reaction:", err);
       showError("Failed to update reaction.");
@@ -258,6 +284,14 @@ export function useActiveGroupChat(
           deletedBy: displayName,
         });
       });
+
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === msgId
+            ? { ...msg, deleted: true, messageDeleted: "This message was deleted" }
+            : msg
+        )
+      );
 
       showError("Message deleted", "success");
     } catch (e) {
@@ -387,13 +421,13 @@ export function useActiveGroupChat(
       const q = query(
         collection(groupRef, "messages"),
         orderBy("timestamp", "asc"),
-        limitToLast(15)
+        limitToLast(30)
       );
       try {
         const snap = await getDocs(q);
         const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setMessages(msgs);
-        setHasMore(snap.docs.length === 15);
+        setHasMore(snap.docs.length === 30);
         if (msgs.length > 0) {
           latestTimestamp.current = msgs[msgs.length - 1].timestamp;
           earliestTimestamp.current = msgs[0].timestamp;
