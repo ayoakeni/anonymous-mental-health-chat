@@ -21,6 +21,7 @@ import {
   getDocs,
   increment,
   startAfter,
+  Timestamp,
 } from "firebase/firestore";
 import { useTypingStatus } from "../../hooks/useTypingStatus";
 import { getAIResponse } from "../../utils/AiChatIntegration";
@@ -648,7 +649,7 @@ function AnonymousPrivateChatView({
     }
   };
 
-  // Handlers (initial choice, AI choice, reactions, emoji, etc.)
+  // Handlers (initial choice, AI choice, reactions, emoji)
   const handleInitialChoice = async (choice) => {
     if (!activeChatId) return;
     const chatRef = doc(db, "privateChats", activeChatId);
@@ -658,13 +659,14 @@ function AnonymousPrivateChatView({
         const snap = await t.get(chatRef);
         if (!snap.exists()) return;
 
+        const baseTime = Date.now();
         const choiceText = choice === "therapist" ? "Chat with Therapist" : "Chat with Support Assistant";
         t.set(doc(collection(chatRef, "messages")), {
           text: choiceText,
           userId,
           displayName,
           role: "user",
-          timestamp: serverTimestamp(),
+          timestamp: Timestamp.fromMillis(baseTime),
           reactions: {},
           pinned: false,
         });
@@ -675,7 +677,7 @@ function AnonymousPrivateChatView({
           t.set(doc(collection(chatRef, "messages")), {
             text: "You are now chatting with our support assistant.",
             role: "system",
-            timestamp: serverTimestamp(),
+            timestamp: Timestamp.fromMillis(baseTime + 10)
           });
 
           setAiTyping(true);
@@ -726,7 +728,7 @@ function AnonymousPrivateChatView({
           t.set(doc(collection(chatRef, "messages")), {
             text: "We are contacting an available therapist for you.",
             role: "system",
-            timestamp: serverTimestamp(),
+            timestamp: Timestamp.fromMillis(baseTime + 10),
           });
         }
       });
