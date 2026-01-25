@@ -200,7 +200,11 @@ function AnonymousPrivateChatView({
       }
     };
 
-    sendAutoWelcome();
+    setAiTyping(true);
+    setTimeout(() => {
+      sendAutoWelcome().finally(() => setAiTyping(false));
+    }, AI_REPLY_DELAY);
+
   }, [hasUserSentMessage, activeChatId, messages.length, pendingMessages]);
 
   // Select chat
@@ -675,45 +679,47 @@ function AnonymousPrivateChatView({
           });
 
           setAiTyping(true);
-          try {
-            const allPrev = [...messages, ...pendingMessages]
-              .filter((m) => m.role === "user" || m.role === "ai")
-              .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
+          setTimeout(async () => {
+            try {
+              const allPrev = [...messages, ...pendingMessages]
+                .filter((m) => m.role === "user" || m.role === "ai")
+                .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
 
-            const recentUser = [...messages, ...pendingMessages]
-              .filter((m) => m.role === "user" && m.text !== choiceText)
-              .sort((a, b) => getTimestampMillis(b.timestamp) - getTimestampMillis(a.timestamp));
+              const recentUser = [...messages, ...pendingMessages]
+                .filter((m) => m.role === "user" && m.text !== choiceText)
+                .sort((a, b) => getTimestampMillis(b.timestamp) - getTimestampMillis(a.timestamp));
 
-            const lastText = recentUser[0]?.text || (recentUser[0]?.fileUrl ? "Attachment" : "Hello");
-            const hasAttachment = !!recentUser[0]?.fileUrl;
-            const quoted = hasAttachment ? `"Attachment"\n\n` : `"${lastText}"\n\n`;
+              const lastText = recentUser[0]?.text || (recentUser[0]?.fileUrl ? "Attachment" : "Hello");
+              const hasAttachment = !!recentUser[0]?.fileUrl;
+              const quoted = hasAttachment ? `"Attachment"\n\n` : `"${lastText}"\n\n`;
 
-            const aiResp = await getAIResponse(lastText, allPrev);
-            const fullAi = quoted + aiResp;
+              const aiResp = await getAIResponse(lastText, allPrev);
+              const fullAi = quoted + aiResp;
 
-            t.set(doc(collection(chatRef, "messages")), {
-              text: fullAi,
-              role: "ai",
-              displayName: "Support Assistant",
-              timestamp: serverTimestamp(),
-            });
-            t.update(chatRef, {
-              lastMessage: `Support Assistant: ${aiResp}`,
-              lastUpdated: serverTimestamp(),
-              unreadCountForUser: increment(1),
-            });
-          } catch (e) {
-            console.error("AI initial failed:", e);
-            const errMsg = "Sorry, couldn’t respond right now.";
-            t.set(doc(collection(chatRef, "messages")), { text: errMsg, role: "system", timestamp: serverTimestamp() });
-            setPendingMessages((p) => [
-              ...p,
-              { id: `u-${Date.now()}`, text: choiceText, role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
-              { id: `err-${Date.now()}`, text: errMsg, role: "system", timestamp: { toMillis: () => Date.now() + 50 } },
-            ]);
-          } finally {
-            setAiTyping(false);
-          }
+              t.set(doc(collection(chatRef, "messages")), {
+                text: fullAi,
+                role: "ai",
+                displayName: "Support Assistant",
+                timestamp: serverTimestamp(),
+              });
+              t.update(chatRef, {
+                lastMessage: `Support Assistant: ${aiResp}`,
+                lastUpdated: serverTimestamp(),
+                unreadCountForUser: increment(1),
+              });
+            } catch (e) {
+              console.error("AI initial failed:", e);
+              const errMsg = "Sorry, couldn’t respond right now.";
+              t.set(doc(collection(chatRef, "messages")), { text: errMsg, role: "system", timestamp: serverTimestamp() });
+              setPendingMessages((p) => [
+                ...p,
+                { id: `u-${Date.now()}`, text: choiceText, role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
+                { id: `err-${Date.now()}`, text: errMsg, role: "system", timestamp: { toMillis: () => Date.now() + 50 } },
+              ]);
+            } finally {
+              setAiTyping(false);
+            }
+          }, AI_REPLY_DELAY);  
         } else {
           t.update(chatRef, { aiActive: false, aiOffered: false, status: "requesting" });
           setAiActive(false);
@@ -758,44 +764,46 @@ function AnonymousPrivateChatView({
           });
 
           setAiTyping(true);
-          try {
-            const allPrev = [...messages, ...pendingMessages]
-              .filter((m) => m.role === "user" || m.role === "ai")
-              .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
+          setTimeout(async () => {
+            try {
+              const allPrev = [...messages, ...pendingMessages]
+                .filter((m) => m.role === "user" || m.role === "ai")
+                .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
 
-            const recent = [...messages, ...pendingMessages]
-              .filter((m) => m.role === "user" && !["Yes", "No"].includes(m.text))
-              .sort((a, b) => getTimestampMillis(b.timestamp) - getTimestampMillis(a.timestamp));
+              const recent = [...messages, ...pendingMessages]
+                .filter((m) => m.role === "user" && !["Yes", "No"].includes(m.text))
+                .sort((a, b) => getTimestampMillis(b.timestamp) - getTimestampMillis(a.timestamp));
 
-            const lastTxt = recent[0]?.text || (recent[0]?.fileUrl ? "Attachment" : "Hello");
-            const quoted = recent[0]?.fileUrl ? `"Attachment"\n\n` : `"${lastTxt}"\n\n`;
+              const lastTxt = recent[0]?.text || (recent[0]?.fileUrl ? "Attachment" : "Hello");
+              const quoted = recent[0]?.fileUrl ? `"Attachment"\n\n` : `"${lastTxt}"\n\n`;
 
-            const resp = await getAIResponse(lastTxt, allPrev);
-            const full = quoted + resp;
+              const resp = await getAIResponse(lastTxt, allPrev);
+              const full = quoted + resp;
 
-            t.set(doc(collection(chatRef, "messages")), {
-              text: full,
-              role: "ai",
-              displayName: "Support Assistant",
-              timestamp: serverTimestamp(),
-            });
-            t.update(chatRef, {
-              lastMessage: `Support Assistant: ${resp}`,
-              lastUpdated: serverTimestamp(),
-              unreadCountForUser: increment(1),
-            });
-          } catch (e) {
-            console.error("AI fallback failed:", e);
-            const errTxt = "Sorry, couldn’t respond right now. Please wait for a therapist.";
-            t.set(doc(collection(chatRef, "messages")), { text: errTxt, role: "system", timestamp: serverTimestamp() });
-            setPendingMessages((p) => [
-              ...p,
-              { id: `u-${Date.now()}`, text: "Yes", role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
-              { id: `err-${Date.now()}`, text: errTxt, role: "system", timestamp: { toMillis: () => Date.now() + 50 } },
-            ]);
-          } finally {
-            setAiTyping(false);
-          }
+              t.set(doc(collection(chatRef, "messages")), {
+                text: full,
+                role: "ai",
+                displayName: "Support Assistant",
+                timestamp: serverTimestamp(),
+              });
+              t.update(chatRef, {
+                lastMessage: `Support Assistant: ${resp}`,
+                lastUpdated: serverTimestamp(),
+                unreadCountForUser: increment(1),
+              });
+            } catch (e) {
+              console.error("AI fallback failed:", e);
+              const errTxt = "Sorry, couldn’t respond right now. Please wait for a therapist.";
+              t.set(doc(collection(chatRef, "messages")), { text: errTxt, role: "system", timestamp: serverTimestamp() });
+              setPendingMessages((p) => [
+                ...p,
+                { id: `u-${Date.now()}`, text: "Yes", role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
+                { id: `err-${Date.now()}`, text: errTxt, role: "system", timestamp: { toMillis: () => Date.now() + 50 } },
+              ]);
+            } finally {
+              setAiTyping(false);
+            }
+          }, AI_REPLY_DELAY);  
         } else {
           t.update(chatRef, { aiActive: false, aiOffered: false });
           setAiActive(false);
