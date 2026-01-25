@@ -362,76 +362,65 @@ function AnonymousPrivateChatView({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, events, pendingMessages, aiTyping]);
 
-  // AI offer after inactivity
+  // AI offer after inactivity (THERAPIST ONLY)
   useEffect(() => {
-    if (!activeChatId || !userId || aiActive) return;
+    if (!activeChatId || !userId) return;
+    if (!chatData) return;
+    if (aiActive) return;
+    if (chatData.status !== "requesting") return;
+    if (chatData.aiOffered) return;
+    if (currentTherapistUid) return;
+    if (!hasUserSentMessage) return;
 
-    let timeoutId = null;
     const chatRef = doc(db, "privateChats", activeChatId);
 
-    const unsubscribe = onSnapshot(chatRef, (snap) => {
-      if (!snap.exists()) return;
-      const data = snap.data();
-      if (data.aiOffered || data.aiActive) return;
+    const allMsgs = [...messages, ...pendingMessages];
+    if (allMsgs.length === 0) return;
 
-      if (timeoutId) clearTimeout(timeoutId);
+    // Therapist messages only
+    const therapistMsgs = allMsgs.filter(
+      (m) => m.role === "therapist" && m.timestamp?.toMillis?.()
+    );
 
-      const allMsgs = [...messages, ...pendingMessages];
-      const hasUser = allMsgs.some((m) => m.role === "user");
-      if (!hasUser) return;
+    const lastRelevantTime =
+      therapistMsgs.length > 0
+        ? Math.max(...therapistMsgs.map(m => getTimestampMillis(m.timestamp)))
+        : getTimestampMillis(allMsgs[allMsgs.length - 1].timestamp);
 
-      const therapistMsgs = allMsgs
-        .filter((m) => m.role === "therapist")
-        .sort((a, b) => getTimestampMillis(b.timestamp) - getTimestampMillis(a.timestamp));
+    const elapsed = Date.now() - lastRelevantTime;
+    if (elapsed < 7000) return;
 
-      const lastT = therapistMsgs.length > 0 ? getTimestampMillis(therapistMsgs[0].timestamp) : 0;
-      const now = Date.now();
-      const waited = now - lastT > 7000;
+    const offer = {
+      id: "ai-offer-message",
+      type: "ai-offer",
+      text:
+        "Looks like you are waiting too long. Would you like to chat with our support assistant while waiting for a therapist?",
+      role: "ai",
+      timestamp: { toMillis: () => Date.now() },
+    };
 
-      if (waited) {
-        timeoutId = setTimeout(async () => {
-          try {
-            const fresh = await getDoc(chatRef);
-            if (!fresh.exists() || fresh.data().aiOffered || fresh.data().aiActive) return;
-
-            const latest = [...messages, ...pendingMessages];
-            const stillNo = latest
-              .filter((m) => m.role === "therapist")
-              .every((m) => Date.now() - getTimestampMillis(m.timestamp) > 7000);
-
-            if (stillNo || latest.filter((m) => m.role === "therapist").length === 0) {
-              const offer = {
-                id: "ai-offer-message",
-                type: "ai-offer",
-                text: "Looks like you are waiting too long. Would you like to chat with our support assistant while waiting till a therapist available joins?",
-                role: "ai",
-                timestamp: { toMillis: () => Date.now() },
-              };
-
-              setPendingMessages((prev) => {
-                if (prev.some((m) => m.id === "ai-offer-message")) return prev;
-                return [...prev, offer];
-              });
-
-              await runTransaction(db, async (tx) => {
-                const cur = await tx.get(chatRef);
-                if (cur.exists() && !cur.data().aiOffered && !cur.data().aiActive) {
-                  tx.update(chatRef, { aiOffered: true });
-                }
-              });
-            }
-          } catch (e) {
-            console.error("AI offer failed:", e);
-          }
-        }, 7000);
-      }
+    setPendingMessages((prev) => {
+      if (prev.some((m) => m.id === offer.id)) return prev;
+      return [...prev, offer];
     });
 
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      unsubscribe();
-    };
-  }, [activeChatId, userId, messages, pendingMessages, getTimestampMillis, aiActive]);
+    runTransaction(db, async (tx) => {
+      const snap = await tx.get(chatRef);
+      if (snap.exists() && !snap.data().aiOffered && !snap.data().aiActive) {
+        tx.update(chatRef, { aiOffered: true });
+      }
+    }).catch(console.error);
+  }, [
+    activeChatId,
+    userId,
+    messages,
+    pendingMessages,
+    chatData,
+    aiActive,
+    hasUserSentMessage,
+    currentTherapistUid,
+    getTimestampMillis,
+  ]);
 
   // AI auto-reply when aiActive
   useEffect(() => {
@@ -725,6 +714,7 @@ function AnonymousPrivateChatView({
         } else {
           t.update(chatRef, { aiActive: false, aiOffered: false, status: "requesting" });
           setAiActive(false);
+          setHasUserSentMessage(true);
           t.set(doc(collection(chatRef, "messages")), {
             text: "We are contacting an available therapist for you.",
             role: "system",
@@ -1026,7 +1016,7 @@ function AnonymousPrivateChatView({
           )}
 
           {(typingUsers.length > 0 || aiTyping) && (
-            <p className="typing-indicator">
+            <div className="typing-indicator">
               {aiTyping && <span className="ai-typing">Support Assistant</span>}
               {aiTyping && typingUsers.length > 0 && " and "}
               {typingUsers
@@ -1040,7 +1030,7 @@ function AnonymousPrivateChatView({
                 <span></span>
                 <span></span>
               </div>
-            </p>
+            </div>
           )}
           <div ref={messagesEndRef} />
         </div>
