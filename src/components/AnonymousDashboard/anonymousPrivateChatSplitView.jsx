@@ -27,6 +27,7 @@ import { getAIResponse } from "../../utils/AiChatIntegration";
 import ChatMessage from "../ChatMessage";
 import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import EmojiPicker from "emoji-picker-react";
+const AI_REPLY_DELAY = 2000;
 
 const useMediaQuery = (query) => {
   const [matches, setMatches] = useState(false);
@@ -442,11 +443,11 @@ function AnonymousPrivateChatView({
     if (!last._aiEligible) return;
     if (last._handledByAI) return;
 
-
     let cancelled = false;
 
     const reply = async () => {
       if (cancelled) return;
+
       setAiTyping(true);
 
       try {
@@ -460,21 +461,21 @@ function AnonymousPrivateChatView({
         const lastUserText = last.text || (last.fileUrl ? "[Attachment]" : " ");
         const aiText = await getAIResponse(lastUserText, history);
 
-        const quoted = last.fileUrl ? `"Attachment"\n\n` : `"${last.text || " "}"\n\n`;
-        const fullAi = quoted + aiText;
+        const quoted = last.fileUrl
+          ? `"Attachment"\n\n`
+          : `"${last.text || " "}"\n\n`;
 
         const chatRef = doc(db, "privateChats", activeChatId);
-        if (last.role !== "user") return;
-        if (last._handledByAI) return;
 
         await runTransaction(db, async (t) => {
           t.set(doc(collection(chatRef, "messages")), {
-            text: fullAi,
+            text: quoted + aiText,
             role: "ai",
             displayName: "Support Assistant",
             _handledByAI: true,
             timestamp: serverTimestamp(),
           });
+
           t.update(chatRef, {
             lastMessage: `Support Assistant: ${aiText}`,
             lastUpdated: serverTimestamp(),
@@ -488,12 +489,13 @@ function AnonymousPrivateChatView({
       }
     };
 
-    reply();
+    const timeoutId = setTimeout(reply, AI_REPLY_DELAY);
 
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
-  }, [messages, pendingMessages, aiActive, activeChatId, aiTyping, isSending, getTimestampMillis]);
+  }, [ messages, pendingMessages, aiActive, activeChatId, aiTyping, isSending, getTimestampMillis,]);
 
   useEffect(() => {
     const pathChatId = location.pathname.split("/anonymous-dashboard/private-chat/")[1];
