@@ -188,7 +188,7 @@ function AnonymousPrivateChatView({
             text: "Would you like to chat with a therapist or our Support Assistant?",
             role: "ai",
             displayName: "Support Assistant",
-            type: "initial-choice-ai", // flag for ChatMessage to show buttons
+            type: "initial-choice-ai",
             timestamp: serverTimestamp(),
           });
         });
@@ -399,7 +399,7 @@ function AnonymousPrivateChatView({
                 id: "ai-offer-message",
                 type: "ai-offer",
                 text: "Looks like you are waiting too long. Would you like to chat with our support assistant while waiting till a therapist available joins?",
-                role: "system",
+                role: "ai",
                 timestamp: { toMillis: () => Date.now() },
               };
 
@@ -462,12 +462,15 @@ function AnonymousPrivateChatView({
         const fullAi = quoted + aiText;
 
         const chatRef = doc(db, "privateChats", activeChatId);
+        if (last.role !== "user") return;
+        if (last._handledByAI) return;
 
         await runTransaction(db, async (t) => {
           t.set(doc(collection(chatRef, "messages")), {
             text: fullAi,
             role: "ai",
             displayName: "Support Assistant",
+            _handledByAI: true,
             timestamp: serverTimestamp(),
           });
           t.update(chatRef, {
@@ -501,6 +504,19 @@ function AnonymousPrivateChatView({
     };
   }, [messages, pendingMessages, aiActive, activeChatId, aiTyping, isSending, getTimestampMillis]);
 
+  useEffect(() => {
+    const pathChatId = location.pathname.split("/anonymous-chat/")[1];
+
+    const storedChatId = localStorage.getItem("activeChatId");
+
+    if (pathChatId) {
+      setActiveChatId(pathChatId);
+    } else if (storedChatId) {
+      setActiveChatId(storedChatId);
+    }
+  }, []);
+
+
   // Send message
   const sendMessage = async (file = null, replyTo = null) => {
     if (!newMessage.trim() && !file) return;
@@ -533,6 +549,8 @@ function AnonymousPrivateChatView({
         });
 
         setActiveChatId(currentChatId);
+        localStorage.setItem("activeChatId", currentChatId);
+        navigate(`/anonymous-chat/${currentChatId}`, { replace: true });
       }
 
       if (file) {
@@ -585,60 +603,17 @@ function AnonymousPrivateChatView({
               }
             : null,
         });
-
-        if (needsGreeting) {
-          sentGreeting = true;
-          t.set(doc(collection(chatRef, "messages")), {
-            text: "Hello! Welcome to our support chat.",
-            role: "system",
-            timestamp: serverTimestamp(),
-          });
-          t.set(doc(collection(chatRef, "messages")), {
-            type: "initial-choice",
-            text: "Would you like to chat with a therapist or talk to our support assistant?",
-            role: "system",
-            timestamp: serverTimestamp(),
-          });
-        }
       });
-
-      setPendingMessages((prev) => [
-        ...prev,
-        {
-          id: `pending-${Date.now()}`,
-          text: messageText,
-          fileUrl,
-          userId,
-          displayName,
-          role: "user",
-          timestamp: { toMillis: () => Date.now() },
-          reactions: {},
-          pinned: false,
-          replyTo: replyTo
-            ? {
-                id: replyTo.id,
-                displayName: replyTo.displayName,
-                text: replyTo.text,
-                fileUrl: replyTo.fileUrl || null,
-              }
-            : null,
-        },
-      ]);
 
       if (sentGreeting) {
         setPendingMessages((prev) => [
           ...prev,
           {
-            id: `greet-${Date.now()}`,
-            text: "Hello! Welcome to our support chat.",
-            role: "system",
-            timestamp: { toMillis: () => Date.now() + 50 },
-          },
-          {
             id: `choice-${Date.now()}`,
             type: "initial-choice",
             text: "Would you like to chat with a therapist or talk to our support assistant?",
-            role: "system",
+            role: "ai",
+            displayName: "Support Assistant",
             timestamp: { toMillis: () => Date.now() + 100 },
           },
         ]);
@@ -869,14 +844,15 @@ function AnonymousPrivateChatView({
           setAiActive(false);
           t.set(doc(collection(chatRef, "messages")), {
             text: "Okay, please hold on while we connect you to a therapist.",
-            role: "system",
+            role: "ai",
+            displayName: "Support Assistant",
             timestamp: serverTimestamp(),
           });
 
           setPendingMessages((p) => [
             ...p,
             { id: `u-${Date.now()}`, text: "No", role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
-            { id: `s-${Date.now()}`, text: "Okay, please hold on while we connect you to a therapist.", role: "system", timestamp: { toMillis: () => Date.now() + 50 } },
+            { id: `s-${Date.now()}`, text: "Okay, please hold on while we connect you to a therapist.", role: "ai", displayName: "Support Assistant", timestamp: { toMillis: () => Date.now() + 50 } },
           ]);
         }
       });
