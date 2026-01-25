@@ -236,14 +236,36 @@ function AnonymousPrivateChatView({
     }
 
     const chatRef = doc(db, "privateChats", activeChatId);
-    const q = query(collection(chatRef, "messages"), orderBy("timestamp", "desc"), limit(50));
+    const q = query(
+      collection(chatRef, "messages"),
+      orderBy("timestamp", "desc"),
+      limit(50)
+    );
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
         const msgs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        // 🔑 Mark confirmed user messages as AI-eligible
+        snapshot.docs.forEach((docSnap) => {
+          const data = docSnap.data();
+
+          if (
+            data.role === "user" &&
+            data._aiEligible === false &&
+            data.timestamp?.toMillis?.()
+          ) {
+            updateDoc(docSnap.ref, { _aiEligible: true }).catch(() => {});
+          }
+        });
+
         setMessages(msgs);
-        setPendingMessages((prev) => prev.filter((p) => !msgs.some((m) => m.id === p.id)));
+
+        setPendingMessages((prev) =>
+          prev.filter((p) => !msgs.some((m) => m.id === p.id))
+        );
+
         setHasMoreMessages(snapshot.docs.length === 50);
         if (msgs.length > 0) playNotification();
       },
@@ -417,6 +439,9 @@ function AnonymousPrivateChatView({
 
     const last = allMsgs[allMsgs.length - 1];
     if (last.role !== "user") return;
+    if (!last._aiEligible) return;
+    if (last._handledByAI) return;
+
 
     let cancelled = false;
 
@@ -556,6 +581,7 @@ function AnonymousPrivateChatView({
           displayName,
           role: "user",
           timestamp: serverTimestamp(),
+          _aiEligible: false,
           reactions: {},
           pinned: false,
           replyTo: replyTo
