@@ -54,6 +54,7 @@ function GroupChatSplitView({
   isLoadingMessages,
   isInitialLoading,
   isLoadingOlder,
+  retrySend,
   navigate,
   markAsRead,
 }) {
@@ -662,40 +663,41 @@ function GroupChatSplitView({
                         therapistId={therapistId}
                         handleTherapistClick={handleTherapistClick}
                         onReply={handleReply}
+                        retrySend={retrySend}
                       />
                     </div>
                   </React.Fragment>
                 ))}
               </>
             )}
+            
+            {/* Typing indicator */}
+            {typingUsers.length > 0 && (
+              <div className="typing-indicator">
+                {typingUsers.map(u => typeof u === "string" ? u : u?.name || "Someone").join(", ")}{" "}
+                {typingUsers.length === 1 ? "is" : "are"} typing
+                <div className="typing-dots">
+                  <span></span><span></span><span></span>
+                </div>
+              </div>
+            )}
+
+            {showScrollToBottom && (
+              <button 
+                className="scroll-to-bottom-btn" 
+                onClick={scrollToNewMessages} 
+                aria-label="Jump to new messages"
+              >
+                <i className="fas fa-chevron-down"></i>
+                {newMessagesSinceLastScroll > 0 && (
+                  <span className="new-messages-badge">
+                    {newMessagesSinceLastScroll > 99 ? "99+" : newMessagesSinceLastScroll}
+                  </span>
+                )}
+              </button>
+            )}
             <div ref={groupMessagesEndRef} />
           </div>
-          
-          {/* Typing indicator */}
-          {typingUsers.length > 0 && (
-            <div className="typing-indicator">
-              {typingUsers.map(u => typeof u === "string" ? u : u?.name || "Someone").join(", ")}{" "}
-              {typingUsers.length === 1 ? "is" : "are"} typing
-              <div className="typing-dots">
-                <span></span><span></span><span></span>
-              </div>
-            </div>
-          )}
-
-          {showScrollToBottom && (
-            <button 
-              className="scroll-to-bottom-btn" 
-              onClick={scrollToNewMessages} 
-              aria-label="Jump to new messages"
-            >
-              <i className="fas fa-chevron-down"></i>
-              {newMessagesSinceLastScroll > 0 && (
-                <span className="new-messages-badge">
-                  {newMessagesSinceLastScroll > 99 ? "99+" : newMessagesSinceLastScroll}
-                </span>
-              )}
-            </button>
-          )}
 
           {/* Input */}
           <div className="chat-input-box">

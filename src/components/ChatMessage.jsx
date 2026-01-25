@@ -19,6 +19,7 @@ const ChatMessage = memo(
     onAiNo,
     aiTyping = false,
     isSending = false,
+    retrySend, // ← new optional prop
   }) => {
     // Special rendering for AI Offer Card
     if (isAiOffer) {
@@ -50,32 +51,45 @@ const ChatMessage = memo(
       );
     }
 
-    // Helper to get clean text for quoting (remove file indicators, trim)
     const getQuoteText = () => {
       let text = msg.text || msg.message || "";
-      if (msg.fileUrl) text = text || "Attachment";
+      if (msg.fileUrl && !msg.fileUrl.includes("uploading")) {
+        text = text || "Attachment";
+      }
       return text.trim();
     };
 
     const shouldShowName = !isPrivateChat;
-
-    const shouldMakeTherapistClickable = 
-      currentView === "anonymous" && 
-      msg.role === "therapist" && 
+    const shouldMakeTherapistClickable =
+      currentView === "anonymous" &&
+      msg.role === "therapist" &&
       !isPrivateChat;
 
+    const isOwnMessage = msg.userId === currentUserId || msg.userId === therapistId;
+
+    // ──────────────────────────────────────────────────────────────
+    //  Status helpers – cleaner to define once
+    // ──────────────────────────────────────────────────────────────
+    const showSending = msg.isPending && !msg.failed;
+    const showFailed = msg.failed;
+    const showDeleting = msg.isPendingDelete;
+
     return (
-      <div className={`chat-message 
-        ${msg.deleted ? 'deleted' : ''} 
-        ${
-          msg.role === "therapist"
-            ? "therapist"
-            : msg.role === "ai"
-            ? "ai"
-            : msg.role === "system"
-            ? "system"
-            : "user"
-        }`}
+      <div
+        className={`chat-message
+          ${msg.deleted ? "deleted" : ""}
+          ${showSending ? "pending" : ""}
+          ${showFailed ? "failed-message" : ""}
+          ${showDeleting ? "deleting" : ""}
+          ${
+            msg.role === "therapist"
+              ? "therapist"
+              : msg.role === "ai"
+              ? "ai"
+              : msg.role === "system"
+              ? "system"
+              : "user"
+          }`}
         id={`msg-${msg.id}`}
       >
         <div className="message-content">
@@ -94,20 +108,20 @@ const ChatMessage = memo(
           )}
 
           <div className="message-content-time">
-            {/* Reply quote block – shown when this message is replying to another */}
+            {/* Reply quote */}
             {!msg.deleted && msg.replyTo && (
               <div
                 className="reply-quote"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (msg.replyTo?.id) {
-                    scrollToMessage(msg.replyTo.id);
-                  }
+                  if (msg.replyTo?.id) scrollToMessage(msg.replyTo.id);
                 }}
                 title="Click to jump to original message"
               >
                 <div className="reply-quote-content">
-                  <strong className={shouldMakeTherapistClickable ? "clickable-name" : ""}>{msg.replyTo.displayName || "Anonymous"}</strong>
+                  <strong className={shouldMakeTherapistClickable ? "clickable-name" : ""}>
+                    {msg.replyTo.displayName || "Anonymous"}
+                  </strong>
                   <div className="reply-quote-text">
                     {msg.replyTo.text || (msg.replyTo.fileUrl ? "Attachment" : "Original message")}
                   </div>
@@ -120,8 +134,11 @@ const ChatMessage = memo(
               </div>
             )}
 
-            {msg.deleted ? (
-              <em className="deleted-message">This message was deleted</em>
+            {/* Main message content */}
+            {msg.deleted || showDeleting ? (
+              <em className="deleted-message">
+                {showDeleting ? msg.text : "This message was deleted"}
+              </em>
             ) : msg.role === "ai" ? (
               <>
                 {msg.text.split("\n\n").map((part, index) => (
@@ -129,17 +146,16 @@ const ChatMessage = memo(
                     key={index}
                     className={index === 0 ? "ai-user-quote" : "ai-response"}
                   >
-                    <div className="ai-user-quote-text">
-                      {part}
-                    </div>
+                    <div className="ai-user-quote-text">{part}</div>
                   </span>
                 ))}
               </>
             ) : (
-              <span>{msg.text || msg.message}</span>
+              <span>{msg.text || msg.message || ""}</span>
             )}
 
-            {!msg.deleted && msg.fileUrl && (
+            {/* File link */}
+            {!msg.deleted && msg.fileUrl && !msg.fileUrl.includes("uploading") && (
               <a
                 href={msg.fileUrl}
                 target="_blank"
@@ -150,7 +166,8 @@ const ChatMessage = memo(
               </a>
             )}
 
-            <span className="message-pin-timestamp">
+            {/* Pin + timestamp + status indicators */}
+            <div className="message-meta-group">
               {!msg.deleted && msg.pinned && (
                 <div
                   className="pinned-label"
@@ -160,12 +177,50 @@ const ChatMessage = memo(
                   }}
                   title="Jump to this pinned message"
                 >
-                  <i className="fas fa-thumbtack"></i> Pinned by <strong>{msg.pinnedBy || "Unknown"}</strong>
+                  <i className="fas fa-thumbtack"></i> Pinned by{" "}
+                  <strong>{msg.pinnedBy || "Unknown"}</strong>
                 </div>
               )}
-              <span className="message-time">{formatMessageTime(msg.timestamp)}</span>
-            </span>          
+
+              {/* Status indicators – grouped together */}
+              <div className="message-status-container">
+                {showFailed && (
+                  <span className="status failed">
+                    <i className="fa-solid fa-exclamation-circle"></i> Failed •{" "}
+                    {retrySend && (
+                      <button
+                        className="retry-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          retrySend(msg);
+                        }}
+                      >
+                        Retry
+                      </button>
+                    )}
+                  </span>
+                )}
+
+                {showDeleting && (
+                  <span className="status deleting">
+                    <i className="fa-regular fa-trash-can"></i> Deleting…
+                  </span>
+                )}
+              </div>
+              {/* Time */}
+              <span className="message-time">
+                {formatMessageTime(msg.timestamp)}
+              </span>
+              
+              {showSending && (
+                <span className="status sending">
+                  <i className="fa-regular fa-clock"></i>
+                </span>
+              )}
+            </div>
           </div>
+
+          {/* Reactions – clickable */}
           {!msg.deleted && msg.role !== "system" && (
             <span className="message-reactions">
               <i
@@ -176,7 +231,7 @@ const ChatMessage = memo(
                   e.stopPropagation();
                   toggleReaction(msg.id, "heart");
                 }}
-              ></i>
+              />
               <i
                 className={`fa-solid fa-thumbs-up reaction ${
                   msg.reactions?.thumbsUp?.includes(currentUserId) ? "user-reacted" : ""
@@ -185,13 +240,13 @@ const ChatMessage = memo(
                   e.stopPropagation();
                   toggleReaction(msg.id, "thumbsUp");
                 }}
-              ></i>
+              />
             </span>
           )}
-          {/* Message actions (pin, delete, reply) */}
+
+          {/* Actions */}
           {!msg.deleted && msg.role !== "system" && (
             <div className="message-actions">
-              {/* Reply button */}
               <button
                 className="reply-btn"
                 onClick={(e) => {
@@ -203,12 +258,11 @@ const ChatMessage = memo(
                     fileUrl: msg.fileUrl,
                   });
                 }}
-                title="Reply to this message"
+                title="Reply"
               >
                 <i className="fas fa-reply"></i>
               </button>
 
-              {/* Pin button (only for therapists) */}
               {therapistId && (
                 <button
                   className="pin-btn"
@@ -216,21 +270,25 @@ const ChatMessage = memo(
                     e.stopPropagation();
                     pinMessage(msg.id, msg.pinned);
                   }}
-                  title={msg.pinned ? "Unpin" : "Pin this message"}
+                  title={msg.pinned ? "Unpin" : "Pin"}
                 >
-                  {msg.pinned ? <i className="fas fa-thumbtack pinned"></i> : <i className="fas fa-thumbtack"></i>}
+                  {msg.pinned ? (
+                    <i className="fas fa-thumbtack pinned"></i>
+                  ) : (
+                    <i className="fas fa-thumbtack"></i>
+                  )}
                 </button>
               )}
 
-              {/* Delete button (only own message + therapist) */}
-              {msg.userId === therapistId && (
+              {isOwnMessage && (
                 <button
                   className="delete-btn"
                   onClick={(e) => {
                     e.stopPropagation();
                     deleteMessage(msg.id);
                   }}
-                  title="Delete this message"
+                  title="Delete"
+                  disabled={showDeleting}
                 >
                   <i className="fas fa-trash"></i>
                 </button>
@@ -238,6 +296,8 @@ const ChatMessage = memo(
             </div>
           )}
         </div>
+
+        {/* Reaction counts */}
         {!msg.deleted && msg.role !== "system" && (
           <span className="message-reactions-view">
             {msg.reactions?.heart && (
@@ -246,17 +306,18 @@ const ChatMessage = memo(
                   msg.reactions?.heart?.includes(currentUserId) ? "user-reacted" : ""
                 }`}
               >
-                {msg.reactions?.heart?.length || 0}
+                {msg.reactions.heart.length}
               </i>
             )}
             {msg.reactions?.thumbsUp && (
-            <i
-              className={`fa-solid fa-thumbs-up reaction ${
-                msg.reactions?.thumbsUp?.includes(currentUserId) ? "user-reacted" : ""
-              }`}
-            >
-              {msg.reactions?.thumbsUp?.length || 0}
-            </i>)}
+              <i
+                className={`fa-solid fa-thumbs-up reaction ${
+                  msg.reactions?.thumbsUp?.includes(currentUserId) ? "user-reacted" : ""
+                }`}
+              >
+                {msg.reactions.thumbsUp.length}
+              </i>
+            )}
           </span>
         )}
       </div>

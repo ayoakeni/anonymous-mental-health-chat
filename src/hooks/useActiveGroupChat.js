@@ -2,8 +2,20 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { db, storage, serverTimestamp } from "../utils/firebase";
 import {
-  doc, collection, query, orderBy, onSnapshot, limit, getDocs, deleteField, startAfter,
-  runTransaction, arrayUnion, arrayRemove, where, limitToLast, endBefore
+  doc,
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  limit,
+  getDocs,
+  deleteField,
+  startAfter,
+  runTransaction,
+  arrayUnion,
+  arrayRemove,
+  limitToLast,
+  endBefore,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
@@ -12,7 +24,7 @@ export function useActiveGroupChat(
   therapistId,
   displayName,
   playNotification,
-  showError,
+  showError
 ) {
   const [messages, setMessages] = useState([]);
   const [isSending, setIsSending] = useState(false);
@@ -48,33 +60,43 @@ export function useActiveGroupChat(
     }
   }, [activeGroupId, therapistId]);
 
-  // ---------- JOIN ----------
-  const join = useCallback(async (groupId = activeGroupId) => {
-    if (!therapistId) return;
-    const groupRef = doc(db, "groupChats", groupId);
-    try {
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(groupRef);
-        if (!snap.exists()) throw new Error("Group not found");
-        tx.update(groupRef, { participants: arrayUnion(therapistId), [`unreadCount.${therapistId}`]: 0 });
-        tx.set(doc(collection(groupRef, "events")), {
-          // type: "join",
-          // user: "System",
-          // text: `${displayName} has joined the group.`,
-          // role: "system",
-          // timestamp: serverTimestamp(),
+  // JOIN
+  const join = useCallback(
+    async (groupId = activeGroupId) => {
+      if (!therapistId) return;
+      const groupRef = doc(db, "groupChats", groupId);
+      try {
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(groupRef);
+          if (!snap.exists()) throw new Error("Group not found");
+          tx.update(groupRef, {
+            participants: arrayUnion(therapistId),
+            [`unreadCount.${therapistId}`]: 0,
+          });
+          tx.set(doc(collection(groupRef, "events")), {
+            type: "join",
+            user: "System",
+            text: `${displayName} has joined the group.`,
+            role: "system",
+            timestamp: serverTimestamp(),
+          });
+          tx.set(
+            doc(db, "therapists", therapistId),
+            { lastSeenGroupChat: serverTimestamp() },
+            { merge: true }
+          );
         });
-        tx.set(doc(db, "therapists", therapistId), { lastSeenGroupChat: serverTimestamp() }, { merge: true });
-      });
-      setInChat(true);
-      document.querySelector(".inputInsert")?.focus();
-    } catch (e) {
-      showError("Failed to join group chat.");
-      navigate("/therapist-dashboard/group-chat");
-    }
-  }, [activeGroupId, therapistId, showError]);
+        setInChat(true);
+        document.querySelector(".inputInsert")?.focus();
+      } catch (e) {
+        showError("Failed to join group chat.");
+        navigate("/therapist-dashboard/group-chat");
+      }
+    },
+    [activeGroupId, therapistId, displayName, showError, navigate]
+  );
 
-  // ---------- LEAVE ----------
+  // LEAVE
   const leave = useCallback(async () => {
     if (!activeGroupId || !therapistId) return;
     const groupRef = doc(db, "groupChats", activeGroupId);
@@ -82,7 +104,7 @@ export function useActiveGroupChat(
       await runTransaction(db, async (tx) => {
         tx.update(groupRef, {
           participants: arrayRemove(therapistId),
-          [`unreadCount.${therapistId}`]: deleteField()
+          [`unreadCount.${therapistId}`]: deleteField(),
         });
         tx.set(doc(collection(groupRef, "events")), {
           type: "leave",
@@ -91,7 +113,11 @@ export function useActiveGroupChat(
           role: "system",
           timestamp: serverTimestamp(),
         });
-        tx.set(doc(db, "therapists", therapistId), { lastSeenGroupChat: serverTimestamp() }, { merge: true });
+        tx.set(
+          doc(db, "therapists", therapistId),
+          { lastSeenGroupChat: serverTimestamp() },
+          { merge: true }
+        );
       });
       setMessages([]);
       setEvents([]);
@@ -104,263 +130,405 @@ export function useActiveGroupChat(
     }
   }, [activeGroupId, therapistId, displayName, navigate, showError]);
 
-  // ---------- SEND MESSAGE ----------
-  const sendMessage = async (text, file = null, replyTo = null) => {
-    if ((!text || !text.trim()) && !file) return;
-    if (!activeGroupId) return;
-    setIsSending(true);
+  // SEND MESSAGE - with optimistic update
+  const sendMessage = useCallback(
+    async (text, file = null, replyTo = null) => {
+      if ((!text?.trim() && !file) || !activeGroupId || !therapistId) return;
 
-    let fileUrl = "";
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        showError("File too large (>5 MB)");
-        setIsSending(false);
-        return;
-      }
-      const storageRef = ref(storage, `groupChats/${activeGroupId}/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      fileUrl = await getDownloadURL(storageRef);
-    }
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-    try {
-      await runTransaction(db, async (tx) => {
-        const groupRef = doc(db, "groupChats", activeGroupId);
+      const optimisticMsg = {
+        id: tempId,
+        text: text || "",
+        fileUrl: file ? "uploading..." : "",
+        userId: therapistId,
+        displayName: displayName || "You",
+        role: "therapist",
+        timestamp: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 },
+        pinned: false,
+        reactions: {},
+        replyTo: replyTo
+          ? {
+              id: replyTo.id,
+              displayName: replyTo.displayName,
+              text: replyTo.text || "",
+              fileUrl: replyTo.fileUrl || null,
+            }
+          : null,
+        isPending: true,
+        failed: false,
+      };
 
-        const groupSnap = await tx.get(groupRef);
-        if (!groupSnap.exists()) {
-          throw new Error("Group chat does not exist");
+      setMessages((prev) => [...prev, optimisticMsg]);
+      setIsSending(true);
+
+      // Try to scroll to bottom
+      setTimeout(() => {
+        document.querySelector("#chat-end, .chat-box")?.scrollIntoView?.({
+          behavior: "smooth",
+          block: "end",
+        });
+      }, 60);
+
+      let fileUrl = "";
+      try {
+        if (file) {
+          if (file.size > 5 * 1024 * 1024) {
+            throw new Error("File too large (>5 MB)");
+          }
+          const storageRef = ref(
+            storage,
+            `groupChats/${activeGroupId}/${Date.now()}_${file.name}`
+          );
+          await uploadBytes(storageRef, file);
+          fileUrl = await getDownloadURL(storageRef);
         }
 
-        const currentParticipants = groupSnap.data()?.participants || [];
-        const currentUnread = groupSnap.data()?.unreadCount || {};
-
-        const msgRef = doc(collection(db, `groupChats/${activeGroupId}/messages`));
-        tx.set(msgRef, {
-          text: text || "",
-          fileUrl,
-          userId: therapistId,
-          displayName: displayName,
-          role: "therapist",
-          timestamp: serverTimestamp(),
-          pinned: false,
-          reactions: {},
-          replyTo: replyTo ? {
-            id: replyTo.id,
-            displayName: replyTo.displayName,
-            text: replyTo.text,
-            fileUrl: replyTo.fileUrl || null,
-          } : null,
-        });
-
-        const updatedUnread = { ...currentUnread };
-        currentParticipants.forEach(uid => {
-          if (uid !== therapistId) {
-            updatedUnread[uid] = (updatedUnread[uid] || 0) + 1;
+        await runTransaction(db, async (tx) => {
+          const groupRef = doc(db, "groupChats", activeGroupId);
+          const groupSnap = await tx.get(groupRef);
+          if (!groupSnap.exists()) {
+            throw new Error("Group chat does not exist");
           }
-        });
 
-        tx.update(groupRef, {
-          lastMessage: {
-            text: text || "Attachment",
+          const currentParticipants = groupSnap.data()?.participants || [];
+          const currentUnread = groupSnap.data()?.unreadCount || {};
+
+          const msgRef = doc(
+            collection(db, `groupChats/${activeGroupId}/messages`)
+          );
+          tx.set(msgRef, {
+            text: text || "",
+            fileUrl,
+            userId: therapistId,
             displayName: displayName,
-            timestamp: serverTimestamp()
-          },
-          unreadCount: updatedUnread
+            role: "therapist",
+            timestamp: serverTimestamp(),
+            pinned: false,
+            reactions: {},
+            replyTo: replyTo
+              ? {
+                  id: replyTo.id,
+                  displayName: replyTo.displayName,
+                  text: replyTo.text,
+                  fileUrl: replyTo.fileUrl || null,
+                }
+              : null,
+          });
+
+          const updatedUnread = { ...currentUnread };
+          currentParticipants.forEach((uid) => {
+            if (uid !== therapistId) {
+              updatedUnread[uid] = (updatedUnread[uid] || 0) + 1;
+            }
+          });
+
+          tx.update(groupRef, {
+            lastMessage: {
+              text: text || "Attachment",
+              displayName: displayName,
+              timestamp: serverTimestamp(),
+            },
+            unreadCount: updatedUnread,
+          });
         });
-      });
-    } catch (e) {
-      console.error("Send message error:", e);
-      showError("Failed to send message.");
-    } finally {
-      setIsSending(false);
-    }
-  };
+      } catch (e) {
+        console.error("Send message error:", e);
+        showError("Failed to send message.");
 
-  // ---------- REACTION ----------
-  const toggleReaction = async (msgId, emoji) => {
-    if (!activeGroupId || !therapistId) return;
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === tempId ? { ...m, isPending: false, failed: true } : m
+          )
+        );
+      } finally {
+        setIsSending(false);
+      }
+    },
+    [activeGroupId, therapistId, displayName, showError]
+  );
 
-    const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
+  const retrySend = useCallback((failedMsg) => {
+    if (!failedMsg?.text && !failedMsg?.fileUrl) return;
 
-    try {
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(msgRef);
-        if (!snap.exists()) return;
+    // Remove the failed message from the list
+    setMessages(prev => prev.filter(m => m.id !== failedMsg.id));
 
-        const reactions = snap.data().reactions || {};
-        const currentUserId = therapistId;
+    // Immediately re-try sending (optimistic again)
+    sendMessage(
+      failedMsg.text || "",
+      null,
+      failedMsg.replyTo || null
+    ).catch(err => {
+      console.error("Retry failed:", err);
+      showError("Retry failed – please try typing again");
+    });
 
-        // Supported reactions — add more here if you expand later
-        const reactionTypes = ["heart", "thumbsUp"];
-        const otherType = reactionTypes.find(t => t !== emoji);
+  }, [sendMessage, showError]);
 
-        // Check if user already reacted with this emoji or the other one
-        const hasThis = reactions[emoji]?.includes(currentUserId) || false;
-        const hasOther = otherType && (reactions[otherType]?.includes(currentUserId) || false);
+  // TOGGLE REACTION - optimistic
+  const toggleReaction = useCallback(
+    async (msgId, emoji) => {
+      if (!activeGroupId || !therapistId) return;
 
-        // Build updated reactions
-        const updatedReactions = { ...reactions };
+      // Optimistic update
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id !== msgId) return msg;
+          const reactions = { ...(msg.reactions || {}) };
+          const hasThis = reactions[emoji]?.includes(therapistId) || false;
 
-        if (hasThis) {
-          // Remove this reaction
-          updatedReactions[emoji] = (reactions[emoji] || []).filter(id => id !== currentUserId);
-        } else {
-          // Add this reaction
-          updatedReactions[emoji] = [...(reactions[emoji] || []), currentUserId];
-        }
-
-        // Always remove the other reaction if it exists
-        if (hasOther && otherType) {
-          updatedReactions[otherType] = (reactions[otherType] || []).filter(id => id !== currentUserId);
-        }
-
-        // Clean up empty arrays to keep Firestore tidy
-        Object.keys(updatedReactions).forEach(key => {
-          if (updatedReactions[key]?.length === 0) {
-            delete updatedReactions[key];
+          if (hasThis) {
+            reactions[emoji] = reactions[emoji].filter(
+              (id) => id !== therapistId
+            );
+            if (reactions[emoji]?.length === 0) delete reactions[emoji];
+          } else {
+            reactions[emoji] = [...(reactions[emoji] || []), therapistId];
           }
+
+          // Remove the other supported reaction if exists
+          const otherType = emoji === "heart" ? "thumbsUp" : "heart";
+          if (reactions[otherType]?.includes(therapistId)) {
+            reactions[otherType] = reactions[otherType].filter(
+              (id) => id !== therapistId
+            );
+            if (reactions[otherType]?.length === 0) delete reactions[otherType];
+          }
+
+          return { ...msg, reactions };
+        })
+      );
+
+      const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
+
+      try {
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(msgRef);
+          if (!snap.exists()) return;
+
+          let reactions = snap.data().reactions || {};
+          const hasThis = reactions[emoji]?.includes(therapistId) || false;
+
+          if (hasThis) {
+            reactions[emoji] = reactions[emoji].filter(
+              (id) => id !== therapistId
+            );
+          } else {
+            reactions[emoji] = [...(reactions[emoji] || []), therapistId];
+          }
+
+          const otherType = emoji === "heart" ? "thumbsUp" : "heart";
+          if (reactions[otherType]?.includes(therapistId)) {
+            reactions[otherType] = reactions[otherType].filter(
+              (id) => id !== therapistId
+            );
+          }
+
+          Object.keys(reactions).forEach((key) => {
+            if (reactions[key].length === 0) delete reactions[key];
+          });
+
+          const finalReactions =
+            Object.keys(reactions).length === 0 ? deleteField() : reactions;
+
+          tx.update(msgRef, { reactions: finalReactions });
         });
+      } catch (err) {
+        console.error("Error toggling reaction:", err);
+        showError("Failed to update reaction.");
 
-        // If no reactions left at all, optionally clear the field (Firestore will remove it)
-        const finalReactions = Object.keys(updatedReactions).length === 0 ? deleteField() : updatedReactions;
+        // Rollback
+        setMessages((prev) =>
+          prev.map((msg) => {
+            if (msg.id !== msgId) return msg;
+            const reactions = { ...(msg.reactions || {}) };
+            const hasThis = reactions[emoji]?.includes(therapistId);
 
-        tx.update(msgRef, { reactions: finalReactions });
-      });
-      setMessages(prev => prev.map(msg => {
-        if (msg.id !== msgId) return msg;
-        const reactions = { ...msg.reactions || {} };
-        const currentUserId = therapistId;
-        const reactionTypes = ["heart", "thumbsUp"];
-        const otherType = reactionTypes.find(t => t !== emoji);
+            if (hasThis) {
+              reactions[emoji] = reactions[emoji].filter(
+                (id) => id !== therapistId
+              );
+              if (!reactions[emoji]?.length) delete reactions[emoji];
+            } else {
+              // This was an add → remove it in rollback
+              if (reactions[emoji]) {
+                reactions[emoji] = reactions[emoji].filter(
+                  (id) => id !== therapistId
+                );
+                if (!reactions[emoji].length) delete reactions[emoji];
+              }
+            }
 
-        const hasThis = reactions[emoji]?.includes(currentUserId) || false;
-        const hasOther = otherType && (reactions[otherType]?.includes(currentUserId) || false);
+            return { ...msg, reactions };
+          })
+        );
+      }
+    },
+    [activeGroupId, therapistId, showError]
+  );
 
-        if (hasThis) {
-          reactions[emoji] = reactions[emoji].filter(id => id !== currentUserId);
-        } else {
-          reactions[emoji] = [...(reactions[emoji] || []), currentUserId];
-        }
+  // DELETE MESSAGE - optimistic
+  const deleteMessage = useCallback(
+    async (msgId) => {
+      if (!activeGroupId || !therapistId) return;
 
-        if (hasOther && otherType) {
-          reactions[otherType] = reactions[otherType].filter(id => id !== currentUserId);
-        }
-
-        // Clean up empty
-        Object.keys(reactions).forEach(key => {
-          if (reactions[key].length === 0) delete reactions[key];
-        });
-        return { ...msg, reactions };
-      }));
-    } catch (err) {
-      console.error("Error toggling reaction:", err);
-      showError("Failed to update reaction.");
-    }
-  };
-
-  // ---------- DELETE ----------
-  const deleteMessage = async (msgId) => {
-    if (!activeGroupId || !therapistId) return;
-
-    try {
-      await runTransaction(db, async (tx) => {
-        const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
-
-        // Get the message to verify ownership
-        const msgSnap = await tx.get(msgRef);
-        if (!msgSnap.exists()) {
-          throw new Error("Message does not exist");
-        }
-
-        const msgData = msgSnap.data();
-        if (msgData.userId !== therapistId) {
-          throw new Error("You can only delete your own messages");
-        }
-
-        tx.update(msgRef, {
-          messageDeleted: "This message was deleted",
-          deleted: true,
-          deletedAt: serverTimestamp(),
-          deletedBy: displayName,
-        });
-      });
-
-      setMessages(prev =>
-        prev.map(msg =>
+      // Optimistic update
+      setMessages((prev) =>
+        prev.map((msg) =>
           msg.id === msgId
-            ? { ...msg, deleted: true, messageDeleted: "This message was deleted" }
+            ? {
+                ...msg,
+                isPendingDelete: true,
+              }
             : msg
         )
       );
 
-      showError("Message deleted", "success");
-    } catch (e) {
-      console.error("Failed to delete message:", e);
-      showError("Failed to delete message. try again later.");
-    }
-  };
+      try {
+        await runTransaction(db, async (tx) => {
+          const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
+          const msgSnap = await tx.get(msgRef);
+          if (!msgSnap.exists()) {
+            throw new Error("Message does not exist");
+          }
+          if (msgSnap.data().userId !== therapistId) {
+            throw new Error("You can only delete your own messages");
+          }
 
-  // ---------- PIN MESSAGE ----------
-  const pinMessage = async (msgId, currentPinned = false) => {
-    if (!activeGroupId) return;
-
-    const groupRef = doc(db, "groupChats", activeGroupId);
-    const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
-
-    try {
-      await runTransaction(db, async (tx) => {
-        // Read the group document and the target message
-        const [groupSnap, msgSnap] = await Promise.all([
-          tx.get(groupRef),
-          tx.get(msgRef),
-        ]);
-
-        if (!groupSnap.exists()) {
-          throw new Error("Group does not exist");
-        }
-        if (!msgSnap.exists()) {
-          throw new Error("Message does not exist");
-        }
-
-        const currentPinnedId = groupSnap.data().pinnedMessageId || null;
-
-        // If we're pinning a new message, unpin the old one if different
-        if (!currentPinned && currentPinnedId && currentPinnedId !== msgId) {
-          const oldMsgRef = doc(db, `groupChats/${activeGroupId}/messages`, currentPinnedId);
-          tx.update(oldMsgRef, { pinned: false, pinnedBy: null });
-        }
-
-        // Toggle the target message
-        const newPinned = !currentPinned;
-        tx.update(msgRef, {
-          pinned: newPinned,
-          pinnedBy: newPinned ? displayName : null,
+          tx.update(msgRef, {
+            messageDeleted: "This message was deleted",
+            deleted: true,
+            deletedAt: serverTimestamp(),
+            deletedBy: displayName,
+          });
         });
 
-        // Update the group document with the new pinned ID (or null if unpinning)
-        tx.update(groupRef, {
-          pinnedMessageId: newPinned ? msgId : null,
-        });
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === msgId
+              ? {
+                  ...msg,
+                  deleted: true,
+                  messageDeleted: "This message was deleted",
+                  isPendingDelete: false,
+                }
+              : msg
+          )
+        );
+      } catch (e) {
+        console.error("Failed to delete message:", e);
+        showError("Failed to delete message. Try again later.");
 
-        // Add system event
-        const eventRef = doc(collection(groupRef, "events"));
-        tx.set(eventRef, {
-          type: "pin",
-          user: "System",
-          text: newPinned
-            ? `${displayName} pinned a message`
-            : `${displayName} unpinned a message`,
-          role: "system",
-          timestamp: serverTimestamp(),
-        });
-      });
-    } catch (e) {
-      console.error("Failed to pin/unpin message:", e);
-      showError("Failed to pin/unpin message.");
-    }
-  };
+        // Rollback
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === msgId
+              ? {
+                  ...msg,
+                  isPendingDelete: false,
+                }
+              : msg
+          )
+        );
+      }
+    },
+    [activeGroupId, therapistId, displayName, showError]
+  );
 
-  // ---------- LOAD MORE (older messages) ----------
+  // PIN / UNPIN MESSAGE - optimistic
+  const pinMessage = useCallback(
+    async (msgId, currentPinned) => {
+      if (!activeGroupId) return;
+
+      const newPinned = !currentPinned;
+
+      // Optimistic update
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id === msgId) {
+            return {
+              ...m,
+              pinned: newPinned,
+              pinnedBy: newPinned ? displayName : null,
+            };
+          }
+          // If pinning new message → unpin old one
+          if (newPinned && m.pinned && m.id !== msgId) {
+            return { ...m, pinned: false, pinnedBy: null };
+          }
+          return m;
+        })
+      );
+
+      const groupRef = doc(db, "groupChats", activeGroupId);
+      const msgRef = doc(db, `groupChats/${activeGroupId}/messages`, msgId);
+
+      try {
+        await runTransaction(db, async (tx) => {
+          const [groupSnap, msgSnap] = await Promise.all([
+            tx.get(groupRef),
+            tx.get(msgRef),
+          ]);
+
+          if (!groupSnap.exists() || !msgSnap.exists()) {
+            throw new Error("Not found");
+          }
+
+          const currentPinnedId = groupSnap.data().pinnedMessageId || null;
+
+          if (newPinned && currentPinnedId && currentPinnedId !== msgId) {
+            const oldMsgRef = doc(
+              db,
+              `groupChats/${activeGroupId}/messages`,
+              currentPinnedId
+            );
+            tx.update(oldMsgRef, { pinned: false, pinnedBy: null });
+          }
+
+          tx.update(msgRef, {
+            pinned: newPinned,
+            pinnedBy: newPinned ? displayName : null,
+          });
+
+          tx.update(groupRef, {
+            pinnedMessageId: newPinned ? msgId : null,
+          });
+
+          const eventRef = doc(collection(groupRef, "events"));
+          tx.set(eventRef, {
+            type: "pin",
+            user: "System",
+            text: newPinned
+              ? `${displayName} pinned a message`
+              : `${displayName} unpinned a message`,
+            role: "system",
+            timestamp: serverTimestamp(),
+          });
+        });
+      } catch (e) {
+        console.error("Failed to pin/unpin message:", e);
+        showError("Failed to pin/unpin message.");
+
+        // Rollback
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id === msgId) {
+              return {
+                ...m,
+                pinned: currentPinned,
+                pinnedBy: currentPinned ? displayName : null,
+              };
+            }
+            return m;
+          })
+        );
+      }
+    },
+    [activeGroupId, displayName, showError]
+  );
+
+  // LOAD MORE (older messages)
   const loadMore = useCallback(async () => {
     if (!activeGroupId || !hasMore || isLoadingOlder) return;
     setIsLoadingOlder(true);
@@ -372,10 +540,10 @@ export function useActiveGroupChat(
         limitToLast(30)
       );
       const snap = await getDocs(q);
-      const newMsgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setMessages(prev => {
-        const existingIds = new Set(prev.map(m => m.id));
-        const filteredNew = newMsgs.filter(m => !existingIds.has(m.id));
+      const newMsgs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        const filteredNew = newMsgs.filter((m) => !existingIds.has(m.id));
         return [...filteredNew, ...prev];
       });
       setHasMore(snap.docs.length === 30);
@@ -389,7 +557,7 @@ export function useActiveGroupChat(
     }
   }, [activeGroupId, hasMore, isLoadingOlder, showError]);
 
-  // ---------- LISTENERS ----------
+  // LISTENERS
   useEffect(() => {
     unsubNewMsgs.current();
     unsubEvents.current();
@@ -407,7 +575,7 @@ export function useActiveGroupChat(
 
     const groupRef = doc(db, "groupChats", activeGroupId);
 
-    unsubPart.current = onSnapshot(groupRef, snap => {
+    unsubPart.current = onSnapshot(groupRef, (snap) => {
       if (snap.exists()) {
         const data = snap.data();
         setParticipants(data.participants || []);
@@ -415,7 +583,6 @@ export function useActiveGroupChat(
       }
     });
 
-    // Initial load
     const loadInitialMessages = async () => {
       setIsInitialLoading(true);
       const q = query(
@@ -425,29 +592,32 @@ export function useActiveGroupChat(
       );
       try {
         const snap = await getDocs(q);
-        const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const msgs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setMessages(msgs);
         setHasMore(snap.docs.length === 30);
         if (msgs.length > 0) {
           latestTimestamp.current = msgs[msgs.length - 1].timestamp;
           earliestTimestamp.current = msgs[0].timestamp;
 
-          // Real-time new messages listener
           const newQ = query(
             collection(groupRef, "messages"),
             orderBy("timestamp", "asc"),
             startAfter(latestTimestamp.current)
           );
-          unsubNewMsgs.current = onSnapshot(newQ, newSnap => {
-            const newMsgs = newSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-            setMessages(prev => {
-              const existingIds = new Set(prev.map(m => m.id));
-              const filteredNew = newMsgs.filter(m => !existingIds.has(m.id));
+          unsubNewMsgs.current = onSnapshot(newQ, (newSnap) => {
+            const newMsgs = newSnap.docs.map((d) => ({
+              id: d.id,
+              ...d.data(),
+            }));
+            setMessages((prev) => {
+              const existingIds = new Set(prev.map((m) => m.id));
+              const filteredNew = newMsgs.filter((m) => !existingIds.has(m.id));
               return [...prev, ...filteredNew];
             });
             if (newMsgs.length > 0) {
               playNotification();
-              latestTimestamp.current = newMsgs[newMsgs.length - 1].timestamp;
+              latestTimestamp.current =
+                newMsgs[newMsgs.length - 1].timestamp;
             }
           });
         }
@@ -461,8 +631,8 @@ export function useActiveGroupChat(
     loadInitialMessages();
 
     const evQ = query(collection(groupRef, "events"), orderBy("timestamp"));
-    unsubEvents.current = onSnapshot(evQ, snap => {
-      setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    unsubEvents.current = onSnapshot(evQ, (snap) => {
+      setEvents(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
 
     return () => {
@@ -489,5 +659,6 @@ export function useActiveGroupChat(
     markAsRead,
     isInitialLoading,
     isLoadingOlder,
+    retrySend,
   };
 }

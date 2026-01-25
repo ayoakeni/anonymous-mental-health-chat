@@ -109,6 +109,7 @@ function TherapistDashboard() {
     hasMore: groupHasMore,
     isInitialLoading,
     isLoadingOlder,
+    retrySend: retrySend,
     markAsRead: markGroupAsRead,
   } = useActiveGroupChat(
     activeGroupId,
@@ -262,6 +263,7 @@ function TherapistDashboard() {
     chatBoxRef: useRef(null),
     isInitialLoading,
     isLoadingOlder,
+    retrySend: retrySend,
     hasMoreMessages: groupHasMore,
     loadMoreMessages: loadMoreGroup,
     showEmojiPicker,
