@@ -192,25 +192,6 @@ function AnonymousPrivateChatView({
             timestamp: serverTimestamp(),
           });
         });
-
-        setPendingMessages((prev) => [
-          ...prev,
-          {
-            id: `auto-welcome-${Date.now()}`,
-            text: "Hello! Welcome to our support chat. I'm here to help.",
-            role: "ai",
-            displayName: "Support Assistant",
-            timestamp: { toMillis: () => Date.now() + 100 },
-          },
-          {
-            id: `auto-choice-${Date.now()}`,
-            text: "Would you like to chat with a therapist or our Support Assistant?",
-            role: "ai",
-            displayName: "Support Assistant",
-            type: "initial-choice-ai",
-            timestamp: { toMillis: () => Date.now() + 300 },
-          },
-        ]);
       } catch (err) {
         console.error("Failed to send auto welcome:", err);
       } finally {
@@ -220,10 +201,6 @@ function AnonymousPrivateChatView({
 
     sendAutoWelcome();
   }, [hasUserSentMessage, activeChatId, messages.length, pendingMessages]);
-
-  // ────────────────────────────────────────────────
-  // Rest of your logic (messages, load more, events, AI offer, send, etc.)
-  // ────────────────────────────────────────────────
 
   // Select chat
   useEffect(() => {
@@ -479,17 +456,6 @@ function AnonymousPrivateChatView({
             unreadCountForUser: increment(1),
           });
         });
-
-        setPendingMessages((prev) => [
-          ...prev,
-          {
-            id: `pending-ai-${Date.now()}`,
-            text: fullAi,
-            role: "ai",
-            displayName: "Support Assistant",
-            timestamp: { toMillis: () => Date.now() },
-          },
-        ]);
       } catch (err) {
         console.error("Auto AI reply failed:", err);
       } finally {
@@ -505,7 +471,7 @@ function AnonymousPrivateChatView({
   }, [messages, pendingMessages, aiActive, activeChatId, aiTyping, isSending, getTimestampMillis]);
 
   useEffect(() => {
-    const pathChatId = location.pathname.split("/anonymous-chat/")[1];
+    const pathChatId = location.pathname.split("/anonymous-dashboard/private-chat/")[1];
 
     const storedChatId = localStorage.getItem("activeChatId");
 
@@ -550,7 +516,7 @@ function AnonymousPrivateChatView({
 
         setActiveChatId(currentChatId);
         localStorage.setItem("activeChatId", currentChatId);
-        navigate(`/anonymous-chat/${currentChatId}`, { replace: true });
+        navigate(`/anonymous-dashboard/private-chat/${currentChatId}`, { replace: true });
       }
 
       if (file) {
@@ -561,8 +527,6 @@ function AnonymousPrivateChatView({
 
       const messageText = newMessage.trim();
       const chatRef = doc(db, "privateChats", currentChatId);
-
-      let sentGreeting = false;
 
       await runTransaction(db, async (t) => {
         const snap = await t.get(chatRef);
@@ -604,21 +568,6 @@ function AnonymousPrivateChatView({
             : null,
         });
       });
-
-      if (sentGreeting) {
-        setPendingMessages((prev) => [
-          ...prev,
-          {
-            id: `choice-${Date.now()}`,
-            type: "initial-choice",
-            text: "Would you like to chat with a therapist or talk to our support assistant?",
-            role: "ai",
-            displayName: "Support Assistant",
-            timestamp: { toMillis: () => Date.now() + 100 },
-          },
-        ]);
-      }
-
       setNewMessage("");
       setShowEmojiPicker(false);
       setReplyTo(null);
@@ -667,7 +616,7 @@ function AnonymousPrivateChatView({
     }
   };
 
-// Handlers (initial choice, AI choice, reactions, emoji, etc.)
+  // Handlers (initial choice, AI choice, reactions, emoji, etc.)
   const handleInitialChoice = async (choice) => {
     if (!activeChatId) return;
     const chatRef = doc(db, "privateChats", activeChatId);
@@ -725,13 +674,6 @@ function AnonymousPrivateChatView({
               lastUpdated: serverTimestamp(),
               unreadCountForUser: increment(1),
             });
-
-            setPendingMessages((p) => [
-              ...p,
-              { id: `u-${Date.now()}`, text: choiceText, role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
-              { id: `s-${Date.now()}`, text: "You are now chatting with our support assistant.", role: "system", timestamp: { toMillis: () => Date.now() + 50 } },
-              { id: `ai-${Date.now()}`, text: fullAi, role: "ai", displayName: "Support Assistant", timestamp: { toMillis: () => Date.now() + 100 } },
-            ]);
           } catch (e) {
             console.error("AI initial failed:", e);
             const errMsg = "Sorry, couldn’t respond right now.";
@@ -752,12 +694,6 @@ function AnonymousPrivateChatView({
             role: "system",
             timestamp: serverTimestamp(),
           });
-
-          setPendingMessages((p) => [
-            ...p,
-            { id: `u-${Date.now()}`, text: choiceText, role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
-            { id: `s-${Date.now()}`, text: "We are contacting an available therapist for you.", role: "system", timestamp: { toMillis: () => Date.now() + 50 } },
-          ]);
         }
       });
       setAiEnabled(choice === "assistant");
@@ -820,13 +756,6 @@ function AnonymousPrivateChatView({
               lastUpdated: serverTimestamp(),
               unreadCountForUser: increment(1),
             });
-
-            setPendingMessages((p) => [
-              ...p,
-              { id: `u-${Date.now()}`, text: "Yes", role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
-              { id: `s-${Date.now()}`, text: "You are now chatting with our support assistant until a therapist joins.", role: "system", timestamp: { toMillis: () => Date.now() + 50 } },
-              { id: `ai-${Date.now()}`, text: full, role: "ai", displayName: "Support Assistant", timestamp: { toMillis: () => Date.now() + 100 } },
-            ]);
           } catch (e) {
             console.error("AI fallback failed:", e);
             const errTxt = "Sorry, couldn’t respond right now. Please wait for a therapist.";
@@ -848,12 +777,6 @@ function AnonymousPrivateChatView({
             displayName: "Support Assistant",
             timestamp: serverTimestamp(),
           });
-
-          setPendingMessages((p) => [
-            ...p,
-            { id: `u-${Date.now()}`, text: "No", role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
-            { id: `s-${Date.now()}`, text: "Okay, please hold on while we connect you to a therapist.", role: "ai", displayName: "Support Assistant", timestamp: { toMillis: () => Date.now() + 50 } },
-          ]);
         }
       });
       setAiEnabled(choice === "yes");
