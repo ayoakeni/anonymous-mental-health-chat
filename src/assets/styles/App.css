@@ -870,8 +870,10 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100%;
   padding: 0 20px;
   color: var(--text-color);
   font-size: 1.2rem;
@@ -1336,7 +1338,7 @@ can find the issue go on else do not alter. Cc > ayoakeni */
   margin-top: 2px;
 }
 
-.message-pin-timestamp .pinned-label {
+.message-meta-group .pinned-label {
   background: none;
   border: none;
   font-size: 0.75rem;
@@ -1349,7 +1351,7 @@ can find the issue go on else do not alter. Cc > ayoakeni */
   padding: 0;
 }
 
-.message-pin-timestamp .pinned-label i {
+.message-meta-group .pinned-label i {
   transform: rotate(45deg);
 }
 

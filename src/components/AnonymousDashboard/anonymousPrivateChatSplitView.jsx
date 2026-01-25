@@ -1,49 +1,47 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { db, doc, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
+import {
+  db,
+  doc,
+  storage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+} from "../../utils/firebase";
 import {
   collection,
   query,
   orderBy,
   onSnapshot,
   serverTimestamp,
-  arrayUnion,
-  deleteField,
-  runTransaction,
   limit,
   getDoc,
+  updateDoc,
+  runTransaction,
   getDocs,
   increment,
-  updateDoc,
   startAfter,
 } from "firebase/firestore";
 import { useTypingStatus } from "../../hooks/useTypingStatus";
 import { getAIResponse } from "../../utils/AiChatIntegration";
-import { mapMessagesForAI } from "../../utils/AiChatIntegration";
 import ChatMessage from "../ChatMessage";
-import ResizableSplitView from "../../components/resizableSplitView";
 import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import EmojiPicker from "emoji-picker-react";
 
 const useMediaQuery = (query) => {
   const [matches, setMatches] = useState(false);
-
   useEffect(() => {
     const m = window.matchMedia(query);
     setMatches(m.matches);
-
     const handler = (e) => setMatches(e.matches);
     m.addEventListener("change", handler);
     return () => m.removeEventListener("change", handler);
   }, [query]);
-
   return matches;
 };
 
-function AnonymousPrivateChatSplitView({
+function AnonymousPrivateChatView({
   privateChats,
-  activeChatId,
-  setActiveChatId,
   formatTimestamp,
   getTimestampMillis,
   displayName,
@@ -52,10 +50,12 @@ function AnonymousPrivateChatSplitView({
   showError,
   playNotification,
 }) {
+  const [activeChatId, setActiveChatId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [events, setEvents] = useState([]);
   const [pendingMessages, setPendingMessages] = useState([]);
   const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiActive, setAiActive] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -65,6 +65,8 @@ function AnonymousPrivateChatSplitView({
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
+  const [chatData, setChatData] = useState(null);
+  const [hasUserSentMessage, setHasUserSentMessage] = useState(false);
 
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
@@ -73,62 +75,166 @@ function AnonymousPrivateChatSplitView({
   const { typingUsers, handleTyping } = useTypingStatus(displayName, activeChatId);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isInsideChat = useIsInsideChat();
-  const [menuOpen, setMenuOpen] = useState(false);
   const fileInputRef = useRef(null);
 
-  const therapistDisplayName = useMemo(() => {
-    if (!activeChatId) return "Waiting for a therapist…";
-    if (anonNames[activeChatId]) return anonNames[activeChatId];
+  // Reset when changing chat
+  useEffect(() => {
+    setHasUserSentMessage(false);
+  }, [activeChatId]);
 
-    const chat = privateChats.find(c => c.id === activeChatId);
-    const therapistUid = chat?.participants?.find(uid => uid !== userId);
-    if (!therapistUid) return "Waiting for a therapist…";
+  // Chat document listener
+  useEffect(() => {
+    if (!activeChatId) {
+      setChatData(null);
+      return;
+    }
 
-    return "Loading name…";
-  }, [activeChatId, anonNames, privateChats, userId]);
+    const chatRef = doc(db, "privateChats", activeChatId);
+    return onSnapshot(chatRef, (snap) => {
+      if (snap.exists()) {
+        setChatData(snap.data());
+      } else {
+        setChatData(null);
+      }
+    });
+  }, [activeChatId]);
 
   const currentTherapistUid = useMemo(() => {
-    if (!activeChatId) return null;
-    const chat = privateChats.find(c => c.id === activeChatId);
-    if (!chat?.participants) return null;
-    return chat.participants.find(uid => uid !== userId) || null;
-  }, [activeChatId, privateChats, userId]);
+    if (!chatData?.participants) return null;
+    return chatData.participants.find((uid) => uid !== userId) || null;
+  }, [chatData, userId]);
+
+  const therapistDisplayName = useMemo(() => {
+    if (aiActive && !currentTherapistUid) return "Support Assistant";
+    if (!currentTherapistUid) return "Support Assistant";
+    if (anonNames?.[activeChatId]) return anonNames[activeChatId];
+    const therapist = activeTherapists.find((t) => t.uid === currentTherapistUid);
+    return therapist?.name || `Therapist ${currentTherapistUid.slice(0, 6)}`;
+  }, [currentTherapistUid, activeTherapists, anonNames, activeChatId, aiActive]);
 
   const therapistStatus = useMemo(() => {
-    if (!currentTherapistUid) return "Waiting for therapist…";
-    const therapist = activeTherapists.find(t => t.uid === currentTherapistUid);
-    return therapist ? "online" : "offline";
-  }, [currentTherapistUid, activeTherapists]);
+    if (aiActive && !currentTherapistUid) return "online";
+    if (!currentTherapistUid) {
+      return hasUserSentMessage ? "Waiting for a therapist..." : "Ready when you are";
+    }
+    return activeTherapists.some((t) => t.uid === currentTherapistUid) ? "online" : "offline";
+  }, [currentTherapistUid, activeTherapists, hasUserSentMessage, aiActive]);
 
-  // Scroll to pinned message or replied message
-  const scrollToMessage = useCallback((msgId) => {
-    const el = document.getElementById(`msg-${msgId}`);
-    if (!el) return;
+  const therapistAvatar = useMemo(() => {
+    if (aiActive && !currentTherapistUid) return null; // can replace with AI avatar later
+    if (!currentTherapistUid) return null;
+    const therapist = activeTherapists.find((t) => t.uid === currentTherapistUid);
+    return therapist?.profileImage || null;
+  }, [currentTherapistUid, activeTherapists, aiActive]);
 
-    // Remove existing highlight
-    document.querySelectorAll(".message-highlight").forEach(e => {
-      e.classList.remove("message-highlight");
+  // Auto-disable AI + therapist join message
+  useEffect(() => {
+    if (!activeChatId || !currentTherapistUid || !aiActive) return;
+
+    const chatRef = doc(db, "privateChats", activeChatId);
+
+    updateDoc(chatRef, { aiActive: false, aiOffered: false })
+      .then(() => {
+        setAiActive(false);
+        runTransaction(db, async (t) => {
+          t.set(doc(collection(chatRef, "messages")), {
+            text: `${therapistDisplayName} has joined the chat.`,
+            role: "system",
+            timestamp: serverTimestamp(),
+          });
+        });
+      })
+      .catch((err) => console.error("Failed to disable AI", err));
+  }, [currentTherapistUid, aiActive, activeChatId, therapistDisplayName]);
+
+  // Therapists listener (always active)
+  useEffect(() => {
+    const q = query(collection(db, "therapists"), limit(100));
+    const unsub = onSnapshot(q, (snap) => {
+      const online = snap.docs
+        .map((d) => ({
+          uid: d.id,
+          ...d.data(),
+          name: d.data().name || `Therapist_${d.id.slice(0, 8)}`,
+        }))
+        .filter((t) => t.online === true);
+      setActiveTherapists(online);
     });
-
-    // Highlight and scroll
-    el.classList.add("message-highlight");
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-
-    setTimeout(() => {
-      el.classList.remove("message-highlight");
-    }, 1600);
+    return unsub;
   }, []);
 
+  // ────────────────────────────────────────────────
+  // Auto-welcome + choice message when FIRST user message is sent
+  // ────────────────────────────────────────────────
   useEffect(() => {
-    const selectId = location.state?.selectChatId;
-    if (selectId && activeChatId !== selectId) {
-      setActiveChatId(selectId);
-    }
-  }, [location.state?.selectChatId, activeChatId]);
+    if (!activeChatId || !hasUserSentMessage || messages.length > 0 || pendingMessages.some(m => m.role === "ai")) return;
 
+    const chatRef = doc(db, "privateChats", activeChatId);
+
+    const sendAutoWelcome = async () => {
+      setAiTyping(true);
+      try {
+        await runTransaction(db, async (t) => {
+          // Welcome message (as AI)
+          t.set(doc(collection(chatRef, "messages")), {
+            text: "Hello! Welcome to our support chat. I'm here to help.",
+            role: "ai",
+            displayName: "Support Assistant",
+            timestamp: serverTimestamp(),
+          });
+
+          // Choice message (as AI)
+          t.set(doc(collection(chatRef, "messages")), {
+            text: "Would you like to chat with a therapist or our Support Assistant?",
+            role: "ai",
+            displayName: "Support Assistant",
+            type: "initial-choice-ai", // flag for ChatMessage to show buttons
+            timestamp: serverTimestamp(),
+          });
+        });
+
+        setPendingMessages((prev) => [
+          ...prev,
+          {
+            id: `auto-welcome-${Date.now()}`,
+            text: "Hello! Welcome to our support chat. I'm here to help.",
+            role: "ai",
+            displayName: "Support Assistant",
+            timestamp: { toMillis: () => Date.now() + 100 },
+          },
+          {
+            id: `auto-choice-${Date.now()}`,
+            text: "Would you like to chat with a therapist or our Support Assistant?",
+            role: "ai",
+            displayName: "Support Assistant",
+            type: "initial-choice-ai",
+            timestamp: { toMillis: () => Date.now() + 300 },
+          },
+        ]);
+      } catch (err) {
+        console.error("Failed to send auto welcome:", err);
+      } finally {
+        setAiTyping(false);
+      }
+    };
+
+    sendAutoWelcome();
+  }, [hasUserSentMessage, activeChatId, messages.length, pendingMessages]);
+
+  // ────────────────────────────────────────────────
+  // Rest of your logic (messages, load more, events, AI offer, send, etc.)
+  // ────────────────────────────────────────────────
+
+  // Select chat
+  useEffect(() => {
+    if (!userId) return;
+    const selectId = location.state?.selectChatId;
+    if (selectId) setActiveChatId(selectId);
+  }, [userId, location.state?.selectChatId]);
+
+  // Mark as read
   useEffect(() => {
     if (!activeChatId || !userId) return;
-
     const chatRef = doc(db, "privateChats", activeChatId);
 
     const markAsRead = () => {
@@ -139,47 +245,66 @@ function AnonymousPrivateChatSplitView({
     };
 
     markAsRead();
-
-    const interval = setInterval(markAsRead, 30_000);
-
+    const interval = setInterval(markAsRead, 30000);
     return () => clearInterval(interval);
   }, [activeChatId, userId]);
 
+  // Messages listener
   useEffect(() => {
-    const closeMenu = (e) => {
-      if (!e.target.closest(".leave-participant") && !e.target.closest(".chat-options-menu")) {
-        setMenuOpen(false);
-      }
-    };
-    if (menuOpen) {
-      document.addEventListener("click", closeMenu);
+    if (!activeChatId) {
+      setMessages([]);
+      setPendingMessages([]);
+      setHasMoreMessages(false);
+      return;
     }
-    return () => document.removeEventListener("click", closeMenu);
-  }, [menuOpen]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, events, pendingMessages]);
+    const chatRef = doc(db, "privateChats", activeChatId);
+    const q = query(collection(chatRef, "messages"), orderBy("timestamp", "desc"), limit(50));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const msgs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setMessages(msgs);
+        setPendingMessages((prev) => prev.filter((p) => !msgs.some((m) => m.id === p.id)));
+        setHasMoreMessages(snapshot.docs.length === 50);
+        if (msgs.length > 0) playNotification();
+      },
+      (err) => {
+        console.error("Error fetching messages:", err);
+        showError("Failed to load messages.");
+      }
+    );
+
+    return () => {
+      unsubscribe();
+      setPendingMessages([]);
+    };
+  }, [activeChatId, playNotification, showError]);
 
   const loadMoreMessages = useCallback(async () => {
     if (!activeChatId || !hasMoreMessages || isLoadingChat) return;
     setIsLoadingChat(true);
+
     try {
       const chatRef = doc(db, "privateChats", activeChatId);
-      const lastVisibleMsg = messages[messages.length - 1];
+      const lastVisible = messages[messages.length - 1];
+
       const nextQuery = query(
         collection(chatRef, "messages"),
         orderBy("timestamp", "desc"),
-        startAfter(lastVisibleMsg?.timestamp),
+        startAfter(lastVisible?.timestamp),
         limit(50)
       );
+
       const snapshot = await getDocs(nextQuery);
-      const newMessages = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setMessages(prev => [...newMessages, ...prev]);
+      const newMsgs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      setMessages((prev) => [...newMsgs, ...prev]);
       setHasMoreMessages(snapshot.docs.length === 50);
     } catch (err) {
-      console.error("Error loading more messages:", err);
-      showError("Failed to load more messages. Please try again.");
+      console.error("Load more error:", err);
+      showError("Failed to load older messages.");
     } finally {
       setIsLoadingChat(false);
     }
@@ -197,165 +322,101 @@ function AnonymousPrivateChatSplitView({
 
     chatBox.addEventListener("scroll", handleScroll);
     return () => chatBox.removeEventListener("scroll", handleScroll);
-  }, [hasMoreMessages, isLoadingChat, activeChatId, loadMoreMessages]);
+  }, [hasMoreMessages, isLoadingChat, loadMoreMessages]);
 
-  // useEffect(() => {
-  //   if (activeChatId) {
-  //     navigate(`/anonymous-dashboard/private-chat/${activeChatId}`, { replace: true });
-  //   }
-  // }, [activeChatId, navigate]);
+  const scrollToMessage = useCallback((msgId) => {
+    const el = document.getElementById(`msg-${msgId}`);
+    if (!el) return;
 
-  useEffect(() => {
-    if (!activeChatId) return;
-    const q = query(collection(db, "therapists"), limit(50));
-    const unsub = onSnapshot(
-      q,
-      snap => {
-        const online = snap.docs
-          .map(d => ({
-            uid: d.id,
-            ...d.data(),
-            name: d.data().name || `Therapist_${d.id.slice(0, 8)}`,
-          }))
-          .filter(t => t.online);
-        setActiveTherapists(online);
-      },
-      err => {
-        console.error("Error fetching therapists online:", err);
-        showError("Failed to fetch therapist status. Please try again.");
-      }
-    );
-    return () => unsub();
-  }, [activeChatId, showError]);
+    document.querySelectorAll(".message-highlight").forEach((e) => e.classList.remove("message-highlight"));
+    el.classList.add("message-highlight");
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
 
-  useEffect(() => {
-    if (!activeChatId) return;
-    const chatRef = doc(db, "privateChats", activeChatId);
-    const q = query(collection(chatRef, "messages"), orderBy("timestamp", "desc"), limit(50));
-    const unsubscribe = onSnapshot(
-      q,
-      snapshot => {
-        const msgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        setMessages(msgs);
-        setPendingMessages(prev =>
-          prev.filter(p => !msgs.some(m => m.text === p.text && m.role === p.role))
-        );
-        setIsLoadingChat(false);
-        setHasMoreMessages(snapshot.docs.length === 50);
-        if (msgs.length > 0) playNotification();
-      },
-      err => {
-        console.error("Error fetching messages:", err);
-        showError("Failed to load messages. Please try again.");
-        setIsLoadingChat(false);
-      }
-    );
-    return () => {
-      unsubscribe();
-      setPendingMessages([]);
-    };
-  }, [activeChatId, playNotification, showError]);
+    setTimeout(() => el.classList.remove("message-highlight"), 1600);
+  }, []);
 
+  // Events listener
   useEffect(() => {
     if (!activeChatId) return;
     const chatRef = doc(db, "privateChats", activeChatId);
     const q = query(collection(chatRef, "events"), orderBy("timestamp"), limit(50));
-    const unsubscribe = onSnapshot(
-      q,
-      snapshot => {
-        const evts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        setEvents(evts);
-      },
-      err => {
-        console.error("Error fetching events:", err);
-        showError("Failed to load events. Please try again.");
-      }
+
+    const unsubscribe = onSnapshot(q, (snap) =>
+      setEvents(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
     );
+
     return () => unsubscribe();
-  }, [activeChatId, showError]);
+  }, [activeChatId]);
 
+  // Pinned message
+  const pinnedMessage = useMemo(() => {
+    return [...messages, ...pendingMessages].find((m) => m.pinned === true);
+  }, [messages, pendingMessages]);
 
-  // AI Offer Logic — shows only AFTER user sends a message and waits 7+ seconds
   useEffect(() => {
-    if (!activeChatId || !userId) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, events, pendingMessages, aiTyping]);
+
+  // AI offer after inactivity
+  useEffect(() => {
+    if (!activeChatId || !userId || aiActive) return;
 
     let timeoutId = null;
-
     const chatRef = doc(db, "privateChats", activeChatId);
 
     const unsubscribe = onSnapshot(chatRef, (snap) => {
       if (!snap.exists()) return;
       const data = snap.data();
-
-      // If AI already offered or active → don't show offer
       if (data.aiOffered || data.aiActive) return;
 
-      // Clear any previous timer
       if (timeoutId) clearTimeout(timeoutId);
 
-      // Combine real messages + pending (optimistic) messages
-      const allMessages = [...messages, ...pendingMessages];
+      const allMsgs = [...messages, ...pendingMessages];
+      const hasUser = allMsgs.some((m) => m.role === "user");
+      if (!hasUser) return;
 
-      // Has the user sent any message yet?
-      const hasUserMessage = allMessages.some(m => m.role === "user");
-      if (!hasUserMessage) return;
-
-      // Find the most recent therapist reply
-      const therapistReplies = allMessages
-        .filter(m => m.role === "therapist")
+      const therapistMsgs = allMsgs
+        .filter((m) => m.role === "therapist")
         .sort((a, b) => getTimestampMillis(b.timestamp) - getTimestampMillis(a.timestamp));
 
-      const lastTherapistTime = therapistReplies.length > 0
-        ? getTimestampMillis(therapistReplies[0].timestamp)
-        : 0;
-
+      const lastT = therapistMsgs.length > 0 ? getTimestampMillis(therapistMsgs[0].timestamp) : 0;
       const now = Date.now();
-      const noReplyYet = lastTherapistTime === 0;
-      const waitedLongEnough = now - lastTherapistTime > 7000;
+      const waited = now - lastT > 7000;
 
-      // Only start the 7-second timer if no reply yet or waited too long
-      if (noReplyYet || waitedLongEnough) {
+      if (waited) {
         timeoutId = setTimeout(async () => {
           try {
-            // Double-check everything is still valid after 7 seconds
-            const freshSnap = await getDoc(chatRef);
-            if (!freshSnap.exists()) return;
-            const freshData = freshSnap.data();
-            if (freshData.aiOffered || freshData.aiActive) return;
+            const fresh = await getDoc(chatRef);
+            if (!fresh.exists() || fresh.data().aiOffered || fresh.data().aiActive) return;
 
-            const latestMessages = [...messages, ...pendingMessages];
-            const stillNoTherapistReply = latestMessages
-              .filter(m => m.role === "therapist")
-              .every(m => Date.now() - getTimestampMillis(m.timestamp) > 7000);
+            const latest = [...messages, ...pendingMessages];
+            const stillNo = latest
+              .filter((m) => m.role === "therapist")
+              .every((m) => Date.now() - getTimestampMillis(m.timestamp) > 7000);
 
-            const neverGotReply = latestMessages.filter(m => m.role === "therapist").length === 0;
-
-            if (neverGotReply || stillNoTherapistReply) {
-              const now = Date.now();
-              const offerMessage = {
+            if (stillNo || latest.filter((m) => m.role === "therapist").length === 0) {
+              const offer = {
                 id: "ai-offer-message",
                 type: "ai-offer",
-                text: "It looks like you're waiting for a reply. Would you like to chat with our Support Assistant in the meantime?",
+                text: "Looks like you are waiting too long. Would you like to chat with our support assistant while waiting till a therapist available joins?",
                 role: "system",
-                timestamp: { toMillis: () => now },
+                timestamp: { toMillis: () => Date.now() },
               };
 
-              // Add to pending messages (optimistic UI)
-              setPendingMessages(prev => {
-                if (prev.some(m => m.id === "ai-offer-message")) return prev;
-                return [...prev, offerMessage];
+              setPendingMessages((prev) => {
+                if (prev.some((m) => m.id === "ai-offer-message")) return prev;
+                return [...prev, offer];
               });
 
-              // Mark as offered in Firestore
-              await runTransaction(db, async (transaction) => {
-                const currentSnap = await transaction.get(chatRef);
-                if (currentSnap.exists() && !currentSnap.data().aiOffered && !currentSnap.data().aiActive) {
-                  transaction.update(chatRef, { aiOffered: true });
+              await runTransaction(db, async (tx) => {
+                const cur = await tx.get(chatRef);
+                if (cur.exists() && !cur.data().aiOffered && !cur.data().aiActive) {
+                  tx.update(chatRef, { aiOffered: true });
                 }
               });
             }
-          } catch (err) {
-            console.error("Failed to show AI offer:", err);
+          } catch (e) {
+            console.error("AI offer failed:", e);
           }
         }, 7000);
       }
@@ -365,141 +426,148 @@ function AnonymousPrivateChatSplitView({
       if (timeoutId) clearTimeout(timeoutId);
       unsubscribe();
     };
-  }, [activeChatId, userId, messages, pendingMessages]);
+  }, [activeChatId, userId, messages, pendingMessages, getTimestampMillis, aiActive]);
 
-  const joinPrivateChat = async (chatId) => {
+  // AI auto-reply when aiActive
+  useEffect(() => {
+    if (!activeChatId || !aiActive || aiTyping || isSending) return;
+
+    const allMsgs = [...messages, ...pendingMessages].sort(
+      (a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp)
+    );
+
+    if (allMsgs.length === 0) return;
+
+    const last = allMsgs[allMsgs.length - 1];
+    if (last.role !== "user") return;
+
+    let cancelled = false;
+
+    const reply = async () => {
+      if (cancelled) return;
+      setAiTyping(true);
+
+      try {
+        const history = allMsgs
+          .filter((m) => m.role === "user" || m.role === "ai")
+          .map((m) => ({
+            role: m.role === "ai" ? "assistant" : "user",
+            content: m.text || (m.fileUrl ? "[Attachment]" : ""),
+          }));
+
+        const lastUserText = last.text || (last.fileUrl ? "[Attachment]" : " ");
+        const aiText = await getAIResponse(lastUserText, history);
+
+        const quoted = last.fileUrl ? `"Attachment"\n\n` : `"${last.text || " "}"\n\n`;
+        const fullAi = quoted + aiText;
+
+        const chatRef = doc(db, "privateChats", activeChatId);
+
+        await runTransaction(db, async (t) => {
+          t.set(doc(collection(chatRef, "messages")), {
+            text: fullAi,
+            role: "ai",
+            displayName: "Support Assistant",
+            timestamp: serverTimestamp(),
+          });
+          t.update(chatRef, {
+            lastMessage: `Support Assistant: ${aiText}`,
+            lastUpdated: serverTimestamp(),
+            unreadCountForUser: increment(1),
+          });
+        });
+
+        setPendingMessages((prev) => [
+          ...prev,
+          {
+            id: `pending-ai-${Date.now()}`,
+            text: fullAi,
+            role: "ai",
+            displayName: "Support Assistant",
+            timestamp: { toMillis: () => Date.now() },
+          },
+        ]);
+      } catch (err) {
+        console.error("Auto AI reply failed:", err);
+      } finally {
+        if (!cancelled) setAiTyping(false);
+      }
+    };
+
+    reply();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, pendingMessages, aiActive, activeChatId, aiTyping, isSending, getTimestampMillis]);
+
+  // Send message
+  const sendMessage = async (file = null, replyTo = null) => {
+    if (!newMessage.trim() && !file) return;
     if (!userId) return;
+
+    setHasUserSentMessage(true);
+    setIsSending(true);
+    let fileUrl = null;
+    let currentChatId = activeChatId;
+
     try {
-      const chatRef = doc(db, "privateChats", chatId);
-      await runTransaction(db, async (transaction) => {
-        const chatSnap = await transaction.get(chatRef);
-        if (!chatSnap.exists()) {
-          transaction.set(chatRef, {
+      if (!currentChatId) {
+        const chatRef = doc(collection(db, "privateChats"));
+        currentChatId = chatRef.id;
+
+        await runTransaction(db, async (t) => {
+          t.set(chatRef, {
             participants: [userId],
             lastMessage: "",
             lastUpdated: serverTimestamp(),
             unreadCountForTherapist: 0,
+            unreadCountForUser: 0,
             aiActive: false,
             aiOffered: false,
             leftBy: {},
+            initialGreetingSent: false,
+            status: "new",
+            createdAt: serverTimestamp(),
           });
-        } else {
-          const data = chatSnap.data();
-          const wasLeft = data.leftBy?.[userId];
-
-          if (wasLeft) {
-            transaction.update(chatRef, {
-              [`leftBy.${userId}`]: deleteField(),
-              aiOffered: false,
-              aiActive: false,
-            });
-          }
-          transaction.set(doc(collection(chatRef, "events")), {
-            type: "join",
-            user: "System",
-            text: `${displayName} has join the chat.`,
-            role: "system",
-            timestamp: serverTimestamp(),
-          });
-          if (!data.participants.includes(userId)) {
-            transaction.update(chatRef, { participants: arrayUnion(userId) });
-          }
-        }
-      });
-      setActiveChatId(chatId);
-      navigate(`/anonymous-dashboard/private-chat/${chatId}`);
-      document.querySelector(".inputInsert")?.focus();
-    } catch (err) {
-      console.error("Error joining private chat:", err);
-      showError("Failed to join private chat.");
-    }
-  };
-
-  const leavePrivateChat = async () => {
-    if (!activeChatId || !userId) return;
-    try {
-      const chatRef = doc(db, "privateChats", activeChatId);
-      await runTransaction(db, async (transaction) => {
-        const chatSnap = await transaction.get(chatRef);
-        if (!chatSnap.exists()) throw new Error("Chat does not exist");
-
-        transaction.update(chatRef, {
-          [`leftBy.${userId}`]: true,
-          aiOffered: false,
-          aiActive: false, // Disable AI on leave
         });
-        transaction.set(doc(collection(chatRef, "events")), {
-          type: "leave",
-          user: "System",
-          text: `${displayName} has ended the chat.`,
-          role: "system",
-          timestamp: serverTimestamp(),
-        });
-      });
 
-      await new Promise(r => setTimeout(r, 600));
-      setActiveChatId(null);
-      showError("You have ended the chat.");
-      navigate("/anonymous-dashboard/private-chat");
-    } catch (err) {
-      console.error("Error ending private chat:", err);
-      showError("Failed to end chat.");
-    }
-  };
+        setActiveChatId(currentChatId);
+      }
 
-  const sendMessage = async (file = null, replyTo = null) => {
-    if (!newMessage.trim() && !file) return;
-    if (!userId || !activeChatId) return;
-
-    setIsSending(true);
-    let fileUrl = null;
-
-    try {
       if (file) {
-        const storageRef = ref(storage, `privateChats/${activeChatId}/${Date.now()}_${file.name}`);
+        const storageRef = ref(storage, `privateChats/${currentChatId}/${Date.now()}_${file.name}`);
         await uploadBytes(storageRef, file);
         fileUrl = await getDownloadURL(storageRef);
       }
 
       const messageText = newMessage.trim();
-      const chatRef = doc(db, "privateChats", activeChatId);
+      const chatRef = doc(db, "privateChats", currentChatId);
 
-      let hasTherapist = false;
-      let aiActive = false;
+      let sentGreeting = false;
 
-      await runTransaction(db, async (transaction) => {
-        const chatSnap = await transaction.get(chatRef);
+      await runTransaction(db, async (t) => {
+        const snap = await t.get(chatRef);
+        if (!snap.exists()) throw new Error("Chat disappeared");
 
-        if (!chatSnap.exists()) {
-          const targetTherapistId = location.state?.therapistId;
-          transaction.set(chatRef, {
-            participants: [userId],
-            requestedTherapist: targetTherapistId || null,
-            pendingTherapist: targetTherapistId || null,
-            createdAt: serverTimestamp(),
-            lastMessage: displayName + ": " + messageText || "Attachment",
-            lastUpdated: serverTimestamp(),
-            unreadCountForTherapist: targetTherapistId ? 1 : 0,
-            unreadCountForUser: 0,
-            status: "waiting",
-            aiOffered: false,
-            aiActive: false,
-            leftBy: {},
-          });
-        } else {
-          const data = chatSnap.data();
-          hasTherapist = (data.participants || []).some(p => p !== userId && p !== data.activeTherapist);
-          aiActive = data.aiActive === true;
+        const data = snap.data();
+        const needsGreeting = !data.initialGreetingSent;
 
-          transaction.update(chatRef, {
-            lastMessage: displayName + ": " + messageText || "Attachment",
-            lastUpdated: serverTimestamp(),
-            unreadCountForTherapist: increment(1),
-            lastSeenAt: serverTimestamp(),
-          });
+        const chatUpdate = {
+          lastMessage: `${displayName}: ${messageText || "Attachment"}`,
+          lastUpdated: serverTimestamp(),
+          unreadCountForTherapist: increment(1),
+          lastSeenAt: serverTimestamp(),
+          status: data.status === "new" ? "waiting" : data.status,
+        };
+
+        if (needsGreeting) {
+          chatUpdate.initialGreetingSent = true;
         }
 
-        transaction.set(doc(collection(chatRef, "messages")), {
+        t.update(chatRef, chatUpdate);
+
+        t.set(doc(collection(chatRef, "messages")), {
           text: messageText,
           fileUrl,
           userId,
@@ -508,724 +576,617 @@ function AnonymousPrivateChatSplitView({
           timestamp: serverTimestamp(),
           reactions: {},
           pinned: false,
-          replyTo: replyTo ? {
-            id: replyTo.id,
-            displayName: replyTo.displayName,
-            text: replyTo.text,
-            fileUrl: replyTo.fileUrl || null,
-          } : null,
+          replyTo: replyTo
+            ? {
+                id: replyTo.id,
+                displayName: replyTo.displayName,
+                text: replyTo.text,
+                fileUrl: replyTo.fileUrl || null,
+              }
+            : null,
         });
+
+        if (needsGreeting) {
+          sentGreeting = true;
+          t.set(doc(collection(chatRef, "messages")), {
+            text: "Hello! Welcome to our support chat.",
+            role: "system",
+            timestamp: serverTimestamp(),
+          });
+          t.set(doc(collection(chatRef, "messages")), {
+            type: "initial-choice",
+            text: "Would you like to chat with a therapist or talk to our support assistant?",
+            role: "system",
+            timestamp: serverTimestamp(),
+          });
+        }
       });
 
-      // Optimistic UI
-      setPendingMessages(prev => [...prev, {
-        id: `pending-${Date.now()}`,
-        text: messageText,
-        fileUrl,
-        userId,
-        displayName,
-        role: "user",
-        timestamp: { toMillis: () => Date.now() },
-        reactions: {},
-        pinned: false,
-        replyTo: replyTo ? {
-          id: replyTo.id,
-          displayName: replyTo.displayName,
-          text: replyTo.text,
-          fileUrl: replyTo.fileUrl || null,
-        } : null,
-      }]);
+      setPendingMessages((prev) => [
+        ...prev,
+        {
+          id: `pending-${Date.now()}`,
+          text: messageText,
+          fileUrl,
+          userId,
+          displayName,
+          role: "user",
+          timestamp: { toMillis: () => Date.now() },
+          reactions: {},
+          pinned: false,
+          replyTo: replyTo
+            ? {
+                id: replyTo.id,
+                displayName: replyTo.displayName,
+                text: replyTo.text,
+                fileUrl: replyTo.fileUrl || null,
+              }
+            : null,
+        },
+      ]);
+
+      if (sentGreeting) {
+        setPendingMessages((prev) => [
+          ...prev,
+          {
+            id: `greet-${Date.now()}`,
+            text: "Hello! Welcome to our support chat.",
+            role: "system",
+            timestamp: { toMillis: () => Date.now() + 50 },
+          },
+          {
+            id: `choice-${Date.now()}`,
+            type: "initial-choice",
+            text: "Would you like to chat with a therapist or talk to our support assistant?",
+            role: "system",
+            timestamp: { toMillis: () => Date.now() + 100 },
+          },
+        ]);
+      }
 
       setNewMessage("");
       setShowEmojiPicker(false);
-
-      // AI response if enabled
-      if (aiActive && !hasTherapist) {
-        setAiTyping(true);
-        try {
-          const allPreviousMessages = [...messages, ...pendingMessages]
-            .filter(m => m.role === "user" || m.role === "ai")
-            .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
-          const aiResponse = await getAIResponse(newMessage.trim() || " ", allPreviousMessages);
-          const quotedUserMessage = `"${newMessage.trim() || "Attachment"}"\n\n`;
-          const aiFullText = quotedUserMessage + aiResponse;
-
-          await runTransaction(db, async (tx) => {
-            tx.set(doc(collection(chatRef, "messages")), {
-              text: aiFullText,
-              role: "ai",
-              displayName: "Support Assistant",
-              timestamp: serverTimestamp(),
-            });
-            tx.update(chatRef, {
-              lastMessage: `Support Assistant: ${aiResponse}`,
-              lastUpdated: serverTimestamp(),
-              unreadCountForUser: increment(1),
-            });
-          });
-
-          setPendingMessages(prev => [...prev, {
-            id: `pending-ai-${Date.now()}`,
-            text: aiFullText,
-            role: "ai",
-            displayName: "Support Assistant",
-            timestamp: { toMillis: () => Date.now() },
-          }]);
-        } catch (err) {
-          // ... error handling
-        } finally {
-          setAiTyping(false);
-        }
-      }
+      setReplyTo(null);
     } catch (err) {
-      console.error("Error sending message:", err);
+      console.error("Send failed:", err);
       showError("Failed to send message.");
     } finally {
       setIsSending(false);
     }
   };
 
-  const handleAiChoice = async (choice) => {
-    const chatRef = doc(db, "privateChats", activeChatId);
+  // Leave chat
+  const leavePrivateChat = async () => {
+    if (!activeChatId) {
+      navigate("/anonymous-dashboard");
+      return;
+    }
+
     try {
-      await runTransaction(db, async (transaction) => {
-        const chatSnap = await transaction.get(chatRef);
-        if (!chatSnap.exists()) throw new Error("Chat document does not exist");
-        transaction.set(doc(collection(chatRef, "messages")), {
+      const chatRef = doc(db, "privateChats", activeChatId);
+      await runTransaction(db, async (t) => {
+        const snap = await t.get(chatRef);
+        if (!snap.exists()) return;
+
+        t.update(chatRef, {
+          [`leftBy.${userId}`]: true,
+          aiOffered: false,
+          aiActive: false,
+        });
+
+        t.set(doc(collection(chatRef, "events")), {
+          type: "leave",
+          user: "System",
+          text: `${displayName} has ended the chat.`,
+          role: "system",
+          timestamp: serverTimestamp(),
+        });
+      });
+
+      setActiveChatId(null);
+      navigate("/anonymous-dashboard");
+      showError("You have ended the chat.");
+    } catch (err) {
+      console.error("Leave error:", err);
+      showError("Failed to end chat.");
+    }
+  };
+
+// Handlers (initial choice, AI choice, reactions, emoji, etc.)
+  const handleInitialChoice = async (choice) => {
+    if (!activeChatId) return;
+    const chatRef = doc(db, "privateChats", activeChatId);
+
+    try {
+      await runTransaction(db, async (t) => {
+        const snap = await t.get(chatRef);
+        if (!snap.exists()) return;
+
+        const choiceText = choice === "therapist" ? "Chat with Therapist" : "Chat with Support Assistant";
+        t.set(doc(collection(chatRef, "messages")), {
+          text: choiceText,
+          userId,
+          displayName,
+          role: "user",
+          timestamp: serverTimestamp(),
+          reactions: {},
+          pinned: false,
+        });
+
+        if (choice === "assistant") {
+          t.update(chatRef, { aiActive: true, aiOffered: false });
+          setAiActive(true);
+          t.set(doc(collection(chatRef, "messages")), {
+            text: "You are now chatting with our support assistant.",
+            role: "system",
+            timestamp: serverTimestamp(),
+          });
+
+          setAiTyping(true);
+          try {
+            const allPrev = [...messages, ...pendingMessages]
+              .filter((m) => m.role === "user" || m.role === "ai")
+              .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
+
+            const recentUser = [...messages, ...pendingMessages]
+              .filter((m) => m.role === "user" && m.text !== choiceText)
+              .sort((a, b) => getTimestampMillis(b.timestamp) - getTimestampMillis(a.timestamp));
+
+            const lastText = recentUser[0]?.text || (recentUser[0]?.fileUrl ? "Attachment" : "Hello");
+            const hasAttachment = !!recentUser[0]?.fileUrl;
+            const quoted = hasAttachment ? `"Attachment"\n\n` : `"${lastText}"\n\n`;
+
+            const aiResp = await getAIResponse(lastText, allPrev);
+            const fullAi = quoted + aiResp;
+
+            t.set(doc(collection(chatRef, "messages")), {
+              text: fullAi,
+              role: "ai",
+              displayName: "Support Assistant",
+              timestamp: serverTimestamp(),
+            });
+            t.update(chatRef, {
+              lastMessage: `Support Assistant: ${aiResp}`,
+              lastUpdated: serverTimestamp(),
+              unreadCountForUser: increment(1),
+            });
+
+            setPendingMessages((p) => [
+              ...p,
+              { id: `u-${Date.now()}`, text: choiceText, role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
+              { id: `s-${Date.now()}`, text: "You are now chatting with our support assistant.", role: "system", timestamp: { toMillis: () => Date.now() + 50 } },
+              { id: `ai-${Date.now()}`, text: fullAi, role: "ai", displayName: "Support Assistant", timestamp: { toMillis: () => Date.now() + 100 } },
+            ]);
+          } catch (e) {
+            console.error("AI initial failed:", e);
+            const errMsg = "Sorry, couldn’t respond right now.";
+            t.set(doc(collection(chatRef, "messages")), { text: errMsg, role: "system", timestamp: serverTimestamp() });
+            setPendingMessages((p) => [
+              ...p,
+              { id: `u-${Date.now()}`, text: choiceText, role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
+              { id: `err-${Date.now()}`, text: errMsg, role: "system", timestamp: { toMillis: () => Date.now() + 50 } },
+            ]);
+          } finally {
+            setAiTyping(false);
+          }
+        } else {
+          t.update(chatRef, { aiActive: false, aiOffered: false, status: "requesting" });
+          setAiActive(false);
+          t.set(doc(collection(chatRef, "messages")), {
+            text: "We are contacting an available therapist for you.",
+            role: "system",
+            timestamp: serverTimestamp(),
+          });
+
+          setPendingMessages((p) => [
+            ...p,
+            { id: `u-${Date.now()}`, text: choiceText, role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
+            { id: `s-${Date.now()}`, text: "We are contacting an available therapist for you.", role: "system", timestamp: { toMillis: () => Date.now() + 50 } },
+          ]);
+        }
+      });
+      setAiEnabled(choice === "assistant");
+    } catch (err) {
+      console.error("Initial choice error:", err);
+      showError("Failed to process your choice.");
+    }
+  };
+
+  const handleAiChoice = async (choice) => {
+    if (!activeChatId) return;
+    const chatRef = doc(db, "privateChats", activeChatId);
+
+    try {
+      await runTransaction(db, async (t) => {
+        const snap = await t.get(chatRef);
+        if (!snap.exists()) return;
+
+        t.set(doc(collection(chatRef, "messages")), {
           text: choice === "yes" ? "Yes" : "No",
           userId,
           displayName,
           role: "user",
           timestamp: serverTimestamp(),
-          read: false,
-          pinned: false,
-          replyTo: replyTo ? {
-            id: replyTo.id,
-            displayName: replyTo.displayName,
-            text: replyTo.text,
-            fileUrl: replyTo.fileUrl || null,
-          } : null,
         });
+
         if (choice === "yes") {
-          transaction.update(chatRef, { aiActive: true, aiOffered: false });
-          transaction.set(doc(collection(chatRef, "messages")), {
+          t.update(chatRef, { aiActive: true, aiOffered: false });
+          setAiActive(true);
+          t.set(doc(collection(chatRef, "messages")), {
             text: "You are now chatting with our support assistant until a therapist joins.",
             role: "system",
             timestamp: serverTimestamp(),
           });
+
+          setAiTyping(true);
           try {
-            setAiTyping(true);
-            // Get conversation context (oldest first - CORRECT for AI)
-            const allPreviousMessages = [...messages, ...pendingMessages]
-              .filter(m => m.role === "user" || m.role === "ai")
+            const allPrev = [...messages, ...pendingMessages]
+              .filter((m) => m.role === "user" || m.role === "ai")
               .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
-            const recentUserMessages = [...messages, ...pendingMessages]
-              .filter(m => m.role === "user" && m.text !== "Yes" && m.text !== "No")
+
+            const recent = [...messages, ...pendingMessages]
+              .filter((m) => m.role === "user" && !["Yes", "No"].includes(m.text))
               .sort((a, b) => getTimestampMillis(b.timestamp) - getTimestampMillis(a.timestamp));
-            // Find the LAST real user message (most recent, excluding "Yes"/"No")
-            const lastUserText = recentUserMessages.length > 0 
-              ? recentUserMessages[0].text 
-              : (recentUserMessages[0]?.fileUrl ? "Attachment" : "Hello");
 
-            const hasAttachment = recentUserMessages.length > 0 && recentUserMessages[0]?.fileUrl;
+            const lastTxt = recent[0]?.text || (recent[0]?.fileUrl ? "Attachment" : "Hello");
+            const quoted = recent[0]?.fileUrl ? `"Attachment"\n\n` : `"${lastTxt}"\n\n`;
 
-            const quotedUserMessage = hasAttachment 
-              ? `"Attachment"\n\n` 
-              : `"${lastUserText}"\n\n`;
+            const resp = await getAIResponse(lastTxt, allPrev);
+            const full = quoted + resp;
 
-            const aiResponse = await getAIResponse(lastUserText, allPreviousMessages);
-
-            const aiFullText = quotedUserMessage + aiResponse;
-            transaction.set(doc(collection(chatRef, "messages")), {
-              text: aiFullText,
+            t.set(doc(collection(chatRef, "messages")), {
+              text: full,
               role: "ai",
               displayName: "Support Assistant",
               timestamp: serverTimestamp(),
-              fileUrl: null,
-              reactions: {},
-              pinned: false,
-              replyTo: replyTo ? {
-                id: replyTo.id,
-                displayName: replyTo.displayName,
-                text: replyTo.text,
-                fileUrl: replyTo.fileUrl || null,
-              } : null,
             });
-            transaction.update(chatRef, {
-              lastMessage: aiFullText,
+            t.update(chatRef, {
+              lastMessage: `Support Assistant: ${resp}`,
               lastUpdated: serverTimestamp(),
               unreadCountForUser: increment(1),
             });
 
-            setPendingMessages((prev) => [
-              ...prev,
-              {
-                id: `pending-user-${Date.now()}`,
-                text: choice === "yes" ? "Yes" : "No",
-                userId,
-                displayName,
-                role: "user",
-                timestamp: { toMillis: () => Date.now() },
-                read: false,
-                pinned: false,
-                replyTo: replyTo ? {
-                  id: replyTo.id,
-                  displayName: replyTo.displayName,
-                  text: replyTo.text,
-                  fileUrl: replyTo.fileUrl || null,
-                } : null,
-              },
-              {
-                id: `pending-system-${Date.now()}`,
-                text: "You are now chatting with our support assistant until a therapist joins.",
-                role: "system",
-                timestamp: { toMillis: () => Date.now() },
-              },
-              {
-                id: `pending-ai-${Date.now()}`,
-                text: aiFullText,
-                role: "ai",
-                displayName: "Support Assistant",
-                timestamp: { toMillis: () => Date.now() },
-                fileUrl: null,
-                reactions: {},
-                pinned: false,
-                replyTo: replyTo ? {
-                  id: replyTo.id,
-                  displayName: replyTo.displayName,
-                  text: replyTo.text,
-                  fileUrl: replyTo.fileUrl || null,
-                } : null,
-              },
+            setPendingMessages((p) => [
+              ...p,
+              { id: `u-${Date.now()}`, text: "Yes", role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
+              { id: `s-${Date.now()}`, text: "You are now chatting with our support assistant until a therapist joins.", role: "system", timestamp: { toMillis: () => Date.now() + 50 } },
+              { id: `ai-${Date.now()}`, text: full, role: "ai", displayName: "Support Assistant", timestamp: { toMillis: () => Date.now() + 100 } },
             ]);
-          } catch (err) {
-            console.error("AI response error:", err);
-            const errText = "Sorry, I couldn’t respond right now. Please wait for a therapist.";
-            transaction.set(doc(collection(chatRef, "messages")), {
-              text: errText,
-              role: "system",
-              timestamp: serverTimestamp(),
-            });
-            transaction.update(chatRef, {
-              lastMessage: errText,
-              lastUpdated: serverTimestamp(),
-            });
-
-            setPendingMessages((prev) => [
-              ...prev,
-              {
-                id: `pending-user-${Date.now()}`,
-                text: choice === "yes" ? "Yes" : "No",
-                userId,
-                displayName,
-                role: "user",
-                timestamp: { toMillis: () => Date.now() },
-                read: false,
-                pinned: false,
-                replyTo: replyTo ? {
-                  id: replyTo.id,
-                  displayName: replyTo.displayName,
-                  text: replyTo.text,
-                  fileUrl: replyTo.fileUrl || null,
-                } : null,
-              },
-              {
-                id: `pending-system-${Date.now()}`,
-                text: errText,
-                role: "system",
-                timestamp: { toMillis: () => Date.now() },
-              },
+          } catch (e) {
+            console.error("AI fallback failed:", e);
+            const errTxt = "Sorry, couldn’t respond right now. Please wait for a therapist.";
+            t.set(doc(collection(chatRef, "messages")), { text: errTxt, role: "system", timestamp: serverTimestamp() });
+            setPendingMessages((p) => [
+              ...p,
+              { id: `u-${Date.now()}`, text: "Yes", role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
+              { id: `err-${Date.now()}`, text: errTxt, role: "system", timestamp: { toMillis: () => Date.now() + 50 } },
             ]);
+          } finally {
+            setAiTyping(false);
           }
         } else {
-          transaction.update(chatRef, { aiActive: false, aiOffered: false });
-          transaction.set(doc(collection(chatRef, "messages")), {
+          t.update(chatRef, { aiActive: false, aiOffered: false });
+          setAiActive(false);
+          t.set(doc(collection(chatRef, "messages")), {
             text: "Okay, please hold on while we connect you to a therapist.",
             role: "system",
             timestamp: serverTimestamp(),
           });
 
-          setPendingMessages((prev) => [
-            ...prev,
-            {
-              id: `pending-user-${Date.now()}`,
-              text: "No",
-              userId,
-              displayName,
-              role: "user",
-              timestamp: { toMillis: () => Date.now() },
-              read: false,
-              pinned: false,
-              replyTo: replyTo ? {
-                id: replyTo.id,
-                displayName: replyTo.displayName,
-                text: replyTo.text,
-                fileUrl: replyTo.fileUrl || null,
-              } : null,
-            },
-            {
-              id: `pending-system-${Date.now()}`,
-              text: "Okay, please hold on while we connect you to a therapist.",
-              role: "system",
-              timestamp: { toMillis: () => Date.now() },
-            },
+          setPendingMessages((p) => [
+            ...p,
+            { id: `u-${Date.now()}`, text: "No", role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
+            { id: `s-${Date.now()}`, text: "Okay, please hold on while we connect you to a therapist.", role: "system", timestamp: { toMillis: () => Date.now() + 50 } },
           ]);
         }
       });
       setAiEnabled(choice === "yes");
     } catch (err) {
-      console.error("Error handling AI choice:", err);
-      showError("Failed to process AI choice. Please try again.");
-    } finally {
-      setAiTyping(false);
+      console.error("AI choice error:", err);
+      showError("Failed to process your request.");
     }
   };
 
-  // Toggle reaction
   const toggleReaction = async (msgId, reactionType) => {
-    if (!userId || !activeChatId) return;
-
+    if (!userId || !activeChatId || msgId.startsWith("pending-")) return;
     const msgRef = doc(db, `privateChats/${activeChatId}/messages`, msgId);
 
     try {
-      await runTransaction(db, async (transaction) => {
-        const msgSnap = await transaction.get(msgRef);
-        if (!msgSnap.exists()) return;
+      await runTransaction(db, async (t) => {
+        const snap = await t.get(msgRef);
+        if (!snap.exists()) return;
 
-        const reactions = msgSnap.data().reactions || {};
-        const currentUserId = userId;
+        const reactions = snap.data().reactions || {};
+        const types = ["heart", "thumbsUp"];
+        const other = types.find((t) => t !== reactionType);
 
-        // Define the two possible reaction types
-        const reactionTypes = ["heart", "thumbsUp"];
-        const otherType = reactionTypes.find(t => t !== reactionType);
+        const hasThis = reactions[reactionType]?.includes(userId) || false;
+        const hasOther = reactions[other]?.includes(userId) || false;
 
-        // Check user's current reactions
-        const hasThisReaction = reactions[reactionType]?.includes(currentUserId) || false;
-        const hasOtherReaction = reactions[otherType]?.includes(currentUserId) || false;
+        let updated = { ...reactions };
 
-        // Build updated reactions object
-        const updatedReactions = { ...reactions };
-
-        if (hasThisReaction) {
-          // User already has this reaction → remove it
-          updatedReactions[reactionType] = (reactions[reactionType] || []).filter(
-            id => id !== currentUserId
-          );
-          // Also remove any other reaction (just in case)
-          if (hasOtherReaction) {
-            updatedReactions[otherType] = (reactions[otherType] || []).filter(
-              id => id !== currentUserId
-            );
-          }
+        if (hasThis) {
+          updated[reactionType] = (updated[reactionType] || []).filter((id) => id !== userId);
+          if (hasOther) updated[other] = (updated[other] || []).filter((id) => id !== userId);
         } else {
-          // User is adding this reaction → add it
-          updatedReactions[reactionType] = [
-            ...(reactions[reactionType] || []),
-            currentUserId
-          ];
-
-          // Remove any other reaction this user had
-          if (hasOtherReaction) {
-            updatedReactions[otherType] = (reactions[otherType] || []).filter(
-              id => id !== currentUserId
-            );
-          }
+          updated[reactionType] = [...(updated[reactionType] || []), userId];
+          if (hasOther) updated[other] = (updated[other] || []).filter((id) => id !== userId);
         }
 
-        // Clean up empty arrays (optional, keeps data tidy)
-        Object.keys(updatedReactions).forEach(key => {
-          if (updatedReactions[key]?.length === 0) {
-            delete updatedReactions[key];
-          }
+        Object.keys(updated).forEach((k) => {
+          if (updated[k].length === 0) delete updated[k];
         });
 
-        transaction.update(msgRef, { reactions: updatedReactions });
+        t.update(msgRef, { reactions: updated });
       });
     } catch (err) {
-      console.error("Error toggling reaction:", err);
-      showError("Failed to update reaction. Please try again.");
+      console.error("Reaction failed:", err);
+      showError("Failed to update reaction.");
     }
   };
-  
-  // Handle emoji click
+
   const onEmojiClick = (emojiData) => {
-    setNewMessage(newMessage + emojiData.emoji);
+    setNewMessage((prev) => prev + emojiData.emoji);
     setShowEmojiPicker(false);
   };
 
-  const handleReply = (message) => {
+  const handleSend = useCallback(
+    (text = "", file = null) => {
+      sendMessage(file, replyTo);
+      setNewMessage("");
+      setReplyTo(null);
+    },
+    [sendMessage, replyTo]
+  );
+
+  const handleReply = useCallback((message) => {
     setReplyTo(message);
-    // Focus the input
-    document.querySelector(".inputInsert")?.focus();
-  };
+    setTimeout(() => {
+      document.querySelector(".inputInsert")?.focus();
+    }, 100);
+  }, []);
 
-  const handleSend = useCallback((text = "", file = null) => {
-    if (!text.trim() && !file) return;
-    sendMessage(text.trim(), file, replyTo);
-    setNewMessage("");
-    setReplyTo(null);
-  }, [sendMessage, replyTo]);
-
-  const combinedPrivateChat = [...messages, ...events, ...pendingMessages]
-  .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
-
-  const leftPanel = (
-    <div className="chat-box-card">
-      <h3>Private Chats</h3>
-      <div className="chat-list-container">
-        {privateChats.length === 0 ? (
-          <p>No active private chats. Start one from a therapist profile!</p>
-        ) : (
-          privateChats.map(chat => {
-            const lastTs = chat.lastUpdated;
-            const { dateStr, timeStr } = formatTimestamp(lastTs);
-            const therapistDisplayName = anonNames[chat.id] || "Loading...";
-            const isLeft = chat.leftBy?.[userId];
-
-            return (
-              <div
-                key={chat.id}
-                className={`chat-card ${activeChatId === chat.id ? "selected" : ""}`}
-                onClick={() => {
-                  if (isLeft) joinPrivateChat(chat.id);
-                  else {
-                    setActiveChatId(chat.id);
-                    navigate(`/anonymous-dashboard/private-chat/${chat.id}`);
-                  }
-                }}
-              >
-                <div className="chat-card-inner">
-                  <div className="chat-avater-content">
-                    {activeTherapists.find(t => t.name === therapistDisplayName)?.profileImage ? (
-                      <img
-                        src={activeTherapists.find(t => t.name === therapistDisplayName).profileImage}
-                        alt={therapistDisplayName}
-                        className="therapist-avatar"
-                      />
-                    ) : (
-                      <span className="therapist-avatar">
-                        {therapistDisplayName[0]?.toUpperCase() || "T"}
-                      </span>
-                    )}
-                    <div className="chat-card-content">
-                      <strong className="chat-card-title">
-                        {therapistDisplayName}
-                        {isLeft && <span className="left-indicator"> (You Left)</span>}
-                      </strong>
-                      <small className="chat-card-preview">
-                        {chat.lastMessage || "No messages yet"}
-                      </small>
-                    </div>
-                  </div>
-                  <div className="chat-card-meta">
-                    {lastTs && (
-                      <div className="message-timestamp">
-                        <span className="meta-date">{dateStr}</span>
-                        <span className="meta-time">{timeStr}</span>
-                      </div>
-                    )}
-                    {chat.unreadCountForUser > 0 && (
-                      <span className="unread-badge">{chat.unreadCountForUser}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
+  const combinedPrivateChat = [...messages, ...events, ...pendingMessages].sort(
+    (a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp)
   );
-
-  const rightPanel = (
-    <div className="chat-box-container">
-      {(activeChatId || location.state?.selectChatId) ? (
-        <div className="private-chat-box">
-          <div className="detailLeave">
-            <div className="chat-avater">
-              {isMobile && (activeChatId || location.state?.selectChatId) && (
-                <i
-                  className="fa-solid fa-arrow-left mobile-back-btn"
-                  onClick={() => { setActiveChatId(null); 
-                    navigate("/anonymous-dashboard/private-chat"); 
-                  }}
-                  aria-label="Back to chat list"
-                ></i>
-              )}
-              {therapistDisplayName === "Waiting for a therapist…" ? (
-                <div className="text-avatar placeholder">?</div>
-              ) : activeTherapists.find(t => t.name === therapistDisplayName)?.profileImage ? (
-                <img
-                  src={activeTherapists.find(t => t.name === therapistDisplayName).profileImage}
-                  alt={therapistDisplayName}
-                  className="text-avatar"
-                />
-              ) : (
-                <div className="text-avatar">
-                  {therapistDisplayName[0]?.toUpperCase() || "T"}
-                </div>
-              )}
-
-              <div className="card-content">
-                <strong className="group-title">
-                  {therapistDisplayName}
-                </strong>
-                <span className="participant-preview">
-                  <small
-                    className={`participant-name-p ${
-                      therapistStatus.toLowerCase().includes("waiting") ? "waiting" : ""
-                    } ${therapistStatus.includes("online") ? "text-success" : "text-muted"}`}
-                  >
-                    {therapistStatus}
-                  </small>
-                </span>
-              </div>
-            </div>
-            <div className="leave-participant">
-              <button
-                className="menu-trigger"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpen(prev => !prev);
-                }}
-                aria-expanded={menuOpen}
-              >
-                <i className="fa-solid fa-ellipsis-vertical"></i>
-              </button>
-
-              {menuOpen && (
-                <div className="chat-options-menu">
-                  {/* Leave Button */}
-                  <div className="menu-item leave-button" onClick={() => setShowLeaveConfirm(true)}>
-                    <i className="fas fa-sign-out-alt"></i>
-                    <span>End Chat</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          {/* Confirmation Modal */}
-          {showLeaveConfirm && (
-            <div className="modal-backdrop-leave" onClick={() => setShowLeaveConfirm(false)}>
-              <div className="confirm-modal-leave" onClick={(e) => e.stopPropagation()}>
-                <div className="confirm-modal-content">
-                  <h3>Ready to end this chat?</h3>
-                  <ul className="confirm-list">
-                    <li>No new messages can be sent or received</li>
-                    <li>This chat and its history will disappear from your list</li>
-                    <li>It will reappear (with full history) only if you message this therapist again from their profile</li>
-                  </ul>
-                  <p className="confirm-question">
-                    Are you sure you’d like to end this chat now?
-                  </p>
-                  <small className="privacy-note">
-                    Your past messages remain private and secure.
-                  </small>
-                </div>
-
-                <div className="button-group">
-                  <button className="btn-cancel" onClick={() => setShowLeaveConfirm(false)}>
-                    Cancel
-                  </button>
-                  <button
-                    className="btn-confirm-leave"
-                    onClick={() => {
-                      leavePrivateChat();
-                      setShowLeaveConfirm(false);
-                    }}
-                  >
-                    End chat
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-          {/* Pinned Message */}
-          {combinedPrivateChat.some((msg) => msg.pinned) && (
-            <div
-              className="pinned-message"
-              onClick={() => {
-                const pinnedMsg = combinedPrivateChat.find(m => m.pinned);
-                if (pinnedMsg) scrollToMessage(pinnedMsg.id);
-              }}
-              style={{ cursor: "pointer" }}
-              title="Click to jump to pinned message"
-            >
-              <span className="pin-text-icon">
-                <i className="fas fa-thumbtack pinned-icon"></i>
-                <span className="pinned-text">
-                  <strong>{combinedPrivateChat.find(m => m.pinned)?.pinnedBy || "Someone"}:</strong>{" "}
-                  <span>
-                    {(() => {
-                      const pinnedMsg = combinedPrivateChat.find(m => m.pinned);
-                      return pinnedMsg?.text || (pinnedMsg?.fileUrl ? "Attachment" : "");
-                    })()}
-                  </span>
-                </span>
-              </span>
-            </div>
-          )}
-          <div className="chat-box" role="log" aria-live="polite" ref={chatBoxRef}>
-            {isLoadingChat ? (
-              <div className="loading-messages">
-                <div className="spinner"></div>
-                <p>Loading messages...</p>
-              </div>
-            ) : combinedPrivateChat.length === 0 ? (
-              <p className="no-message">No messages in this chat yet.</p>
-            ) : (
-              combinedPrivateChat.map(msg => (
-                <div className="message" key={`${msg.id}-${msg.type || "message"}`}>
-                  <ChatMessage
-                    msg={msg}
-                    toggleReaction={msg.id.startsWith("pending-") ? () => {} : toggleReaction}
-                    currentUserId={userId}
-                    isPrivateChat={true}
-                    therapistInfo={{ role: "user" }}
-                    handleTherapistClick={() => {}}
-                    scrollToMessage={scrollToMessage}
-                    isAiOffer={msg.type === "ai-offer" && !aiEnabled}
-                    onAiYes={() => handleAiChoice("yes")}
-                    onAiNo={() => handleAiChoice("no")}
-                    aiTyping={aiTyping}
-                    isSending={isSending}
-                    onReply={handleReply}
-                  />
-                </div>
-              ))
-            )}
-            {(typingUsers.length > 0 || aiTyping) && (
-              <p className="typing-indicator">
-                {aiTyping && <span className="ai-typing">Support Assistant</span>}
-                {aiTyping && typingUsers.length > 0 && " and "}
-                {typingUsers
-                  .map(u => typeof u === "string" ? u : u?.name || "")
-                  .filter(Boolean)
-                  .join(", ")}
-                {(typingUsers.length > 0 || aiTyping) && " "}
-                {typingUsers.length + (aiTyping ? 1 : 0) === 1 ? "is" : "are"} typing
-                <div className="typing-dots">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-              </p>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-          <div className="chat-input-box">
-            {replyTo && (
-              <div className="reply-preview">
-                <div className="reply-preview-content">
-                  <strong>Replying to {replyTo.displayName}:</strong>
-                  <div className="reply-preview-text">
-                    {replyTo.text || (replyTo.fileUrl ? "Attachment" : "")}
-                  </div>
-                </div>
-                <button
-                  className="cancel-reply-btn"
-                  onClick={() => setReplyTo(null)}
-                  aria-label="Cancel reply"
-                >
-                  <i className="fas fa-times"></i>
-                </button>
-              </div>
-            )}
-            <div className="chat-input">
-              <button
-                className="emoji-btn"
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                aria-label="Open emoji picker"
-                disabled={isSending || aiTyping}
-              >
-                <i className="fa-regular fa-face-smile"></i>
-              </button>
-              <input
-                className="inputInsert"
-                type="text"
-                value={newMessage}
-                onChange={e => {
-                  setNewMessage(e.target.value);
-                  handleTyping(e.target.value);
-                }}
-                placeholder="Type a message..."
-                onKeyDown={e => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend(newMessage);
-                  }
-                }}
-                aria-label="Message input"
-                disabled={isSending || aiTyping}
-              />
-
-              <input
-                type="file"
-                ref={fileInputRef}
-                style={{ display: "none" }}
-                onChange={e => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    handleSend("", file);
-                  }
-                }}
-                aria-label="Upload file"
-              />
-              <button
-                className="attach-btn"
-                onClick={() => fileInputRef.current?.click()}
-                aria-label="Attach file"
-                disabled={isSending || aiTyping}
-              >
-                <i className="fa-solid fa-paperclip"></i>
-              </button>
-
-              <button
-                className="send-btn"
-                onClick={() => handleSend(newMessage)}
-                disabled={isSending || aiTyping}
-                aria-label="Send message"
-              >
-                {isSending ? <span className="spinner small"></span> : <i className="fa-solid fa-paper-plane"></i>}
-              </button>
-            </div>
-            {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
-          </div>  
-        </div>
-      ) : (
-        <div className="empty-chat">
-          <p>Select a private chat to view messages</p>
-        </div>
-      )}
-    </div>
-  );
-
-  if (isMobile) {
-    const showChat = activeChatId || location.state?.selectChatId;
-
-    return (
-      <div className={`mobile-chat-wrapper ${isInsideChat ? "no-bottom-padding" : ""}`.trim()}>
-        <div className={`mobile-panel ${showChat ? 'hidden' : ''}`.trim()}>
-          {leftPanel}
-        </div>
-        <div className={`mobile-panel ${!showChat ? 'hidden' : ''}`.trim()}>
-          {rightPanel}
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <ResizableSplitView
-      leftPanel={leftPanel}
-      rightPanel={rightPanel}
-      initialRatio={0.3}
-      minLeft={370}
-      maxLeft={550}
-      minRight={200}
-      maxRight={400}
-    />
+    <div className={`chat-box-container ${isInsideChat ? "no-bottom-padding" : ""}`.trim()}>
+      <div className="private-chat-box">
+        <div className="detailLeave">
+          <div className="chat-avater">
+            {isMobile && (
+              <i
+                className="fa-solid fa-arrow-left mobile-back-btn"
+                onClick={() => navigate("/anonymous-dashboard")}
+                aria-label="Back to dashboard"
+              />
+            )}
+            {therapistAvatar ? (
+              <img
+                src={therapistAvatar}
+                alt={therapistDisplayName}
+                className="text-avatar"
+              />
+            ) : (
+              <div className="text-avatar placeholder">
+                {therapistDisplayName?.charAt(0)?.toUpperCase() || "?"}
+              </div>
+            )}
+
+            <div className="card-content">
+              <strong className="group-title">{therapistDisplayName}</strong>
+              <span className="participant-preview">
+                <small
+                  className={`participant-name-p ${
+                    !currentTherapistUid
+                      ? "waiting"
+                      : therapistStatus === "online"
+                      ? "text-success"
+                      : "text-muted"
+                  }`}
+                >
+                  {therapistStatus}
+                </small>
+              </span>
+            </div>
+          </div>
+
+          <div className="leave-participant">
+            <button
+              className="menu-trigger"
+              onClick={() => setShowLeaveConfirm(true)}
+              aria-expanded={showLeaveConfirm}
+            >
+              <i className="fa-solid fa-ellipsis-vertical"></i>
+            </button>
+          </div>
+        </div>
+
+        {pinnedMessage && (
+          <div
+            className="pinned-message"
+            onClick={() => scrollToMessage(pinnedMessage.id)}
+            style={{ cursor: "pointer" }}
+            title="Click to jump to pinned message"
+          >
+            <span className="pin-text-icon">
+              <i className="fas fa-thumbtack pinned-icon"></i>
+              <span className="pinned-text">
+                <strong>{pinnedMessage.pinnedBy || "Someone"}:</strong>{" "}
+                <span>
+                  {pinnedMessage.text || (pinnedMessage.fileUrl ? "Attachment" : "[empty]")}
+                </span>
+              </span>
+            </span>
+          </div>
+        )}
+
+        {showLeaveConfirm && (
+          <div className="modal-backdrop-leave" onClick={() => setShowLeaveConfirm(false)}>
+            <div className="confirm-modal-leave" onClick={(e) => e.stopPropagation()}>
+              <div className="confirm-modal-content">
+                <h3>Ready to end this chat?</h3>
+                <ul className="confirm-list">
+                  <li>No new messages can be sent or received</li>
+                  <li>This chat and its history will disappear from your list</li>
+                  <li>It will reappear (with full history) only if you message this therapist again from their profile</li>
+                </ul>
+                <p className="confirm-question">Are you sure you’d like to end this chat now?</p>
+                <small className="privacy-note">Your past messages remain private and secure.</small>
+              </div>
+
+              <div className="button-group">
+                <button className="btn-cancel" onClick={() => setShowLeaveConfirm(false)}>
+                  Cancel
+                </button>
+                <button
+                  className="btn-confirm-leave"
+                  onClick={() => {
+                    leavePrivateChat();
+                    setShowLeaveConfirm(false);
+                  }}
+                >
+                  End chat
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="chat-box" role="log" aria-live="polite" ref={chatBoxRef}>
+          {isLoadingChat ? (
+            <div className="loading-messages">
+              <div className="spinner"></div>
+              <p>Loading messages...</p>
+            </div>
+          ) : combinedPrivateChat.length === 0 ? (
+            <div className="empty-chat">
+              <p>Send your first message to start the conversation</p>
+            </div>
+          ) : (
+            combinedPrivateChat.map((msg) => (
+              <div className="message" key={`${msg.id}-${msg.type || "message"}`}>
+                <ChatMessage
+                  msg={msg}
+                  toggleReaction={msg.id?.startsWith("pending-") ? () => {} : toggleReaction}
+                  currentUserId={userId}
+                  isPrivateChat={true}
+                  therapistInfo={{ role: "user" }}
+                  handleTherapistClick={() => {}}
+                  scrollToMessage={scrollToMessage}
+                  isAiOffer={msg.type === "ai-offer" && !aiEnabled}
+                  onAiYes={() => handleAiChoice("yes")}
+                  onAiNo={() => handleAiChoice("no")}
+                  isInitialChoice={msg.type === "initial-choice" || msg.type === "initial-choice-ai"}
+                  onInitialChoice={handleInitialChoice}
+                  aiTyping={aiTyping}
+                  isSending={isSending}
+                  onReply={handleReply}
+                />
+              </div>
+            ))
+          )}
+
+          {(typingUsers.length > 0 || aiTyping) && (
+            <p className="typing-indicator">
+              {aiTyping && <span className="ai-typing">Support Assistant</span>}
+              {aiTyping && typingUsers.length > 0 && " and "}
+              {typingUsers
+                .map((u) => (typeof u === "string" ? u : u?.name || ""))
+                .filter(Boolean)
+                .join(", ")}
+              {(typingUsers.length > 0 || aiTyping) && " "}
+              {typingUsers.length + (aiTyping ? 1 : 0) === 1 ? "is" : "are"} typing
+              <div className="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </p>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        <div className="chat-input-box">
+          {replyTo && (
+            <div className="reply-preview">
+              <div className="reply-preview-content">
+                <strong>Replying to {replyTo.displayName}:</strong>
+                <div className="reply-preview-text">
+                  {replyTo.text || (replyTo.fileUrl ? "Attachment" : "")}
+                </div>
+              </div>
+              <button className="cancel-reply-btn" onClick={() => setReplyTo(null)}>
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+          )}
+
+          <div className="chat-input">
+            <button
+              className="emoji-btn"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              aria-label="Open emoji picker"
+              disabled={isSending || aiTyping}
+            >
+              <i className="fa-regular fa-face-smile"></i>
+            </button>
+
+            <input
+              className="inputInsert"
+              type="text"
+              value={newMessage}
+              onChange={(e) => {
+                setNewMessage(e.target.value);
+                if (activeChatId) handleTyping(e.target.value);
+              }}
+              placeholder="Type a message..."
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              aria-label="Message input"
+              disabled={isSending || aiTyping}
+            />
+
+            <input
+              type="file"
+              ref={fileInputRef}
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleSend("", file);
+              }}
+              aria-label="Upload file"
+            />
+
+            <button
+              className="attach-btn"
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="Attach file"
+              disabled={isSending || aiTyping}
+            >
+              <i className="fa-solid fa-paperclip"></i>
+            </button>
+
+            <button
+              className="send-btn"
+              onClick={() => handleSend()}
+              disabled={isSending || aiTyping}
+              aria-label="Send message"
+            >
+              {isSending ? <span className="spinner small"></span> : <i className="fa-solid fa-paper-plane"></i>}
+            </button>
+          </div>
+
+          {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
+        </div>
+      </div>
+    </div>
   );
 }
 
-export default AnonymousPrivateChatSplitView;
+export default AnonymousPrivateChatView;

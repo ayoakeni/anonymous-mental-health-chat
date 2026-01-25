@@ -19,7 +19,8 @@ const ChatMessage = memo(
     onAiNo,
     aiTyping = false,
     isSending = false,
-    retrySend, // ← new optional prop
+    onInitialChoice,
+    retrySend,
   }) => {
     // Special rendering for AI Offer Card
     if (isAiOffer) {
@@ -44,6 +45,32 @@ const ChatMessage = memo(
                 className="ai-no-btn"
               >
                 No, I'll wait
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (msg.type === "initial-choice-ai") {
+      return (
+        <div className="message ai">
+          <div className="ai-message-content">
+            <p>{msg.text}</p>
+            <div className="ai-choice-buttons">
+              <button
+                onClick={() => onInitialChoice("therapist")}
+                disabled={isSending || aiTyping}
+                className="choice-btn therapist-btn"
+              >
+                Chat with Therapist
+              </button>
+              <button
+                onClick={() => onInitialChoice("assistant")}
+                disabled={isSending || aiTyping}
+                className="choice-btn assistant-btn"
+              >
+                Chat with Support Assistant
               </button>
             </div>
           </div>
@@ -263,7 +290,7 @@ const ChatMessage = memo(
                 <i className="fas fa-reply"></i>
               </button>
 
-              {therapistId && (
+              {true && (
                 <button
                   className="pin-btn"
                   onClick={(e) => {

@@ -144,7 +144,7 @@ export function useActiveGroupChat(
         userId: therapistId,
         displayName: displayName || "You",
         role: "therapist",
-        timestamp: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 },
+        timestamp: { seconds: Math.floor(Date.now() / 1000) - 2, nanoseconds: 0 },
         pinned: false,
         reactions: {},
         replyTo: replyTo
@@ -159,16 +159,13 @@ export function useActiveGroupChat(
         failed: false,
       };
 
-      setMessages((prev) => [...prev, optimisticMsg]);
+      setMessages((prev) => {
+        const newList = [...prev, optimisticMsg];
+        return newList.sort((a, b) => 
+          (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0)
+        );
+      });
       setIsSending(true);
-
-      // Try to scroll to bottom
-      setTimeout(() => {
-        document.querySelector("#chat-end, .chat-box")?.scrollIntoView?.({
-          behavior: "smooth",
-          block: "end",
-        });
-      }, 60);
 
       let fileUrl = "";
       try {
@@ -495,16 +492,18 @@ export function useActiveGroupChat(
             pinnedMessageId: newPinned ? msgId : null,
           });
 
-          const eventRef = doc(collection(groupRef, "events"));
-          tx.set(eventRef, {
-            type: "pin",
-            user: "System",
-            text: newPinned
-              ? `${displayName} pinned a message`
-              : `${displayName} unpinned a message`,
-            role: "system",
-            timestamp: serverTimestamp(),
-          });
+          // Only create event when actually pinning (newPinned === true)
+          if (newPinned) {
+            const eventRef = doc(collection(groupRef, "events"));
+            tx.set(eventRef, {
+              type: "pin",
+              user: "System",
+              text: `${displayName} pinned a message`,
+              role: "system",
+              timestamp: serverTimestamp(),
+            });
+          }
+          // ← No event created when unpinning
         });
       } catch (e) {
         console.error("Failed to pin/unpin message:", e);
@@ -605,19 +604,35 @@ export function useActiveGroupChat(
             startAfter(latestTimestamp.current)
           );
           unsubNewMsgs.current = onSnapshot(newQ, (newSnap) => {
-            const newMsgs = newSnap.docs.map((d) => ({
+            if (newSnap.empty) return;
+
+            const incoming = newSnap.docs.map((d) => ({
               id: d.id,
               ...d.data(),
+              isPending: false,
             }));
+
             setMessages((prev) => {
-              const existingIds = new Set(prev.map((m) => m.id));
-              const filteredNew = newMsgs.filter((m) => !existingIds.has(m.id));
-              return [...prev, ...filteredNew];
+              let updated = [...prev];
+
+              // Remove all my pending messages (they should be replaced soon)
+              updated = updated.filter(
+                (m) => !(m.isPending && m.userId === therapistId)
+              );
+
+              // Add new real messages
+              incoming.forEach((realMsg) => {
+                if (!updated.some((m) => m.id === realMsg.id)) {
+                  updated.push(realMsg);
+                }
+              });
+
+              return updated;
             });
-            if (newMsgs.length > 0) {
+
+            if (incoming.length > 0) {
               playNotification();
-              latestTimestamp.current =
-                newMsgs[newMsgs.length - 1].timestamp;
+              latestTimestamp.current = incoming[incoming.length - 1].timestamp;
             }
           });
         }

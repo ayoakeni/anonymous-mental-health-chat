@@ -9,7 +9,7 @@ import { formatTimestamp, getTimestampMillis } from "../hooks/useTimestampUtils"
 import Sidebar from "../components/sidebar";
 import AnonymousDashboardHome from "../components/AnonymousDashboard/anonymousDashboardHome";
 import AnonymousGroupChatSplitView from "../components/AnonymousDashboard/anonymousGroupChatSplitView";
-import AnonymousPrivateChatSplitView from "../components/AnonymousDashboard/anonymousPrivateChatSplitView";
+import AnonymousPrivateChatView from "../components/AnonymousDashboard/anonymousPrivateChatSplitView";
 import AppointmentsList from "../components/AnonymousDashboard/anonymousAppointmentList";
 import { useUserNames } from "../hooks/useUserNames";
 import { useHideSidebarMobile } from "../hooks/useHideSidebarMobile";
@@ -391,10 +391,8 @@ function AnonymousDashboard() {
           <Route
             path="/private-chat/*"
             element={
-              <AnonymousPrivateChatSplitView
+              <AnonymousPrivateChatView
                 privateChats={privateChats}
-                activeChatId={activeChatId}
-                setActiveChatId={setActiveChatId}
                 formatTimestamp={formatTimestamp}
                 getTimestampMillis={getTimestampMillis}
                 displayName={displayName}
