@@ -815,20 +815,6 @@ function AnonymousGroupChatSplitView({
     <div className="chat-box-container">
       {activeGroupId ? (
         <div className="group-chat-box">
-          {/* Therapist Profile Modal */}
-          {selectedTherapist && (
-            <div className="modal-backdrop">
-              <div className="modal" ref={modalRef}>
-                <TherapistProfile
-                  therapist={selectedTherapist}
-                  isOnline={selectedTherapist.online}
-                  onBack={() => setSelectedTherapist(null)}
-                  onStartChat={undefined}
-                  onBookAppointment={undefined}
-                />
-              </div>
-            </div>
-          )}
           <div className="chat-header">
             <div className="detailLeave">
               <div className="chat-avater">
@@ -1151,6 +1137,16 @@ function AnonymousGroupChatSplitView({
       ) : (
         <div className="empty-chat">
           <p>Select a group chat to view messages</p>
+        </div>
+      )}
+      {/* Therapist Profile Modal */}
+      {selectedTherapist && (
+        <div className="info-modal" ref={modalRef}>
+          <TherapistProfile
+            therapist={selectedTherapist}
+            isOnline={selectedTherapist.online}
+            onBack={() => setSelectedTherapist(null)}
+          />
         </div>
       )}
     </div>

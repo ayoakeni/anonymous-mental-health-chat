@@ -23,7 +23,7 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
       (snap) => {
         if (snap.exists()) {
           setRealTimeOnline(snap.data().online ?? false);
-          setAllowPrivateChats(snap.data().chatSettings?.allowPrivateChats ?? true);
+          // setAllowPrivateChats(snap.data().chatSettings?.allowPrivateChats ?? true);
         }
       },
       (err) => console.error(err)
@@ -59,9 +59,12 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
 
   return (
     <div className="therapist-profile">
-      <button className="close-button" onClick={onBack}>
-        <i className="fa-solid fa-times"></i>
-      </button>
+      <div className="detail-close">
+        <button className="close-button" onClick={onBack}>
+          <i className="fa-solid fa-times"></i>
+        </button>
+        <span>Contact info</span>
+      </div>
 
       <div className={`avatarWrapper ${realTimeOnline ? "online" : ""}`}>
         {therapist.profileImage ? (

@@ -109,6 +109,12 @@ function AnonymousPrivateChatView({
     return chatData.participants.find((uid) => uid !== userId) || null;
   }, [chatData, userId]);
 
+  const currentTherapist = useMemo(() => {
+    if (!currentTherapistUid) return null;
+    return activeTherapists.find(t => t.uid === currentTherapistUid) || null;
+  }, [activeTherapists, currentTherapistUid]);
+
+
   const therapistDisplayName = useMemo(() => {
     if (aiActive && !currentTherapistUid) return "Support Assistant";
     if (!currentTherapistUid) return "Support Assistant";
@@ -893,7 +899,7 @@ function AnonymousPrivateChatView({
       }
     } catch (error) {
       console.error("Error loading therapist:", error);
-      setTherapistsError("Failed to load therapist profile.");
+      showError("Failed to fetch profile.");
     }
   };
 
@@ -914,16 +920,16 @@ function AnonymousPrivateChatView({
                 src={therapistAvatar}
                 alt={therapistDisplayName}
                 className="text-avatar"
-                onClick={handleTherapistClick}
+                onClick={() => currentTherapist && handleTherapistClick(currentTherapist)}
               />
             ) : (
-              <div className="text-avatar placeholder" onClick={handleTherapistClick}>
+              <div className="text-avatar placeholder" onClick={() => currentTherapist && handleTherapistClick(currentTherapist)}>
                 {therapistDisplayName?.charAt(0)?.toUpperCase() || "?"}
               </div>
             )}
 
             <div className="card-content">
-              <strong className="group-title" onClick={handleTherapistClick}>{therapistDisplayName}</strong>
+              <strong className="group-title" onClick={() => currentTherapist && handleTherapistClick(currentTherapist)}>{therapistDisplayName}</strong>
               <span className="participant-preview">
                 <small
                   className={`participant-name-p ${
@@ -1136,16 +1142,12 @@ function AnonymousPrivateChatView({
 
       {/* Therapist Profile Modal */}
       {selectedTherapist && (
-        <div className="modal-backdrop">
-          <div className="modal" ref={modalRef}>
-            <TherapistProfile
-              therapist={selectedTherapist}
-              isOnline={selectedTherapist.online}
-              onBack={() => setSelectedTherapist(null)}
-              onStartChat={undefined}
-              onBookAppointment={undefined}
-            />
-          </div>
+        <div className="info-modal" ref={modalRef}>
+          <TherapistProfile
+            therapist={selectedTherapist}
+            isOnline={selectedTherapist.online}
+            onBack={() => setSelectedTherapist(null)}
+          />
         </div>
       )}
     </div>
