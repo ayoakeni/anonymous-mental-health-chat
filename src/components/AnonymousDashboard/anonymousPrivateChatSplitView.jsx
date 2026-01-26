@@ -115,7 +115,7 @@ function AnonymousPrivateChatView({
   }, [currentTherapistUid, activeTherapists, anonNames, activeChatId, aiActive]);
 
   const therapistStatus = useMemo(() => {
-    if (aiActive && !currentTherapistUid) return "online";
+    if (aiActive && !currentTherapistUid) return <span className="ai-status">Active</span>;
     if (!currentTherapistUid) {
       return hasUserSentMessage ? "Waiting for a therapist..." : "Ready when you are";
     }
@@ -123,7 +123,7 @@ function AnonymousPrivateChatView({
   }, [currentTherapistUid, activeTherapists, hasUserSentMessage, aiActive]);
 
   const therapistAvatar = useMemo(() => {
-    if (aiActive && !currentTherapistUid) return null; // can replace with AI avatar later
+    if (aiActive && !currentTherapistUid) return null;
     if (!currentTherapistUid) return null;
     const therapist = activeTherapists.find((t) => t.uid === currentTherapistUid);
     return therapist?.profileImage || null;

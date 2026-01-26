@@ -504,6 +504,21 @@
   animation: pulse 2.5s infinite;
 }
 
+.ai-status {
+  font-size: 0.85rem;
+  font-style: normal;  
+  color: #28a745;
+}
+
+.ai-status::before {
+  content: "●";
+  color: #28a745;
+  margin-right: 3px;
+  font-size: 0.65rem;
+  font-style: normal;
+  animation: pulse 2.5s infinite;
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
@@ -1278,6 +1293,49 @@
 .ai-response {
   display: block;
   color: var(--text-color);
+}
+
+.ai-choice-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.ai-choice-buttons .choice-therapist-btn {
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 10px 20px;
+  background-color: var(--primary-color);
+  color: var(--text-color);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-choice-buttons .choice-assistant-btn {
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 10px 20px;
+  background-color: black;
+  color: var(--text-color);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-choice-buttons .choice-assistant-btn strong {
+  color: var(--secondary-color);
+  font-weight: 700;
+  background: linear-gradient(90deg, #376293, var(--secondary-color));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: pulse 2s infinite;
+}
+
+.ai-choice-buttons .choice-therapist-btn:hover,
+.ai-choice-buttons .choice-assistant-btn:hover {
+  opacity: 0.8;
 }
 
 /* This is are message-highlight, i dont how it manage to work i just know it did. if you

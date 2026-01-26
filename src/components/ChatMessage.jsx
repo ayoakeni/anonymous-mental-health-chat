@@ -31,7 +31,7 @@ const ChatMessage = memo(
       return text.trim();
     };
 
-    const shouldShowName = !isPrivateChat;
+    const shouldShowName = msg.role === "ai" || !isPrivateChat;
     const shouldMakeTherapistClickable =
       currentView === "anonymous" &&
       msg.role === "therapist" &&
@@ -104,16 +104,16 @@ const ChatMessage = memo(
                 <button
                   onClick={() => onInitialChoice("therapist")}
                   disabled={isSending || aiTyping}
-                  className="choice-btn therapist-btn"
+                  className="choice-therapist-btn"
                 >
                   Chat with Therapist
                 </button>
                 <button
                   onClick={() => onInitialChoice("assistant")}
                   disabled={isSending || aiTyping}
-                  className="choice-btn assistant-btn"
+                  className="choice-assistant-btn"
                 >
-                  Chat with Support Assistant
+                  Chat with <strong>Support Assistant</strong>
                 </button>
               </div>
               <div className="message-meta-group">
@@ -175,7 +175,9 @@ const ChatMessage = memo(
               >
                 <div className="reply-quote-content">
                   <strong className={shouldMakeTherapistClickable ? "clickable-name" : ""}>
-                    {msg.replyTo.displayName || "Anonymous"}
+                    {msg.replyTo.role === "ai"
+                      ? msg.replyTo.displayName || "Support Assistant"
+                      : msg.replyTo.displayName || "Anonymous"}
                   </strong>
                   <div className="reply-quote-text">
                     {msg.replyTo.text || (msg.replyTo.fileUrl ? "Attachment" : "Original message")}
