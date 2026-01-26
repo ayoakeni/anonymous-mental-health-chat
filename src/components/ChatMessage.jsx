@@ -95,7 +95,7 @@ const ChatMessage = memo(
                   title: "Click to see profile",
                 })}
               >
-                {msg.displayName || "Ai Assistant"}
+                {msg.displayName || "Support Assistant"}
               </strong>
             </div>
             <div className="message-content-time">
@@ -155,7 +155,9 @@ const ChatMessage = memo(
                   title: "Click to see profile",
                 })}
               >
-                {msg.displayName || msg.user || "Anonymous"}
+                {msg.role === "ai"
+                ? msg.displayName || "Support Assistant"
+                : msg.displayName || msg.user || "Anonymous"}
               </strong>
             </div>
           )}
