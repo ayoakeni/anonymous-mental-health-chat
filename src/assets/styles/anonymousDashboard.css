@@ -67,6 +67,7 @@
   box-shadow: var(--shadow);
   background: var(--chat-bg);
   padding: 24px;
+  z-index: 999;
 }
 
 .anonymous-dashboard .mood-modal {
@@ -345,8 +346,10 @@
 @media (max-width: 480px) {
   .info-modal {
     position: absolute;
+    min-width: 100%;
     top: 0;
+    left: 0;
+    right: 0;
     bottom: 0;
-    width: 100%;
   }
 }

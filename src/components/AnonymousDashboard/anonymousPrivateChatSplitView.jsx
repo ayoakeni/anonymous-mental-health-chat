@@ -78,6 +78,7 @@ function AnonymousPrivateChatView({
   const { typingUsers, handleTyping } = useTypingStatus(displayName, activeChatId);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isInsideChat = useIsInsideChat();
+  const [menuOpen, setMenuOpen] = useState(false);
   const fileInputRef = useRef(null);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const modalRef = useRef(null);
@@ -558,7 +559,7 @@ function AnonymousPrivateChatView({
           lastUpdated: serverTimestamp(),
           unreadCountForTherapist: increment(1),
           lastSeenAt: serverTimestamp(),
-          status: data.status === "new" ? "waiting" : data.status,
+          status: data.activeTherapist ? data.status : "requesting",
         };
 
         if (needsGreeting) {
@@ -811,6 +812,19 @@ function AnonymousPrivateChatView({
     }
   };
 
+  // Menu ellipsis
+  useEffect(() => {
+    const closeMenu = (e) => {
+      if (!e.target.closest(".leave-participant") && !e.target.closest(".chat-options-menu")) {
+        setMenuOpen(false);
+      }
+    };
+    if (menuOpen) {
+      document.addEventListener("click", closeMenu);
+    }
+    return () => document.removeEventListener("click", closeMenu);
+  }, [menuOpen]);
+
   const toggleReaction = async (msgId, reactionType) => {
     if (!userId || !activeChatId || msgId.startsWith("pending-")) return;
     const msgRef = doc(db, `privateChats/${activeChatId}/messages`, msgId);
@@ -947,13 +961,44 @@ function AnonymousPrivateChatView({
           </div>
 
           <div className="leave-participant">
+            {/* MENU TRIGGER */}
             <button
               className="menu-trigger"
-              onClick={() => setShowLeaveConfirm(true)}
-              aria-expanded={showLeaveConfirm}
+              onClick={(e) => { 
+                e.stopPropagation();
+                setMenuOpen(prev => !prev);
+              }}
+              aria-expanded={menuOpen}
             >
               <i className="fa-solid fa-ellipsis-vertical"></i>
             </button>
+
+            {menuOpen && (
+              <div className="chat-options-menu"
+                onClick={(e) => { 
+                  e.stopPropagation();
+                  setMenuOpen(prev => !prev);
+                }}
+              >
+                {/* View Therapist Profile */}
+                {currentTherapist && (
+                  <div className="menu-item" onClick={() => handleTherapistClick(currentTherapist)}>
+                    <i className="fas fa-user"></i>
+                    <span>View Profile</span>
+                  </div>
+                )}
+                <div className="menu-item">
+                  <i className="fa-solid fa-circle-exclamation"></i>
+                  <span>Report</span>
+                </div>
+                <div className="menu-divider"></div>
+                {/* Leave Button */}
+                <div className="menu-item leave-button" onClick={() => setShowLeaveConfirm(true)}>
+                  <i className="fas fa-sign-out-alt"></i>
+                  <span>End Chat</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

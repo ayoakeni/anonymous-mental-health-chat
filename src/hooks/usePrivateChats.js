@@ -16,8 +16,10 @@ export function usePrivateChats(showError) {
 
     const q = query(
       collection(db, "privateChats"),
+      where("status", "in", ["requesting", "waiting"]),
       where("lastMessage", "!=", null)
     );
+
 
     const unsub = onSnapshot(q, (snapshot) => {
       const allChats = snapshot.docs.map(doc => ({
@@ -26,21 +28,15 @@ export function usePrivateChats(showError) {
       }));
 
       const filtered = allChats.filter(chat => {
-        // 1. I am the active therapist → always see it
+        // Therapist already handling it
         if (chat.activeTherapist === uid) return true;
 
-        // 2. Chat is open and waiting → visible in queue
-        if (
-          chat.status === "waiting" &&
-          !chat.activeTherapist &&
-          chat.lastMessage
-        ) {
-          return true;
-        }
+        // Open queue (requesting / waiting)
+        if (!chat.activeTherapist) return true;
 
-        // 3. Everything else is hidden
         return false;
       });
+
 
       const sorted = filtered.sort((a, b) => {
         const aIsNewRequest = !a.participants?.includes(uid);
