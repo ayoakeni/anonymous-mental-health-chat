@@ -185,7 +185,11 @@ function PrivateChatSplitView({
             return (
               <div
                 key={chat.id}
-                className={`chat-card ${activeChatId === chat.id ? "selected" : ""}`}
+                className={`chat-card 
+                  ${activeChatId === chat.id ? "selected" : ""}
+                   ${chat.activeTherapist === therapistInfo.uid ? "active-session" : ""}
+                  ${!chat.activeTherapist && chat.unreadCountForTherapist === 0 ? "pending-chat" : ""}
+                `}
                 onClick={() => navigate(`/therapist-dashboard/private-chat/${chat.id}`)}
               >
                 <div className="chat-card-inner">
@@ -199,9 +203,36 @@ function PrivateChatSplitView({
                             {mood.emoji}
                           </span>
                         )}
-                        {therapistId && !chat.participants?.includes(therapistId) && (
+                        {/* {therapistId && !chat.participants?.includes(therapistId) && (
                           <span className="left-indicator"> (You Left)</span>
-                        )}
+                        )} */}
+                        {/* SMART INDICATORS */}
+                        {(() => {
+                          const iAmIn = chat.participants?.includes(therapistId);
+                          const someoneElseIn = chat.activeTherapist && chat.activeTherapist !== therapistId;
+                          const noOneInYet = !chat.activeTherapist;
+                          const userHasMessaged = !!chat.lastMessage;
+
+                          // 1. I'm currently in this chat → Active • You
+                          if (iAmIn) {
+                            return <span className="active-indicator"> (Active • You)</span>;
+                          }
+
+                          // 2. Someone else is in it → Taken
+                          if (someoneElseIn) {
+                            return <span className="taken-indicator"> (Taken)</span>;
+                          }
+
+                          // 3. No one has joined yet + user sent message → New Request / Available
+                          if (noOneInYet && userHasMessaged) {
+                            if (chat.requestedTherapist === therapistId) {
+                              return <span className="new-request"> (New Request)</span>;
+                            }
+                            return <span className="available-indicator"> (Available)</span>;
+                          }
+
+                          return null;
+                        })()}
                       </strong>
                       <small className="chat-card-preview">
                         {chat.lastMessage || "No messages yet"}

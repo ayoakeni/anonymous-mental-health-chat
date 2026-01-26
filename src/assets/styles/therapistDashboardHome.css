@@ -315,35 +315,35 @@
   font-size: 0.8rem;
 }
 
-.dashboard-home .chat-card.active-session {
+.chat-card.active-session {
   border-left: 4px solid #d97706;
   background: rgba(217, 119, 6, 0.08);
 }
 
-.dashboard-home .chat-card.active-session:hover {
+.chat-card.active-session:hover {
   background: #c09d74;
 }
 
-.dashboard-home .active-indicator {
+.active-indicator {
   color: #10b981;
   font-weight: 600;
   font-size: 0.85em;
 }
 
-.dashboard-home .taken-indicator {
+.taken-indicator {
   color: #ef4444;
   font-style: italic;
   font-size: 0.85em;
 }
 
-.dashboard-home .new-request {
+.new-request {
   color: #d97706;
   font-size: 0.85em;
   font-weight: 600;
   animation: pulse 2.5s infinite;
 }
 
-.dashboard-home .available-indicator {
+.available-indicator {
   color: #3b82f6;
   font-weight: 600;
   font-size: 0.85em;

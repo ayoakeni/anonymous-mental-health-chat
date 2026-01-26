@@ -148,6 +148,7 @@
   margin-bottom: 10px;
   cursor: pointer;
   transition: background 0.2s, filter 0.2s;
+  border-radius: var(--border-radius);
 }
 
 .chat-card:hover {
@@ -1899,6 +1900,7 @@ can find the issue go on else do not alter. Cc > ayoakeni */
 
   .chat-card {
     margin-bottom: 10px;
+    border-radius: 0;
   }
 
   .chat-card:hover {
