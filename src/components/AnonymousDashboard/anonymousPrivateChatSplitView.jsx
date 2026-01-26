@@ -165,29 +165,18 @@ function AnonymousPrivateChatView({
     return unsub;
   }, []);
 
-  // ────────────────────────────────────────────────
-  // Auto-welcome + choice message when FIRST user message is sent
-  // ────────────────────────────────────────────────
+  // Auto-welcome + initial choice in ONE message
   useEffect(() => {
     if (!activeChatId || !hasUserSentMessage || messages.length > 0 || pendingMessages.some(m => m.role === "ai")) return;
 
     const chatRef = doc(db, "privateChats", activeChatId);
 
-    const sendAutoWelcome = async () => {
+    const sendAutoWelcomeWithChoice = async () => {
       setAiTyping(true);
       try {
         await runTransaction(db, async (t) => {
-          // Welcome message (as AI)
           t.set(doc(collection(chatRef, "messages")), {
-            text: "Hello! Welcome to our support chat. I'm here to help.",
-            role: "ai",
-            displayName: "Support Assistant",
-            timestamp: serverTimestamp(),
-          });
-
-          // Choice message (as AI)
-          t.set(doc(collection(chatRef, "messages")), {
-            text: "Would you like to chat with a therapist or our Support Assistant?",
+            text: "Hello! Welcome to our support chat. I'm here to help.\n\nWould you like to chat with a therapist or our Support Assistant?",
             role: "ai",
             displayName: "Support Assistant",
             type: "initial-choice-ai",
@@ -195,15 +184,14 @@ function AnonymousPrivateChatView({
           });
         });
       } catch (err) {
-        console.error("Failed to send auto welcome:", err);
+        console.error("Failed to send auto welcome with choice:", err);
       } finally {
         setAiTyping(false);
       }
     };
 
-    setAiTyping(true);
     setTimeout(() => {
-      sendAutoWelcome().finally(() => setAiTyping(false));
+      sendAutoWelcomeWithChoice();
     }, AI_REPLY_DELAY);
 
   }, [hasUserSentMessage, activeChatId, messages.length, pendingMessages]);

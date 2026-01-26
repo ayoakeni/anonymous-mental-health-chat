@@ -22,6 +22,30 @@ const ChatMessage = memo(
     onInitialChoice,
     retrySend,
   }) => {
+    
+    const getQuoteText = () => {
+      let text = msg.text || msg.message || "";
+      if (msg.fileUrl && !msg.fileUrl.includes("uploading")) {
+        text = text || "Attachment";
+      }
+      return text.trim();
+    };
+
+    const shouldShowName = !isPrivateChat;
+    const shouldMakeTherapistClickable =
+      currentView === "anonymous" &&
+      msg.role === "therapist" &&
+      !isPrivateChat;
+
+    const isOwnMessage = msg.userId === currentUserId || msg.userId === therapistId;
+
+    // ──────────────────────────────────────────────────────────────
+    //  Status helpers – cleaner to define once
+    // ──────────────────────────────────────────────────────────────
+    const showSending = msg.isPending && !msg.failed;
+    const showFailed = msg.failed;
+    const showDeleting = msg.isPendingDelete;
+
     // Special rendering for AI Offer Card
     if (isAiOffer) {
       return (
@@ -54,52 +78,54 @@ const ChatMessage = memo(
 
     if (msg.type === "initial-choice-ai") {
       return (
-        <div className="message ai">
-          <div className="ai-message-content">
-            <p>{msg.text}</p>
-            <div className="ai-choice-buttons">
-              <button
-                onClick={() => onInitialChoice("therapist")}
-                disabled={isSending || aiTyping}
-                className="choice-btn therapist-btn"
+        <div className={`chat-message
+          ${
+            msg.role === "ai"
+              ? "ai"
+              : msg.role === "system"
+              ? "system"
+              : "user"
+          }`}>
+          <div className="message-content">    
+            <div className="message-header">
+              <strong
+                className={shouldMakeTherapistClickable ? "clickable-name" : ""}
+                {...(shouldMakeTherapistClickable && {
+                  onClick: () => handleTherapistClick(msg),
+                  title: "Click to see profile",
+                })}
               >
-                Chat with Therapist
-              </button>
-              <button
-                onClick={() => onInitialChoice("assistant")}
-                disabled={isSending || aiTyping}
-                className="choice-btn assistant-btn"
-              >
-                Chat with Support Assistant
-              </button>
+                {msg.displayName || "Ai Assistant"}
+              </strong>
+            </div>
+            <div className="message-content-time">
+              <span>{msg.text}</span>
+              <div className="ai-choice-buttons">
+                <button
+                  onClick={() => onInitialChoice("therapist")}
+                  disabled={isSending || aiTyping}
+                  className="choice-btn therapist-btn"
+                >
+                  Chat with Therapist
+                </button>
+                <button
+                  onClick={() => onInitialChoice("assistant")}
+                  disabled={isSending || aiTyping}
+                  className="choice-btn assistant-btn"
+                >
+                  Chat with Support Assistant
+                </button>
+              </div>
+              <div className="message-meta-group">
+                <span className="message-time">
+                  {formatMessageTime(msg.timestamp)}
+                </span>
+              </div>
             </div>
           </div>
         </div>
       );
     }
-
-    const getQuoteText = () => {
-      let text = msg.text || msg.message || "";
-      if (msg.fileUrl && !msg.fileUrl.includes("uploading")) {
-        text = text || "Attachment";
-      }
-      return text.trim();
-    };
-
-    const shouldShowName = !isPrivateChat;
-    const shouldMakeTherapistClickable =
-      currentView === "anonymous" &&
-      msg.role === "therapist" &&
-      !isPrivateChat;
-
-    const isOwnMessage = msg.userId === currentUserId || msg.userId === therapistId;
-
-    // ──────────────────────────────────────────────────────────────
-    //  Status helpers – cleaner to define once
-    // ──────────────────────────────────────────────────────────────
-    const showSending = msg.isPending && !msg.failed;
-    const showFailed = msg.failed;
-    const showDeleting = msg.isPendingDelete;
 
     return (
       <div
