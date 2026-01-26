@@ -26,8 +26,20 @@ export function usePrivateChats(showError) {
       }));
 
       const filtered = allChats.filter(chat => {
-        const iAmInChat = chat.participants?.includes(uid);
-        return iAmInChat || (!iAmInChat && chat.lastMessage);
+        // 1. I am the active therapist → always see it
+        if (chat.activeTherapist === uid) return true;
+
+        // 2. Chat is open and waiting → visible in queue
+        if (
+          chat.status === "waiting" &&
+          !chat.activeTherapist &&
+          chat.lastMessage
+        ) {
+          return true;
+        }
+
+        // 3. Everything else is hidden
+        return false;
       });
 
       const sorted = filtered.sort((a, b) => {

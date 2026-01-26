@@ -27,6 +27,22 @@ export function useActivePrivateChat(
   const unsubMsgs = useRef(() => {});
   const unsubEvents = useRef(() => {});
 
+  useEffect(() => {
+    if (!activeChatId) return;
+
+    const chatRef = doc(db, "privateChats", activeChatId);
+    return onSnapshot(chatRef, snap => {
+      const data = snap.data();
+      if (
+        data?.activeTherapist &&
+        data.activeTherapist !== therapistId
+      ) {
+        showError("Chat was taken by another therapist");
+        navigate("/therapist-dashboard/private-chat");
+      }
+    });
+  }, [activeChatId, therapistId]);
+
   // ---------- VALIDATE & JOIN ----------
   const join = useCallback(async (chatId = activeChatId) => {
     if (!therapistId || !chatId) return;
@@ -42,42 +58,28 @@ export function useActivePrivateChat(
 
         const data = snap.data();
 
-        // NEW LOGIC: Allow join if:
-        // 1. I'm already in participants → resume session
-        // 2. OR user has sent a message (lastMessage exists) → open pool or requested me
-        const iAmAlreadyIn = data.participants?.includes(therapistId);
-        const userHasMessaged = !!data.lastMessage;
-
-        if (!iAmAlreadyIn && !userHasMessaged) {
-          throw new Error("This chat has no messages yet");
+        // BLOCK if someone else already took it
+        if (
+          data.activeTherapist &&
+          data.activeTherapist !== therapistId
+        ) {
+          throw new Error("Chat already taken by another therapist");
         }
 
-        // Always allow joining if user has messaged
-        if (!iAmAlreadyIn) {
-          tx.update(chatRef, {
-            participants: arrayUnion(therapistId),
-            activeTherapist: therapistId,
-            status: "active",
-            unreadCountForTherapist: 0,
-            aiActive: false,
-            aiOffered: true,
-            // Clean up old fields if they exist
-            pendingTherapist: deleteField(),
-            requestedTherapist: deleteField(),
-          });
-        } else {
-          // Just resuming
-          tx.update(chatRef, {
-            activeTherapist: therapistId,
-            unreadCountForTherapist: 0,
-          });
-        }
+        // Lock chat to me
+        tx.update(chatRef, {
+          activeTherapist: therapistId,
+          participants: arrayUnion(therapistId),
+          status: "active",
+          unreadCountForTherapist: 0,
+          aiActive: false,
+          aiOffered: true,
+        });
 
         tx.set(doc(collection(chatRef, "events")), {
           type: "join",
-          user: "System",
-          text: `${displayName} has joined the chat.`,
           role: "system",
+          text: `${displayName} joined the chat`,
           timestamp: serverTimestamp(),
         });
       });
@@ -107,7 +109,7 @@ export function useActivePrivateChat(
 
         tx.update(chatRef, {
           activeTherapist: null,
-          status: "waiting",
+          status: "closed",
           aiActive: false,
           aiOffered: false,
           participants: arrayRemove(therapistId),
