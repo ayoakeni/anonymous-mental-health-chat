@@ -1027,9 +1027,8 @@ function AnonymousPrivateChatView({
               <div className="confirm-modal-content">
                 <h3>Ready to end this chat?</h3>
                 <ul className="confirm-list">
-                  <li>No new messages can be sent or received</li>
-                  <li>This chat and its history will disappear from your list</li>
-                  <li>It will reappear (with full history) only if you message this therapist again from their profile</li>
+                  <li>The current therapist won't be able to reach you</li>
+                  <li>You will be re-assigned to a new therapist on next chat</li>
                 </ul>
                 <p className="confirm-question">Are you sure you’d like to end this chat now?</p>
                 <small className="privacy-note">Your past messages remain private and secure.</small>
