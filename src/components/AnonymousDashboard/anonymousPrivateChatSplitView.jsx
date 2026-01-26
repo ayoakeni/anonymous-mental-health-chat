@@ -657,6 +657,11 @@ function AnonymousPrivateChatView({
           reactions: {},
           pinned: false,
         });
+        t.update(chatRef, {
+          lastMessage: `${displayName}: ${choiceText || "Hello"}`,
+          lastUpdated: serverTimestamp(),
+          unreadCountForTherapist: increment(1),
+        });
 
         if (choice === "assistant") {
           t.update(chatRef, { aiActive: true, aiOffered: false });
