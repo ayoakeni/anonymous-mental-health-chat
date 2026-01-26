@@ -16,10 +16,8 @@ export function usePrivateChats(showError) {
 
     const q = query(
       collection(db, "privateChats"),
-      where("status", "in", ["requesting", "waiting"]),
-      where("lastMessage", "!=", null)
+      where("status", "in", ["requesting", "waiting", "active"])
     );
-
 
     const unsub = onSnapshot(q, (snapshot) => {
       const allChats = snapshot.docs.map(doc => ({
