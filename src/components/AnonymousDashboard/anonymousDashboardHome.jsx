@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+// import { Link } from "react-router-dom";
 import { collection, query, where, onSnapshot, limit, getDoc, doc } from "firebase/firestore";
 import { db, auth } from "../../utils/firebase";
 import { useNavigate } from "react-router-dom";
-import TherapistProfile from "../TherapistProfile";
+// import TherapistProfile from "../TherapistProfile";
 import "../../assets/styles/anonymousDashboardHome.css";
 
 const getGreeting = () => {
@@ -72,11 +72,11 @@ const AnonymousDashboardHome = ({
   const [moodHistoryLoading, setMoodHistoryLoading] = useState(true);
   const [moodHistoryError, setMoodHistoryError] = useState(null);
 
-  const [therapists, setTherapists] = useState([]);
-  const [therapistsLoading, setTherapistsLoading] = useState(true);
-  const [therapistsError, setTherapistsError] = useState(null);
-  const [selectedTherapist, setSelectedTherapist] = useState(null);
-  const modalRef = useRef(null);
+  // const [therapists, setTherapists] = useState([]);
+  // const [therapistsLoading, setTherapistsLoading] = useState(true);
+  // const [therapistsError, setTherapistsError] = useState(null);
+  // const [selectedTherapist, setSelectedTherapist] = useState(null);
+  // const modalRef = useRef(null);
 
   const moodOptions = [
     { value: "happy", label: "Happy", emoji: "😊" },
@@ -115,56 +115,56 @@ const AnonymousDashboardHome = ({
   }, []);
 
   // Fetch therapists
-  useEffect(() => {
-    const q = query(collection(db, "therapists"), limit(5));
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const therapistData = snapshot.docs.map((doc) => ({
-          uid: doc.id,
-          ...doc.data(),
-        }));
-        setTherapists(therapistData);
-        setTherapistsLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching therapists:", error);
-        setTherapistsError("Failed to load therapists.");
-        setTherapistsLoading(false);
-      }
-    );
-    return () => unsubscribe();
-  }, []);
+  // useEffect(() => {
+  //   const q = query(collection(db, "therapists"), limit(5));
+  //   const unsubscribe = onSnapshot(
+  //     q,
+  //     (snapshot) => {
+  //       const therapistData = snapshot.docs.map((doc) => ({
+  //         uid: doc.id,
+  //         ...doc.data(),
+  //       }));
+  //       setTherapists(therapistData);
+  //       setTherapistsLoading(false);
+  //     },
+  //     (error) => {
+  //       console.error("Error fetching therapists:", error);
+  //       setTherapistsError("Failed to load therapists.");
+  //       setTherapistsLoading(false);
+  //     }
+  //   );
+  //   return () => unsubscribe();
+  // }, []);
 
   // Close modal on outside click
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (modalRef.current && !modalRef.current.contains(event.target)) {
-        setSelectedTherapist(null);
-      }
-    };
-    if (selectedTherapist) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [selectedTherapist]);
+  // useEffect(() => {
+  //   const handleClickOutside = (event) => {
+  //     if (modalRef.current && !modalRef.current.contains(event.target)) {
+  //       setSelectedTherapist(null);
+  //     }
+  //   };
+  //   if (selectedTherapist) {
+  //     document.addEventListener("mousedown", handleClickOutside);
+  //   }
+  //   return () => document.removeEventListener("mousedown", handleClickOutside);
+  // }, [selectedTherapist]);
 
   // Handle therapist click to view profile
-  const handleTherapistClick = async (therapist) => {
-    try {
-      const therapistDoc = await getDoc(doc(db, "therapists", therapist.uid));
-      if (therapistDoc.exists()) {
-        setSelectedTherapist({
-          uid: therapist.uid,
-          ...therapistDoc.data(),
-          online: therapist.online,
-        });
-      }
-    } catch (error) {
-      console.error("Error loading therapist:", error);
-      setTherapistsError("Failed to load therapist profile.");
-    }
-  };
+  // const handleTherapistClick = async (therapist) => {
+  //   try {
+  //     const therapistDoc = await getDoc(doc(db, "therapists", therapist.uid));
+  //     if (therapistDoc.exists()) {
+  //       setSelectedTherapist({
+  //         uid: therapist.uid,
+  //         ...therapistDoc.data(),
+  //         online: therapist.online,
+  //       });
+  //     }
+  //   } catch (error) {
+  //     console.error("Error loading therapist:", error);
+  //     setTherapistsError("Failed to load therapist profile.");
+  //   }
+  // };
 
   // Helper function to format timestamp
   const renderTimestamp = (timestamp) => {
@@ -263,7 +263,7 @@ const AnonymousDashboardHome = ({
         </div>
 
         {/* Therapist Profile Modal */}
-        {selectedTherapist && (
+        {/* {selectedTherapist && (
           <div className="modal-backdrop">
             <div className="modal" ref={modalRef}>
               <TherapistProfile
@@ -275,10 +275,10 @@ const AnonymousDashboardHome = ({
               />
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Therapist List Card */}
-        <div className="dash-card available-therapist-card">
+        {/* <div className="dash-card available-therapist-card">
           <h3>Available Therapists</h3>
           {therapistsLoading ? (
             <p>Loading therapists...</p>
@@ -308,7 +308,7 @@ const AnonymousDashboardHome = ({
           ) : (
             <p>No therapists available at the moment.</p>
           )}
-        </div>
+        </div> */}
 
         {/* Mood History Card */}
         <div className="dash-card mood-history-card">
@@ -363,7 +363,7 @@ const AnonymousDashboardHome = ({
         </div>
 
         {/* Quick Actions Card */}
-        <div className="dash-card quick-actions-card">
+        {/* <div className="dash-card quick-actions-card">
           <h3>Quick Actions</h3>
           <div className="quick-actions">
             <Link to="group-chat">
@@ -373,7 +373,7 @@ const AnonymousDashboardHome = ({
               <button className="quick-action-btn">Start Private Chat</button>
             </Link>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

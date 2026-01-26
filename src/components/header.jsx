@@ -143,7 +143,7 @@ function Header() {
           </Link>
           
           {/* Only show for anonymous */}
-          {!user || user.isAnonymous ? (
+          {/* {!user || user.isAnonymous ? (
             <Link to="/find-therapist" 
               className="nav-link" 
               onClick={() => setIsMenuOpen(false)}>
@@ -152,7 +152,7 @@ function Header() {
                 Find a Therapists
               </span>
             </Link>
-          ) : null}
+          ) : null} */}
 
           <div
             className="live-indicator"

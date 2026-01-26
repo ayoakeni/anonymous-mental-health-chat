@@ -27,6 +27,7 @@ import { useTypingStatus } from "../../hooks/useTypingStatus";
 import { getAIResponse } from "../../utils/AiChatIntegration";
 import ChatMessage from "../ChatMessage";
 import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
+import TherapistProfile from "../TherapistProfile";
 import EmojiPicker from "emoji-picker-react";
 const AI_REPLY_DELAY = 2000;
 
@@ -78,6 +79,8 @@ function AnonymousPrivateChatView({
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isInsideChat = useIsInsideChat();
   const fileInputRef = useRef(null);
+  const [selectedTherapist, setSelectedTherapist] = useState(null);
+  const modalRef = useRef(null);
 
   // Reset when changing chat
   useEffect(() => {
@@ -176,7 +179,7 @@ function AnonymousPrivateChatView({
       try {
         await runTransaction(db, async (t) => {
           t.set(doc(collection(chatRef, "messages")), {
-            text: "Hello! Welcome to our support chat. I'm here to help.\n\nWould you like to chat with a therapist or our Support Assistant?",
+            text: "Hello! Welcome to our support chat. I'm here to help. Would you like to chat with a therapist or our Support Assistant?",
             role: "ai",
             displayName: "Support Assistant",
             type: "initial-choice-ai",
@@ -865,6 +868,35 @@ function AnonymousPrivateChatView({
     (a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp)
   );
 
+  // Close modal on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (modalRef.current && !modalRef.current.contains(event.target)) {
+        setSelectedTherapist(null);
+      }
+    };
+    if (selectedTherapist) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [selectedTherapist]);
+
+  const handleTherapistClick = async (therapist) => {
+    try {
+      const therapistDoc = await getDoc(doc(db, "therapists", therapist.uid));
+      if (therapistDoc.exists()) {
+        setSelectedTherapist({
+          uid: therapist.uid,
+          ...therapistDoc.data(),
+          online: therapist.online,
+        });
+      }
+    } catch (error) {
+      console.error("Error loading therapist:", error);
+      setTherapistsError("Failed to load therapist profile.");
+    }
+  };
+
   return (
     <div className={`chat-box-container ${isInsideChat ? "no-bottom-padding" : ""}`.trim()}>
       <div className="private-chat-box">
@@ -882,15 +914,16 @@ function AnonymousPrivateChatView({
                 src={therapistAvatar}
                 alt={therapistDisplayName}
                 className="text-avatar"
+                onClick={handleTherapistClick}
               />
             ) : (
-              <div className="text-avatar placeholder">
+              <div className="text-avatar placeholder" onClick={handleTherapistClick}>
                 {therapistDisplayName?.charAt(0)?.toUpperCase() || "?"}
               </div>
             )}
 
             <div className="card-content">
-              <strong className="group-title">{therapistDisplayName}</strong>
+              <strong className="group-title" onClick={handleTherapistClick}>{therapistDisplayName}</strong>
               <span className="participant-preview">
                 <small
                   className={`participant-name-p ${
@@ -1100,6 +1133,21 @@ function AnonymousPrivateChatView({
           {showEmojiPicker && <EmojiPicker onEmojiClick={onEmojiClick} />}
         </div>
       </div>
+
+      {/* Therapist Profile Modal */}
+      {selectedTherapist && (
+        <div className="modal-backdrop">
+          <div className="modal" ref={modalRef}>
+            <TherapistProfile
+              therapist={selectedTherapist}
+              isOnline={selectedTherapist.online}
+              onBack={() => setSelectedTherapist(null)}
+              onStartChat={undefined}
+              onBookAppointment={undefined}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

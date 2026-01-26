@@ -114,7 +114,7 @@ function About() {
             <i className="feature-icon fas fa-user-md"></i>
             <h3>Therapist Access</h3>
             <p>Connect with licensed therapists for professional guidance when you need it most.</p>
-            <Link to="/find-therapist" className="feature-cta">Find a Therapist</Link>
+            {/* <Link to="/find-therapist" className="feature-cta">Find a Therapist</Link> */}
           </div>
         </div>
       </section>

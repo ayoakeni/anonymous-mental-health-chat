@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 import { db, auth } from "../utils/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
-import AppointmentBooking from "./AnonymousDashboard/anonymousAppointmentBooking";
+// import AppointmentBooking from "./AnonymousDashboard/anonymousAppointmentBooking";
 import {
   Verified
 } from "lucide-react";
@@ -10,9 +10,9 @@ import "../assets/styles/therapistProfile.css";
 
 function TherapistProfile({ therapist, onBack, isOnline }) {
   const [realTimeOnline, setRealTimeOnline] = useState(isOnline);
-  const [allowPrivateChats, setAllowPrivateChats] = useState(true);
-  const [showBooking, setShowBooking] = useState(false);
-  const navigate = useNavigate();
+  // const [allowPrivateChats, setAllowPrivateChats] = useState(true);
+  // const [showBooking, setShowBooking] = useState(false);
+  // const navigate = useNavigate();
 
   // ---------- real-time online / chat-settings ----------
   useEffect(() => {
@@ -32,28 +32,28 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
   }, [therapist?.uid]);
 
   // ---------- START PRIVATE CHAT ----------
-  const startPrivateChat = async () => {
-    if (!allowPrivateChats) {
-      alert("This therapist is not accepting private chats right now.\n\nYou can still book a session with them!");
-      return;
-    }
+  // const startPrivateChat = async () => {
+  //   if (!allowPrivateChats) {
+  //     alert("This therapist is not accepting private chats right now.\n\nYou can still book a session with them!");
+  //     return;
+  //   }
 
-    const anonUid = auth.currentUser?.uid;
-    if (!anonUid) return;
+  //   const anonUid = auth.currentUser?.uid;
+  //   if (!anonUid) return;
 
-    const uids = [anonUid.slice(0, 8), therapist.uid.slice(0, 8)].sort();
-    const chatId = `${uids[0]}_${uids[1]}`;
+  //   const uids = [anonUid.slice(0, 8), therapist.uid.slice(0, 8)].sort();
+  //   const chatId = `${uids[0]}_${uids[1]}`;
 
-    // Just open the chat screen — do NOT create the document!
-    navigate(`/anonymous-dashboard/private-chat/${chatId}`, {
-      state: {
-        selectChatId: chatId,
-        therapistId: therapist.uid,
-        therapistName: therapist.name
-      }
-    });
-    onBack?.();
-  };
+  //   // Just open the chat screen — do NOT create the document!
+  //   navigate(`/anonymous-dashboard/private-chat/${chatId}`, {
+  //     state: {
+  //       selectChatId: chatId,
+  //       therapistId: therapist.uid,
+  //       therapistName: therapist.name
+  //     }
+  //   });
+  //   onBack?.();
+  // };
 
   if (!therapist) return null;
 
@@ -107,17 +107,17 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
         </span>
       </p>
 
-      <div className="specialties">
+      {/* <div className="specialties">
         {(therapist.specialties || ["Not specified"]).map((s, i) => (
           <span key={i} className="specialty-tag">{s}</span>
         ))}
-      </div>
+      </div> */}
 
-      <div className="profile-completion">
+      {/* <div className="profile-completion">
         Profile Completion: {therapist.profile && therapist.gender && therapist.position ? 90 : 60}%
-      </div>
+      </div> */}
 
-      <div className="action-buttons">
+      {/* <div className="action-buttons">
         <button
           onClick={startPrivateChat}
           className={`action-button chat-button ${!allowPrivateChats ? 'unavailable' : ''}`}
@@ -133,13 +133,13 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
         <button className="action-button appointment-button" onClick={() => setShowBooking(true)}>
           Book Appointment
         </button>
-      </div>
-      {showBooking && (
+      </div> */}
+      {/* {showBooking && (
         <AppointmentBooking
           therapist={therapist}
           onClose={() => setShowBooking(false)}
         />
-      )}
+      )} */}
     </div>
   );
 }
