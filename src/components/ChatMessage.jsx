@@ -320,7 +320,7 @@ const ChatMessage = memo(
                 <i className="fas fa-reply"></i>
               </button>
 
-              {true && (
+              {therapistId && (
                 <button
                   className="pin-btn"
                   onClick={(e) => {

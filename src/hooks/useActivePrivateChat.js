@@ -240,99 +240,167 @@ export function useActivePrivateChat(
     }
   };
 
-  // ---------- DELETE ----------
-  const deleteMessage = async (msgId) => {
-    if (!activeChatId || !therapistId) return;
+  // DELETE MESSAGE - optimistic
+  const deleteMessage = useCallback(
+    async (msgId) => {
+      if (!activeChatId || !therapistId) return;
 
-    try {
-      await runTransaction(db, async (tx) => {
-        const msgRef = doc(db, `privateChats/${activeChatId}/messages`, msgId);
+      // Optimistic update
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === msgId
+            ? {
+                ...msg,
+                isPendingDelete: true,
+              }
+            : msg
+        )
+      );
 
-        // Get the message to verify ownership
-        const msgSnap = await tx.get(msgRef);
-        if (!msgSnap.exists()) {
-          throw new Error("Message does not exist");
-        }
+      try {
+        await runTransaction(db, async (tx) => {
+          const msgRef = doc(db, `privateChats/${activeChatId}/messages`, msgId);
+          const msgSnap = await tx.get(msgRef);
+          if (!msgSnap.exists()) {
+            throw new Error("Message does not exist");
+          }
+          if (msgSnap.data().userId !== therapistId) {
+            throw new Error("You can only delete your own messages");
+          }
 
-        const msgData = msgSnap.data();
-        if (msgData.userId !== therapistId) {
-          throw new Error("You can only delete your own messages");
-        }
-
-        tx.update(msgRef, {
-          messageDeleted: "This message was deleted",
-          deleted: true,
-          deletedAt: serverTimestamp(),
-          deletedBy: displayName,
-        });
-      });
-
-      showError("Message deleted", "success");
-    } catch (e) {
-      console.error("Failed to delete message:", e);
-      showError("Failed to delete message. try again later.");
-    }
-  };
-
-  // ---------- PIN MESSAGE ----------
-  const pinMessage = async (msgId, currentPinned = false) => {
-    if (!activeChatId) return;
-
-    const privateRef = doc(db, "privateChats", activeChatId);
-    const msgRef = doc(db, `privateChats/${activeChatId}/messages`, msgId);
-
-    try {
-      await runTransaction(db, async (tx) => {
-        // Read the private chat document and the target message
-        const [privateSnap, msgSnap] = await Promise.all([
-          tx.get(privateRef),
-          tx.get(msgRef),
-        ]);
-
-        if (!privateSnap.exists()) {
-          throw new Error("Private chat does not exist");
-        }
-        if (!msgSnap.exists()) {
-          throw new Error("Message does not exist");
-        }
-
-        const currentPinnedId = privateSnap.data().pinnedMessageId || null;
-
-        // If we're pinning a new message, unpin the old one if different
-        if (!currentPinned && currentPinnedId && currentPinnedId !== msgId) {
-          const oldMsgRef = doc(db, `privateChats/${activeChatId}/messages`, currentPinnedId);
-          tx.update(oldMsgRef, { pinned: false, pinnedBy: null });
-        }
-
-        // Toggle the target message
-        const newPinned = !currentPinned;
-        tx.update(msgRef, {
-          pinned: newPinned,
-          pinnedBy: newPinned ? displayName : null,
+          tx.update(msgRef, {
+            messageDeleted: "This message was deleted",
+            deleted: true,
+            deletedAt: serverTimestamp(),
+            deletedBy: displayName,
+          });
         });
 
-        // Update the private chat document with the new pinned ID (or null if unpinning)
-        tx.update(privateRef, {
-          pinnedMessageId: newPinned ? msgId : null,
-        });
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === msgId
+              ? {
+                  ...msg,
+                  deleted: true,
+                  messageDeleted: "This message was deleted",
+                  isPendingDelete: false,
+                }
+              : msg
+          )
+        );
+      } catch (e) {
+        console.error("Failed to delete message:", e);
+        showError("Failed to delete message. Try again later.");
 
-        // Add system event
-        const eventRef = doc(collection(privateRef, "events"));
-        tx.set(eventRef, {
-          type: "pin",
-          user: "System",
-          text: newPinned
-            ? `${displayName} pinned a message`
-            : `${displayName} unpinned a message`,
-          role: "system",
-          timestamp: serverTimestamp(),
+        // Rollback
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === msgId
+              ? {
+                  ...msg,
+                  isPendingDelete: false,
+                }
+              : msg
+          )
+        );
+      }
+    },
+    [activeChatId, therapistId, displayName, showError]
+  );
+
+  // PIN / UNPIN MESSAGE - optimistic
+  const pinMessage = useCallback(
+    async (msgId, currentPinned) => {
+      if (!activeChatId) return;
+
+      const newPinned = !currentPinned;
+
+      // Optimistic update
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id === msgId) {
+            return {
+              ...m,
+              pinned: newPinned,
+              pinnedBy: newPinned ? displayName : null,
+            };
+          }
+          // If pinning new message → unpin old one
+          if (newPinned && m.pinned && m.id !== msgId) {
+            return { ...m, pinned: false, pinnedBy: null };
+          }
+          return m;
+        })
+      );
+
+      const privateRef = doc(db, "privateChats", activeChatId);
+      const msgRef = doc(db, `privateChats/${activeChatId}/messages`, msgId);
+
+      try {
+        await runTransaction(db, async (tx) => {
+          const [privateSnap, msgSnap] = await Promise.all([
+            tx.get(privateRef),
+            tx.get(msgRef),
+          ]);
+
+          if (!privateSnap.exists() || !msgSnap.exists()) {
+            throw new Error("Not found");
+          }
+
+          const currentPinnedId = privateSnap.data().pinnedMessageId || null;
+
+          if (newPinned && currentPinnedId && currentPinnedId !== msgId) {
+            const oldMsgRef = doc(
+              db,
+              `privateChats/${activeChatId}/messages`,
+              currentPinnedId
+            );
+            tx.update(oldMsgRef, { pinned: false, pinnedBy: null });
+          }
+
+          tx.update(msgRef, {
+            pinned: newPinned,
+            pinnedBy: newPinned ? displayName : null,
+          });
+
+          tx.update(privateRef, {
+            pinnedMessageId: newPinned ? msgId : null,
+          });
+
+          // Only create event when actually pinning (newPinned === true)
+          if (newPinned) {
+            const eventRef = doc(collection(privateRef, "events"));
+            tx.set(eventRef, {
+              type: "pin",
+              user: "System",
+              text: `${displayName} pinned a message`,
+              role: "system",
+              timestamp: serverTimestamp(),
+            });
+          }
+          // ← No event created when unpinning
         });
-      });
-    } catch (e) {
-      console.error("Failed to pin/unpin message:", e);
-      showError("Failed to pin/unpin message.");
-    }
-  };
+      } catch (e) {
+        console.error("Failed to pin/unpin message:", e);
+        showError("Failed to pin/unpin message.");
+
+        // Rollback
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id === msgId) {
+              return {
+                ...m,
+                pinned: currentPinned,
+                pinnedBy: currentPinned ? displayName : null,
+              };
+            }
+            return m;
+          })
+        );
+      }
+    },
+    [activeChatId, displayName, showError]
+  );
 
   // ---------- LOAD MORE ----------
   const loadMore = useCallback(async () => {

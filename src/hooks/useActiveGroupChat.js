@@ -7,7 +7,6 @@ import {
   query,
   orderBy,
   onSnapshot,
-  limit,
   getDocs,
   deleteField,
   startAfter,
