@@ -470,9 +470,10 @@ function PrivateChatSplitView({
                       currentUserId={therapistId}
                       isPrivateChat={true}
                       scrollToMessage={scrollToMessage}
-                      deleteMessage={(msgId) => deleteMessage(msgId, "private")}
+                      deleteMessage={deleteMessage}
                       pinMessage={pinMessage}
                       therapistInfo={therapistInfo}
+                      therapistId={therapistId}
                       handleTherapistClick={handleTherapistClick}
                       onReply={handleReply}
                     />

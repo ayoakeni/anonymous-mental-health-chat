@@ -656,8 +656,7 @@ function GroupChatSplitView({
                         currentUserId={therapistId}
                         currentView="therapist"
                         isPrivateChat={false}
-                        // deleteMessage={deleteMessage}
-                        deleteMessage={(msgId) => deleteMessage(msgId, "private")}
+                        deleteMessage={deleteMessage}
                         pinMessage={pinMessage}
                         scrollToMessage={scrollToMessage}
                         therapistInfo={therapistInfo}
