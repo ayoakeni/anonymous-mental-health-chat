@@ -1420,6 +1420,10 @@ can find the issue go on else do not alter. Cc > ayoakeni */
   transform: rotate(45deg);
 }
 
+.message-meta-group .pinned-label strong {
+  color: var(--text-color);
+}
+
 .message-meta-group .message-time {
   opacity: 0.5;
 }
