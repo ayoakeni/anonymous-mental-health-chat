@@ -1,0 +1,457 @@
+/* ============================================
+   THERAPIST AVAILABILITY SETTINGS STYLES
+   ============================================ */
+
+.availability-settings {
+  padding: 2rem;
+  background: var(--background-color);
+  min-height: 100vh;
+}
+
+/* ============================================
+   HEADER SECTION
+   ============================================ */
+
+.availability-settings .availability-header {
+  margin-bottom: 2.5rem;
+}
+
+.availability-settings .availability-header h3 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-color);
+  margin-bottom: 0.5rem;
+}
+
+.availability-settings .availability-header p {
+  font-size: 0.95rem;
+  color: var(--text-color);
+  opacity: 0.7;
+}
+
+/* ============================================
+   LOADING STATE
+   ============================================ */
+
+.availability-settings .loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  font-size: 1.1rem;
+  color: var(--text-color);
+  opacity: 0.7;
+}
+
+.availability-settings .loading::before {
+  content: "";
+  width: 24px;
+  height: 24px;
+  margin-right: 12px;
+  border: 3px solid var(--primary-color);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   AVAILABILITY GRID
+   ============================================ */
+
+.availability-settings .availability-grid {
+  background: var(--chat-bg);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Grid Header */
+.availability-settings .grid-header {
+  display: grid;
+  grid-template-columns: 80px repeat(7, 1fr);
+  background: linear-gradient(135deg, var(--primary-color), #3a7bc8);
+  color: white;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.availability-settings .time-label,
+.availability-settings .day-label {
+  padding: 1rem 0.5rem;
+  text-align: center;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.availability-settings .time-label {
+  background: rgba(0, 0, 0, 0.1);
+  font-size: 0.8rem;
+}
+
+.availability-settings .day-label:last-child {
+  border-right: none;
+}
+
+/* Grid Rows */
+.availability-settings .grid-row {
+  display: grid;
+  grid-template-columns: 80px repeat(7, 1fr);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  transition: background-color 0.2s ease;
+}
+
+.availability-settings .grid-row:hover {
+  background: var(--system-bg);
+}
+
+.availability-settings .grid-row:last-child {
+  border-bottom: none;
+}
+
+/* Time Cell */
+.availability-settings .time-cell {
+  padding: 1rem 0.5rem;
+  text-align: center;
+  font-weight: 600;
+  color: var(--primary-color);
+  background: var(--system-bg);
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
+  font-size: 0.9rem;
+}
+
+/* Slot Cell */
+.availability-settings .slot-cell {
+  padding: 1rem 0.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  border-right: 1px solid rgba(0, 0, 0, 0.03);
+  font-size: 1.2rem;
+  user-select: none;
+}
+
+.availability-settings .slot-cell:last-child {
+  border-right: none;
+}
+
+.availability-settings .slot-cell:hover {
+  background: rgba(74, 144, 226, 0.1);
+  transform: scale(1.05);
+}
+
+.availability-settings .slot-cell.selected {
+  background: var(--accent-color);
+  color: white;
+  font-weight: bold;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.availability-settings .slot-cell.selected:hover {
+  background: #2db84d;
+}
+
+/* Checkmark animation */
+.availability-settings .slot-cell.selected::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+  opacity: 0;
+  animation: pulse 0.4s ease-out;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+/* ============================================
+   ACTION BUTTONS
+   ============================================ */
+
+.availability-settings .availability-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.availability-settings .save-btn,
+.availability-settings .reset-btn {
+  padding: 0.85rem 2rem;
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: var(--shadow);
+}
+
+.availability-settings .save-btn {
+  background: var(--primary-color);
+  color: white;
+  flex: 1;
+  min-width: 200px;
+}
+
+.availability-settings .save-btn:hover:not(:disabled) {
+  background: #3a7bc8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4);
+}
+
+.availability-settings .save-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.availability-settings .save-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.availability-settings .reset-btn {
+  background: var(--system-bg);
+  color: var(--text-color);
+  border: 2px solid var(--input-border);
+  flex: 1;
+  min-width: 200px;
+}
+
+.availability-settings .reset-btn:hover:not(:disabled) {
+  background: var(--input-bg);
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.availability-settings .reset-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.availability-settings .reset-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   UNSAVED WARNING
+   ============================================ */
+
+.availability-settings .unsaved-warning {
+  margin-top: 1.5rem;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+  border-left: 4px solid var(--secondary-color);
+  border-radius: var(--border-radius);
+  color: #856404;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  animation: slideDown 0.3s ease-out;
+}
+
+.availability-settings .unsaved-warning::before {
+  content: "⚠️";
+  font-size: 1.5rem;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+@media (max-width: 1024px) {
+  .availability-settings .grid-header,
+  .availability-settings .grid-row {
+    grid-template-columns: 70px repeat(7, 1fr);
+    font-size: 0.8rem;
+  }
+
+  .availability-settings .day-label {
+    font-size: 0.75rem;
+    padding: 0.85rem 0.3rem;
+  }
+
+  .availability-settings .time-cell,
+  .availability-settings .slot-cell {
+    padding: 0.85rem 0.3rem;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .availability-settings {
+    padding: 1.5rem 1rem;
+  }
+
+  .availability-settings .availability-header h3 {
+    font-size: 1.5rem;
+  }
+
+  .availability-settings .availability-header p {
+    font-size: 0.9rem;
+  }
+
+  .availability-settings .availability-grid {
+    overflow-x: auto;
+    border-radius: 0;
+  }
+
+  .availability-settings .grid-header,
+  .availability-settings .grid-row {
+    min-width: 600px;
+  }
+
+  .availability-settings .availability-actions {
+    flex-direction: column;
+  }
+
+  .availability-settings .save-btn,
+  .availability-settings .reset-btn {
+    width: 100%;
+    min-width: unset;
+  }
+}
+
+@media (max-width: 480px) {
+  .availability-settings {
+    padding: 1rem;
+  }
+
+  .availability-settings .availability-header h3 {
+    font-size: 1.35rem;
+  }
+
+  .availability-settings .grid-header,
+  .availability-settings .grid-row {
+    grid-template-columns: 60px repeat(7, 1fr);
+  }
+
+  .availability-settings .day-label {
+    font-size: 0.7rem;
+    padding: 0.75rem 0.2rem;
+  }
+
+  .availability-settings .time-cell {
+    font-size: 0.75rem;
+    padding: 0.75rem 0.2rem;
+  }
+
+  .availability-settings .slot-cell {
+    padding: 0.75rem 0.2rem;
+    font-size: 1rem;
+  }
+
+  .availability-settings .save-btn,
+  .availability-settings .reset-btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* ============================================
+   DARK MODE ENHANCEMENTS
+   ============================================ */
+
+.dark .availability-settings .availability-grid {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .availability-settings .grid-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dark .availability-settings .time-cell {
+  background: rgba(255, 255, 255, 0.05);
+  border-right-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .availability-settings .slot-cell {
+  border-right-color: rgba(255, 255, 255, 0.05);
+}
+
+.dark .availability-settings .slot-cell:hover {
+  background: rgba(74, 144, 226, 0.2);
+}
+
+.dark .availability-settings .reset-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.dark .availability-settings .reset-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dark .availability-settings .unsaved-warning {
+  background: linear-gradient(135deg, rgba(255, 243, 205, 0.1), rgba(255, 234, 167, 0.15));
+  color: #ffc107;
+  border-left-color: var(--secondary-color);
+}
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+
+.availability-settings .slot-cell:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+  z-index: 1;
+}
+
+.availability-settings .save-btn:focus,
+.availability-settings .reset-btn:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   PRINT STYLES (Optional)
+   ============================================ */
+
+@media print {
+  .availability-settings .availability-actions,
+  .availability-settings .unsaved-warning {
+    display: none;
+  }
+
+  .availability-settings .availability-grid {
+    box-shadow: none;
+    border: 1px solid #000;
+  }
+
+  .availability-settings .slot-cell {
+    cursor: default;
+  }
+}

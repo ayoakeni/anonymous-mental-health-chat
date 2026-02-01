@@ -6,30 +6,24 @@ import {
   setDoc,
   serverTimestamp,
   collection,
-  query,
-  where,
   onSnapshot,
 } from "firebase/firestore";
 import { format, addDays } from "date-fns";
 import "../../assets/styles/anonymousAppointmentBooking.css";
 
-const TIME_SLOTS = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"];
+const TIME_SLOTS = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"];
 
-function AppointmentBooking({ therapist, onClose }) {
+function AppointmentBooking() {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [bookedSlots, setBookedSlots] = useState({});
   const navigate = useNavigate();
 
   const currentUser = auth.currentUser;
   const clientUid = currentUser?.uid;
-  const therapistUid = therapist?.uid;
-  const therapistName = therapist?.name || "Unknown Therapist";
-  const therapistProfileImage = therapist?.profileImage
   const [clientDisplayName, setClientDisplayName] = useState("Anonymous User");
 
   useEffect(() => {
@@ -50,47 +44,14 @@ function AppointmentBooking({ therapist, onClose }) {
     return unsub;
   }, [clientUid]);
 
-  // For anonymous users, we can use a fallback name
-  const clientName = currentUser?.displayName ||
-                     currentUser?.email?.split("@")[0] ||
-                     (currentUser ? `User_${currentUser.uid.slice(0, 6)}` : "Anonymous User");
-
   const minDate = format(new Date(), "yyyy-MM-dd");
   const maxDate = format(addDays(new Date(), 30), "yyyy-MM-dd");
 
-  // Load booked slots for this therapist
-  useEffect(() => {
-    if (!therapistUid) return;
-
-    const q = query(
-      collection(db, "appointments"),
-      where("therapistUid", "==", therapistUid),
-      where("status", "in", ["pending", "confirmed"])
-    );
-
-    const unsub = onSnapshot(q, (snap) => {
-      const booked = {};
-      snap.docs.forEach((d) => {
-        const data = d.data();
-        const key = `${data.date}_${data.time}`;
-        booked[key] = true;
-      });
-      setBookedSlots(booked);
-    });
-
-    return unsub;
-  }, [therapistUid]);
-
-  const isSlotBooked = (date, time) => bookedSlots[`${date}_${time}`];
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
     if (!selectedDate || !selectedTime || !reason.trim()) {
       setError("Please fill all fields.");
-      return;
-    }
-    if (isSlotBooked(selectedDate, selectedTime)) {
-      setError("This time slot is already booked.");
       return;
     }
 
@@ -98,25 +59,24 @@ function AppointmentBooking({ therapist, onClose }) {
     setError("");
 
     try {
-      const cleanTime = selectedTime.replace(":", "");
-      const appointmentId = `${clientUid || "anon"}_${therapistUid}_${selectedDate}_${cleanTime}`;
-
-      await setDoc(doc(db, "appointments", appointmentId), {
+      // Create pending appointment - no therapist assigned yet
+      await setDoc(doc(collection(db, "appointments")), {
         userId: clientUid,
         userName: clientDisplayName,
-        therapistId: therapistUid,
-        therapistName: therapistName,
-        profileImage: therapistProfileImage,
-        date: selectedDate,
-        time: selectedTime,
+        requestedDate: selectedDate,
+        requestedTime: selectedTime,
+        duration: 60,
         reason: reason.trim(),
         status: "pending",
+        claimedBy: null,
+        therapistId: null,
+        therapistName: null,
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       });
 
       setSuccess(true);
       setTimeout(() => {
-        onClose?.();
         navigate("/anonymous-dashboard/appointments-list");
       }, 2000);
     } catch (err) {
@@ -127,79 +87,76 @@ function AppointmentBooking({ therapist, onClose }) {
     }
   };
 
-  if (!therapist) return null;
-
   return (
     <div className="appointment-booking-wrapper">
-      <div className="modal-backdrop">
-        <div className="appointment-modal">
-          <button className="close-btn" onClick={onClose}>×</button>
+      <div className="appointment-modal">
+        <h3>Request an Appointment</h3>
+        <p className="booking-subtitle">
+          An available therapist will claim your appointment request
+        </p>
 
-          <h3>Book with {therapist.name}</h3>
-
-          {success ? (
-            <div className="success-message">
-              <p>Appointment requested successfully!</p>
-              <p>Redirecting to your appointments...</p>
+        {success ? (
+          <div className="success-message">
+            <p>Appointment requested successfully!</p>
+            <p>A therapist will claim your request soon.</p>
+            <p>Redirecting to your appointments...</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label>Select Date</label>
+              <input
+                type="date"
+                min={minDate}
+                max={maxDate}
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                required
+              />
             </div>
-          ) : (
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Select Date</label>
-                <input
-                  type="date"
-                  min={minDate}
-                  max={maxDate}
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  required
-                />
+
+            <div className="form-group">
+              <label>Select Time</label>
+              <div className="time-slots">
+                {TIME_SLOTS.map((time) => {
+                  const disabled = !selectedDate;
+                  return (
+                    <button
+                      key={time}
+                      type="button"
+                      className={`time-slot ${selectedTime === time ? "selected" : ""}`}
+                      onClick={() => !disabled && setSelectedTime(time)}
+                      disabled={disabled}
+                    >
+                      {time}
+                    </button>
+                  );
+                })}
               </div>
+            </div>
 
-              <div className="form-group">
-                <label>Select Time</label>
-                <div className="time-slots">
-                  {TIME_SLOTS.map((time) => {
-                    const disabled = !selectedDate || isSlotBooked(selectedDate, time);
-                    return (
-                      <button
-                        key={time}
-                        type="button"
-                        className={`time-slot ${selectedTime === time ? "selected" : ""} ${disabled ? "booked" : ""}`}
-                        onClick={() => !disabled && setSelectedTime(time)}
-                        disabled={disabled}
-                      >
-                        {time}
-                        {disabled && <span className="booked-tag">Booked</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+            <div className="form-group">
+              <label>Reason for Appointment</label>
+              <textarea
+                rows="3"
+                placeholder="Briefly describe why you'd like to talk..."
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                required
+              />
+            </div>
 
-              <div className="form-group">
-                <label>Reason for Appointment</label>
-                <textarea
-                  rows="3"
-                  placeholder="Briefly describe why you'd like to talk..."
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  required
-                />
-              </div>
+            {error && <p className="error-text">{error}</p>}
 
-              {error && <p className="error-text">{error}</p>}
-
-              <button
-                type="submit"
-                className="submit-btn"
-                disabled={isSubmitting || !selectedDate || !selectedTime || !reason.trim()}
-              >
-                {isSubmitting ? "Booking..." : "Request Appointment"}
-              </button>
-            </form>
-          )}
-        </div>
+            <button
+              type="submit"
+              className="submit-btn"
+              disabled={isSubmitting || !selectedDate || !selectedTime || !reason.trim()}
+            >
+              {isSubmitting ? "Booking..." : "Request Appointment"}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

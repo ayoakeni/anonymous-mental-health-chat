@@ -194,8 +194,39 @@ const Sidebar = ({
                         : ''
                     }`}
                   >
-                    <i className="fas fa-calendar"></i>
+                    <i className="fas fa-calendar-alt"></i>
                     {isOpen && <span className="link-text">Appointments</span>}
+                  </span>
+                </Link>
+
+                <Link
+                  data-tooltip= {isAnonymous ? "Book Appointment" : "Availability"}
+                  to={
+                    isAnonymous
+                      ? '/anonymous-dashboard/book-appointment'
+                      : '/therapist-dashboard/availability'
+                  }
+                >
+                  <span
+                    role="button"
+                    aria-label= {isAnonymous ? "Book Appointment" : "Availability"}
+                    tabIndex="0"
+                    className={`iconBadge ${
+                      location.pathname ===
+                      (isAnonymous
+                        ? '/anonymous-dashboard/book-appointment'
+                        : '/therapist-dashboard/availability')
+                        ? 'active'
+                        : ''
+                    }`}
+                  >
+                    {isAnonymous ? (<i className="fas fa-clipboard-list"></i>) : ( 
+                    <i className="fas fa-clock"></i>)}
+                    {isAnonymous ? 
+                      (isOpen && <span className="link-text">Book Appointment</span>) : (
+                      isOpen && <span className="link-text">Availability</span>)
+                    }
+                    
                   </span>
                 </Link>
 

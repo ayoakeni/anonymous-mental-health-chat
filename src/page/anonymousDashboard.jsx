@@ -11,6 +11,7 @@ import AnonymousDashboardHome from "../components/AnonymousDashboard/anonymousDa
 import AnonymousGroupChatSplitView from "../components/AnonymousDashboard/anonymousGroupChatSplitView";
 import AnonymousPrivateChatView from "../components/AnonymousDashboard/anonymousPrivateChatSplitView";
 import AppointmentsList from "../components/AnonymousDashboard/anonymousAppointmentList";
+import AppointmentBooking from "../components/AnonymousDashboard/anonymousAppointmentBooking";
 import { useUserNames } from "../hooks/useUserNames";
 import { useHideSidebarMobile } from "../hooks/useHideSidebarMobile";
 import { useRemovePaddingBottomMobile } from "../hooks/useRemovePaddingBottomMobile";
@@ -404,6 +405,8 @@ function AnonymousDashboard() {
             }
           />
           <Route path="/appointments-list" element={<AppointmentsList />} />
+          <Route path="/book-appointment" element={<AppointmentBooking/>}
+          />
         </Routes>
       </div>
     </div>

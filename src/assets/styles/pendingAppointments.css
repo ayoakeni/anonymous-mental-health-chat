@@ -1,0 +1,337 @@
+/* ============================================
+   PENDING APPOINTMENTS VIEW STYLES
+   ============================================ */
+
+.pending-appointments {
+  padding: 2rem;
+  background: var(--background-color);
+  min-height: 100vh;
+}
+
+.pending-appointments h3 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-color);
+  margin-bottom: 0.5rem;
+}
+
+.pending-appointments .subtitle {
+  font-size: 0.95rem;
+  color: var(--text-color);
+  opacity: 0.7;
+  margin-bottom: 2rem;
+}
+
+/* ============================================
+   LOADING STATE
+   ============================================ */
+
+.pending-appointments .loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  font-size: 1.1rem;
+  color: var(--text-color);
+  opacity: 0.7;
+}
+
+.pending-appointments .loading::before {
+  content: "";
+  width: 24px;
+  height: 24px;
+  margin-right: 12px;
+  border: 3px solid var(--primary-color);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   NO APPOINTMENTS STATE
+   ============================================ */
+
+.pending-appointments .no-appointments {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: var(--chat-bg);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  color: var(--text-color);
+  opacity: 0.7;
+  font-size: 1.05rem;
+}
+
+.pending-appointments .no-appointments::before {
+  content: "📅";
+  display: block;
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+/* ============================================
+   APPOINTMENTS GRID
+   ============================================ */
+
+.pending-appointments .appointments-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+/* ============================================
+   APPOINTMENT CARD
+   ============================================ */
+
+.pending-appointments .appointment-card {
+  background: var(--chat-bg);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.pending-appointments .appointment-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* ============================================
+   CARD HEADER
+   ============================================ */
+
+.pending-appointments .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, var(--primary-color), #3a7bc8);
+  color: white;
+}
+
+.pending-appointments .client-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.pending-appointments .pending-badge {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+  padding: 0.35rem 0.85rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* ============================================
+   CARD BODY
+   ============================================ */
+
+.pending-appointments .card-body {
+  padding: 1.5rem 1.25rem;
+}
+
+.pending-appointments .info-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  color: var(--text-color);
+  font-size: 0.95rem;
+}
+
+.pending-appointments .info-row:last-child {
+  margin-bottom: 0;
+}
+
+.pending-appointments .info-row i {
+  color: var(--primary-color);
+  width: 20px;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.pending-appointments .info-row span {
+  font-weight: 500;
+}
+
+.pending-appointments .reason {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background: var(--system-bg);
+  border-left: 3px solid var(--primary-color);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: var(--text-color);
+  line-height: 1.5;
+}
+
+.pending-appointments .reason strong {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: var(--primary-color);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ============================================
+   CARD FOOTER
+   ============================================ */
+
+.pending-appointments .card-footer {
+  padding: 1.25rem;
+  background: var(--system-bg);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.pending-appointments .claim-btn {
+  width: 100%;
+  padding: 0.85rem 1.5rem;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(52, 199, 89, 0.3);
+}
+
+.pending-appointments .claim-btn:hover:not(:disabled) {
+  background: #2db84d;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(52, 199, 89, 0.4);
+}
+
+.pending-appointments .claim-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.pending-appointments .claim-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+@media (max-width: 768px) {
+  .pending-appointments {
+    padding: 1.5rem 1rem;
+  }
+
+  .pending-appointments h3 {
+    font-size: 1.5rem;
+  }
+
+  .pending-appointments .appointments-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .pending-appointments .card-header {
+    padding: 1rem;
+  }
+
+  .pending-appointments .client-name {
+    font-size: 1rem;
+  }
+
+  .pending-appointments .pending-badge {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.7rem;
+  }
+
+  .pending-appointments .card-body {
+    padding: 1.25rem 1rem;
+  }
+
+  .pending-appointments .info-row {
+    font-size: 0.9rem;
+  }
+
+  .pending-appointments .claim-btn {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .pending-appointments {
+    padding: 1rem;
+  }
+
+  .pending-appointments h3 {
+    font-size: 1.35rem;
+  }
+
+  .pending-appointments .subtitle {
+    font-size: 0.9rem;
+  }
+}
+
+/* ============================================
+   DARK MODE ENHANCEMENTS
+   ============================================ */
+
+.dark .pending-appointments .appointment-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .pending-appointments .appointment-card:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.dark .pending-appointments .card-footer {
+  background: rgba(255, 255, 255, 0.03);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .pending-appointments .reason {
+  background: rgba(255, 255, 255, 0.05);
+  border-left-color: var(--primary-color);
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pending-appointments .appointment-card {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.pending-appointments .appointment-card:nth-child(1) { animation-delay: 0s; }
+.pending-appointments .appointment-card:nth-child(2) { animation-delay: 0.1s; }
+.pending-appointments .appointment-card:nth-child(3) { animation-delay: 0.2s; }
+.pending-appointments .appointment-card:nth-child(4) { animation-delay: 0.3s; }
+.pending-appointments .appointment-card:nth-child(5) { animation-delay: 0.4s; }
+.pending-appointments .appointment-card:nth-child(6) { animation-delay: 0.5s; }

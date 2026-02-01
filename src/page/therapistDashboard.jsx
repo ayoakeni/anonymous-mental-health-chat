@@ -10,6 +10,7 @@ import TherapistDashboardHome from "../components/therapistDashboard/therapistDa
 import TherapistDashboardProfile from "../components/therapistDashboard/therapistDashboardProfile";
 import TherapistDashboardNotification from "../components/therapistDashboard/therapistDashboardNotification";
 import TherapistAppointmentsDashboard from "../components/therapistDashboard/therapistAppointmentDashboard";
+import TherapistAvailabilitySettings from "../components/therapistDashboard/therapistAvailabilitySettings";
 import TherapistDashboardSetting from "../components/therapistDashboard/therapistDashboardSetting";
 import useNotificationSound from "../hooks/useNotificationSound";
 import { getTimestampMillis, formatTimestamp } from "../hooks/useTimestampUtils";
@@ -354,6 +355,12 @@ function TherapistDashboard() {
                 showError={showError}
                 formatTimestamp={formatTimestamp}
               />
+            }
+          />
+          <Route
+            path="/availability"
+            element={
+              <TherapistAvailabilitySettings therapistId={therapistId} />
             }
           />
           <Route

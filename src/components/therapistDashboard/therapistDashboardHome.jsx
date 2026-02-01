@@ -126,7 +126,7 @@ function TherapistDashboardHome({
       </div>
 
       {/* Quick Actions */}
-      <div className="quick-actions">
+      {/* <div className="quick-actions">
         <h3>Quick Actions</h3>
         <div className="action-buttons">
           <button onClick={() => navigate("/therapist-dashboard/group-chat")}>
@@ -142,7 +142,7 @@ function TherapistDashboardHome({
             View Appointments
           </button>
         </div>
-      </div>
+      </div> */}
 
       {/* Chat Summaries */}
       <div className="chat-summaries">

@@ -13,6 +13,7 @@ import {
   getDoc,
   Timestamp,
 } from "firebase/firestore";
+import PendingAppointmentsView from "./PendingAppointmentsView";
 import "../../assets/styles/therapistAppointmentsDashboard.css";
 
 const TherapistAppointmentsDashboard = () => {
@@ -33,13 +34,27 @@ const TherapistAppointmentsDashboard = () => {
     reason: "",
     status: "confirmed",
   });
+  const therapistUid = auth.currentUser?.uid;
   const [formErrors, setFormErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
   const [isModalClosing, setIsModalClosing] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(null);
   const modalRef = useRef(null);
+  const [activeTab, setActiveTab] = useState("my-appointments");
+  const [therapistName, setTherapistName] = useState("");
 
-  const therapistUid = auth.currentUser?.uid;
+  // Fetch therapist name
+  useEffect(() => {
+    if (!therapistUid) return;
+    
+    const unsub = onSnapshot(doc(db, "therapists", therapistUid), (snap) => {
+      if (snap.exists()) {
+        setTherapistName(snap.data().name || "Therapist");
+      }
+    });
+    
+    return unsub;
+  }, [therapistUid]);
 
   // === Fetch anonymous users for dropdown ===
   useEffect(() => {
@@ -540,100 +555,127 @@ const TherapistAppointmentsDashboard = () => {
         </div>
       )}
 
-      {/* === RESPONSIVE TABLE CONTAINER === */}
-      <div className="appointments-list">
-        {filteredAppointments.length === 0 ? (
-          <p className="no-appointments">No appointments found.</p>
-        ) : (
-          <div className="table-wrapper">
-            <table className="appointments-table">
-              <thead>
-                <tr>
-                  <th>Client</th>
-                  <th>Date & Time</th>
-                  <th>Duration</th>
-                  <th>Status</th>
-                  <th>Reason</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAppointments.map((appt) => (
-                  <tr
-                    key={appt.id}
-                    className={appt.status === "pending" ? "pending-row" : ""}
-                  >
-                    <td className={appt.displayName === "Deleted User" ? "status-deleted" : ""}>
-                      {formatClientDisplay(appt)}
-                    </td>
-                    <td>{formatDateTime(appt.date, appt.time)}</td>
-                    <td>{appt.duration} min</td>
-                    <td className={`status-${appt.status.toLowerCase()}`}>
-                      {appt.status}
-                    </td>
-                    <td>{appt.reason || "—"}</td>
-                    <td className="actions-cell">
-                      {appt.status === "pending" ? (
-                        <>
-                          <button
-                            onClick={() => handleDecision(appt.id, "confirmed")}
-                            className="btn-accept"
-                          >
-                            Accept
-                          </button>
-                          <button
-                            onClick={() =>
-                              setShowRejectModal({ apptId: appt.id, reason: "" })
-                            }
-                            className="btn-reject"
-                          >
-                            Reject
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          {appt.status === "confirmed" && (
+      {/* Appointments Tabs - MOVE THIS UP */}
+      <div className="appointments-tabs">
+        <button 
+          onClick={() => setActiveTab("my-appointments")}
+          className={activeTab === "my-appointments" ? "active" : ""}
+        >
+          My Appointments
+        </button>
+        <button 
+          onClick={() => setActiveTab("pending")}
+          className={activeTab === "pending" ? "active" : ""}
+        >
+          Available to Claim
+        </button>
+      </div>
+
+      {/* Show content based on active tab */}
+      {activeTab === "my-appointments" && (
+        <div className="appointments-list">
+          <div className="appointments-list">
+            {filteredAppointments.length === 0 ? (
+              <p className="no-appointments">No appointments found.</p>
+            ) : (
+              <div className="table-wrapper">
+                <table className="appointments-table">
+                  <thead>
+                    <tr>
+                      <th>Client</th>
+                      <th>Date & Time</th>
+                      <th>Duration</th>
+                      <th>Status</th>
+                      <th>Reason</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAppointments.map((appt) => (
+                      <tr
+                        key={appt.id}
+                        className={appt.status === "pending" ? "pending-row" : ""}
+                      >
+                        <td className={appt.displayName === "Deleted User" ? "status-deleted" : ""}>
+                          {formatClientDisplay(appt)}
+                        </td>
+                        <td>{formatDateTime(appt.date, appt.time)}</td>
+                        <td>{appt.duration} min</td>
+                        <td className={`status-${appt.status.toLowerCase()}`}>
+                          {appt.status}
+                        </td>
+                        <td>{appt.reason || "—"}</td>
+                        <td className="actions-cell">
+                          {appt.status === "pending" ? (
                             <>
                               <button
-                                onClick={() => setEditingAppt(appt)}
-                                className="action-btn edit-btn"
+                                onClick={() => handleDecision(appt.id, "confirmed")}
+                                className="btn-accept"
                               >
-                                Edit
+                                Accept
                               </button>
                               <button
                                 onClick={() =>
-                                  handleStatusUpdate(appt.id, "cancelled")
+                                  setShowRejectModal({ apptId: appt.id, reason: "" })
                                 }
-                                className="action-btn cancel-btn"
+                                className="btn-reject"
                               >
-                                Cancel
+                                Reject
                               </button>
+                            </>
+                          ) : (
+                            <>
+                              {appt.status === "confirmed" && (
+                                <>
+                                  <button
+                                    onClick={() => setEditingAppt(appt)}
+                                    className="action-btn edit-btn"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      handleStatusUpdate(appt.id, "cancelled")
+                                    }
+                                    className="action-btn cancel-btn"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      handleStatusUpdate(appt.id, "completed")
+                                    }
+                                    className="action-btn complete-btn"
+                                  >
+                                    Complete
+                                  </button>
+                                </>
+                              )}
                               <button
-                                onClick={() =>
-                                  handleStatusUpdate(appt.id, "completed")
-                                }
-                                className="action-btn complete-btn"
+                                onClick={() => handleDelete(appt.id)}
+                                className="action-btn delete-btn"
                               >
-                                Complete
+                                Delete
                               </button>
                             </>
                           )}
-                          <button
-                            onClick={() => handleDelete(appt.id)}
-                            className="action-btn delete-btn"
-                          >
-                            Delete
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {activeTab === "pending" && (
+        <PendingAppointmentsView 
+          therapistId={therapistUid}
+          therapistName={therapistName}
+        />
+      )}
     </div>
   );
 };

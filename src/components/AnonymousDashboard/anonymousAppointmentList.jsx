@@ -75,7 +75,14 @@ function AppointmentsList() {
       );
 
       const sorted = data.sort(
-        (a, b) => new Date(`${a.date} ${a.time}`) - new Date(`${b.date} ${b.time}`)
+        (a, b) => {
+          const dateA = a.requestedDate;
+          const dateB = b.requestedDate;
+          const timeA = a.requestedTime;
+          const timeB = b.requestedTime;
+          
+          return new Date(`${dateA} ${timeA}`) - new Date(`${dateB} ${timeB}`);
+        }
       );
 
       setAppointments(sorted);
@@ -132,23 +139,23 @@ function AppointmentsList() {
     setSubmittingReschedule(true);
     try {
       const { appt, date, time } = rescheduleData;
-      const therapistId = appt.therapistId || appt.therapistUid;
-      if (!therapistId) throw new Error("Therapist ID not found");
+      const therapistId = appt.therapistId || appt.claimedBy;
 
-      const newId = `${clientUid}_${therapistId}_${date}_${time.replace(":", "")}`;
-
-      await setDoc(doc(db, "appointments", newId), {
+      await setDoc(doc(collection(db, "appointments")), {
         userId: clientUid,
         userName: appt.userName || "Anonymous User",
-        therapistId,
-        therapistName: appt.therapistName,
-        date,
-        time,
+        therapistId: therapistId || null,
+        therapistName: appt.therapistName || null,
+        requestedDate: date,
+        requestedTime: time,
+        duration: 60,
         reason: appt.reason,
-        status: "pending",
+        status: therapistId ? "confirmed" : "pending",
         rescheduledFrom: appt.id,
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
+      
       await deleteDoc(doc(db, "appointments", appt.id));
 
       showToast("success", "Appointment rescheduled!");
@@ -295,7 +302,10 @@ function AppointmentsList() {
     const days = eachDayOfInterval({ start, end });
 
     const getAppointmentsForDay = (day) => {
-      return appointments.filter((appt) => isSameDay(new Date(appt.date), day));
+      return appointments.filter((appt) => {
+        const apptDate = appt.requestedDate || appt.date;
+        return apptDate && isSameDay(new Date(apptDate), day);
+      });
     };
 
     return (
@@ -319,11 +329,14 @@ function AppointmentsList() {
                 }`}
               >
                 <div className="appointments-list-wrapper__day-number">{format(day, "d")}</div>
-                {dayAppts.map((appt) => (
-                  <div key={appt.id} className="appointments-list-wrapper__calendar-appt">
-                    {appt.time} - {appt.therapistName}
-                  </div>
-                ))}
+                {dayAppts.map((appt) => {
+                  const displayTime = appt.requestedTime || appt.time;
+                  return (
+                    <div key={appt.id} className="appointments-list-wrapper__calendar-appt">
+                      {displayTime || "TBD"} - {appt.therapistName || "Pending"}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
@@ -444,89 +457,79 @@ function AppointmentsList() {
         <>
           <h3>Your Appointments</h3>
           <div className="appointments-grid">
-            {appointments.map((appt) => (
-              <div key={appt.id} className="appointment-card">
-                <div className="appointment-card__header">
-                  <div className="appointment-card__therapist">
-                    <div className="therapist-avatar">
-                      {appt.profileImage ? (
-                        <img src={appt.profileImage} alt={appt.therapistName} />
-                      ) : (
-                        <span>{appt.therapistName?.[0]?.toUpperCase() || "T"}</span>
-                      )}
-                    </div>
-                    <div>
-                      <div className="therapist-name">{appt.therapistName || "Unknown Therapist"}</div>
-                      <div className="appointment-date">
-                        {format(new Date(appt.date), "MMM d, yyyy")} at {appt.time}
+            {appointments.map((appt) => {
+              const displayDate = appt.requestedDate || appt.date;
+              const displayTime = appt.requestedTime || appt.time;
+              
+              return (
+                <div key={appt.id} className="appointment-card">
+                  <div className="appointment-card__header">
+                    <div className="appointment-card__therapist">
+                      <div className="therapist-avatar">
+                        {appt.therapistImage ? (
+                          <img src={appt.therapistImage} alt={appt.therapistName} />
+                        ) : (
+                          <span>{appt.therapistName?.[0]?.toUpperCase() || "?"}</span>
+                        )}
+                      </div>
+                      <div>
+                        <div className="therapist-name">
+                          {appt.therapistName || "Pending - Awaiting Therapist"}
+                        </div>
+                        <div className="appointment-date">
+                          {displayDate ? format(new Date(displayDate), "MMM d, yyyy") : "Date TBD"} 
+                          {" at "} 
+                          {displayTime || "Time TBD"}
+                        </div>
                       </div>
                     </div>
+                    <span className={`status-badge status-${appt.status || "unknown"}`}>
+                      {appt.status ? appt.status.charAt(0).toUpperCase() + appt.status.slice(1) : "Unknown"}
+                    </span>
                   </div>
-                  <span className={`status-badge status-${appt.status || "unknown"}`}>
-                    {appt.status ? appt.status.charAt(0).toUpperCase() + appt.status.slice(1) : "Unknown"}
-                  </span>
-                </div>
+                  
+                    <div className="appointment-card__body">
+                    {appt.reason && (
+                      <div className="info-row">
+                        <span className="label">Reason</span>
+                        <span className="value">"{appt.reason}"</span>
+                      </div>
+                    )}
 
-                <div className="appointment-card__body">
-                  {appt.reason && (
-                    <div className="info-row">
-                      <span className="label">Reason</span>
-                      <span className="value">"{appt.reason}"</span>
-                    </div>
-                  )}
+                    {appt.notes && (
+                      <div className="info-row">
+                        <span className="label">Therapist Note</span>
+                        <div className="therapist-note">"{appt.notes}"</div>
+                      </div>
+                    )}
 
-                  {appt.notes && (
-                    <div className="info-row">
-                      <span className="label">Therapist Note</span>
-                      <div className="therapist-note">"{appt.notes}"</div>
+                    <div className="info-row rating-row">
+                      <span className="label">Your Rating</span>
+                      <div className="rating-display">
+                        {appt.clientRating ? (
+                          <>
+                            <span className="stars filled">
+                              {"★".repeat(appt.clientRating)}
+                              {"☆".repeat(5 - appt.clientRating)}
+                            </span>
+                            <span className="rating-text">{appt.clientRating}/5</span>
+                          </>
+                        ) : (
+                          <span className="no-rating">Not rated yet</span>
+                        )}
+                      </div>
                     </div>
-                  )}
 
-                  <div className="info-row rating-row">
-                    <span className="label">Your Rating</span>
-                    <div className="rating-display">
-                      {appt.clientRating ? (
-                        <>
-                          <span className="stars filled">
-                            {"★".repeat(appt.clientRating)}
-                            {"☆".repeat(5 - appt.clientRating)}
-                          </span>
-                          <span className="rating-text">{appt.clientRating}/5</span>
-                        </>
-                      ) : (
-                        <span className="no-rating">Not rated yet</span>
-                      )}
-                    </div>
+                    {appt.clientComment && (
+                      <div className="info-row">
+                        <span className="label">Your Review</span>
+                        <div className="client-review">"{appt.clientComment}"</div>
+                      </div>
+                    )}
                   </div>
-
-                  {appt.clientComment && (
-                    <div className="info-row">
-                      <span className="label">Your Review</span>
-                      <div className="client-review">"{appt.clientComment}"</div>
-                    </div>
-                  )}
                 </div>
-
-                <div className="appointment-card__footer">
-                  {["pending", "confirmed"].includes(appt.status) && (
-                    <>
-                      <button onClick={() => setShowReschedule(appt)} className="action-btn reschedule-btn">
-                        Reschedule
-                      </button>
-                      <button onClick={() => initiateCancel(appt.id, appt.therapistName)} className="action-btn cancel-btn">
-                        Cancel
-                      </button>
-                    </>
-                  )}
-
-                  {appt.status === "completed" && !appt.clientRating && (
-                    <button onClick={() => initiateRating(appt)} className="action-btn rate-btn">
-                      Rate Session
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
