@@ -351,6 +351,131 @@
   font-size: 0.95rem;
 }
 
+/* ============================================
+   APPOINTMENTS TABS
+   ============================================ */
+
+.appointments-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1.5rem 0;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+  padding-bottom: 0;
+}
+
+.appointments-tabs button {
+  flex: 1;
+  padding: 0.85rem 1.5rem;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-color);
+  opacity: 0.6;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.appointments-tabs button:hover {
+  opacity: 0.9;
+  background: rgba(74, 144, 226, 0.05);
+}
+
+.appointments-tabs button.active {
+  opacity: 1;
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+  background: rgba(74, 144, 226, 0.08);
+}
+
+/* Active tab indicator animation */
+.appointments-tabs button.active::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--primary-color);
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Focus state for accessibility */
+.appointments-tabs button:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+@media (max-width: 768px) {
+  .appointments-tabs {
+    gap: 0.25rem;
+    margin: 1rem 0;
+  }
+
+  .appointments-tabs button {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    letter-spacing: 0.3px;
+  }
+}
+
+@media (max-width: 480px) {
+  .appointments-tabs {
+    flex-direction: column;
+    gap: 0.5rem;
+    border-bottom: none;
+  }
+
+  .appointments-tabs button {
+    border-bottom: none;
+    border-left: 3px solid transparent;
+    padding: 0.75rem 1rem;
+    text-align: left;
+  }
+
+  .appointments-tabs button.active {
+    border-left-color: var(--primary-color);
+    border-bottom-color: transparent;
+  }
+
+  .appointments-tabs button.active::after {
+    display: none;
+  }
+}
+
+/* ============================================
+   DARK MODE ENHANCEMENTS
+   ============================================ */
+
+.dark .appointments-tabs {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .appointments-tabs button:hover {
+  background: rgba(74, 144, 226, 0.15);
+}
+
+.dark .appointments-tabs button.active {
+  background: rgba(74, 144, 226, 0.2);
+}
+
 /* ========================================
    EMPTY & LOADING STATES
    ======================================== */

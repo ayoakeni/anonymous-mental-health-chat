@@ -20,7 +20,12 @@ function PendingAppointmentsView({ therapistId, therapistName }) {
   };
 
   if (loading) {
-    return <div className="loading">Loading appointments...</div>;
+    return (
+      <div className="dash-card-spin">
+        <div className="spinner"></div>
+        <p>Loading appointments...</p>
+      </div>
+    );
   }
 
   return (

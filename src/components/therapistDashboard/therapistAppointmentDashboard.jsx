@@ -115,8 +115,8 @@ const TherapistAppointmentsDashboard = () => {
 
           return {
             ...appt,
-            displayName, // final resolved name for table
-            clientName: raw.userName || displayName, // for editing form
+            displayName,
+            clientName: raw.userName || displayName,
           };
         })
       );
@@ -562,7 +562,7 @@ const TherapistAppointmentsDashboard = () => {
         </div>
       )}
 
-      {/* Appointments Tabs - MOVE THIS UP */}
+      {/* Appointments Tabs */}
       <div className="appointments-tabs">
         <button 
           onClick={() => setActiveTab("my-appointments")}
@@ -629,7 +629,7 @@ const TherapistAppointmentsDashboard = () => {
                               </button>
                             </>
                           ) : appt.status === "claimed" ? (
-                            // ✅ NEW: Actions for CLAIMED appointments (review before confirming)
+                            // Actions for CLAIMED appointments (review before confirming)
                             <>
                               <button
                                 onClick={() => setEditingAppt(appt)}

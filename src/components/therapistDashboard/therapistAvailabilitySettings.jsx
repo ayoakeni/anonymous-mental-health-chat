@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTherapistAvailability } from "../../hooks/useTherapistAvailability";
 import "../../assets/styles/therapistAvailability.css";
 
@@ -17,6 +17,10 @@ function TherapistAvailabilitySettings({ therapistId }) {
   const { availability, loading, saving, saveAvailability } = useTherapistAvailability(therapistId);
   const [localAvailability, setLocalAvailability] = useState(availability);
   const [hasChanges, setHasChanges] = useState(false);
+
+  useEffect(() => {
+    setLocalAvailability(availability);
+  }, [availability]);
 
   const toggleTimeSlot = (day, time) => {
     setLocalAvailability((prev) => {
