@@ -124,7 +124,13 @@ const TherapistAppointmentsDashboard = () => {
       const sorted = data.sort((a, b) => {
         if (a.status === "pending" && b.status !== "pending") return -1;
         if (a.status !== "pending" && b.status === "pending") return 1;
-        return new Date(`${a.date} ${a.time}`) - new Date(`${b.date} ${b.time}`);
+        
+        const dateA = a.requestedDate;
+        const dateB = b.requestedDate;
+        const timeA = a.requestedTime;
+        const timeB = b.requestedTime;
+        
+        return new Date(`${dateA} ${timeA}`) - new Date(`${dateB} ${timeB}`);
       });
 
       setAppointments(sorted);
@@ -196,8 +202,8 @@ const TherapistAppointmentsDashboard = () => {
         clientType: "anonymous",
         clientUid: editingAppt.clientUid || "",
         clientName: editingAppt.clientName || "",
-        date: editingAppt.date || "",
-        time: editingAppt.time || "",
+        date: editingAppt.requestedDate || "",
+        time: editingAppt.requestedTime || "",
         duration: editingAppt.duration || 60,
         notes: editingAppt.notes || "",
         reason: editingAppt.reason || "",
@@ -355,6 +361,7 @@ const TherapistAppointmentsDashboard = () => {
           >
             <option value="All">All</option>
             <option value="pending">Pending</option>
+            <option value="claimed">Claimed (Need Review)</option>
             <option value="confirmed">Confirmed</option>
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
@@ -599,7 +606,7 @@ const TherapistAppointmentsDashboard = () => {
                         <td className={appt.displayName === "Deleted User" ? "status-deleted" : ""}>
                           {formatClientDisplay(appt)}
                         </td>
-                        <td>{formatDateTime(appt.date, appt.time)}</td>
+                        <td>{formatDateTime(appt.requestedDate, appt.requestedTime)}</td>
                         <td>{appt.duration} min</td>
                         <td className={`status-${appt.status.toLowerCase()}`}>
                           {appt.status}
@@ -609,48 +616,93 @@ const TherapistAppointmentsDashboard = () => {
                           {appt.status === "pending" ? (
                             <>
                               <button
-                                onClick={() => handleDecision(appt.id, "confirmed")}
+                                onClick={() => handleDecision(appt.id, "claimed")}
                                 className="btn-accept"
                               >
-                                Accept
+                                Claim
                               </button>
                               <button
-                                onClick={() =>
-                                  setShowRejectModal({ apptId: appt.id, reason: "" })
-                                }
+                                onClick={() => setShowRejectModal({ apptId: appt.id, reason: "" })}
                                 className="btn-reject"
                               >
                                 Reject
                               </button>
                             </>
-                          ) : (
+                          ) : appt.status === "claimed" ? (
+                            // ✅ NEW: Actions for CLAIMED appointments (review before confirming)
                             <>
-                              {appt.status === "confirmed" && (
-                                <>
-                                  <button
-                                    onClick={() => setEditingAppt(appt)}
-                                    className="action-btn edit-btn"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      handleStatusUpdate(appt.id, "cancelled")
-                                    }
-                                    className="action-btn cancel-btn"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      handleStatusUpdate(appt.id, "completed")
-                                    }
-                                    className="action-btn complete-btn"
-                                  >
-                                    Complete
-                                  </button>
-                                </>
-                              )}
+                              <button
+                                onClick={() => setEditingAppt(appt)}
+                                className="action-btn edit-btn"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleStatusUpdate(appt.id, "confirmed")}
+                                className="action-btn confirm-btn"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => handleStatusUpdate(appt.id, "cancelled")}
+                                className="action-btn cancel-btn"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => handleDelete(appt.id)}
+                                className="action-btn delete-btn"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          ) : appt.status === "confirmed" ? (
+                            // Actions for CONFIRMED appointments
+                            <>
+                              <button
+                                onClick={() => setEditingAppt(appt)}
+                                className="action-btn edit-btn"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleStatusUpdate(appt.id, "cancelled")}
+                                className="action-btn cancel-btn"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => handleStatusUpdate(appt.id, "completed")}
+                                className="action-btn complete-btn"
+                              >
+                                Complete
+                              </button>
+                              <button
+                                onClick={() => handleDelete(appt.id)}
+                                className="action-btn delete-btn"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          ) : appt.status === "completed" ? (
+                            // Actions for COMPLETED appointments
+                            <>
+                              <button
+                                onClick={() => setEditingAppt(appt)}
+                                className="action-btn edit-btn"
+                              >
+                                View/Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(appt.id)}
+                                className="action-btn delete-btn"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          ) : (
+                            // Actions for CANCELLED/REJECTED appointments
+                            <>
                               <button
                                 onClick={() => handleDelete(appt.id)}
                                 className="action-btn delete-btn"

@@ -59,8 +59,12 @@ function AppointmentsList() {
       const data = await Promise.all(
         snap.docs.map(async (d) => {
           const appt = { id: d.id, ...d.data() };
-          if (appt.therapistUid) {
-            const therapistSnap = await getDoc(doc(db, "therapists", appt.therapistUid));
+          
+          // Check for therapistId OR claimedBy
+          const therapistId = appt.therapistId || appt.claimedBy;
+          
+          if (therapistId) {
+            const therapistSnap = await getDoc(doc(db, "therapists", therapistId));
             if (therapistSnap.exists()) {
               const therapistData = therapistSnap.data();
               appt.therapistName = therapistData.name || "Unknown Therapist";
@@ -69,17 +73,22 @@ function AppointmentsList() {
               appt.therapistName = "Deleted Therapist";
               appt.therapistImage = null;
             }
+          } else {
+            // No therapist claimed yet
+            appt.therapistName = "Pending - Awaiting Therapist";
+            appt.therapistImage = null;
           }
+          
           return appt;
         })
       );
 
       const sorted = data.sort(
         (a, b) => {
-          const dateA = a.requestedDate;
-          const dateB = b.requestedDate;
-          const timeA = a.requestedTime;
-          const timeB = b.requestedTime;
+          const dateA = a.requestedDate || a.date;
+          const dateB = b.requestedDate || b.date;
+          const timeA = a.requestedTime || a.time;
+          const timeB = b.requestedTime || b.time;
           
           return new Date(`${dateA} ${timeA}`) - new Date(`${dateB} ${timeB}`);
         }
@@ -488,7 +497,7 @@ function AppointmentsList() {
                     </span>
                   </div>
                   
-                    <div className="appointment-card__body">
+                  <div className="appointment-card__body">
                     {appt.reason && (
                       <div className="info-row">
                         <span className="label">Reason</span>
@@ -525,6 +534,34 @@ function AppointmentsList() {
                         <span className="label">Your Review</span>
                         <div className="client-review">"{appt.clientComment}"</div>
                       </div>
+                    )}
+                  </div>
+                  
+                  <div className="appointment-card__footer">
+                    {["pending", "confirmed"].includes(appt.status) && (
+                      <>
+                        <button 
+                          onClick={() => setShowReschedule(appt)} 
+                          className="action-btn reschedule-btn"
+                        >
+                          Reschedule
+                        </button>
+                        <button 
+                          onClick={() => initiateCancel(appt.id, appt.therapistName || "Unknown")} 
+                          className="action-btn cancel-btn"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    )}
+
+                    {appt.status === "completed" && !appt.clientRating && (
+                      <button 
+                        onClick={() => initiateRating(appt)} 
+                        className="action-btn rate-btn"
+                      >
+                        Rate Session
+                      </button>
                     )}
                   </div>
                 </div>
