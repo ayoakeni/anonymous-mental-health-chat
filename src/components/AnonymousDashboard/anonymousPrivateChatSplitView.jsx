@@ -930,7 +930,11 @@ function AnonymousPrivateChatView({
             {isMobile && (
               <i
                 className="fa-solid fa-arrow-left mobile-back-btn"
-                onClick={() => navigate("/anonymous-dashboard")}
+                onClick={() => {
+                  setActiveChatId(null);
+                  localStorage.removeItem("activeChatId");
+                  navigate("/anonymous-dashboard/private-chat");
+                }}
                 aria-label="Back to dashboard"
               />
             )}
