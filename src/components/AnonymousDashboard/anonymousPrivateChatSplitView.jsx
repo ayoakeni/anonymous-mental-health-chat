@@ -933,7 +933,7 @@ function AnonymousPrivateChatView({
                 onClick={() => {
                   setActiveChatId(null);
                   localStorage.removeItem("activeChatId");
-                  navigate("/anonymous-dashboard/private-chat");
+                  navigate("/anonymous-dashboard/");
                 }}
                 aria-label="Back to dashboard"
               />
