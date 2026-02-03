@@ -38,6 +38,9 @@
 }
 
 .profileContainer .successMessage {
+  position: fixed;
+  top: 30px;
+  right: 20px;
   background: var(--success-color);
   color: white;
   padding: 12px 16px;
@@ -45,11 +48,15 @@
   margin-bottom: 16px;
   text-align: center;
   animation: fadeIn 0.3s ease-in;
-  width: 100%;
+  width: fit-content;
   max-width: 500px;
+  z-index: 99;
 }
 
 .profileContainer .errorMessage {
+  position: fixed;
+  top: 30px;
+  right: 20px;
   background: var(--error-color);
   color: white;
   padding: 12px 16px;
@@ -57,8 +64,9 @@
   margin-bottom: 16px;
   text-align: center;
   animation: fadeIn 0.3s ease-in;
-  width: 100%;
+  width: fit-content;
   max-width: 500px;
+  z-index: 99;
 }
 
 @keyframes fadeIn {
@@ -324,6 +332,12 @@ select.input {
 .profileContainer .ratingValue {
   color: var(--text-color);
   font-size: 0.95rem;
+}
+
+.profile-completion {
+  font-size: 1rem;
+  color: #28a745;
+  font-weight: 600;
 }
 
 /* ==================== CANCEL CONFIRM MODAL ==================== */

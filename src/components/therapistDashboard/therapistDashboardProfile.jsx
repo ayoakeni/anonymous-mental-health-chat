@@ -300,6 +300,13 @@ const TherapistDashboardProfile = ({
                 <span className="fieldValue">{therapistInfo.profile || 'No description provided'}</span>
               </div>
               <div className="profileField">
+                <span className="fieldLabel">Specialties:</span>
+                <span className="fieldValue">{(therapistInfo.specialties || ["Not specified"]).map((s, i) => (
+                  <span key={i}>{s}</span>
+                  ))}
+                </span>
+              </div>
+              <div className="profileField">
                 <span className="fieldLabel">Rating:</span>
                 <span className="rating">
                   {(therapistInfo.rating ?? 0) > 0 ? (
@@ -312,6 +319,10 @@ const TherapistDashboardProfile = ({
                     'No rating'
                   )}
                 </span>
+              </div>
+
+              <div className="profile-completion">
+                Profile Completion: {therapistInfo.profile && therapistInfo.gender && therapistInfo.position ? 90 : 60}%
               </div>
 
               <button onClick={() => setEditing(true)} className="editButton">

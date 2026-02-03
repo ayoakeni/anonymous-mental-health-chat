@@ -1201,6 +1201,5 @@ function AnonymousPrivateChatView({
       )}
     </div>
   );
-}
-
+}  
 export default AnonymousPrivateChatView;

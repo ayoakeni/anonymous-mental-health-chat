@@ -55,14 +55,25 @@
 }
 
 .therapist-profile h3 {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
   font-size: 1.6rem;
   color: var(--text-color);
   margin-bottom: 15px;
   text-align: center;
 }
 
+.therapist-profile h3 .name-badge {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+}
+
 .therapist-profile h3 .badges {
-  display: inline;
+  display: inline-flex;
+  gap: 10px;
   width: fit-content;
   margin-left: 5px;
 }
@@ -73,7 +84,7 @@
   border-radius: 12px;
   padding: 2px 8px;
   font-size: 12px;
-  margin-left: auto;
+  margin: auto;
 }
 
 .verified {
@@ -149,6 +160,19 @@
   font-size: 1.1rem;
 }
 
+.therapist-profile .rating .ratingValue {
+  color: var(--text-color);
+}
+
+.therapist-profile .rating .review {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.therapist-profile .rating .review:hover {
+  opacity: 0.8;
+}
+
 .therapist-profile .action-buttons {
   display: flex;
   gap: 10px;
@@ -192,7 +216,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 20px;
+  margin: 10px 0;
 }
 
 .therapist-profile .specialty-tag {
@@ -202,12 +226,6 @@
   font-weight: 600;
   border-radius: 12px;
   font-size: 0.85rem;
-}
-
-.profile-completion {
-  font-size: 1rem;
-  color: #28a745;
-  font-weight: 600;
 }
 
 /* Responsive design */

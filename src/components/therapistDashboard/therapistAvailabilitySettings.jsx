@@ -50,7 +50,12 @@ function TherapistAvailabilitySettings({ therapistId }) {
   };
 
   if (loading) {
-    return <div className="loading">Loading availability...</div>;
+    return (
+      <div className="dash-card-spin">
+        <div className="spinner"></div>
+        <p>Loading availability...</p>
+      </div>
+    );
   }
 
   return (

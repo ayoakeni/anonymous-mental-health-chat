@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
-// import { useNavigate } from "react-router-dom";
 import { db, auth } from "../utils/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
-// import AppointmentBooking from "./AnonymousDashboard/anonymousAppointmentBooking";
 import {
   Verified
 } from "lucide-react";
@@ -10,9 +8,6 @@ import "../assets/styles/therapistProfile.css";
 
 function TherapistProfile({ therapist, onBack, isOnline }) {
   const [realTimeOnline, setRealTimeOnline] = useState(isOnline);
-  // const [allowPrivateChats, setAllowPrivateChats] = useState(true);
-  // const [showBooking, setShowBooking] = useState(false);
-  // const navigate = useNavigate();
 
   // ---------- real-time online / chat-settings ----------
   useEffect(() => {
@@ -23,37 +18,12 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
       (snap) => {
         if (snap.exists()) {
           setRealTimeOnline(snap.data().online ?? false);
-          // setAllowPrivateChats(snap.data().chatSettings?.allowPrivateChats ?? true);
         }
       },
       (err) => console.error(err)
     );
     return () => unsubscribe();
   }, [therapist?.uid]);
-
-  // ---------- START PRIVATE CHAT ----------
-  // const startPrivateChat = async () => {
-  //   if (!allowPrivateChats) {
-  //     alert("This therapist is not accepting private chats right now.\n\nYou can still book a session with them!");
-  //     return;
-  //   }
-
-  //   const anonUid = auth.currentUser?.uid;
-  //   if (!anonUid) return;
-
-  //   const uids = [anonUid.slice(0, 8), therapist.uid.slice(0, 8)].sort();
-  //   const chatId = `${uids[0]}_${uids[1]}`;
-
-  //   // Just open the chat screen — do NOT create the document!
-  //   navigate(`/anonymous-dashboard/private-chat/${chatId}`, {
-  //     state: {
-  //       selectChatId: chatId,
-  //       therapistId: therapist.uid,
-  //       therapistName: therapist.name
-  //     }
-  //   });
-  //   onBack?.();
-  // };
 
   if (!therapist) return null;
 
@@ -81,11 +51,13 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
       </div>
 
       <h3>
-        {therapist.name}
-        <div className="badges">
-          {therapist.rating >= 4 && <span className="top-rated">Top Rated</span>}
-          {therapist.verified && <Verified size={17} className="verified"/>}
-        </div>{" "}
+        <div className="name-badge">
+          {therapist.name}
+          <div className="badges">
+            {!therapist.verified && <Verified size={17} className="verified"/>}
+            {therapist.rating >= 4 && <span className="top-rated">Top Rated</span>}
+          </div>
+        </div>
         <span className={`status ${realTimeOnline ? "online" : "offline"}`}>
           ● {realTimeOnline ? "Online" : "Offline"}
         </span>
@@ -94,6 +66,12 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
       <p><strong>Gender:</strong> {therapist.gender || "Not specified"}</p>
       <p><strong>Position:</strong> {therapist.position || "Not specified"}</p>
       <p><strong>About:</strong> {therapist.profile || "No description available"}</p>
+      <div className="specialties">
+        <strong>Specialties:</strong>
+        {(therapist.specialties || ["Not specified"]).map((s, i) => (
+          <span key={i} className="specialty-tag">{s}</span>
+        ))}
+      </div>
       <p>
         <strong>Rating:</strong>{" "}
         <span className="rating">
@@ -102,7 +80,7 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
               {'★'.repeat(Math.floor(therapist.rating))}
               {therapist.rating % 1 >= 0.5 && '☆'}
               <span className="ratingValue"> {therapist.rating.toFixed(1)}</span>
-              {therapist.totalRatings > 0 && ` (${therapist.totalRatings} reviews)`}
+              <span className="review">{therapist.totalRatings > 0 && ` (${therapist.totalRatings} reviews)`}</span>
             </>
           ) : (
             "No ratings yet"
@@ -110,39 +88,6 @@ function TherapistProfile({ therapist, onBack, isOnline }) {
         </span>
       </p>
 
-      {/* <div className="specialties">
-        {(therapist.specialties || ["Not specified"]).map((s, i) => (
-          <span key={i} className="specialty-tag">{s}</span>
-        ))}
-      </div> */}
-
-      {/* <div className="profile-completion">
-        Profile Completion: {therapist.profile && therapist.gender && therapist.position ? 90 : 60}%
-      </div> */}
-
-      {/* <div className="action-buttons">
-        <button
-          onClick={startPrivateChat}
-          className={`action-button chat-button ${!allowPrivateChats ? 'unavailable' : ''}`}
-          title={
-            !allowPrivateChats
-              ? "This therapist is not accepting private chats right now"
-              : "Start a private chat"
-          }
-        >
-          Start Private Chat
-        </button>
-
-        <button className="action-button appointment-button" onClick={() => setShowBooking(true)}>
-          Book Appointment
-        </button>
-      </div> */}
-      {/* {showBooking && (
-        <AppointmentBooking
-          therapist={therapist}
-          onClose={() => setShowBooking(false)}
-        />
-      )} */}
     </div>
   );
 }
