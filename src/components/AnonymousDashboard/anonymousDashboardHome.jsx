@@ -64,19 +64,12 @@ const AnonymousDashboardHome = ({
   // Select recent chats
   const recentChats = [
     ...(Array.isArray(groupChats) ? groupChats.slice(0, 3).map(chat => ({ ...chat, type: "group" })) : []),
-    ...(Array.isArray(privateChats) ? privateChats.slice(0, 3).map(chat => ({ ...chat, type: "private" })) : []),
   ].sort((a, b) => (b.lastMessage?.timestamp?.seconds || 0) - (a.lastMessage?.timestamp?.seconds || 0)).slice(0, 3);
 
   // Mood history state
   const [moodHistory, setMoodHistory] = useState([]);
   const [moodHistoryLoading, setMoodHistoryLoading] = useState(true);
   const [moodHistoryError, setMoodHistoryError] = useState(null);
-
-  // const [therapists, setTherapists] = useState([]);
-  // const [therapistsLoading, setTherapistsLoading] = useState(true);
-  // const [therapistsError, setTherapistsError] = useState(null);
-  // const [selectedTherapist, setSelectedTherapist] = useState(null);
-  // const modalRef = useRef(null);
 
   const moodOptions = [
     { value: "happy", label: "Happy", emoji: "😊" },
@@ -113,58 +106,6 @@ const AnonymousDashboardHome = ({
     });
     return () => unsubscribe();
   }, []);
-
-  // Fetch therapists
-  // useEffect(() => {
-  //   const q = query(collection(db, "therapists"), limit(5));
-  //   const unsubscribe = onSnapshot(
-  //     q,
-  //     (snapshot) => {
-  //       const therapistData = snapshot.docs.map((doc) => ({
-  //         uid: doc.id,
-  //         ...doc.data(),
-  //       }));
-  //       setTherapists(therapistData);
-  //       setTherapistsLoading(false);
-  //     },
-  //     (error) => {
-  //       console.error("Error fetching therapists:", error);
-  //       setTherapistsError("Failed to load therapists.");
-  //       setTherapistsLoading(false);
-  //     }
-  //   );
-  //   return () => unsubscribe();
-  // }, []);
-
-  // Close modal on outside click
-  // useEffect(() => {
-  //   const handleClickOutside = (event) => {
-  //     if (modalRef.current && !modalRef.current.contains(event.target)) {
-  //       setSelectedTherapist(null);
-  //     }
-  //   };
-  //   if (selectedTherapist) {
-  //     document.addEventListener("mousedown", handleClickOutside);
-  //   }
-  //   return () => document.removeEventListener("mousedown", handleClickOutside);
-  // }, [selectedTherapist]);
-
-  // Handle therapist click to view profile
-  // const handleTherapistClick = async (therapist) => {
-  //   try {
-  //     const therapistDoc = await getDoc(doc(db, "therapists", therapist.uid));
-  //     if (therapistDoc.exists()) {
-  //       setSelectedTherapist({
-  //         uid: therapist.uid,
-  //         ...therapistDoc.data(),
-  //         online: therapist.online,
-  //       });
-  //     }
-  //   } catch (error) {
-  //     console.error("Error loading therapist:", error);
-  //     setTherapistsError("Failed to load therapist profile.");
-  //   }
-  // };
 
   // Helper function to format timestamp
   const renderTimestamp = (timestamp) => {
@@ -223,7 +164,7 @@ const AnonymousDashboardHome = ({
                         const path =
                           chat.type === "group"
                             ? `/anonymous-dashboard/group-chat/${chat.id}`
-                            : `/anonymous-dashboard/private-chat/${chat.id}`;
+                            : "";
                         navigate(path);
                       }}
                       className="chat-card-inner"
@@ -261,54 +202,6 @@ const AnonymousDashboardHome = ({
             <p>No recent chats. Start a new conversation!</p>
           )}
         </div>
-
-        {/* Therapist Profile Modal */}
-        {/* {selectedTherapist && (
-          <div className="modal-backdrop">
-            <div className="modal" ref={modalRef}>
-              <TherapistProfile
-                therapist={selectedTherapist}
-                isOnline={selectedTherapist.online}
-                onBack={() => setSelectedTherapist(null)}
-                onStartChat={undefined}
-                onBookAppointment={undefined}
-              />
-            </div>
-          </div>
-        )} */}
-
-        {/* Therapist List Card */}
-        {/* <div className="dash-card available-therapist-card">
-          <h3>Available Therapists</h3>
-          {therapistsLoading ? (
-            <p>Loading therapists...</p>
-          ) : therapistsError ? (
-            <p className="error">{therapistsError}</p>
-          ) : therapists.length > 0 ? (
-            <div className="available-therapist-list">
-              {therapists.map((therapist) => (
-                <div
-                  key={therapist.uid}
-                  className={`available-therapist-item ${therapist.online ? "online" : ""}`}
-                  onClick={() => handleTherapistClick(therapist)}
-                >
-                  {therapist.profileImage ? (
-                    <img src={therapist.profileImage} alt={therapist.name} className={`avatar ${therapist.online ? "online" : ""}`} />
-                  ) : (
-                    <div className={`avatarPlaceholder ${therapist.online ? "online" : ""}`}>
-                      {therapist.name?.[0]?.toUpperCase() || 'T'}
-                    </div>
-                  )}
-                  <span className="available-therapist-name">
-                    {therapist.name || `Therapist ${therapist.uid.slice(0, 4)}`}
-                  </span> 
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p>No therapists available at the moment.</p>
-          )}
-        </div> */}
 
         {/* Mood History Card */}
         <div className="dash-card mood-history-card">
