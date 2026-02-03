@@ -1,4 +1,3 @@
-// src/hooks/useRemovePaddingBottomMobile.js
 import { useLocation } from "react-router-dom";
 
 export function useRemovePaddingBottomMobile() {

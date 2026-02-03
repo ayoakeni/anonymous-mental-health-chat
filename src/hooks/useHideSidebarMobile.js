@@ -6,8 +6,13 @@ export function useHideSidebarMobile() {
   const isPrivate = pathname.includes("/private-chat/");
   const isGroup   = pathname.includes("/group-chat/");
 
-  // Count non-empty path segments
   const segments = pathname.split("/").filter(Boolean);
+  // Always hide sidebar in anonymous private chat
+  if (pathname.startsWith("/anonymous-dashboard/private-chat")) {
+    return true;
+  }
+
+  // Normal behavior for therapist + group
   const inPrivateChat = isPrivate && segments.length > 2;
   const inGroupChat   = isGroup   && segments.length > 2;
 
