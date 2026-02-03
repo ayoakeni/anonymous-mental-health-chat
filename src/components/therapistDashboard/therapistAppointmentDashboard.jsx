@@ -13,7 +13,7 @@ import {
   getDoc,
   Timestamp,
 } from "firebase/firestore";
-import PendingAppointmentsView from "../therapistDashboard/PendingAppointmentsView";
+import PendingAppointmentsView from "../therapistDashboard/pendingAppointmentsView";
 import "../../assets/styles/therapistAppointmentsDashboard.css";
 
 const TherapistAppointmentsDashboard = () => {
