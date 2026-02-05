@@ -337,7 +337,8 @@ const ChatMessage = memo(
                 </button>
               )}
 
-              {isOwnMessage && (
+              {/* Only show delete button to therapists */}
+              {therapistId && isOwnMessage && (
                 <button
                   className="delete-btn"
                   onClick={(e) => {

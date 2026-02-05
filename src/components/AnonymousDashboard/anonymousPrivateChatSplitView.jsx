@@ -251,7 +251,7 @@ function AnonymousPrivateChatView({
       (snapshot) => {
         const msgs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-        // 🔑 Mark confirmed user messages as AI-eligible
+        // Mark confirmed user messages as AI-eligible
         snapshot.docs.forEach((docSnap) => {
           const data = docSnap.data();
 
@@ -559,7 +559,6 @@ function AnonymousPrivateChatView({
           lastUpdated: serverTimestamp(),
           unreadCountForTherapist: increment(1),
           lastSeenAt: serverTimestamp(),
-          status: data.activeTherapist ? data.status : "requesting",
         };
 
         if (needsGreeting) {
@@ -664,7 +663,7 @@ function AnonymousPrivateChatView({
         });
 
         if (choice === "assistant") {
-          t.update(chatRef, { aiActive: true, aiOffered: false });
+          t.update(chatRef, { aiActive: true, aiOffered: false, status: "new" });
           setAiActive(true);
           t.set(doc(collection(chatRef, "messages")), {
             text: "You are now chatting with our support assistant.",
@@ -874,7 +873,7 @@ function AnonymousPrivateChatView({
   };
 
   const handleSend = useCallback(
-    (text = "", file = null) => {
+    (file = null) => {
       sendMessage(file, replyTo);
       setNewMessage("");
       setReplyTo(null);

@@ -145,21 +145,32 @@ const Sidebar = ({
                 {/* Private Chat */}
                 <Link
                   data-tooltip="Private chat"
-                  to={
-                    isAnonymous
-                      ? '/anonymous-dashboard/private-chat'
-                      : '/therapist-dashboard/private-chat'
-                  }
+                  to={(() => {
+                    if (!isAnonymous) return '/therapist-dashboard/private-chat';
+                    
+                    // Check if already on a private chat page
+                    const currentPath = location.pathname;
+                    if (currentPath.startsWith('/anonymous-dashboard/private-chat/')) {
+                      return currentPath;
+                    }
+                    
+                    // Otherwise try localStorage
+                    const storedChatId = localStorage.getItem('activeChatId');
+                    return storedChatId 
+                      ? `/anonymous-dashboard/private-chat/${storedChatId}`
+                      : '/anonymous-dashboard/private-chat';
+                  })()}
                 >
                   <span
                     role="button"
                     aria-label="Private Chat"
                     tabIndex="0"
                     className={`iconBadge ${
-                      location.pathname ===
-                      (isAnonymous
-                        ? '/anonymous-dashboard/private-chat'
-                        : '/therapist-dashboard/private-chat')
+                      location.pathname.startsWith(
+                        isAnonymous
+                          ? '/anonymous-dashboard/private-chat'
+                          : '/therapist-dashboard/private-chat'
+                      )
                         ? 'active'
                         : ''
                     }`}
