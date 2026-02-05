@@ -544,8 +544,15 @@ function AnonymousPrivateChatView({
         fileUrl = await getDownloadURL(storageRef);
       }
 
+      // Check if replying to AI or if AI is active
+      const isReplyingToAI = replyTo?.role === "ai";
+      const shouldTriggerAI = isReplyingToAI || aiActive;
+
       const messageText = newMessage.trim();
       const chatRef = doc(db, "privateChats", currentChatId);
+
+      // Store user message data for AI to reply to
+      let userMessageData = null;
 
       await runTransaction(db, async (t) => {
         const snap = await t.get(chatRef);
@@ -567,14 +574,17 @@ function AnonymousPrivateChatView({
 
         t.update(chatRef, chatUpdate);
 
-        t.set(doc(collection(chatRef, "messages")), {
+        const userMsgRef = doc(collection(chatRef, "messages"));
+        
+        userMessageData = {
+          id: userMsgRef.id,
           text: messageText,
           fileUrl,
           userId,
           displayName,
           role: "user",
           timestamp: serverTimestamp(),
-          _aiEligible: false,
+          _aiEligible: !shouldTriggerAI,
           reactions: {},
           pinned: false,
           replyTo: replyTo
@@ -583,10 +593,125 @@ function AnonymousPrivateChatView({
                 displayName: replyTo.displayName,
                 text: replyTo.text,
                 fileUrl: replyTo.fileUrl || null,
+                role: replyTo.role || null,
               }
             : null,
-        });
+        };
+
+        t.set(userMsgRef, userMessageData);
       });
+
+      // AI RESPONSE (if triggered by replying to AI)
+      if (shouldTriggerAI && isReplyingToAI) {
+        setAiTyping(true);
+        try {
+          const allPrev = [...messages, ...pendingMessages]
+            .filter((m) => m.role === "user" || m.role === "ai")
+            .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
+
+          // Build context-aware prompt when replying
+          let aiPrompt = messageText || "Continue";
+          if (replyTo) {
+            aiPrompt = `[User is continuing the conversation about their previous message]
+            Your previous response was about: "${replyTo.text || "[Previous AI response]"}"
+
+            User's follow-up: ${messageText}
+
+            Please respond to the user's follow-up question or comment.`;
+          }
+
+          const aiResponse = await getAIResponse(aiPrompt, allPrev);
+
+          await runTransaction(db, async (t) => {
+            const snap = await t.get(chatRef);
+            if (!snap.exists()) throw new Error("Chat disappeared");
+
+            const aiMsgRef = doc(collection(chatRef, "messages"));
+            t.set(aiMsgRef, {
+              text: aiResponse,
+              role: "ai",
+              displayName: "Support Assistant",
+              userId: "ai",
+              timestamp: serverTimestamp(),
+              fileUrl: null,
+              reactions: {},
+              pinned: false,
+              _handledByAI: true,
+              // AI replies to user's message
+              replyTo: userMessageData ? {
+                id: userMessageData.id,
+                displayName: userMessageData.displayName,
+                text: userMessageData.text,
+                fileUrl: userMessageData.fileUrl || null,
+                role: userMessageData.role || null,
+              } : null,
+            });
+
+            t.update(chatRef, {
+              lastMessage: `Support Assistant: ${aiResponse}`,
+              lastUpdated: serverTimestamp(),
+              unreadCountForUser: increment(1),
+            });
+          });
+
+          setPendingMessages((prev) => [
+            ...prev,
+            {
+              id: `pending-ai-${Date.now()}`,
+              text: aiResponse,
+              role: "ai",
+              displayName: "Support Assistant",
+              userId: "ai",
+              timestamp: { toMillis: () => Date.now() },
+              fileUrl: null,
+              reactions: {},
+              pinned: false,
+              replyTo: userMessageData ? {
+                id: userMessageData.id,
+                displayName: userMessageData.displayName,
+                text: userMessageData.text,
+                fileUrl: userMessageData.fileUrl || null,
+                role: userMessageData.role || null,
+              } : null,
+            },
+          ]);
+        } catch (aiErr) {
+          console.error("AI error:", aiErr);
+          const errText = "Sorry, I couldn't respond right now. Please try again later.";
+
+          await runTransaction(db, async (t) => {
+            const snap = await t.get(chatRef);
+            if (!snap.exists()) return;
+
+            const errRef = doc(collection(chatRef, "messages"));
+            t.set(errRef, {
+              text: errText,
+              role: "system",
+              displayName: "System",
+              userId: "system",
+              timestamp: serverTimestamp(),
+              fileUrl: null,
+              reactions: {},
+              pinned: false,
+              replyTo: userMessageData ? {
+                id: userMessageData.id,
+                displayName: userMessageData.displayName,
+                text: userMessageData.text,
+                fileUrl: userMessageData.fileUrl || null,
+                role: userMessageData.role || null,
+              } : null,
+            });
+
+            t.update(chatRef, {
+              lastMessage: `System: ${errText}`,
+              lastUpdated: serverTimestamp(),
+            });
+          });
+        } finally {
+          setAiTyping(false);
+        }
+      }
+
       setNewMessage("");
       setShowEmojiPicker(false);
       setReplyTo(null);
@@ -702,7 +827,7 @@ function AnonymousPrivateChatView({
               });
             } catch (e) {
               console.error("AI initial failed:", e);
-              const errMsg = "Sorry, couldn’t respond right now.";
+              const errMsg = "Sorry, couldn't respond right now.";
               t.set(doc(collection(chatRef, "messages")), { text: errMsg, role: "system", timestamp: serverTimestamp() });
               setPendingMessages((p) => [
                 ...p,
@@ -787,7 +912,7 @@ function AnonymousPrivateChatView({
               });
             } catch (e) {
               console.error("AI fallback failed:", e);
-              const errTxt = "Sorry, couldn’t respond right now. Please wait for a therapist.";
+              const errTxt = "Sorry, couldn't respond right now. Please wait for a therapist.";
               t.set(doc(collection(chatRef, "messages")), { text: errTxt, role: "system", timestamp: serverTimestamp() });
               setPendingMessages((p) => [
                 ...p,
@@ -1038,7 +1163,7 @@ function AnonymousPrivateChatView({
                   <li>The current therapist won't be able to reach you</li>
                   <li>You will be re-assigned to a new therapist on next chat</li>
                 </ul>
-                <p className="confirm-question">Are you sure you’d like to end this chat now?</p>
+                <p className="confirm-question">Are you sure you'd like to end this chat now?</p>
                 <small className="privacy-note">Your past messages remain private and secure.</small>
               </div>
 
