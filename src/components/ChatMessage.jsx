@@ -302,6 +302,7 @@ const ChatMessage = memo(
                     displayName: msg.displayName || msg.user || "Anonymous",
                     text: getQuoteText(),
                     fileUrl: msg.fileUrl,
+                    role: msg.role,
                   });
                 }}
                 title="Reply"
