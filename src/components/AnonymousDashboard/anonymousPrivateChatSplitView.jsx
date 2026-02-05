@@ -544,9 +544,11 @@ function AnonymousPrivateChatView({
         fileUrl = await getDownloadURL(storageRef);
       }
 
-      // Check if replying to AI or if AI is active
+      // Check if replying to AI, replying to own message while AI active, or if AI is active
       const isReplyingToAI = replyTo?.role === "ai";
-      const shouldTriggerAI = isReplyingToAI || aiActive;
+      const isReplyingToOwnMessage = replyTo?.role === "user" && replyTo?.userId === userId;
+      const shouldTriggerManualAI = (isReplyingToAI || (isReplyingToOwnMessage && aiActive));
+      const shouldTriggerAI = shouldTriggerManualAI || aiActive;
 
       const messageText = newMessage.trim();
       const chatRef = doc(db, "privateChats", currentChatId);
@@ -584,7 +586,7 @@ function AnonymousPrivateChatView({
           displayName,
           role: "user",
           timestamp: serverTimestamp(),
-          _aiEligible: !shouldTriggerAI,
+          _aiEligible: !shouldTriggerManualAI,
           reactions: {},
           pinned: false,
           replyTo: replyTo
@@ -601,8 +603,8 @@ function AnonymousPrivateChatView({
         t.set(userMsgRef, userMessageData);
       });
 
-      // AI RESPONSE (if triggered by replying to AI)
-      if (shouldTriggerAI && isReplyingToAI) {
+      // AI RESPONSE (if triggered by replying to AI or own message)
+      if (shouldTriggerManualAI) {
         setAiTyping(true);
         try {
           const allPrev = [...messages, ...pendingMessages]
@@ -612,12 +614,23 @@ function AnonymousPrivateChatView({
           // Build context-aware prompt when replying
           let aiPrompt = messageText || "Continue";
           if (replyTo) {
-            aiPrompt = `[User is continuing the conversation about their previous message]
-            Your previous response was about: "${replyTo.text || "[Previous AI response]"}"
+            if (isReplyingToAI) {
+              // Replying to AI
+              aiPrompt = `[User is continuing the conversation about their previous message]
+              Your previous response was about: "${replyTo.text || "[Previous AI response]"}"
 
-            User's follow-up: ${messageText}
+              User's follow-up: ${messageText}
 
-            Please respond to the user's follow-up question or comment.`;
+              Please respond to the user's follow-up question or comment.`;
+            } else if (isReplyingToOwnMessage) {
+              // Replying to own message - provide context about what they're elaborating on
+              aiPrompt = `[User is adding more context to their previous message]
+              User's original message: "${replyTo.text || (replyTo.fileUrl ? "[Attachment]" : "[Previous message]")}"
+
+              User's additional context: ${messageText}
+
+              Please respond to the user taking into account both their original message and this follow-up.`;
+            }
           }
 
           const aiResponse = await getAIResponse(aiPrompt, allPrev);
