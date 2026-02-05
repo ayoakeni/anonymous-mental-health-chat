@@ -196,17 +196,6 @@ const ChatMessage = memo(
               <em className="deleted-message">
                 {showDeleting ? msg.text : "This message was deleted"}
               </em>
-            ) : msg.role === "ai" ? (
-              <>
-                {msg.text.split("\n\n").map((part, index) => (
-                  <span
-                    key={index}
-                    className={index === 0 ? "ai-user-quote" : "ai-response"}
-                  >
-                    <div className="ai-user-quote-text">{part}</div>
-                  </span>
-                ))}
-              </>
             ) : (
               <span>{msg.text || msg.message || ""}</span>
             )}

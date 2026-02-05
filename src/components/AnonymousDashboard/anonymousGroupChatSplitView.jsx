@@ -438,7 +438,9 @@ function AnonymousGroupChatSplitView({
       const groupRef = doc(db, "groupChats", activeGroupId);
       const messagesRef = collection(db, `groupChats/${activeGroupId}/messages`);
 
-      // === USER MESSAGE TRANSACTION ===
+      // USER MESSAGE TRANSACTION
+      let userMessageData = null; // Store user message data for AI to reply to
+      
       await runTransaction(db, async (tx) => {
         const groupSnap = await tx.get(groupRef);
         if (!groupSnap.exists()) throw new Error("Group does not exist");
@@ -446,7 +448,10 @@ function AnonymousGroupChatSplitView({
         const unreadCount = groupSnap.data()?.unreadCount || {};
 
         const userMsgRef = doc(messagesRef);
-        tx.set(userMsgRef, {
+        
+        // Prepare user message data
+        userMessageData = {
+          id: userMsgRef.id,
           text: cleanUserText || "",
           fileUrl,
           userId,
@@ -462,7 +467,9 @@ function AnonymousGroupChatSplitView({
             fileUrl: replyToMsg.fileUrl || null,
             role: replyToMsg.role || null,
           } : null,
-        });
+        };
+        
+        tx.set(userMsgRef, userMessageData);
 
         tx.update(groupRef, {
           lastMessage: {
@@ -475,10 +482,11 @@ function AnonymousGroupChatSplitView({
       });
 
       // Optimistic UI update
+      const pendingUserId = `pending-user-${Date.now()}`;
       setPendingMessages((prev) => [
         ...prev,
         {
-          id: `pending-user-${Date.now()}`,
+          id: pendingUserId,
           text: cleanUserText,
           fileUrl,
           userId,
@@ -500,7 +508,7 @@ function AnonymousGroupChatSplitView({
       setNewMessage("");
       setShowEmojiPicker(false);
 
-      // === AI RESPONSE (if triggered) ===
+      // AI RESPONSE (if triggered)
       if (isAiTrigger) {
         setAiTyping(true);
         try {
@@ -511,18 +519,18 @@ function AnonymousGroupChatSplitView({
           if (replyToMsg) {
             if (isReplyingToAI) {
               // Replying to AI - continue the conversation
-              aiPrompt = `[User is continuing the conversation]
-              Your previous message: "${replyToMsg.text || "[Previous AI response]"}"
+              aiPrompt = `[User is continuing the conversation about their previous message]
+              Your previous response was about: "${replyToMsg.text || "[Previous AI response]"}"
 
               User's follow-up: ${cleanUserText}
 
               Please respond to the user's follow-up question or comment.`;
             } else {
               // Replying to another user but mentioning AI
-              aiPrompt = `[User is replying to another user's message but wants AI assistance]
+              aiPrompt = `[User is asking for AI assistance regarding another user's message]
               Original message from ${replyToMsg.displayName}: "${replyToMsg.text || (replyToMsg.fileUrl ? "[Attachment]" : "[No content]")}"
 
-              User's reply: ${cleanUserText}
+              User's question/request: ${cleanUserText}
 
               Please provide helpful assistance based on this context.`;
             }
@@ -530,18 +538,8 @@ function AnonymousGroupChatSplitView({
           
           const aiResponse = await getAIResponse(aiPrompt, aiInput);
           
-          // Format AI response - include reply context if present
-          let aiFullText;
-          if (replyToMsg) {
-            if (isReplyingToAI) {
-              // More natural continuation format when replying to AI
-              aiFullText = `${displayName}: ${cleanUserText}\n\n${aiResponse}`;
-            } else {
-              aiFullText = `Replying to ${replyToMsg.displayName}: "${replyToMsg.text || (replyToMsg.fileUrl ? "[Attachment]" : "")}"\n\n${displayName}: ${cleanUserText}\n\n${aiResponse}`;
-            }
-          } else {
-            aiFullText = `${displayName}: ${cleanUserText}\n\n${aiResponse}`;
-          }
+          // Store just the AI response text - the replyTo structure handles the context
+          const aiFullText = aiResponse;
 
           await runTransaction(db, async (tx) => {
             const groupSnap = await tx.get(groupRef);
@@ -559,12 +557,13 @@ function AnonymousGroupChatSplitView({
               fileUrl: null,
               reactions: {},
               pinned: false,
-              replyTo: replyToMsg ? {
-                id: replyToMsg.id,
-                displayName: replyToMsg.displayName,
-                text: replyToMsg.text,
-                fileUrl: replyToMsg.fileUrl || null,
-                role: replyToMsg.role || null,
+              // AI replies to user's message (which contains user's reply to user)
+              replyTo: userMessageData ? {
+                id: userMessageData.id,
+                displayName: userMessageData.displayName,
+                text: userMessageData.text,
+                fileUrl: userMessageData.fileUrl || null,
+                role: userMessageData.role || null,
               } : null,
             });
 
@@ -590,12 +589,13 @@ function AnonymousGroupChatSplitView({
               fileUrl: null,
               reactions: {},
               pinned: false,
-              replyTo: replyToMsg ? {
-                id: replyToMsg.id,
-                displayName: replyToMsg.displayName,
-                text: replyToMsg.text,
-                fileUrl: replyToMsg.fileUrl || null,
-                role: replyToMsg.role || null,
+              // AI replies to user's message
+              replyTo: userMessageData ? {
+                id: userMessageData.id,
+                displayName: userMessageData.displayName,
+                text: userMessageData.text,
+                fileUrl: userMessageData.fileUrl || null,
+                role: userMessageData.role || null,
               } : null,
             },
           ]);
@@ -619,12 +619,13 @@ function AnonymousGroupChatSplitView({
               fileUrl: null,
               reactions: {},
               pinned: false,
-              replyTo: replyToMsg ? {
-                id: replyToMsg.id,
-                displayName: replyToMsg.displayName,
-                text: replyToMsg.text,
-                fileUrl: replyToMsg.fileUrl || null,
-                role: replyToMsg.role || null,
+              // Error message also replies to user's message
+              replyTo: userMessageData ? {
+                id: userMessageData.id,
+                displayName: userMessageData.displayName,
+                text: userMessageData.text,
+                fileUrl: userMessageData.fileUrl || null,
+                role: userMessageData.role || null,
               } : null,
             });
 
@@ -650,12 +651,13 @@ function AnonymousGroupChatSplitView({
               fileUrl: null,
               reactions: {},
               pinned: false,
-              replyTo: replyToMsg ? {
-                id: replyToMsg.id,
-                displayName: replyToMsg.displayName,
-                text: replyToMsg.text,
-                fileUrl: replyToMsg.fileUrl || null,
-                role: replyToMsg.role || null,
+              // Error message also replies to user's message
+              replyTo: userMessageData ? {
+                id: userMessageData.id,
+                displayName: userMessageData.displayName,
+                text: userMessageData.text,
+                fileUrl: userMessageData.fileUrl || null,
+                role: userMessageData.role || null,
               } : null,
             },
           ]);
