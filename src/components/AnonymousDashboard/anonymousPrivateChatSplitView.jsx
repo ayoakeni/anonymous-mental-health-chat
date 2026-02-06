@@ -548,7 +548,6 @@ function AnonymousPrivateChatView({
       const isReplyingToAI = replyTo?.role === "ai";
       const isReplyingToOwnMessage = replyTo?.role === "user" && replyTo?.userId === userId;
       const shouldTriggerManualAI = (isReplyingToAI || (isReplyingToOwnMessage && aiActive));
-      const shouldTriggerAI = shouldTriggerManualAI || aiActive;
 
       const messageText = newMessage.trim();
       const chatRef = doc(db, "privateChats", currentChatId);
