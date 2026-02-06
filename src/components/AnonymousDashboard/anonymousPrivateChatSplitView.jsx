@@ -585,7 +585,7 @@ function AnonymousPrivateChatView({
           displayName,
           role: "user",
           timestamp: serverTimestamp(),
-          _aiEligible: !shouldTriggerManualAI,
+          _aiEligible: !shouldTriggerManualAI, // Only disable auto-AI if manual AI will trigger
           reactions: {},
           pinned: false,
           replyTo: replyTo
@@ -815,32 +815,34 @@ function AnonymousPrivateChatView({
                 .filter((m) => m.role === "user" || m.role === "ai")
                 .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
 
-              const recentUser = [...messages, ...pendingMessages]
-                .filter((m) => m.role === "user" && m.text !== choiceText)
-                .sort((a, b) => getTimestampMillis(b.timestamp) - getTimestampMillis(a.timestamp));
+              // Send a welcoming greeting to start the conversation
+              const welcomePrompt = "The user has just chosen to chat with you. Please send a warm, welcoming message to start the conversation. Ask them how you can help them today.";
+              
+              const aiResp = await getAIResponse(welcomePrompt, allPrev);
 
-              const lastText = recentUser[0]?.text || (recentUser[0]?.fileUrl ? "Attachment" : "Hello");
-              const hasAttachment = !!recentUser[0]?.fileUrl;
-              const quoted = hasAttachment ? `"Attachment"\n\n` : `"${lastText}"\n\n`;
-
-              const aiResp = await getAIResponse(lastText, allPrev);
-              const fullAi = quoted + aiResp;
-
-              t.set(doc(collection(chatRef, "messages")), {
-                text: fullAi,
-                role: "ai",
-                displayName: "Support Assistant",
-                timestamp: serverTimestamp(),
-              });
-              t.update(chatRef, {
-                lastMessage: `Support Assistant: ${aiResp}`,
-                lastUpdated: serverTimestamp(),
-                unreadCountForUser: increment(1),
+              await runTransaction(db, async (transaction) => {
+                transaction.set(doc(collection(chatRef, "messages")), {
+                  text: aiResp,
+                  role: "ai",
+                  displayName: "Support Assistant",
+                  timestamp: serverTimestamp(),
+                });
+                transaction.update(chatRef, {
+                  lastMessage: `Support Assistant: ${aiResp}`,
+                  lastUpdated: serverTimestamp(),
+                  unreadCountForUser: increment(1),
+                });
               });
             } catch (e) {
               console.error("AI initial failed:", e);
               const errMsg = "Sorry, couldn't respond right now.";
-              t.set(doc(collection(chatRef, "messages")), { text: errMsg, role: "system", timestamp: serverTimestamp() });
+              await runTransaction(db, async (transaction) => {
+                transaction.set(doc(collection(chatRef, "messages")), { 
+                  text: errMsg, 
+                  role: "system", 
+                  timestamp: serverTimestamp() 
+                });
+              });
               setPendingMessages((p) => [
                 ...p,
                 { id: `u-${Date.now()}`, text: choiceText, role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
@@ -905,27 +907,43 @@ function AnonymousPrivateChatView({
                 .filter((m) => m.role === "user" && !["Yes", "No"].includes(m.text))
                 .sort((a, b) => getTimestampMillis(b.timestamp) - getTimestampMillis(a.timestamp));
 
-              const lastTxt = recent[0]?.text || (recent[0]?.fileUrl ? "Attachment" : "Hello");
-              const quoted = recent[0]?.fileUrl ? `"Attachment"\n\n` : `"${lastTxt}"\n\n`;
+              let aiPrompt;
+              let aiResp;
 
-              const resp = await getAIResponse(lastTxt, allPrev);
-              const full = quoted + resp;
+              if (recent.length > 0) {
+                // User has sent messages before - respond to their last message
+                const lastTxt = recent[0]?.text || (recent[0]?.fileUrl ? "Attachment" : "");
+                aiPrompt = `The user has been waiting for a therapist and you're now stepping in to help. Their last message was: "${lastTxt}". Please acknowledge their message and offer support.`;
+                aiResp = await getAIResponse(aiPrompt, allPrev);
+              } else {
+                // No previous messages - send a welcoming greeting
+                aiPrompt = "The user has accepted your offer to chat while waiting for a therapist. Please send a warm, welcoming message and ask how you can help them.";
+                aiResp = await getAIResponse(aiPrompt, allPrev);
+              }
 
-              t.set(doc(collection(chatRef, "messages")), {
-                text: full,
-                role: "ai",
-                displayName: "Support Assistant",
-                timestamp: serverTimestamp(),
-              });
-              t.update(chatRef, {
-                lastMessage: `Support Assistant: ${resp}`,
-                lastUpdated: serverTimestamp(),
-                unreadCountForUser: increment(1),
+              await runTransaction(db, async (transaction) => {
+                transaction.set(doc(collection(chatRef, "messages")), {
+                  text: aiResp,
+                  role: "ai",
+                  displayName: "Support Assistant",
+                  timestamp: serverTimestamp(),
+                });
+                transaction.update(chatRef, {
+                  lastMessage: `Support Assistant: ${aiResp}`,
+                  lastUpdated: serverTimestamp(),
+                  unreadCountForUser: increment(1),
+                });
               });
             } catch (e) {
               console.error("AI fallback failed:", e);
               const errTxt = "Sorry, couldn't respond right now. Please wait for a therapist.";
-              t.set(doc(collection(chatRef, "messages")), { text: errTxt, role: "system", timestamp: serverTimestamp() });
+              await runTransaction(db, async (transaction) => {
+                transaction.set(doc(collection(chatRef, "messages")), { 
+                  text: errTxt, 
+                  role: "system", 
+                  timestamp: serverTimestamp() 
+                });
+              });
               setPendingMessages((p) => [
                 ...p,
                 { id: `u-${Date.now()}`, text: "Yes", role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
