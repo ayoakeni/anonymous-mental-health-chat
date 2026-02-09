@@ -82,6 +82,7 @@ function AnonymousPrivateChatView({
   const fileInputRef = useRef(null);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const modalRef = useRef(null);
+  const processedMessagesRef = useRef(new Set());
 
   // Reset when changing chat
   useEffect(() => {
@@ -251,19 +252,6 @@ function AnonymousPrivateChatView({
       (snapshot) => {
         const msgs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-        // Mark confirmed user messages as AI-eligible
-        snapshot.docs.forEach((docSnap) => {
-          const data = docSnap.data();
-
-          if (
-            data.role === "user" &&
-            data._aiEligible === false &&
-            data.timestamp?.toMillis?.()
-          ) {
-            updateDoc(docSnap.ref, { _aiEligible: true }).catch(() => {});
-          }
-        });
-
         setMessages(msgs);
 
         setPendingMessages((prev) =>
@@ -431,18 +419,56 @@ function AnonymousPrivateChatView({
     if (allMsgs.length === 0) return;
 
     const last = allMsgs[allMsgs.length - 1];
+    
+    console.log("Auto-reply checking last message:", {
+      id: last.id,
+      role: last.role,
+      _aiEligible: last._aiEligible,
+      _handledByAI: last._handledByAI,
+      text: last.text,
+      alreadyProcessed: processedMessagesRef.current.has(last.id)
+    });
+
     if (last.role !== "user") return;
     if (!last._aiEligible) return;
     if (last._handledByAI) return;
 
+    // CRITICAL: Only process messages from Firebase (not pending)
+    if (!last.id || last.id.startsWith("pending-")) {
+      console.log("Skipping pending message");
+      return;
+    }
+
+    // NEW: Check if we've already processed this message
+    if (processedMessagesRef.current.has(last.id)) {
+      console.log("Already processed this message, skipping");
+      return;
+    }
+
+    // Mark as being processed
+    processedMessagesRef.current.add(last.id);
+
     let cancelled = false;
 
     const reply = async () => {
-      if (cancelled) return;
+      if (cancelled) {
+        // If cancelled, remove from processed set
+        processedMessagesRef.current.delete(last.id);
+        return;
+      }
 
+      console.log("Starting AI auto-reply for message:", last.id);
       setAiTyping(true);
 
       try {
+        const chatRef = doc(db, "privateChats", activeChatId);
+        
+        // FIRST: Mark the message as handled to prevent re-processing
+        const userMsgRef = doc(chatRef, "messages", last.id);
+        await updateDoc(userMsgRef, { _handledByAI: true });
+        console.log("Marked message as handled:", last.id);
+
+        // THEN: Generate AI response
         const history = allMsgs
           .filter((m) => m.role === "user" || m.role === "ai")
           .map((m) => ({
@@ -457,8 +483,7 @@ function AnonymousPrivateChatView({
           ? `"Attachment"\n\n`
           : `"${last.text || " "}"\n\n`;
 
-        const chatRef = doc(db, "privateChats", activeChatId);
-
+        // FINALLY: Send AI message
         await runTransaction(db, async (t) => {
           t.set(doc(collection(chatRef, "messages")), {
             text: quoted + aiText,
@@ -474,10 +499,17 @@ function AnonymousPrivateChatView({
             unreadCountForUser: increment(1),
           });
         });
+        
+        console.log("AI auto-reply completed");
       } catch (err) {
         console.error("Auto AI reply failed:", err);
+        // On error, remove from processed set so it can be retried
+        processedMessagesRef.current.delete(last.id);
       } finally {
-        if (!cancelled) setAiTyping(false);
+        if (!cancelled) {
+          console.log("Clearing aiTyping");
+          setAiTyping(false);
+        }
       }
     };
 
@@ -487,7 +519,12 @@ function AnonymousPrivateChatView({
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [ messages, pendingMessages, aiActive, activeChatId, aiTyping, isSending, getTimestampMillis,]);
+  }, [messages, pendingMessages, aiActive, activeChatId, aiTyping, isSending, getTimestampMillis]);
+
+  // Reset processed messages when changing chats
+  useEffect(() => {
+    processedMessagesRef.current.clear();
+  }, [activeChatId]);
 
   useEffect(() => {
     const pathChatId = location.pathname.split("/anonymous-dashboard/private-chat/")[1];
@@ -792,6 +829,7 @@ function AnonymousPrivateChatView({
           timestamp: Timestamp.fromMillis(baseTime),
           reactions: {},
           pinned: false,
+          _handledByAI: true,
         });
         t.update(chatRef, {
           lastMessage: `${displayName}: ${choiceText || "Hello"}`,
@@ -826,6 +864,7 @@ function AnonymousPrivateChatView({
                   role: "ai",
                   displayName: "Support Assistant",
                   timestamp: serverTimestamp(),
+                  _handledByAI: true,
                 });
                 transaction.update(chatRef, {
                   lastMessage: `Support Assistant: ${aiResp}`,
@@ -885,6 +924,7 @@ function AnonymousPrivateChatView({
           displayName,
           role: "user",
           timestamp: serverTimestamp(),
+          _handledByAI: true,
         });
 
         if (choice === "yes") {
@@ -927,6 +967,7 @@ function AnonymousPrivateChatView({
                   role: "ai",
                   displayName: "Support Assistant",
                   timestamp: serverTimestamp(),
+                  _handledByAI: true,
                 });
                 transaction.update(chatRef, {
                   lastMessage: `Support Assistant: ${aiResp}`,
@@ -1086,7 +1127,6 @@ function AnonymousPrivateChatView({
                 className="fa-solid fa-arrow-left mobile-back-btn"
                 onClick={() => {
                   setActiveChatId(null);
-                  localStorage.removeItem("activeChatId");
                   navigate("/anonymous-dashboard/");
                 }}
                 aria-label="Back to dashboard"
