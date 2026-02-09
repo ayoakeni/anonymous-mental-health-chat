@@ -46,8 +46,8 @@ const ChatMessage = memo(
     const showFailed = msg.failed;
     const showDeleting = msg.isPendingDelete;
 
-    // Special rendering for AI Offer Card
-    if (isAiOffer) {
+    // Special rendering for AI Offer Card (ANONYMOUS USER ONLY)
+    if (isAiOffer && !therapistId) {
       return (
         <div className="message system-message ai-offer-wrapper">
           <div className="ai-offer-card">
@@ -76,7 +76,37 @@ const ChatMessage = memo(
       );
     }
 
+    // Initial Choice Message - DIFFERENT FOR THERAPIST vs ANONYMOUS
     if (msg.type === "initial-choice-ai") {
+      // FOR THERAPISTS: Show as system message (no buttons)
+      if (therapistId) {
+        return (
+          <div className={`chat-message
+            ${
+              msg.role === "ai"
+                ? "ai"
+                : msg.role === "system"
+                ? "system"
+                : "user"
+            }`}
+          >
+            <div className="message-content">
+              <div className="message-content-time">
+                <span className="system-message-text">
+                  {msg.text}
+                </span>
+                <div className="message-meta-group">
+                  <span className="message-time">
+                    {formatMessageTime(msg.timestamp)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // FOR ANONYMOUS USERS: Show with interactive buttons
       return (
         <div className={`chat-message
           ${
