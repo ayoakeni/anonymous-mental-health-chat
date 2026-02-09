@@ -408,7 +408,7 @@ function AnonymousPrivateChatView({
     getTimestampMillis,
   ]);
 
-  // AI auto-reply when aiActive
+  // AI auto-reply when aiActive (only to user messages, only if not already handled, and only for messages from Firebase, not pending)
   useEffect(() => {
     if (!activeChatId || !aiActive || aiTyping || isSending) return;
 
@@ -420,28 +420,17 @@ function AnonymousPrivateChatView({
 
     const last = allMsgs[allMsgs.length - 1];
     
-    console.log("Auto-reply checking last message:", {
-      id: last.id,
-      role: last.role,
-      _aiEligible: last._aiEligible,
-      _handledByAI: last._handledByAI,
-      text: last.text,
-      alreadyProcessed: processedMessagesRef.current.has(last.id)
-    });
-
     if (last.role !== "user") return;
     if (!last._aiEligible) return;
     if (last._handledByAI) return;
 
     // CRITICAL: Only process messages from Firebase (not pending)
     if (!last.id || last.id.startsWith("pending-")) {
-      console.log("Skipping pending message");
       return;
     }
 
-    // NEW: Check if we've already processed this message
+    // Check if we've already processed this message
     if (processedMessagesRef.current.has(last.id)) {
-      console.log("Already processed this message, skipping");
       return;
     }
 
@@ -452,12 +441,10 @@ function AnonymousPrivateChatView({
 
     const reply = async () => {
       if (cancelled) {
-        // If cancelled, remove from processed set
         processedMessagesRef.current.delete(last.id);
         return;
       }
 
-      console.log("Starting AI auto-reply for message:", last.id);
       setAiTyping(true);
 
       try {
@@ -466,7 +453,6 @@ function AnonymousPrivateChatView({
         // FIRST: Mark the message as handled to prevent re-processing
         const userMsgRef = doc(chatRef, "messages", last.id);
         await updateDoc(userMsgRef, { _handledByAI: true });
-        console.log("Marked message as handled:", last.id);
 
         // THEN: Generate AI response
         const history = allMsgs
@@ -479,14 +465,10 @@ function AnonymousPrivateChatView({
         const lastUserText = last.text || (last.fileUrl ? "[Attachment]" : " ");
         const aiText = await getAIResponse(lastUserText, history);
 
-        const quoted = last.fileUrl
-          ? `"Attachment"\n\n`
-          : `"${last.text || " "}"\n\n`;
-
         // FINALLY: Send AI message
         await runTransaction(db, async (t) => {
           t.set(doc(collection(chatRef, "messages")), {
-            text: quoted + aiText,
+            text: aiText,
             role: "ai",
             displayName: "Support Assistant",
             _handledByAI: true,
@@ -500,16 +482,11 @@ function AnonymousPrivateChatView({
           });
         });
         
-        console.log("AI auto-reply completed");
       } catch (err) {
-        console.error("Auto AI reply failed:", err);
-        // On error, remove from processed set so it can be retried
+        showError("AI failed to respond. Please try again.");
         processedMessagesRef.current.delete(last.id);
       } finally {
-        if (!cancelled) {
-          console.log("Clearing aiTyping");
-          setAiTyping(false);
-        }
+        setAiTyping(false);
       }
     };
 
@@ -518,8 +495,9 @@ function AnonymousPrivateChatView({
     return () => {
       cancelled = true;
       clearTimeout(timeoutId);
+      setAiTyping(false);
     };
-  }, [messages, pendingMessages, aiActive, activeChatId, aiTyping, isSending, getTimestampMillis]);
+  }, [messages, pendingMessages, aiActive, activeChatId, aiTyping, isSending, getTimestampMillis, showError]);
 
   // Reset processed messages when changing chats
   useEffect(() => {
@@ -854,7 +832,9 @@ function AnonymousPrivateChatView({
                 .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
 
               // Send a welcoming greeting to start the conversation
-              const welcomePrompt = "The user has just chosen to chat with you. Please send a warm, welcoming message to start the conversation. Ask them how you can help them today.";
+              const welcomePrompt = `You are continuing a conversation where the user just chose to chat with you (the Support Assistant).
+              They are ready to start. Please respond naturally without greeting them again, as you already welcomed them. 
+              Just ask how you can help or invite them to share what's on their mind.`;
               
               const aiResp = await getAIResponse(welcomePrompt, allPrev);
 
@@ -953,11 +933,11 @@ function AnonymousPrivateChatView({
               if (recent.length > 0) {
                 // User has sent messages before - respond to their last message
                 const lastTxt = recent[0]?.text || (recent[0]?.fileUrl ? "Attachment" : "");
-                aiPrompt = `The user has been waiting for a therapist and you're now stepping in to help. Their last message was: "${lastTxt}". Please acknowledge their message and offer support.`;
+                aiPrompt = `The user has been waiting and you're now available to help. Their last message was: "${lastTxt}". Please respond directly to what they said without introducing yourself, as this is a continuation of an existing conversation.`;
                 aiResp = await getAIResponse(aiPrompt, allPrev);
               } else {
                 // No previous messages - send a welcoming greeting
-                aiPrompt = "The user has accepted your offer to chat while waiting for a therapist. Please send a warm, welcoming message and ask how you can help them.";
+                aiPrompt = "The user accepted your offer to chat. You already introduced yourself. Just briefly acknowledge their choice and ask how you can help - no need to greet or introduce yourself again.";
                 aiResp = await getAIResponse(aiPrompt, allPrev);
               }
 

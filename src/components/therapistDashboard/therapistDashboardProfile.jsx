@@ -25,11 +25,12 @@ const TherapistDashboardProfile = ({
     gender: '',
     position: '',
     profile: '',
+    specialties: [],
     rating: 0,
     profileImage: null
   });
 
-  // Sync form with therapistInfo when entering edit mode
+  // Sync form with therapistInfo when entering edit mode or when prop changes
   useEffect(() => {
     if (therapistInfo) {
       setFormData({
@@ -37,6 +38,9 @@ const TherapistDashboardProfile = ({
         gender: therapistInfo.gender || '',
         position: therapistInfo.position || '',
         profile: therapistInfo.profile || '',
+        specialties: Array.isArray(therapistInfo.specialties) 
+          ? therapistInfo.specialties 
+          : [],
         rating: therapistInfo.rating || 0,
         profileImage: therapistInfo.profileImage || null
       });
@@ -49,10 +53,12 @@ const TherapistDashboardProfile = ({
       gender: therapistInfo.gender || "",
       position: therapistInfo.position || "",
       profile: therapistInfo.profile || "",
+      specialties: Array.isArray(therapistInfo.specialties) 
+        ? therapistInfo.specialties 
+        : [],
       rating: therapistInfo.rating || 0,
       profileImage: therapistInfo.profileImage || null
     });
-
     setEditing(false);
   };
 
@@ -82,6 +88,7 @@ const TherapistDashboardProfile = ({
     if (!formData.name?.trim()) err.name = 'Name is required';
     if (!formData.gender) err.gender = 'Gender is required';
     if (!formData.position?.trim()) err.position = 'Position is required';
+    if (formData.specialties.length === 0) err.specialties = 'At least one specialty is required';
     setErrors(err);
     return Object.keys(err).length === 0;
   };
@@ -106,6 +113,7 @@ const TherapistDashboardProfile = ({
         gender: formData.gender,
         position: formData.position.trim(),
         profile: formData.profile.trim(),
+        specialties: formData.specialties,           // ← added
         rating: Number(formData.rating) || 0,
         ...(imageUrl && { profileImage: imageUrl })
       };
@@ -128,6 +136,24 @@ const TherapistDashboardProfile = ({
     }
   };
 
+  // Helper to add/remove specialty
+  const toggleSpecialty = (specialty) => {
+    setFormData(prev => {
+      if (prev.specialties.includes(specialty)) {
+        return { ...prev, specialties: prev.specialties.filter(s => s !== specialty) };
+      } else {
+        return { ...prev, specialties: [...prev.specialties, specialty] };
+      }
+    });
+  };
+
+  // Available specialties
+  const availableSpecialties = [
+    "Anxiety", "Depression", "Trauma & PTSD", "Couples Counseling",
+    "Family Therapy", "Addiction", "Grief", "Self-esteem", "Stress",
+    "ADHD", "LGBTQ+ Issues", "Child & Adolescent", "Career Counseling"
+  ];
+
   return (
     <div className="profilePageWrapper">
       {showCancelConfirm && (
@@ -135,7 +161,6 @@ const TherapistDashboardProfile = ({
           <div className="confirmBox">
             <h3>Discard changes?</h3>
             <p>Your unsaved changes will be lost.</p>
-
             <div className="confirmButtons">
               <button
                 className="confirmYes"
@@ -146,7 +171,6 @@ const TherapistDashboardProfile = ({
               >
                 Yes, discard
               </button>
-
               <button
                 className="confirmNo"
                 onClick={() => setShowCancelConfirm(false)}
@@ -231,6 +255,24 @@ const TherapistDashboardProfile = ({
                 {errors.position && <span className="error">{errors.position}</span>}
               </div>
 
+              {/* Specialties ── */}
+              <div className="formGroup">
+                <label className="label">Specialties</label>
+                <div className="specialties-container">
+                  {availableSpecialties.map(spec => (
+                    <button
+                      key={spec}
+                      type="button"
+                      className={`specialty-tag ${formData.specialties.includes(spec) ? 'selected' : ''}`}
+                      onClick={() => toggleSpecialty(spec)}
+                    >
+                      {spec}
+                    </button>
+                  ))}
+                </div>
+                {errors.specialties && <span className="error">{errors.specialties}</span>}
+              </div>
+
               <div className="formGroup">
                 <label className="label">Profile Description</label>
                 <textarea
@@ -252,10 +294,10 @@ const TherapistDashboardProfile = ({
                         {(therapistInfo.rating ?? 0) % 1 >= 0.5 && '★'}
                         <strong className='ratingValue'> {(therapistInfo.rating ?? 0).toFixed(1)}</strong>
                       </>
-                      ) : (
-                        'No ratings yet'
-                      )}
-                    </span>
+                    ) : (
+                      'No ratings yet'
+                    )}
+                  </span>
                 </div>
               </div>
 
@@ -301,10 +343,15 @@ const TherapistDashboardProfile = ({
               </div>
               <div className="profileField">
                 <span className="fieldLabel">Specialties:</span>
-                <span className="fieldValue">{(therapistInfo.specialties || ["Not specified"]).map((s, i) => (
-                  <span key={i}>{s}</span>
-                  ))}
-                </span>
+                <div className="fieldValue specialties-display">
+                  {therapistInfo.specialties?.length > 0 ? (
+                    therapistInfo.specialties.map((s, i) => (
+                      <span key={i} className="specialty-pill">{s}</span>
+                    ))
+                  ) : (
+                    'Not specified'
+                  )}
+                </div>
               </div>
               <div className="profileField">
                 <span className="fieldLabel">Rating:</span>
