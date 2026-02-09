@@ -156,6 +156,9 @@
 }
 
 .therapist-profile .rating {
+  display: inline-flex;
+  gap: 10px;
+  width: fit-content;
   color: var(--rating-color);
   font-size: 1.1rem;
 }
@@ -171,6 +174,101 @@
 
 .therapist-profile .rating .review:hover {
   opacity: 0.8;
+}
+
+.reviews-section {
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+}
+
+.dark .reviews-section {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.reviews-section h4 {
+  margin: 0 0 12px;
+  font-size: 1.15rem;
+  color: var(--text-color);
+}
+
+.review-item {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.dark .review-item {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.review-item:last-child {
+  border-bottom: none;
+}
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+  color: #666;
+}
+
+.dark .review-header {
+  color: #aaa;
+}
+
+.reviewer-name {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.review-date {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.review-stars {
+  color: var(--rating-color);
+  font-size: 1.1rem;
+  margin: 4px 0;
+}
+
+.review-comment {
+  margin: 8px 0 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: var(--text-color);
+}
+
+.no-reviews, .loading {
+  color: #888;
+  font-style: italic;
+  text-align: center;
+  padding: 20px 0;
+}
+
+.hide-reviews-btn {
+  margin-top: 16px;
+  padding: 8px 16px;
+  background: #e0e0e0;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.dark .hide-reviews-btn {
+  background: #444;
+  color: white;
+}
+
+.hide-reviews-btn:hover {
+  background: #d0d0d0;
+}
+
+.dark .hide-reviews-btn:hover {
+  background: #555;
 }
 
 .therapist-profile .action-buttons {

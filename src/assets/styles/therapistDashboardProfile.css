@@ -321,14 +321,14 @@ select.input {
   font-size: 1rem;
 }
 
-.specialties-container {
+.profileContainer .specialties-container {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
 }
 
-.specialty-tag {
+.profileContainer .specialty-tag {
   padding: 6px 12px;
   border: 1px solid #ccc;
   border-radius: 16px;
@@ -338,20 +338,20 @@ select.input {
   transition: all 0.2s;
 }
 
-.specialty-tag.selected {
+.profileContainer .specialty-tag.selected {
   background: #4a90e2;
   color: white;
   border-color: #4a90e2;
 }
 
-.specialties-display {
+.profileContainer .specialties-display {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 4px;
 }
 
-.specialty-pill {
+.profileContainer .specialty-pill {
   background: #e9f5ff;
   color: #2c5282;
   padding: 4px 10px;
@@ -359,7 +359,7 @@ select.input {
   font-size: 0.85rem;
 }
 
-.rating {
+.profileContainer .rating {
   color: #f5c518;
   display: flex;
   align-items: center;
