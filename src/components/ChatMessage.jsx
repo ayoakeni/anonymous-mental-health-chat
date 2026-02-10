@@ -22,6 +22,7 @@ const ChatMessage = memo(
     onInitialChoice,
     retrySend,
     initialChoiceMade = false,
+    aiOfferAnswered = false,
   }) => {
     
     const getQuoteText = () => {
@@ -49,6 +50,36 @@ const ChatMessage = memo(
 
     // Special rendering for AI Offer Card (ANONYMOUS USER ONLY)
     if (isAiOffer && !therapistId) {
+      // If already answered, show as message
+      if (aiOfferAnswered) {
+        return (
+          <div className={`chat-message
+            ${
+              msg.role === "ai"
+                ? "ai"
+                : msg.role === "system"
+                ? "system"
+                : "user"
+            }`}
+          >
+            <div className="message-content">
+              <div className="message-content-time">
+                <span className="ai-offer-text">
+                  It looks like you're waiting for a reply.
+                  Would you like to chat with our <strong>Support Assistant</strong> in the meantime?
+                </span>
+                <div className="message-meta-group">
+                  <span className="message-time">
+                    {formatMessageTime(msg.timestamp)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // Not answered yet - show interactive buttons
       return (
         <div  className={`chat-message
           ${
@@ -92,8 +123,9 @@ const ChatMessage = memo(
       );
     }
 
-    // Initial Choice Message
+    // Initial Choice Message - DIFFERENT FOR THERAPIST vs ANONYMOUS
     if (msg.type === "initial-choice-ai") {
+      // FOR THERAPISTS: Show as message (no buttons)
       if (therapistId) {
         return (
           <div  className={`chat-message
@@ -121,8 +153,9 @@ const ChatMessage = memo(
         );
       }
 
-      // FOR ANONYMOUS USERS: Show with interactive buttons
+      // FOR ANONYMOUS USERS: Show with interactive buttons OR as message if choice already made
       if (initialChoiceMade) {
+        // Choice already made - show as message
         return (
           <div className={`chat-message
             ${

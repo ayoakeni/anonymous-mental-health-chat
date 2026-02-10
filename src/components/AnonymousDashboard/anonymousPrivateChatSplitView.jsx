@@ -71,6 +71,7 @@ function AnonymousPrivateChatView({
   const [chatData, setChatData] = useState(null);
   const [hasUserSentMessage, setHasUserSentMessage] = useState(false);
   const [initialChoiceMade, setInitialChoiceMade] = useState(false);
+  const [aiOfferAnswered, setAiOfferAnswered] = useState(false);
 
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
@@ -89,6 +90,7 @@ function AnonymousPrivateChatView({
   useEffect(() => {
     setHasUserSentMessage(false);
     setInitialChoiceMade(false);
+    setAiOfferAnswered(false);
   }, [activeChatId]);
 
   // Chat document listener
@@ -107,6 +109,11 @@ function AnonymousPrivateChatView({
         // Check if initial choice was made based on chat data
         if (data.initialChoiceMade) {
           setInitialChoiceMade(true);
+        }
+        
+        // Check if AI offer was answered
+        if (data.aiOfferAnswered) {
+          setAiOfferAnswered(true);
         }
       } else {
         setChatData(null);
@@ -906,7 +913,11 @@ function AnonymousPrivateChatView({
   };
 
   const handleAiChoice = async (choice) => {
-    if (!activeChatId) return;
+    if (!activeChatId || aiOfferAnswered) return;
+    
+    // Immediately hide the buttons
+    setAiOfferAnswered(true);
+    
     const chatRef = doc(db, "privateChats", activeChatId);
 
     try {
@@ -921,6 +932,11 @@ function AnonymousPrivateChatView({
           role: "user",
           timestamp: serverTimestamp(),
           _handledByAI: true,
+        });
+        
+        // Mark AI offer as answered
+        t.update(chatRef, {
+          aiOfferAnswered: true,
         });
 
         if (choice === "yes") {
@@ -995,7 +1011,7 @@ function AnonymousPrivateChatView({
           setAiActive(false);
           t.set(doc(collection(chatRef, "messages")), {
             text: "Okay, please hold on while we connect you to a therapist.",
-            role: "ai",
+            role: "system",
             displayName: "Support Assistant",
             timestamp: serverTimestamp(),
           });
@@ -1005,6 +1021,8 @@ function AnonymousPrivateChatView({
     } catch (err) {
       console.error("AI choice error:", err);
       showError("Failed to process your request.");
+      // Rollback on error
+      setAiOfferAnswered(false);
     }
   };
 
@@ -1281,6 +1299,7 @@ function AnonymousPrivateChatView({
                   isSending={isSending}
                   onReply={handleReply}
                   initialChoiceMade={initialChoiceMade}
+                  aiOfferAnswered={aiOfferAnswered}
                 />
               </div>
             ))
