@@ -51,7 +51,7 @@ const ChatMessage = memo(
 
     // Special rendering for AI Offer Card (ANONYMOUS USER ONLY)
     if (isAiOffer && !therapistId) {
-      // If already answered OR therapist has joined, show as system message
+      // If already answered OR therapist has joined, show as message
       if (aiOfferAnswered || currentTherapistUid) {
         return (
           <div className={`chat-message
