@@ -67,7 +67,7 @@ const ChatMessage = memo(
               <div className="message-content-time">
                 <span className="system-message-text">
                   {currentTherapistUid 
-                    ? "A therapist has joined the chat."
+                    ? "A therapist has joined the chat. You can now chat with them directly."
                     : "It looks like you're waiting for a reply. Would you like to chat with our Support Assistant in the meantime?"
                   }
                 </span>
