@@ -936,12 +936,15 @@ function AnonymousPrivateChatView({
         const snap = await t.get(chatRef);
         if (!snap.exists()) return;
 
+        const baseTime = Date.now();
+
+        // User's choice message
         t.set(doc(collection(chatRef, "messages")), {
           text: choice === "yes" ? "Yes" : "No",
           userId,
           displayName,
           role: "user",
-          timestamp: serverTimestamp(),
+          timestamp: Timestamp.fromMillis(baseTime),
           _handledByAI: true,
         });
         
@@ -953,10 +956,11 @@ function AnonymousPrivateChatView({
         if (choice === "yes") {
           t.update(chatRef, { aiActive: true, aiOffered: false });
           setAiActive(true);
+          // System message comes AFTER user's choice
           t.set(doc(collection(chatRef, "messages")), {
             text: "You are now chatting with our support assistant until a therapist joins.",
             role: "system",
-            timestamp: serverTimestamp(),
+            timestamp: Timestamp.fromMillis(baseTime + 10),
           });
 
           setAiTyping(true);
@@ -1020,11 +1024,11 @@ function AnonymousPrivateChatView({
         } else {
           t.update(chatRef, { aiActive: false, aiOffered: false });
           setAiActive(false);
+          // System message comes AFTER user's choice
           t.set(doc(collection(chatRef, "messages")), {
             text: "Okay, please hold on while we connect you to a therapist.",
             role: "system",
-            displayName: "Support Assistant",
-            timestamp: serverTimestamp(),
+            timestamp: Timestamp.fromMillis(baseTime + 10),
           });
         }
       });

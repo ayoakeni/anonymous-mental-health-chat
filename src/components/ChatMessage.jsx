@@ -118,11 +118,19 @@ const ChatMessage = memo(
       // FOR THERAPISTS: Show as system message (no buttons)
       if (therapistId) {
         return (
-          <div className="chat-message system">
+          <div className={`chat-message
+            ${
+              msg.role === "ai"
+                ? "ai"
+                : msg.role === "system"
+                ? "system"
+                : "user"
+            }`}
+          >
             <div className="message-content">
               <div className="message-content-time">
                 <span className="system-message-text">
-                  <i className="fas fa-info-circle"></i> {msg.text}
+                  {msg.text}
                 </span>
                 <div className="message-meta-group">
                   <span className="message-time">
