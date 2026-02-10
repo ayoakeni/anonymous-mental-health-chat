@@ -50,7 +50,7 @@ const ChatMessage = memo(
 
     // Special rendering for AI Offer Card (ANONYMOUS USER ONLY)
     if (isAiOffer && !therapistId) {
-      // If already answered, show as message
+      // If already answered, show as system message
       if (aiOfferAnswered) {
         return (
           <div className={`chat-message
@@ -64,7 +64,7 @@ const ChatMessage = memo(
           >
             <div className="message-content">
               <div className="message-content-time">
-                <span className="ai-offer-text">
+                <span className="system-message-text">
                   It looks like you're waiting for a reply.
                   Would you like to chat with our <strong>Support Assistant</strong> in the meantime?
                 </span>
@@ -81,42 +81,32 @@ const ChatMessage = memo(
 
       // Not answered yet - show interactive buttons
       return (
-        <div  className={`chat-message
-          ${
-            msg.role === "ai"
-              ? "ai"
-              : msg.role === "system"
-              ? "system"
-              : "user"
-          }`}
-        >
-          <div className="message-content">
-            <div className="message-content-time">
-              <p className="ai-offer-text">
-                It looks like you're waiting for a reply.
-                Would you like to chat with our <strong>Support Assistant</strong> in the meantime?
-              </p>
-              <div className="ai-choice-buttons">
-                <button
-                  onClick={onAiYes}
-                  disabled={isSending || aiTyping}
-                  className="choice-assistant-btn"
-                >
-                  Yes, connect me
-                </button>
-                <button
-                  onClick={onAiNo}
-                  disabled={isSending || aiTyping}
-                  className="choice-therapist-btn"
-                >
-                  No, I'll wait
-                </button>
-              </div>
-              <div className="message-meta-group">
-                <span className="message-time">
-                  {formatMessageTime(msg.timestamp)}
-                </span>
-              </div>
+        <div className="message system-message ai-offer-wrapper">
+          <div className="ai-offer-card">
+            <p className="ai-offer-text">
+              It looks like you're waiting for a reply.<br />
+              Would you like to chat with our <strong>Support Assistant</strong> in the meantime?
+            </p>
+            <div className="ai-offer-buttons">
+              <button
+                onClick={onAiYes}
+                disabled={isSending || aiTyping}
+                className="ai-yes-btn"
+              >
+                Yes, connect me
+              </button>
+              <button
+                onClick={onAiNo}
+                disabled={isSending || aiTyping}
+                className="ai-no-btn"
+              >
+                No, I'll wait
+              </button>
+            </div>
+            <div className="message-meta-group">
+              <span className="message-time">
+                {formatMessageTime(msg.timestamp)}
+              </span>
             </div>
           </div>
         </div>
@@ -125,22 +115,14 @@ const ChatMessage = memo(
 
     // Initial Choice Message - DIFFERENT FOR THERAPIST vs ANONYMOUS
     if (msg.type === "initial-choice-ai") {
-      // FOR THERAPISTS: Show as message (no buttons)
+      // FOR THERAPISTS: Show as system message (no buttons)
       if (therapistId) {
         return (
-          <div  className={`chat-message
-            ${
-              msg.role === "ai"
-                ? "ai"
-                : msg.role === "system"
-                ? "system"
-                : "user"
-            }`}
-          >
+          <div className="chat-message system">
             <div className="message-content">
               <div className="message-content-time">
                 <span className="system-message-text">
-                  {msg.text}
+                  <i className="fas fa-info-circle"></i> {msg.text}
                 </span>
                 <div className="message-meta-group">
                   <span className="message-time">

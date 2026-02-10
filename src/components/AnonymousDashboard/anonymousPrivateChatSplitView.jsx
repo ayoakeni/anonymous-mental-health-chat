@@ -391,26 +391,37 @@ function AnonymousPrivateChatView({
     const elapsed = Date.now() - lastRelevantTime;
     if (elapsed < 7000) return;
 
-    const offer = {
-      id: "ai-offer-message",
-      type: "ai-offer",
-      text:
-        "Looks like you are waiting too long. Would you like to chat with our support assistant while waiting for a therapist?",
-      role: "ai",
-      timestamp: { toMillis: () => Date.now() },
+    // Save AI offer as Firestore message instead of pending message
+    const sendAiOffer = async () => {
+      try {
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(chatRef);
+          if (!snap.exists()) return;
+          
+          const data = snap.data();
+          // Double-check conditions inside transaction
+          if (data.aiOffered || data.aiActive) return;
+
+          // Create the AI offer message
+          tx.set(doc(collection(chatRef, "messages")), {
+            text: "Looks like you are waiting too long. Would you like to chat with our support assistant while waiting for a therapist?",
+            role: "ai",
+            displayName: "Support Assistant",
+            type: "ai-offer",
+            timestamp: serverTimestamp(),
+            reactions: {},
+            pinned: false,
+          });
+
+          // Mark that AI offer has been sent
+          tx.update(chatRef, { aiOffered: true });
+        });
+      } catch (err) {
+        console.error("Failed to send AI offer:", err);
+      }
     };
 
-    setPendingMessages((prev) => {
-      if (prev.some((m) => m.id === offer.id)) return prev;
-      return [...prev, offer];
-    });
-
-    runTransaction(db, async (tx) => {
-      const snap = await tx.get(chatRef);
-      if (snap.exists() && !snap.data().aiOffered && !snap.data().aiActive) {
-        tx.update(chatRef, { aiOffered: true });
-      }
-    }).catch(console.error);
+    sendAiOffer();
   }, [
     activeChatId,
     userId,
@@ -1290,7 +1301,7 @@ function AnonymousPrivateChatView({
                   therapistInfo={{ role: "user" }}
                   handleTherapistClick={() => {}}
                   scrollToMessage={scrollToMessage}
-                  isAiOffer={msg.type === "ai-offer" && !aiEnabled}
+                  isAiOffer={msg.type === "ai-offer"}
                   onAiYes={() => handleAiChoice("yes")}
                   onAiNo={() => handleAiChoice("no")}
                   isInitialChoice={msg.type === "initial-choice" || msg.type === "initial-choice-ai"}
