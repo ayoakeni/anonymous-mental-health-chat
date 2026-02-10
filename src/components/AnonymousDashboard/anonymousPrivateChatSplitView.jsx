@@ -855,7 +855,7 @@ function AnonymousPrivateChatView({
           t.set(doc(collection(chatRef, "messages")), {
             text: "You are now chatting with our support assistant.",
             role: "system",
-            timestamp: Timestamp.fromMillis(baseTime + 10)
+            timestamp: serverTimestamp(),
           });
 
           setAiTyping(true);
@@ -948,7 +948,7 @@ function AnonymousPrivateChatView({
           userId,
           displayName,
           role: "user",
-          timestamp: Timestamp.fromMillis(baseTime),
+          timestamp: serverTimestamp(),
           _handledByAI: true,
         });
         
@@ -964,7 +964,7 @@ function AnonymousPrivateChatView({
           t.set(doc(collection(chatRef, "messages")), {
             text: "You are now chatting with our support assistant until a therapist joins.",
             role: "system",
-            timestamp: Timestamp.fromMillis(baseTime + 10),
+            timestamp: serverTimestamp(),
           });
 
           setAiTyping(true);
@@ -1032,7 +1032,7 @@ function AnonymousPrivateChatView({
           t.set(doc(collection(chatRef, "messages")), {
             text: "Okay, please hold on while we connect you to a therapist.",
             role: "system",
-            timestamp: Timestamp.fromMillis(baseTime + 10),
+            timestamp: serverTimestamp(),
           });
         }
       });
