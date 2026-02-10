@@ -830,16 +830,19 @@ function AnonymousPrivateChatView({
 
         const baseTime = Date.now();
         const choiceText = choice === "therapist" ? "Chat with Therapist" : "Chat with Support Assistant";
+        
+        // User's choice message (comes first)
         t.set(doc(collection(chatRef, "messages")), {
           text: choiceText,
           userId,
           displayName,
           role: "user",
-          timestamp: Timestamp.fromMillis(baseTime),
+          timestamp: serverTimestamp(),
           reactions: {},
           pinned: false,
           _handledByAI: true,
         });
+        
         t.update(chatRef, {
           lastMessage: `${displayName}: ${choiceText || "Hello"}`,
           lastUpdated: serverTimestamp(),
@@ -850,6 +853,8 @@ function AnonymousPrivateChatView({
         if (choice === "assistant") {
           t.update(chatRef, { aiActive: true, aiOffered: false, status: "new" });
           setAiActive(true);
+          
+          // System message (comes after user's choice)
           t.set(doc(collection(chatRef, "messages")), {
             text: "You are now chatting with our support assistant.",
             role: "system",
@@ -907,10 +912,12 @@ function AnonymousPrivateChatView({
           t.update(chatRef, { aiActive: false, aiOffered: false, status: "requesting" });
           setAiActive(false);
           setHasUserSentMessage(true);
+          
+          // System message (comes after user's choice)
           t.set(doc(collection(chatRef, "messages")), {
             text: "We are contacting an available therapist for you.",
             role: "system",
-            timestamp: Timestamp.fromMillis(baseTime + 10),
+            timestamp: serverTimestamp(),
           });
         }
       });
