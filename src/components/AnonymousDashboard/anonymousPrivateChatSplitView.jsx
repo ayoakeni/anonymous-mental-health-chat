@@ -70,6 +70,7 @@ function AnonymousPrivateChatView({
   const [replyTo, setReplyTo] = useState(null);
   const [chatData, setChatData] = useState(null);
   const [hasUserSentMessage, setHasUserSentMessage] = useState(false);
+  const [initialChoiceMade, setInitialChoiceMade] = useState(false);
 
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
@@ -87,6 +88,7 @@ function AnonymousPrivateChatView({
   // Reset when changing chat
   useEffect(() => {
     setHasUserSentMessage(false);
+    setInitialChoiceMade(false);
   }, [activeChatId]);
 
   // Chat document listener
@@ -99,7 +101,13 @@ function AnonymousPrivateChatView({
     const chatRef = doc(db, "privateChats", activeChatId);
     return onSnapshot(chatRef, (snap) => {
       if (snap.exists()) {
-        setChatData(snap.data());
+        const data = snap.data();
+        setChatData(data);
+        
+        // Check if initial choice was made based on chat data
+        if (data.initialChoiceMade) {
+          setInitialChoiceMade(true);
+        }
       } else {
         setChatData(null);
       }
@@ -543,6 +551,7 @@ function AnonymousPrivateChatView({
             aiOffered: false,
             leftBy: {},
             initialGreetingSent: false,
+            initialChoiceMade: false,
             status: "new",
             createdAt: serverTimestamp(),
           });
@@ -789,7 +798,11 @@ function AnonymousPrivateChatView({
 
   // Handlers (initial choice, AI choice, reactions, emoji)
   const handleInitialChoice = async (choice) => {
-    if (!activeChatId) return;
+    if (!activeChatId || initialChoiceMade) return;
+    
+    // Immediately hide the buttons
+    setInitialChoiceMade(true);
+    
     const chatRef = doc(db, "privateChats", activeChatId);
 
     try {
@@ -813,6 +826,7 @@ function AnonymousPrivateChatView({
           lastMessage: `${displayName}: ${choiceText || "Hello"}`,
           lastUpdated: serverTimestamp(),
           unreadCountForTherapist: increment(1),
+          initialChoiceMade: true, // Mark in database
         });
 
         if (choice === "assistant") {
@@ -886,6 +900,8 @@ function AnonymousPrivateChatView({
     } catch (err) {
       console.error("Initial choice error:", err);
       showError("Failed to process your choice.");
+      // Rollback on error
+      setInitialChoiceMade(false);
     }
   };
 
@@ -1264,6 +1280,7 @@ function AnonymousPrivateChatView({
                   aiTyping={aiTyping}
                   isSending={isSending}
                   onReply={handleReply}
+                  initialChoiceMade={initialChoiceMade}
                 />
               </div>
             ))
