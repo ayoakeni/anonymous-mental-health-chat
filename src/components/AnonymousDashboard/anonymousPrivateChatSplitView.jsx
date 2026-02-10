@@ -44,8 +44,6 @@ const useMediaQuery = (query) => {
 };
 
 function AnonymousPrivateChatView({
-  privateChats,
-  formatTimestamp,
   getTimestampMillis,
   displayName,
   userId,
@@ -809,7 +807,6 @@ function AnonymousPrivateChatView({
       navigate("/anonymous-dashboard");
       showError("You have ended the chat.");
     } catch (err) {
-      console.error("Leave error:", err);
       showError("Failed to end chat.");
     }
   };

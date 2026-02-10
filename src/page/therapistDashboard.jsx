@@ -71,6 +71,13 @@ function TherapistDashboard() {
     }
   }, [closeError]);
 
+  // Cleanup error timeout
+  useEffect(() => {
+    return () => {
+      if (errorTimeout.current) clearTimeout(errorTimeout.current);
+    };
+  }, []);
+
   const therapistId = auth.currentUser?.uid;
 
   // ────── CORE HOOKS ──────
