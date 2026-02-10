@@ -23,6 +23,7 @@ const ChatMessage = memo(
     retrySend,
     initialChoiceMade = false,
     aiOfferAnswered = false,
+    currentTherapistUid = null, // NEW: Track if therapist has joined
   }) => {
     
     const getQuoteText = () => {
@@ -50,8 +51,8 @@ const ChatMessage = memo(
 
     // Special rendering for AI Offer Card (ANONYMOUS USER ONLY)
     if (isAiOffer && !therapistId) {
-      // If already answered, show as system message
-      if (aiOfferAnswered) {
+      // If already answered OR therapist has joined, show as system message
+      if (aiOfferAnswered || currentTherapistUid) {
         return (
           <div className={`chat-message
             ${
@@ -65,8 +66,10 @@ const ChatMessage = memo(
             <div className="message-content">
               <div className="message-content-time">
                 <span className="system-message-text">
-                  It looks like you're waiting for a reply.
-                  Would you like to chat with our <strong>Support Assistant</strong> in the meantime?
+                  {currentTherapistUid 
+                    ? "A therapist has joined the chat."
+                    : "It looks like you're waiting for a reply. Would you like to chat with our Support Assistant in the meantime?"
+                  }
                 </span>
                 <div className="message-meta-group">
                   <span className="message-time">
@@ -79,7 +82,7 @@ const ChatMessage = memo(
         );
       }
 
-      // Not answered yet - show interactive buttons
+      // Not answered yet AND no therapist - show interactive buttons
       return (
         <div className="message system-message ai-offer-wrapper">
           <div className="ai-offer-card">

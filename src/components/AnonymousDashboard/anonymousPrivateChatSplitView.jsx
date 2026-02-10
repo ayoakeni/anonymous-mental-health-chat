@@ -1319,6 +1319,7 @@ function AnonymousPrivateChatView({
                   onReply={handleReply}
                   initialChoiceMade={initialChoiceMade}
                   aiOfferAnswered={aiOfferAnswered}
+                  currentTherapistUid={currentTherapistUid}
                 />
               </div>
             ))
