@@ -65,6 +65,11 @@ export default function AdminPanel() {
   const messagesEndRef = useRef(null);
   const onlineCount = useOnlineCount();
 
+  // Sync online count from hook to stats
+  useEffect(() => {
+    setStats(s => ({ ...s, onlineCount }));
+  }, [onlineCount]);
+
   // Check admin access
   useEffect(() => {
     const user = auth.currentUser;
