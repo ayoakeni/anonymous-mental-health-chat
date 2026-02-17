@@ -11,10 +11,8 @@ import { ai } from "../utils/firebase";
         Respond kindly, with empathy and encouragement, 
         but remember you are not a professional therapist. 
         IMPORTANT RULES:
-        - Do NOT greet the user with "Hello" or "Hi" if you've already greeted them before in this conversation
-        - Do NOT repeat their message back to them
-        - Respond naturally and conversationally
-        - If this is a continuation of the conversation, just respond to their question directly`.trim()
+        - Do NOT greet the user with "Hello" or "Hi"
+        - Respond naturally and conversationally`.trim()
       }]
     }
   });
