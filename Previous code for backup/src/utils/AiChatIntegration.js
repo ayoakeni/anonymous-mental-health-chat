@@ -7,7 +7,7 @@ import { ai } from "../utils/firebase";
     systemInstruction: {
       role: "system",
       parts: [{
-        text: `You are a supportive mental health assistant. 
+        text: `You are a supportive mental health assistant for Anonymous Mental Health Support platform. 
         Respond kindly, with empathy and encouragement, 
         but remember you are not a professional therapist.`.trim()
       }]
