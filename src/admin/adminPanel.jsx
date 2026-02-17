@@ -23,6 +23,7 @@ import {
   Send, UserPlus, Activity, Search, Bell, BarChart3,
   Eye, EyeOff, AlertCircle
 } from "lucide-react";
+import { useOnlineCount } from "../hooks/useOnlineCount";
 
 import "../assets/styles/admin.css";
 
@@ -37,7 +38,7 @@ export default function AdminPanel() {
 
   const [stats, setStats] = useState({
     totalUsers: 0,
-    onlineUsers: 0,
+    onlineCount: 0,
     therapists: 0,
     activeChats: 0,
     pendingAppointments: 0,
@@ -62,6 +63,7 @@ export default function AdminPanel() {
   const [adminMessage, setAdminMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
+  const onlineCount = useOnlineCount();
 
   // Check admin access
   useEffect(() => {
@@ -76,10 +78,6 @@ export default function AdminPanel() {
     if (!isAuthenticated) return;
 
     const unsubs = [];
-
-    unsubs.push(onSnapshot(collection(db, "anonymousUsers"), snap => {
-      setStats(s => ({ ...s, onlineUsers: snap.size }));
-    }));
 
     unsubs.push(onSnapshot(collection(db, "users"), snap => {
       const users = snap.docs.map(d => ({
@@ -348,7 +346,7 @@ export default function AdminPanel() {
       batch.set(ref, {
         type: "announcement",
         text: announcement.trim(),
-        role: "admin",
+        role: "system",
         timestamp: serverTimestamp(),
       });
     });
@@ -438,7 +436,7 @@ export default function AdminPanel() {
         <div className="stats-grid">
           {[
             { label: "Total Users", value: stats.totalUsers, icon: Users, color: "blue" },
-            { label: "Online Now", value: stats.onlineUsers, icon: Activity, color: "green" },
+            { label: "Online Now", value: stats.onlineCount, icon: Activity, color: "green" },
             { label: "Therapists", value: stats.therapists, icon: Shield, color: "purple" },
             { label: "Active Chats", value: stats.activeChats, icon: MessagesSquare, color: "yellow" },
             { label: "Pending Appts", value: stats.pendingAppointments, icon: Calendar, color: "orange" },

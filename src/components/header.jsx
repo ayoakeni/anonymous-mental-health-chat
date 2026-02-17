@@ -141,18 +141,6 @@ function Header() {
           <Link to="/about" className="nav-link" onClick={() => setIsMenuOpen(false)}>
             About
           </Link>
-          
-          {/* Only show for anonymous */}
-          {/* {!user || user.isAnonymous ? (
-            <Link to="/find-therapist" 
-              className="nav-link" 
-              onClick={() => setIsMenuOpen(false)}>
-              <span className="nav-link-find-therapist">
-                <i className="fas fa-user" aria-hidden="true"></i>
-                Find a Therapists
-              </span>
-            </Link>
-          ) : null} */}
 
           <div
             className="live-indicator"
