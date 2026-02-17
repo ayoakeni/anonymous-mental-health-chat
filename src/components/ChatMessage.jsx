@@ -23,7 +23,7 @@ const ChatMessage = memo(
     retrySend,
     initialChoiceMade = false,
     aiOfferAnswered = false,
-    currentTherapistUid = null, // NEW: Track if therapist has joined
+    currentTherapistUid = null,
   }) => {
     
     const getQuoteText = () => {
@@ -48,6 +48,14 @@ const ChatMessage = memo(
     const showSending = msg.isPending && !msg.failed;
     const showFailed = msg.failed;
     const showDeleting = msg.isPendingDelete;
+
+    // ──────────────────────────────────────────────────────────────
+    //  Determine message ownership class for GROUP CHATS
+    // ──────────────────────────────────────────────────────────────
+    let ownershipClass = '';
+    if (!isPrivateChat && (msg.role === 'user' || msg.role === 'therapist')) {
+      ownershipClass = isOwnMessage ? 'own-message' : 'other-message';
+    }
 
     // Special rendering for AI Offer Card (ANONYMOUS USER ONLY)
     if (isAiOffer && !therapistId) {
@@ -235,13 +243,13 @@ const ChatMessage = memo(
           ${showDeleting ? "deleting" : ""}
           ${
             msg.role === "therapist"
-              ? "therapist"
+              ? `therapist ${ownershipClass}`
               : msg.role === "ai"
               ? "ai"
               : msg.role === "system"
               ? "system"
-              : "user"
-          }`}
+              : `user ${ownershipClass}`
+          }`.trim()}
         id={`msg-${msg.id}`}
       >
         <div className="message-content">

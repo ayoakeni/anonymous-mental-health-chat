@@ -1087,6 +1087,19 @@
   transition: background-color 0.2s ease;
 }
 
+/* Message grouping - reduce spacing for consecutive messages from same user */
+.message.grouped {
+  margin-top: 4px;
+}
+
+.message.grouped .chat-message .message-header {
+  display: none;
+}
+
+.message.grouped .chat-message .message-content {
+  padding-top: 6px;
+}
+
 .chat-message {
   max-width: 60%;
   width: fit-content;
@@ -1110,22 +1123,25 @@
   opacity: 0.7;
 }
 
-.therapist-dashboard .chat-message.ai,
-.therapist-dashboard  .chat-message.therapist {
+.therapist-dashboard .chat-message.therapist.own-message {
   margin-left: auto;
 }
 
-.therapist-dashboard .chat-message.therapist .message-content {
+.therapist-dashboard .chat-message.therapist.own-message .message-content {
   color: var(--text-color);
   background: var(--therapist-bg);
   border-left: 4px solid var(--accent-color);
 }
 
-.therapist-dashboard  .chat-message.user {
+.therapist-dashboard .chat-message.therapist.other-message,
+.therapist-dashboard .chat-message.user,
+.therapist-dashboard .chat-message.ai {
   margin-right: auto;
 }
 
-.therapist-dashboard  .chat-message.user .message-content {
+.therapist-dashboard .chat-message.therapist.other-message .message-content,
+.therapist-dashboard .chat-message.user .message-content,
+.therapist-dashboard .chat-message.ai .message-content {
   background: var(--bg-chat);
   backdrop-filter: var(--backdrop-filter);
   border-left: 4px solid var(--primary-color);
@@ -1137,25 +1153,28 @@
   border-left: 4px solid var(--secondary-color);
 }
 
-.anonymous-dashboard .chat-message.therapist {
-  margin-right: auto;
-}
-
-.anonymous-dashboard .chat-message.therapist .message-content {
-  background: var(--bg-chat);
-  backdrop-filter: var(--backdrop-filter);
-  border-left: 4px solid var(--accent-color);
-}
-
-.anonymous-dashboard .chat-message.user {
+.anonymous-dashboard .chat-message.user.own-message {
   margin-left: auto;
 }
 
-.anonymous-dashboard .chat-message.user .message-content {
+.anonymous-dashboard .chat-message.user.own-message .message-content {
   color: var(--text-color);
-  background: var(--bg-chat);
   background: var(--therapist-bg);
   border-left: 4px solid var(--primary-color);
+}
+
+.anonymous-dashboard .chat-message.user.other-message,
+.anonymous-dashboard .chat-message.therapist,
+.anonymous-dashboard .chat-message.ai {
+  margin-right: auto;
+}
+
+.anonymous-dashboard .chat-message.user.other-message .message-content,
+.anonymous-dashboard .chat-message.therapist .message-content,
+.anonymous-dashboard .chat-message.ai .message-content {
+  background: var(--bg-chat);
+  backdrop-filter: var(--backdrop-filter);
+  border-left: 4px solid var(--accent-color);
 }
 
 .chat-message.system {
@@ -1442,13 +1461,15 @@ can find the issue go on else do not alter. Cc > ayoakeni */
 
 .anonymous-dashboard .chat-message.therapist .message-reactions, 
 .anonymous-dashboard .chat-message.ai .message-reactions,
-.therapist-dashboard  .chat-message.user .message-reactions {
+.anonymous-dashboard .chat-message.user.other-message .message-reactions,
+.therapist-dashboard .chat-message.user .message-reactions,
+.therapist-dashboard .chat-message.ai .message-reactions,
+.therapist-dashboard .chat-message.therapist.other-message .message-reactions {
   right: -37px;
 }
 
-.anonymous-dashboard .chat-message.user .message-reactions,
-.therapist-dashboard .chat-message.ai .message-reactions,
-.therapist-dashboard  .chat-message.therapist .message-reactions {
+.anonymous-dashboard .chat-message.user.own-message .message-reactions,
+.therapist-dashboard .chat-message.therapist.own-message .message-reactions {
   left: -40px;
 }
 
@@ -1504,14 +1525,16 @@ can find the issue go on else do not alter. Cc > ayoakeni */
 }
 
 .anonymous-dashboard .chat-message.ai .message-reactions-view,
-.anonymous-dashboard .chat-message.therapist .message-reactions-view, 
-.therapist-dashboard .chat-message.user .message-reactions-view {
+.anonymous-dashboard .chat-message.therapist .message-reactions-view,
+.anonymous-dashboard .chat-message.user.other-message .message-reactions-view,
+.therapist-dashboard .chat-message.user .message-reactions-view,
+.therapist-dashboard .chat-message.ai .message-reactions-view,
+.therapist-dashboard .chat-message.therapist.other-message .message-reactions-view {
   margin: 5px auto 0 0;
 }
 
-.anonymous-dashboard .chat-message.user .message-reactions-view,
-.therapist-dashboard .chat-message.ai .message-reactions-view,
-.therapist-dashboard .chat-message.therapist .message-reactions-view {
+.anonymous-dashboard .chat-message.user.own-message .message-reactions-view,
+.therapist-dashboard .chat-message.therapist.own-message .message-reactions-view {
   margin: 5px 0 0 auto;
 }
 
@@ -1530,14 +1553,16 @@ can find the issue go on else do not alter. Cc > ayoakeni */
 }
 
 .anonymous-dashboard .chat-message.ai .message-actions,
-.anonymous-dashboard .chat-message.therapist .message-actions, 
-.therapist-dashboard .chat-message.user .message-actions {
+.anonymous-dashboard .chat-message.therapist .message-actions,
+.anonymous-dashboard .chat-message.user.other-message .message-actions,
+.therapist-dashboard .chat-message.user .message-actions,
+.therapist-dashboard .chat-message.ai .message-actions,
+.therapist-dashboard .chat-message.therapist.other-message .message-actions {
   right: 0;
 }
 
-.anonymous-dashboard .chat-message.user .message-actions, 
-.therapist-dashboard .chat-message.ai .message-actions,
-.therapist-dashboard .chat-message.therapist .message-actions {
+.anonymous-dashboard .chat-message.user.own-message .message-actions,
+.therapist-dashboard .chat-message.therapist.own-message .message-actions {
   left: 0;
 }
 
