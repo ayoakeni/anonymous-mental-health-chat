@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { db, storage, serverTimestamp } from "../utils/firebase";
 import {
-  doc, collection, query, orderBy, onSnapshot, limit, getDocs, increment, startAfter,
+  doc, collection, query, orderBy, onSnapshot, limit, getDocs, increment, startAfter, endBefore, limitToLast,
   runTransaction, arrayUnion, arrayRemove, deleteField
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -22,10 +22,13 @@ export function useActivePrivateChat(
   const [chatError, setChatError] = useState(null);
   const [validating, setValidating] = useState(false);
   const [inChat, setInChat] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(false);
   const prevMsgs = useRef([]);
 
   const unsubMsgs = useRef(() => {});
   const unsubEvents = useRef(() => {});
+  const latestTimestamp = useRef(null);
+  const earliestTimestamp = useRef(null);
 
   useEffect(() => {
     if (!activeChatId) return;
@@ -58,7 +61,6 @@ export function useActivePrivateChat(
 
         const data = snap.data();
 
-        // BLOCK if someone else already took it
         if (
           data.activeTherapist &&
           data.activeTherapist !== therapistId
@@ -66,7 +68,6 @@ export function useActivePrivateChat(
           throw new Error("Chat already taken by another therapist");
         }
 
-        // Lock chat to me
         tx.update(chatRef, {
           activeTherapist: therapistId,
           participants: arrayUnion(therapistId),
@@ -105,8 +106,6 @@ export function useActivePrivateChat(
         const chatSnap = await tx.get(chatRef);
         if (!chatSnap.exists()) throw new Error("Chat not found");
 
-        const data = chatSnap.data();
-
         tx.update(chatRef, {
           activeTherapist: null,
           status: "closed",
@@ -115,7 +114,6 @@ export function useActivePrivateChat(
           participants: arrayRemove(therapistId),
         });
 
-        // keep history of who ended it
         tx.set(doc(collection(chatRef, "events")), {
           type: "leave",
           user: "System",
@@ -125,12 +123,10 @@ export function useActivePrivateChat(
         });
       });
 
-      // Clear local state
       setMessages([]);
       setEvents([]);
       setInChat(false);
       showError("You've ended the session.", false);
-      // Navigate back to list
       navigate("/therapist-dashboard/private-chat");
     } catch (e) {
       console.error("Failed to end session:", e);
@@ -138,21 +134,54 @@ export function useActivePrivateChat(
     }
   }, [activeChatId, therapistId, displayName, navigate, showError]);
 
-  // ---------- SEND ----------
+  // ---------- SEND WITH OPTIMISTIC UPDATE ----------
   const sendMessage = async (text, file = null, replyTo = null) => {
     if (!text.trim() && !file) return;
     if (!activeChatId) return;
+
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    const optimisticMsg = {
+      id: tempId,
+      text: text || "",
+      fileUrl: file ? "uploading..." : "",
+      userId: therapistId,
+      displayName: displayName || "You",
+      role: "therapist",
+      timestamp: { seconds: Math.floor(Date.now() / 1000) - 2, nanoseconds: 0 },
+      pinned: false,
+      reactions: {},
+      replyTo: replyTo
+        ? {
+            id: replyTo.id,
+            displayName: replyTo.displayName,
+            text: replyTo.text || "",
+            fileUrl: replyTo.fileUrl || null,
+          }
+        : null,
+      isPending: true,
+      failed: false,
+    };
+
+    setMessages((prev) => {
+      const newList = [...prev, optimisticMsg];
+      return newList.sort((a, b) => 
+        (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0)
+      );
+    });
     setIsSending(true);
 
     let fileUrl = "";
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) return showError("File too large");
-      const sRef = ref(storage, `privateChats/${activeChatId}/${Date.now()}_${file.name}`);
-      await uploadBytes(sRef, file);
-      fileUrl = await getDownloadURL(sRef);
-    }
-
     try {
+      if (file) {
+        if (file.size > 5 * 1024 * 1024) {
+          throw new Error("File too large (>5 MB)");
+        }
+        const sRef = ref(storage, `privateChats/${activeChatId}/${Date.now()}_${file.name}`);
+        await uploadBytes(sRef, file);
+        fileUrl = await getDownloadURL(sRef);
+      }
+
       await runTransaction(db, async (tx) => {
         const msgRef = doc(collection(db, `privateChats/${activeChatId}/messages`));
         tx.set(msgRef, {
@@ -179,15 +208,67 @@ export function useActivePrivateChat(
         });
       });
     } catch (e) {
+      console.error("Send message error:", e);
       showError("Failed to send message.");
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId ? { ...m, isPending: false, failed: true } : m
+        )
+      );
     } finally {
       setIsSending(false);
     }
   };
 
+  // RETRY SEND
+  const retrySend = useCallback((failedMsg) => {
+    if (!failedMsg?.text && !failedMsg?.fileUrl) return;
+
+    setMessages(prev => prev.filter(m => m.id !== failedMsg.id));
+
+    sendMessage(
+      failedMsg.text || "",
+      null,
+      failedMsg.replyTo || null
+    ).catch(err => {
+      console.error("Retry failed:", err);
+      showError("Retry failed – please try typing again");
+    });
+  }, [sendMessage, showError]);
+
   // ---------- REACTION ----------
   const toggleReaction = async (msgId, emoji) => {
     if (!activeChatId || !therapistId) return;
+
+    // Optimistic update
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.id !== msgId) return msg;
+        const reactions = { ...(msg.reactions || {}) };
+        const hasThis = reactions[emoji]?.includes(therapistId) || false;
+
+        if (hasThis) {
+          reactions[emoji] = reactions[emoji].filter(
+            (id) => id !== therapistId
+          );
+          if (reactions[emoji]?.length === 0) delete reactions[emoji];
+        } else {
+          reactions[emoji] = [...(reactions[emoji] || []), therapistId];
+        }
+
+        const otherType = emoji === "heart" ? "thumbsUp" : "heart";
+        if (reactions[otherType]?.includes(therapistId)) {
+          reactions[otherType] = reactions[otherType].filter(
+            (id) => id !== therapistId
+          );
+          if (reactions[otherType]?.length === 0) delete reactions[otherType];
+        }
+
+        return { ...msg, reactions };
+      })
+    );
+
     const msgRef = doc(db, `privateChats/${activeChatId}/messages`, msgId);
 
     try {
@@ -198,38 +279,30 @@ export function useActivePrivateChat(
         const reactions = snap.data().reactions || {};
         const currentUserId = therapistId;
 
-        // Supported reactions — add more here if you expand later
         const reactionTypes = ["heart", "thumbsUp"];
         const otherType = reactionTypes.find(t => t !== emoji);
 
-        // Check if user already reacted with this emoji or the other one
         const hasThis = reactions[emoji]?.includes(currentUserId) || false;
         const hasOther = otherType && (reactions[otherType]?.includes(currentUserId) || false);
 
-        // Build updated reactions
         const updatedReactions = { ...reactions };
 
         if (hasThis) {
-          // Remove this reaction
           updatedReactions[emoji] = (reactions[emoji] || []).filter(id => id !== currentUserId);
         } else {
-          // Add this reaction
           updatedReactions[emoji] = [...(reactions[emoji] || []), currentUserId];
         }
 
-        // Always remove the other reaction if it exists
         if (hasOther && otherType) {
           updatedReactions[otherType] = (reactions[otherType] || []).filter(id => id !== currentUserId);
         }
 
-        // Clean up empty arrays to keep Firestore tidy
         Object.keys(updatedReactions).forEach(key => {
           if (updatedReactions[key]?.length === 0) {
             delete updatedReactions[key];
           }
         });
 
-        // If no reactions left at all, optionally clear the field (Firestore will remove it)
         const finalReactions = Object.keys(updatedReactions).length === 0 ? deleteField() : updatedReactions;
 
         tx.update(msgRef, { reactions: finalReactions });
@@ -237,6 +310,31 @@ export function useActivePrivateChat(
     } catch (err) {
       console.error("Error toggling reaction:", err);
       showError("Failed to update reaction.");
+
+      // Rollback
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id !== msgId) return msg;
+          const reactions = { ...(msg.reactions || {}) };
+          const hasThis = reactions[emoji]?.includes(therapistId);
+
+          if (hasThis) {
+            reactions[emoji] = reactions[emoji].filter(
+              (id) => id !== therapistId
+            );
+            if (!reactions[emoji]?.length) delete reactions[emoji];
+          } else {
+            if (reactions[emoji]) {
+              reactions[emoji] = reactions[emoji].filter(
+                (id) => id !== therapistId
+              );
+              if (!reactions[emoji].length) delete reactions[emoji];
+            }
+          }
+
+          return { ...msg, reactions };
+        })
+      );
     }
   };
 
@@ -245,7 +343,6 @@ export function useActivePrivateChat(
     async (msgId) => {
       if (!activeChatId || !therapistId) return;
 
-      // Optimistic update
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === msgId
@@ -292,7 +389,6 @@ export function useActivePrivateChat(
         console.error("Failed to delete message:", e);
         showError("Failed to delete message. Try again later.");
 
-        // Rollback
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === msgId
@@ -315,7 +411,6 @@ export function useActivePrivateChat(
 
       const newPinned = !currentPinned;
 
-      // Optimistic update
       setMessages((prev) =>
         prev.map((m) => {
           if (m.id === msgId) {
@@ -325,7 +420,6 @@ export function useActivePrivateChat(
               pinnedBy: newPinned ? displayName : null,
             };
           }
-          // If pinning new message → unpin old one
           if (newPinned && m.pinned && m.id !== msgId) {
             return { ...m, pinned: false, pinnedBy: null };
           }
@@ -367,7 +461,6 @@ export function useActivePrivateChat(
             pinnedMessageId: newPinned ? msgId : null,
           });
 
-          // Only create event when actually pinning (newPinned === true)
           if (newPinned) {
             const eventRef = doc(collection(privateRef, "events"));
             tx.set(eventRef, {
@@ -378,13 +471,11 @@ export function useActivePrivateChat(
               timestamp: serverTimestamp(),
             });
           }
-          // ← No event created when unpinning
         });
       } catch (e) {
         console.error("Failed to pin/unpin message:", e);
         showError("Failed to pin/unpin message.");
 
-        // Rollback
         setMessages((prev) =>
           prev.map((m) => {
             if (m.id === msgId) {
@@ -402,28 +493,34 @@ export function useActivePrivateChat(
     [activeChatId, displayName, showError]
   );
 
-  // ---------- LOAD MORE ----------
+  // ---------- LOAD MORE (older messages) ----------
   const loadMore = useCallback(async () => {
     if (!activeChatId || !hasMore || loading) return;
     setLoading(true);
     try {
-      const last = messages[messages.length - 1];
       const q = query(
         collection(db, `privateChats/${activeChatId}/messages`),
-        orderBy("timestamp", "desc"),
-        startAfter(last?.timestamp),
-        limit(50)
+        orderBy("timestamp", "asc"),
+        endBefore(earliestTimestamp.current),
+        limitToLast(30)
       );
       const snap = await getDocs(q);
-      const newMsgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setMessages(prev => [...prev, ...newMsgs]);
-      setHasMore(snap.docs.length === 50);
+      const newMsgs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        const filteredNew = newMsgs.filter((m) => !existingIds.has(m.id));
+        return [...filteredNew, ...prev];
+      });
+      setHasMore(snap.docs.length === 30);
+      if (snap.docs.length > 0) {
+        earliestTimestamp.current = newMsgs[0].timestamp;
+      }
     } catch (e) {
       showError("Failed to load more messages.");
     } finally {
       setLoading(false);
     }
-  }, [activeChatId, messages, hasMore, loading, showError]);
+  }, [activeChatId, hasMore, loading, showError]);
 
   // ---------- VALIDATE ON ROUTE CHANGE ----------
   useEffect(() => {
@@ -433,10 +530,11 @@ export function useActivePrivateChat(
       setChatError(null);
       setInChat(false);
       setValidating(false);
+      latestTimestamp.current = null;
+      earliestTimestamp.current = null;
       return;
     }
 
-    // Always try to join — new logic is safe
     join(activeChatId);
   }, [activeChatId, join]);
 
@@ -449,19 +547,66 @@ export function useActivePrivateChat(
 
     const chatRef = doc(db, "privateChats", activeChatId);
 
-    const msgQ = query(
-      collection(chatRef, "messages"),
-      orderBy("timestamp", "desc"),
-      limit(50)
-    );
-    unsubMsgs.current = onSnapshot(msgQ, snap => {
-      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      const newOnes = msgs.filter(m => !prevMsgs.current.some(p => p.id === m.id));
-      setMessages(msgs);
-      prevMsgs.current = msgs;
-      setHasMore(snap.docs.length === 50);
-      if (newOnes.length) playNotification();
-    }, () => setChatError("Failed to load messages"));
+    const loadInitialMessages = async () => {
+      setIsInitialLoading(true);
+      const msgQ = query(
+        collection(chatRef, "messages"),
+        orderBy("timestamp", "asc"),
+        limitToLast(30)
+      );
+      try {
+        const snap = await getDocs(msgQ);
+        const msgs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setMessages(msgs);
+        setHasMore(snap.docs.length === 30);
+        if (msgs.length > 0) {
+          latestTimestamp.current = msgs[msgs.length - 1].timestamp;
+          earliestTimestamp.current = msgs[0].timestamp;
+
+          const newQ = query(
+            collection(chatRef, "messages"),
+            orderBy("timestamp", "asc"),
+            startAfter(latestTimestamp.current)
+          );
+          unsubMsgs.current = onSnapshot(newQ, (newSnap) => {
+            if (newSnap.empty) return;
+
+            const incoming = newSnap.docs.map((d) => ({
+              id: d.id,
+              ...d.data(),
+              isPending: false,
+            }));
+
+            setMessages((prev) => {
+              let updated = [...prev];
+
+              updated = updated.filter(
+                (m) => !(m.isPending && m.userId === therapistId)
+              );
+
+              incoming.forEach((realMsg) => {
+                if (!updated.some((m) => m.id === realMsg.id)) {
+                  updated.push(realMsg);
+                }
+              });
+
+              return updated;
+            });
+
+            if (incoming.length > 0) {
+              playNotification();
+              latestTimestamp.current = incoming[incoming.length - 1].timestamp;
+            }
+          });
+        }
+      } catch (e) {
+        setChatError("Failed to load messages");
+      } finally {
+        setIsInitialLoading(false);
+      }
+    };
+
+    loadInitialMessages();
 
     const evQ = query(collection(chatRef, "events"), orderBy("timestamp"));
     unsubEvents.current = onSnapshot(evQ, snap => {
@@ -472,7 +617,7 @@ export function useActivePrivateChat(
       unsubMsgs.current();
       unsubEvents.current();
     };
-  }, [activeChatId, playNotification]);
+  }, [activeChatId, playNotification, therapistId]);
 
   return {
     messages,
@@ -490,5 +635,7 @@ export function useActivePrivateChat(
     deleteMessage,
     pinMessage,
     loadMore,
+    isInitialLoading,
+    retrySend,
   };
 }

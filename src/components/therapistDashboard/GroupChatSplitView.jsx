@@ -5,6 +5,7 @@ import ResizableSplitView from "../../components/resizableSplitView";
 import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import EmojiPicker from "emoji-picker-react";
 import { useTypingStatus } from "../../hooks/useTypingStatus";
+import { shouldGroupMessage } from "../../utils/messageGrouping";
 
 const useMediaQuery = (query) => {
   const [matches, setMatches] = useState(false);
@@ -634,8 +635,12 @@ function GroupChatSplitView({
                   </div>
                 )}
 
-                {combinedGroupChat.map((msg, index) => (
-                  <React.Fragment key={`${msg.id}-${msg.type || "message"}`}>
+                {combinedGroupChat.map((msg, index) => {
+                  const previousMsg = index > 0 ? combinedGroupChat[index - 1] : null;
+                  const isGrouped = shouldGroupMessage(msg, previousMsg);
+                  
+                  return (
+                    <React.Fragment key={`${msg.id}-${msg.type || "message"}`}>
                     {/* unread divider logic */}
                     {lastReadIndex >= 0 &&
                       index === lastReadIndex &&
@@ -649,7 +654,7 @@ function GroupChatSplitView({
                       )
                     }
 
-                    <div className="message" id={`msg-${msg.id}`}>
+                    <div className={`message ${isGrouped ? 'grouped' : ''}`} id={`msg-${msg.id}`}>
                       <ChatMessage
                         msg={msg}
                         toggleReaction={toggleReaction}
@@ -667,7 +672,8 @@ function GroupChatSplitView({
                       />
                     </div>
                   </React.Fragment>
-                ))}
+                  );
+                })}
               </>
             )}
             

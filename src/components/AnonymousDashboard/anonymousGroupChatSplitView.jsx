@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { db, storage, ref, uploadBytes, getDownloadURL } from "../../utils/firebase";
 import {
@@ -16,6 +16,8 @@ import {
   getDoc,
   getDocs,
   startAfter,
+  endBefore,
+  limitToLast,
 } from "firebase/firestore";
 import { useTypingStatus } from "../../hooks/useTypingStatus";
 import ChatMessage from "../ChatMessage";
@@ -24,6 +26,7 @@ import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import EmojiPicker from "emoji-picker-react";
 import TherapistProfile from "../TherapistProfile";
 import { getAIResponse, mapMessagesForAI} from "../../utils/AiChatIntegration";
+import { shouldGroupMessage } from "../../utils/messageGrouping";
 
 /* -------------------------------------------------------------
    Simple media-query hook (no external deps)
@@ -69,8 +72,26 @@ function AnonymousGroupChatSplitView({
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const [aiTyping, setAiTyping] = useState(false);
   const [pendingMessages, setPendingMessages] = useState([]);
-  const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  
+  // ─── NEW: Scroll & loading states ───
+  const [isInitialLoading, setIsInitialLoading] = useState(false);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [initialPositioningDone, setInitialPositioningDone] = useState(false);
+  const [newMessagesSinceLastScroll, setNewMessagesSinceLastScroll] = useState(0);
+  const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(null);
+  const [lastReadIndex, setLastReadIndex] = useState(-1);
+  const [initialScrollDone, setInitialScrollDone] = useState(false);
+  const [hasJumpedToFirstUnread, setHasJumpedToFirstUnread] = useState(false);
+  const isUserAtBottom = useRef(true);
+  const isInitial = useRef(true);
+  const prevMessageCount = useRef(0);
+  const prevCombinedLength = useRef(0);
+  const prevLastMsgId = useRef(null);
+  const latestTimestamp = useRef(null);
+  const earliestTimestamp = useRef(null);
+  
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
   const modalRef = useRef(null);
@@ -87,79 +108,281 @@ function AnonymousGroupChatSplitView({
     [groupChats, activeGroupId]
   );
 
-  // Menu ellipsis
+  // Reset scroll state when changing chats
   useEffect(() => {
-    const closeMenu = (e) => {
-      // Only close if click is outside the entire menu container
-      if (!e.target.closest(".leave-participant") && !e.target.closest(".chat-options-menu")) {
-        setIsParticipantsOpen(false);
-      }
-    };
-    if (isParticipantsOpen) {
-      document.addEventListener("click", closeMenu);
-    }
-    return () => {
-      document.removeEventListener("click", closeMenu);
-    };
-  }, [isParticipantsOpen]);
+    setInitialScrollDone(false);
+    setInitialPositioningDone(false);
+    setLastReadIndex(-1);
+    setNewMessagesSinceLastScroll(0);
+    setFirstUnreadMessageId(null);
+    setHasJumpedToFirstUnread(false);
+    setShowScrollToBottom(false);
+    isInitial.current = true;
 
-  // Auto scroll to bottom when new messages arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, groupEvents, pendingMessages]);
-  
-  // Load more messages (pagination)
+    if (chatBoxRef.current) {
+      chatBoxRef.current.scrollTop = 0;
+    }
+  }, [activeGroupId]);
+
+ // Load more messages (pagination) with improved logic
   const loadMoreMessages = useCallback(async () => {
-    if (!activeGroupId || !hasMoreMessages || isLoadingChat) return;
-    setIsLoadingChat(true);
+    if (!activeGroupId || !hasMoreMessages || isLoadingOlder) return;
+    setIsLoadingOlder(true);
+    
     try {
       const groupRef = doc(db, "groupChats", activeGroupId);
-      const lastVisibleMsg = messages[messages.length - 1];
-      const nextQuery = query(
+      const q = query(
         collection(groupRef, "messages"),
-        orderBy("timestamp", "desc"),
-        startAfter(lastVisibleMsg?.timestamp),
-        limit(50)
+        orderBy("timestamp", "asc"),
+        endBefore(earliestTimestamp.current),
+        limitToLast(30)
       );
-      const snapshot = await getDocs(nextQuery);
+      const snapshot = await getDocs(q);
       const newMessages = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setMessages((prev) => [...newMessages, ...prev]);
-      setHasMoreMessages(snapshot.docs.length === 50);
+      
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        const filteredNew = newMessages.filter((m) => !existingIds.has(m.id));
+        return [...filteredNew, ...prev];
+      });
+      
+      setHasMoreMessages(snapshot.docs.length === 30);
+      if (newMessages.length > 0) {
+        earliestTimestamp.current = newMessages[0].timestamp;
+      }
     } catch (err) {
       console.error("Error loading more messages:", err);
       showError("Failed to load more messages. Please try again.");
     } finally {
-      setIsLoadingChat(false);
+      setIsLoadingOlder(false);
     }
-  }, [activeGroupId, hasMoreMessages, isLoadingChat, messages, setMessages, setHasMoreMessages, showError]);
+  }, [activeGroupId, hasMoreMessages, isLoadingOlder, showError]);
 
-  // Handle scroll to load more messages
+  const handleScroll = useCallback(() => {
+    if (!chatBoxRef.current) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = chatBoxRef.current;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    const atBottom = distanceFromBottom <= 120;
+
+    const wasNotAtBottom = !isUserAtBottom.current;
+    isUserAtBottom.current = atBottom;
+    setShowScrollToBottom(!atBottom);
+
+    if (atBottom && (wasNotAtBottom || firstUnreadMessageId)) {
+      setNewMessagesSinceLastScroll(0);
+      setFirstUnreadMessageId(null);
+      setHasJumpedToFirstUnread(false);
+      // Mark as read
+      if (activeGroupId && userId) {
+        const groupRef = doc(db, "groupChats", activeGroupId);
+        runTransaction(db, async (tx) => {
+          const snap = await tx.get(groupRef);
+          if (!snap.exists()) return;
+          const data = snap.data();
+          if (data.participants?.includes(userId)) {
+            tx.update(groupRef, { [`unreadCount.${userId}`]: 0 });
+          }
+        }).catch(err => console.error("Failed to mark as read:", err));
+      }
+      setLastReadIndex(combinedGroupChat.length);
+    }
+
+    if (scrollTop <= 400 && hasMoreMessages && !isLoadingOlder && initialPositioningDone) {
+      loadMoreMessages();
+    }
+  }, [hasMoreMessages, isLoadingOlder, loadMoreMessages, initialPositioningDone, firstUnreadMessageId, activeGroupId, userId]);
+
+  // Maintain scroll position when loading older
+  useEffect(() => {
+    if (!isLoadingOlder || !chatBoxRef.current) return;
+
+    const container = chatBoxRef.current;
+    const prevHeight = container.scrollHeight;
+    const prevTop = container.scrollTop;
+
+    const timer = setTimeout(() => {
+      const heightAdded = container.scrollHeight - prevHeight;
+      const targetTop = prevTop + heightAdded - 120;
+
+      container.scrollTo({
+        top: targetTop,
+        behavior: "auto"
+      });
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [isLoadingOlder, messages]);
+
   useEffect(() => {
     const chatBox = chatBoxRef.current;
     if (!chatBox) return;
+    chatBox.addEventListener("scroll", handleScroll);
+    handleScroll();
+    return () => chatBox.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
 
-    const handleScroll = () => {
-      if (chatBox.scrollTop === 0 && hasMoreMessages && !isLoadingChat) {
-        loadMoreMessages();
+  const combinedGroupChat = useMemo(() => {
+    return [...messages, ...groupEvents, ...pendingMessages].sort(
+      (a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp)
+    );
+  }, [messages, groupEvents, pendingMessages, getTimestampMillis]);
+
+  useEffect(() => {
+    const currLen = combinedGroupChat.length;
+    const addedCount = currLen - prevCombinedLength.current;
+    if (addedCount > 0 && combinedGroupChat[currLen - 1]?.id === prevLastMsgId.current) {
+      setLastReadIndex(prev => prev + addedCount);
+    }
+    prevCombinedLength.current = currLen;
+    prevLastMsgId.current = combinedGroupChat[currLen - 1]?.id;
+  }, [combinedGroupChat]);
+
+  // Set initial lastReadIndex based on unread
+  useEffect(() => {
+    if (lastReadIndex !== -1 || isInitialLoading || combinedGroupChat.length === 0) return;
+    const unread = activeGroup?.unreadCount?.[userId] || 0;
+    setLastReadIndex(combinedGroupChat.length - unread);
+    setInitialScrollDone(false);
+  }, [lastReadIndex, isInitialLoading, combinedGroupChat, activeGroup, userId]);
+
+  // Initial scroll positioning
+  useEffect(() => {
+    if (initialScrollDone || isInitialLoading || combinedGroupChat.length === 0) return;
+
+    const unreadCount = activeGroup?.unreadCount?.[userId] || 0;
+
+    if (unreadCount > 0 && lastReadIndex >= 0 && lastReadIndex < combinedGroupChat.length) {
+      const firstUnreadIndex = lastReadIndex;
+      const targetEl = document.getElementById(`msg-${combinedGroupChat[firstUnreadIndex]?.id}`);
+
+      if (targetEl && chatBoxRef.current) {
+        const offset = targetEl.offsetTop - 80;
+        chatBoxRef.current.scrollTo({
+          top: offset,
+          behavior: "auto"
+        });
+
+        targetEl.classList.add("message-highlight");
+        setTimeout(() => targetEl.classList.remove("message-highlight"), 2200);
+      } else {
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+      }
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+    }
+
+    setInitialScrollDone(true);
+    isInitial.current = false;
+
+    setTimeout(() => {
+      setInitialPositioningDone(true);
+      handleScroll();
+    }, 250);
+
+  }, [initialScrollDone, isInitialLoading, combinedGroupChat, lastReadIndex, activeGroup, userId, messagesEndRef, handleScroll, activeGroupId]);
+
+  // Track new messages
+  useEffect(() => {
+    const currentCount = combinedGroupChat?.length || 0;
+    if (currentCount <= prevMessageCount.current) return;
+
+    if (isLoadingOlder) {
+      prevMessageCount.current = currentCount;
+      return;
+    }
+
+    if (isInitial.current) {
+      prevMessageCount.current = currentCount;
+      return;
+    }
+
+    const added = currentCount - prevMessageCount.current;
+    const newMsgs = combinedGroupChat.slice(-added);
+
+    const isSelfOrSystem = newMsgs.every(
+      (msg) => msg.role === "system" || msg.userId === userId
+    );
+
+    if (isSelfOrSystem) {
+      setLastReadIndex((prev) => prev + added);
+    } else {
+      if (!isUserAtBottom.current) {
+        setNewMessagesSinceLastScroll((prev) => prev + added);
+        setHasJumpedToFirstUnread(false);
+        setFirstUnreadMessageId((current) => current || newMsgs[0]?.id);
+      } else {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+        setNewMessagesSinceLastScroll(0);
+        setFirstUnreadMessageId(null);
+        setLastReadIndex(combinedGroupChat.length);
+      }
+    }
+
+    prevMessageCount.current = currentCount;
+  }, [combinedGroupChat, userId, isUserAtBottom.current, isLoadingOlder, messagesEndRef]);
+
+  const scrollToBottom = useCallback(() => {
+    if (messagesEndRef.current && chatBoxRef.current) {
+      chatBoxRef.current.scrollTo({
+        top: messagesEndRef.current.offsetTop,
+        behavior: "smooth"
+      });
+      setNewMessagesSinceLastScroll(0);
+      setFirstUnreadMessageId(null);
+      setLastReadIndex(combinedGroupChat.length);
+    }
+  }, [combinedGroupChat.length]);
+
+  const scrollToNewMessages = useCallback(() => {
+    if (hasJumpedToFirstUnread || !firstUnreadMessageId) {
+      scrollToBottom();
+      setHasJumpedToFirstUnread(false);
+      return;
+    }
+
+    const el = document.getElementById(`msg-${firstUnreadMessageId}`);
+    if (el && chatBoxRef.current) {
+      const containerTop = chatBoxRef.current.getBoundingClientRect().top;
+      const msgTop = el.getBoundingClientRect().top;
+      const offset = msgTop - containerTop - 60;
+
+      chatBoxRef.current.scrollBy({
+        top: offset,
+        behavior: "smooth"
+      });
+
+      el.classList.add("message-highlight");
+      setTimeout(() => el.classList.remove("message-highlight"), 1800);
+
+      setHasJumpedToFirstUnread(true);
+    } else {
+      scrollToBottom();
+      setHasJumpedToFirstUnread(true);
+    }
+  }, [firstUnreadMessageId, hasJumpedToFirstUnread, scrollToBottom]);
+
+  // Menu ellipsis
+  useEffect(() => {
+    const closeMenu = (e) => {
+      if (!e.target.closest(".leave-participant") && !e.target.closest(".chat-options-menu")) {
+        setIsParticipantsOpen(false);
       }
     };
-    chatBox.addEventListener("scroll", handleScroll);
-    return () => chatBox.removeEventListener("scroll", handleScroll);
-  }, [hasMoreMessages, isLoadingChat, activeGroupId, loadMoreMessages]);
+    if (isParticipantsOpen) document.addEventListener("click", closeMenu);
+    return () => document.removeEventListener("click", closeMenu);
+  }, [isParticipantsOpen]);
 
   // Scroll to pinned message or replied message 
   const scrollToMessage = useCallback((msgId) => {
     const el = document.getElementById(`msg-${msgId}`);
     if (!el) return;
 
-    // Remove any existing highlight
     document.querySelectorAll(".message-highlight").forEach(e => {
       e.classList.remove("message-highlight");
     });
 
-    // Highlight class
     el.classList.add("message-highlight");
-    // Scroll into view
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     setTimeout(() => {
       el.classList.remove("message-highlight");
@@ -211,33 +434,69 @@ function AnonymousGroupChatSplitView({
     };
   }, [selectedTherapist]);
 
-  // Fetch group chat data
+  // Fetch group chat data with INITIAL LOADING
   useEffect(() => {
     if (!activeGroupId) return;
+    
+    setIsInitialLoading(true);
     const groupRef = doc(db, "groupChats", activeGroupId);
-    const messagesQuery = query(collection(groupRef, "messages"), orderBy("timestamp", "desc"), limit(50));
-    const eventsQuery = query(collection(groupRef, "events"), orderBy("timestamp"), limit(50));
 
-    const unsubMessages = onSnapshot(
-      messagesQuery,
-      (snapshot) => {
+    const loadInitialMessages = async () => {
+      try {
+        const messagesQuery = query(
+          collection(groupRef, "messages"),
+          orderBy("timestamp", "asc"),
+          limitToLast(30)
+        );
+        const snapshot = await getDocs(messagesQuery);
         const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        
         setMessages(msgs);
-        // Clear pending messages that match real messages
         setPendingMessages((prev) =>
           prev.filter((pending) => !msgs.some((msg) => msg.text === pending.text && msg.role === pending.role))
         );
-        setIsLoadingChat(false);
-        setHasMoreMessages(snapshot.docs.length === 50);
-        if (msgs.length > 0) playNotification();
-      },
-      (err) => {
+        setHasMoreMessages(snapshot.docs.length === 30);
+        
+        if (msgs.length > 0) {
+          latestTimestamp.current = msgs[msgs.length - 1].timestamp;
+          earliestTimestamp.current = msgs[0].timestamp;
+
+          // Listen for NEW messages only
+          const newMessagesQuery = query(
+            collection(groupRef, "messages"),
+            orderBy("timestamp", "asc"),
+            startAfter(latestTimestamp.current)
+          );
+          
+          const unsubMessages = onSnapshot(newMessagesQuery, (newSnapshot) => {
+            if (newSnapshot.empty) return;
+            
+            const newMsgs = newSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+            setMessages((prev) => [...prev, ...newMsgs]);
+            
+            setPendingMessages((prev) =>
+              prev.filter((pending) => !newMsgs.some((msg) => msg.text === pending.text && msg.role === pending.role))
+            );
+            
+            if (newMsgs.length > 0) {
+              playNotification();
+              latestTimestamp.current = newMsgs[newMsgs.length - 1].timestamp;
+            }
+          });
+
+          return unsubMessages;
+        }
+      } catch (err) {
         console.error("Error fetching messages:", err);
         showError("Failed to load messages. Please try again.");
-        setIsLoadingChat(false);
+      } finally {
+        setIsInitialLoading(false);
       }
-    );
+    };
 
+    const unsubMessages = loadInitialMessages();
+
+    const eventsQuery = query(collection(groupRef, "events"), orderBy("timestamp"), limit(50));
     const unsubEvents = onSnapshot(
       eventsQuery,
       (snapshot) => {
@@ -264,10 +523,14 @@ function AnonymousGroupChatSplitView({
     );
 
     return () => {
-      unsubMessages();
+      if (unsubMessages && typeof unsubMessages.then === 'function') {
+        unsubMessages.then(unsub => unsub && unsub());
+      }
       unsubEvents();
       unsubParticipants();
       setPendingMessages([]);
+      latestTimestamp.current = null;
+      earliestTimestamp.current = null;
     };
   }, [activeGroupId, showError, playNotification]);
 
@@ -340,7 +603,6 @@ function AnonymousGroupChatSplitView({
 
           const data = snap.data();
           if (data.participants?.includes(userId)) {
-            // Only reset this user's unread count
             tx.update(groupRef, {
               [`unreadCount.${userId}`]: 0
             });
@@ -352,8 +614,6 @@ function AnonymousGroupChatSplitView({
     };
 
     markAsRead();
-
-    // Periodically mark as read while tab is open
     const interval = setInterval(markAsRead, 30_000);
 
     return () => clearInterval(interval);
@@ -411,7 +671,7 @@ function AnonymousGroupChatSplitView({
     }
   };
 
-  // Send message
+  // Send message (same as before - no changes needed)
   const sendMessage = async (text = "", file = null, replyToMsg = null) => {
     if (!text.trim() && !file) return;
     if (!userId || !activeGroupId) return;
@@ -430,7 +690,6 @@ function AnonymousGroupChatSplitView({
     }
 
     try {
-      // Auto-trigger AI if replying to AI message OR if @ai is mentioned
       const isReplyingToAI = replyToMsg?.role === "ai";
       const isAiTrigger = text.toLowerCase().includes("@ai") || isReplyingToAI;
       const cleanUserText = text.replace(/@ai/gi, "").trim();
@@ -438,8 +697,7 @@ function AnonymousGroupChatSplitView({
       const groupRef = doc(db, "groupChats", activeGroupId);
       const messagesRef = collection(db, `groupChats/${activeGroupId}/messages`);
 
-      // USER MESSAGE TRANSACTION
-      let userMessageData = null; // Store user message data for AI to reply to
+      let userMessageData = null;
       
       await runTransaction(db, async (tx) => {
         const groupSnap = await tx.get(groupRef);
@@ -449,7 +707,6 @@ function AnonymousGroupChatSplitView({
 
         const userMsgRef = doc(messagesRef);
         
-        // Prepare user message data
         userMessageData = {
           id: userMsgRef.id,
           text: cleanUserText || "",
@@ -481,7 +738,6 @@ function AnonymousGroupChatSplitView({
         });
       });
 
-      // Optimistic UI update
       const pendingUserId = `pending-user-${Date.now()}`;
       setPendingMessages((prev) => [
         ...prev,
@@ -508,17 +764,14 @@ function AnonymousGroupChatSplitView({
       setNewMessage("");
       setShowEmojiPicker(false);
 
-      // AI RESPONSE (if triggered)
       if (isAiTrigger) {
         setAiTyping(true);
         try {
           const aiInput = mapMessagesForAI(messages);
           
-          // Build context-aware prompt when replying
           let aiPrompt = cleanUserText || "Continue";
           if (replyToMsg) {
             if (isReplyingToAI) {
-              // Replying to AI - continue the conversation
               aiPrompt = `[User is continuing the conversation about their previous message]
               Your previous response was about: "${replyToMsg.text || "[Previous AI response]"}"
 
@@ -526,7 +779,6 @@ function AnonymousGroupChatSplitView({
 
               Please respond to the user's follow-up question or comment.`;
             } else {
-              // Replying to another user but mentioning AI
               aiPrompt = `[User is asking for AI assistance regarding another user's message]
               Original message from ${replyToMsg.displayName}: "${replyToMsg.text || (replyToMsg.fileUrl ? "[Attachment]" : "[No content]")}"
 
@@ -537,8 +789,6 @@ function AnonymousGroupChatSplitView({
           }
           
           const aiResponse = await getAIResponse(aiPrompt, aiInput);
-          
-          // Store just the AI response text - the replyTo structure handles the context
           const aiFullText = aiResponse;
 
           await runTransaction(db, async (tx) => {
@@ -557,7 +807,6 @@ function AnonymousGroupChatSplitView({
               fileUrl: null,
               reactions: {},
               pinned: false,
-              // AI replies to user's message (which contains user's reply to user)
               replyTo: userMessageData ? {
                 id: userMessageData.id,
                 displayName: userMessageData.displayName,
@@ -589,7 +838,6 @@ function AnonymousGroupChatSplitView({
               fileUrl: null,
               reactions: {},
               pinned: false,
-              // AI replies to user's message
               replyTo: userMessageData ? {
                 id: userMessageData.id,
                 displayName: userMessageData.displayName,
@@ -619,7 +867,6 @@ function AnonymousGroupChatSplitView({
               fileUrl: null,
               reactions: {},
               pinned: false,
-              // Error message also replies to user's message
               replyTo: userMessageData ? {
                 id: userMessageData.id,
                 displayName: userMessageData.displayName,
@@ -651,7 +898,6 @@ function AnonymousGroupChatSplitView({
               fileUrl: null,
               reactions: {},
               pinned: false,
-              // Error message also replies to user's message
               replyTo: userMessageData ? {
                 id: userMessageData.id,
                 displayName: userMessageData.displayName,
@@ -674,7 +920,7 @@ function AnonymousGroupChatSplitView({
     }
   };
 
-  // Toggle reaction
+  // Toggle reaction (same as before)
   const toggleReaction = async (msgId, reactionType) => {
     if (!userId || !activeGroupId) return;
 
@@ -688,36 +934,29 @@ function AnonymousGroupChatSplitView({
         const reactions = msgSnap.data().reactions || {};
         const currentUserId = userId;
 
-        // Define the two possible reaction types
         const reactionTypes = ["heart", "thumbsUp"];
         const otherType = reactionTypes.find(t => t !== reactionType);
 
-        // Check user's current reactions
         const hasThisReaction = reactions[reactionType]?.includes(currentUserId) || false;
         const hasOtherReaction = reactions[otherType]?.includes(currentUserId) || false;
 
-        // Build updated reactions object
         const updatedReactions = { ...reactions };
 
         if (hasThisReaction) {
-          // User already has this reaction → remove it
           updatedReactions[reactionType] = (reactions[reactionType] || []).filter(
             id => id !== currentUserId
           );
-          // Also remove any other reaction (just in case)
           if (hasOtherReaction) {
             updatedReactions[otherType] = (reactions[otherType] || []).filter(
               id => id !== currentUserId
             );
           }
         } else {
-          // User is adding this reaction → add it
           updatedReactions[reactionType] = [
             ...(reactions[reactionType] || []),
             currentUserId
           ];
 
-          // Remove any other reaction this user had
           if (hasOtherReaction) {
             updatedReactions[otherType] = (reactions[otherType] || []).filter(
               id => id !== currentUserId
@@ -725,7 +964,6 @@ function AnonymousGroupChatSplitView({
           }
         }
 
-        // Clean up empty arrays (optional, keeps data tidy)
         Object.keys(updatedReactions).forEach(key => {
           if (updatedReactions[key]?.length === 0) {
             delete updatedReactions[key];
@@ -740,7 +978,6 @@ function AnonymousGroupChatSplitView({
     }
   };
 
-  // Handle emoji click
   const onEmojiClick = (emojiData) => {
     setNewMessage(newMessage + emojiData.emoji);
     setShowEmojiPicker(false);
@@ -764,7 +1001,6 @@ function AnonymousGroupChatSplitView({
     setReplyTo(null);
   }, [sendMessage, replyTo]);
 
-  // Handle therapist click to view profile
   const handleTherapistClick = async (msg) => {
     if (msg.role !== "therapist") return;
     try {
@@ -777,11 +1013,6 @@ function AnonymousGroupChatSplitView({
       showError("Failed to fetch therapist profile. Please try again.");
     }
   };
-
-  // Combine messages and events
-  const combinedGroupChat = [...messages, ...groupEvents, ...pendingMessages].sort((a, b) => {
-    return getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp);
-  });
 
   // LEFT PANEL: Chat List
   const leftPanel = (
@@ -892,7 +1123,6 @@ function AnonymousGroupChatSplitView({
               </div>
 
               <div className="leave-participant">
-                {/* MENU TRIGGER */}
                 <button
                   className="menu-trigger"
                   onClick={(e) => {
@@ -905,13 +1135,11 @@ function AnonymousGroupChatSplitView({
                   <i className="fa-solid fa-ellipsis-vertical"></i>
                 </button>
 
-                {/* DROPDOWN MENU */}
                 {isParticipantsOpen && (
                   <div 
                     className="chat-options-menu" 
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {/* Participants - Collapsible */}
                     <div className="menu-section">
                       <div
                         className="menu-item collapsible-header"
@@ -942,7 +1170,6 @@ function AnonymousGroupChatSplitView({
 
                     <div className="menu-divider"></div>
 
-                    {/* Online Therapists - Collapsible */}
                     <div className="menu-section">
                       <div
                         className="menu-item collapsible-header"
@@ -970,7 +1197,6 @@ function AnonymousGroupChatSplitView({
                                 data-fullname={therapist.name}
                                 onClick={() => {
                                   handleTherapistClick({ userId: therapist.uid, role: "therapist" });
-                                  // setIsParticipantsOpen(false);
                                 }}
                               >
                                 {therapist.profileImage ? (
@@ -992,7 +1218,6 @@ function AnonymousGroupChatSplitView({
 
                     <div className="menu-divider"></div>
 
-                    {/* Leave Button */}
                     <div className="menu-item leave-button" onClick={() => setShowLeaveConfirm(true)}>
                       <i className="fas fa-sign-out-alt"></i>
                       <span>Leave Group</span>
@@ -1001,7 +1226,7 @@ function AnonymousGroupChatSplitView({
                 )}
               </div>
             </div>
-            {/* Confirmation Modal */}
+            
             {showLeaveConfirm && (
               <div className="modal-backdrop-leave" onClick={() => setShowLeaveConfirm(false)}>
                 <div className="confirm-modal-leave" onClick={(e) => e.stopPropagation()}>
@@ -1034,7 +1259,7 @@ function AnonymousGroupChatSplitView({
                 </div>
               </div>
             )}
-            {/* Pinned Message */}
+            
             {combinedGroupChat.some((msg) => msg.pinned) && (
               <div
                 className="pinned-message"
@@ -1060,35 +1285,74 @@ function AnonymousGroupChatSplitView({
               </div>
             )}
           </div>
+          
           <div className={selectedTherapist ? "chat-box blurred" : "chat-box"} role="log" aria-live="polite" ref={chatBoxRef}>
-            {isLoadingChat ? (
-              <div className="loading-messages">
-                <div className="spinner"></div>
-                <p>Loading messages...</p>
+            {/* INITIAL LOADING */}
+            {isInitialLoading && combinedGroupChat.length === 0 && (
+              <div className="loading-messages-box">
+                <div className="loading-messages">
+                  <div className="spinner"></div>
+                  <p>Loading messages...</p>
+                </div>
               </div>
-            ) : combinedGroupChat.length === 0 ? (
-              <p className="no-message">No messages in this group yet.</p>
-            ) : (
-              combinedGroupChat.map((msg) => {
-                const isTherapist = therapistsOnline.some(t => t.uid === userId && t.online);
-                return (
-                  <div className="message" key={`${msg.id}-${msg.type || "message"}`} id={`msg-${msg.id}`}>
-                    <ChatMessage
-                      msg={msg}
-                      toggleReaction={msg.id.startsWith("pending-") ? () => {} : toggleReaction}
-                      currentUserId={userId}
-                      currentView="anonymous"
-                      isPrivateChat={false}
-                      therapistInfo={{ role: isTherapist ? "therapist" : "user" }}
-                      handleTherapistClick={handleTherapistClick}
-                      scrollToMessage={scrollToMessage}
-                      therapistId={isTherapist ? userId : null}
-                      onReply={handleReply}
-                    />
-                  </div>
-                );
-              })
             )}
+
+            {/* NO MESSAGES */}
+            {!isInitialLoading && combinedGroupChat.length === 0 && (
+              <p className="no-message">No messages in this group yet.</p>
+            )}
+
+            {/* CHAT CONTENT */}
+            {!isInitialLoading && combinedGroupChat.length > 0 && (
+              <>
+                {/* LOADING OLDER */}
+                {isLoadingOlder && (
+                  <div className="loading-older-messages">
+                    <div className="spinner small"></div>
+                    <p>Loading older messages...</p>
+                  </div>
+                )}
+
+                {combinedGroupChat.map((msg, index) => {
+                  const isTherapist = therapistsOnline.some(t => t.uid === userId && t.online);
+                  const previousMsg = index > 0 ? combinedGroupChat[index - 1] : null;
+                  const isGrouped = shouldGroupMessage(msg, previousMsg);
+
+                  return (
+                    <React.Fragment key={`${msg.id}-${msg.type || "message"}`}>
+                      {/* Unread divider */}
+                      {lastReadIndex >= 0 &&
+                        index === lastReadIndex &&
+                        newMessagesSinceLastScroll > 0 &&
+                        !isUserAtBottom.current && (
+                          <div className="new-messages-divider">
+                            <div className="new-messages">
+                              {newMessagesSinceLastScroll} new message{newMessagesSinceLastScroll > 1 ? "s" : ""}
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      <div className={`message ${isGrouped ? 'grouped' : ''}`} id={`msg-${msg.id}`}>
+                        <ChatMessage
+                          msg={msg}
+                          toggleReaction={msg.id?.startsWith("pending-") ? () => {} : toggleReaction}
+                          currentUserId={userId}
+                          currentView="anonymous"
+                          isPrivateChat={false}
+                          therapistInfo={{ role: isTherapist ? "therapist" : "user" }}
+                          handleTherapistClick={handleTherapistClick}
+                          scrollToMessage={scrollToMessage}
+                          therapistId={isTherapist ? userId : null}
+                          onReply={handleReply}
+                        />
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
+              </>
+            )}
+            
             {/* Typing Indicator */}
             {(typingUsers.length > 0 || aiTyping) && (
               <p className="typing-indicator">
@@ -1107,8 +1371,26 @@ function AnonymousGroupChatSplitView({
                 </div>
               </p>
             )}
+
+            {/* Scroll to bottom button */}
+            {showScrollToBottom && (
+              <button 
+                className="scroll-to-bottom-btn" 
+                onClick={scrollToNewMessages} 
+                aria-label="Jump to new messages"
+              >
+                <i className="fas fa-chevron-down"></i>
+                {newMessagesSinceLastScroll > 0 && (
+                  <span className="new-messages-badge">
+                    {newMessagesSinceLastScroll > 99 ? "99+" : newMessagesSinceLastScroll}
+                  </span>
+                )}
+              </button>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
+          
           <div className="chat-input-box">
             {replyTo && (
               <div className="reply-preview">
@@ -1184,7 +1466,7 @@ function AnonymousGroupChatSplitView({
           <p>Select a group chat to view messages</p>
         </div>
       )}
-      {/* Therapist Profile Modal */}
+      
       {selectedTherapist && (
         <div className="info-modal" ref={modalRef}>
           <TherapistProfile
