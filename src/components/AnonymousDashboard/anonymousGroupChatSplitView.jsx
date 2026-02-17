@@ -124,7 +124,7 @@ function AnonymousGroupChatSplitView({
     }
   }, [activeGroupId]);
 
- // Load more messages (pagination) with improved logic
+  // Load more messages (pagination)
   const loadMoreMessages = useCallback(async () => {
     if (!activeGroupId || !hasMoreMessages || isLoadingOlder) return;
     setIsLoadingOlder(true);
@@ -460,32 +460,42 @@ function AnonymousGroupChatSplitView({
         if (msgs.length > 0) {
           latestTimestamp.current = msgs[msgs.length - 1].timestamp;
           earliestTimestamp.current = msgs[0].timestamp;
+        }
 
-          // Listen for NEW messages only
-          const newMessagesQuery = query(
-            collection(groupRef, "messages"),
-            orderBy("timestamp", "asc"),
-            startAfter(latestTimestamp.current)
+        // ── Always set up real-time listener, even for empty groups ──
+        const newMessagesQuery = latestTimestamp.current
+          ? query(
+              collection(groupRef, "messages"),
+              orderBy("timestamp", "asc"),
+              startAfter(latestTimestamp.current)
+            )
+          : query(
+              collection(groupRef, "messages"),
+              orderBy("timestamp", "asc")
+            );
+        
+        const unsubMessages = onSnapshot(newMessagesQuery, (newSnapshot) => {
+          if (newSnapshot.empty) return;
+          
+          const newMsgs = newSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+          setMessages((prev) => {
+            const existingIds = new Set(prev.map((m) => m.id));
+            const filtered = newMsgs.filter((m) => !existingIds.has(m.id));
+            if (filtered.length === 0) return prev;
+            return [...prev, ...filtered];
+          });
+          
+          setPendingMessages((prev) =>
+            prev.filter((pending) => !newMsgs.some((msg) => msg.text === pending.text && msg.role === pending.role))
           );
           
-          const unsubMessages = onSnapshot(newMessagesQuery, (newSnapshot) => {
-            if (newSnapshot.empty) return;
-            
-            const newMsgs = newSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-            setMessages((prev) => [...prev, ...newMsgs]);
-            
-            setPendingMessages((prev) =>
-              prev.filter((pending) => !newMsgs.some((msg) => msg.text === pending.text && msg.role === pending.role))
-            );
-            
-            if (newMsgs.length > 0) {
-              playNotification();
-              latestTimestamp.current = newMsgs[newMsgs.length - 1].timestamp;
-            }
-          });
+          if (newMsgs.length > 0) {
+            playNotification();
+            latestTimestamp.current = newMsgs[newMsgs.length - 1].timestamp;
+          }
+        });
 
-          return unsubMessages;
-        }
+        return unsubMessages;
       } catch (err) {
         console.error("Error fetching messages:", err);
         showError("Failed to load messages. Please try again.");
@@ -1355,7 +1365,7 @@ function AnonymousGroupChatSplitView({
             
             {/* Typing Indicator */}
             {(typingUsers.length > 0 || aiTyping) && (
-              <p className="typing-indicator">
+              <div className="typing-indicator">
                 {aiTyping && <span className="ai-typing">Support Assistant</span>}
                 {aiTyping && typingUsers.length > 0 && " and "}
                 {typingUsers
@@ -1369,7 +1379,7 @@ function AnonymousGroupChatSplitView({
                   <span></span>
                   <span></span>
                 </div>
-              </p>
+              </div>
             )}
 
             {/* Scroll to bottom button */}

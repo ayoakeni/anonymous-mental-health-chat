@@ -31,6 +31,7 @@ import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import TherapistProfile from "../TherapistProfile";
 import EmojiPicker from "emoji-picker-react";
 import { shouldGroupMessage } from "../../utils/messageGrouping";
+
 const AI_REPLY_DELAY = 2000;
 
 const useMediaQuery = (query) => {
@@ -64,7 +65,8 @@ function AnonymousPrivateChatView({
   const [isSending, setIsSending] = useState(false);
   const [activeTherapists, setActiveTherapists] = useState([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(false);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
@@ -73,23 +75,22 @@ function AnonymousPrivateChatView({
   const [initialChoiceMade, setInitialChoiceMade] = useState(false);
   const [aiOfferAnswered, setAiOfferAnswered] = useState(false);
 
-  const [isInitialLoading, setIsInitialLoading] = useState(false);
-  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  // ─── Scroll & unread states ───
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [initialPositioningDone, setInitialPositioningDone] = useState(false);
   const [newMessagesSinceLastScroll, setNewMessagesSinceLastScroll] = useState(0);
   const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(null);
   const [lastReadIndex, setLastReadIndex] = useState(-1);
   const [initialScrollDone, setInitialScrollDone] = useState(false);
   const [hasJumpedToFirstUnread, setHasJumpedToFirstUnread] = useState(false);
-  const [initialPositioningDone, setInitialPositioningDone] = useState(false);
-
-const isUserAtBottom = useRef(true);
-const isInitial = useRef(true);
-const prevMessageCount = useRef(0);
-const prevCombinedLength = useRef(0);
-const prevLastMsgId = useRef(null);
-const earliestTimestamp = useRef(null);
-const latestTimestamp = useRef(null);
+  const isUserAtBottom = useRef(true);
+  const isInitial = useRef(true);
+  const prevMessageCount = useRef(0);
+  const prevCombinedLength = useRef(0);
+  const prevLastMsgId = useRef(null);
+  const latestTimestamp = useRef(null);
+  const earliestTimestamp = useRef(null);
+  const unsubMessagesRef = useRef(() => {});
 
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
@@ -109,6 +110,20 @@ const latestTimestamp = useRef(null);
     setHasUserSentMessage(false);
     setInitialChoiceMade(false);
     setAiOfferAnswered(false);
+    // Reset scroll state
+    setInitialScrollDone(false);
+    setInitialPositioningDone(false);
+    setLastReadIndex(-1);
+    setNewMessagesSinceLastScroll(0);
+    setFirstUnreadMessageId(null);
+    setHasJumpedToFirstUnread(false);
+    setShowScrollToBottom(false);
+    isInitial.current = true;
+    prevMessageCount.current = 0;
+    prevCombinedLength.current = 0;
+    if (chatBoxRef.current) {
+      chatBoxRef.current.scrollTop = 0;
+    }
   }, [activeChatId]);
 
   // Chat document listener
@@ -124,12 +139,10 @@ const latestTimestamp = useRef(null);
         const data = snap.data();
         setChatData(data);
         
-        // Check if initial choice was made based on chat data
         if (data.initialChoiceMade) {
           setInitialChoiceMade(true);
         }
         
-        // Check if AI offer was answered
         if (data.aiOfferAnswered) {
           setAiOfferAnswered(true);
         }
@@ -148,7 +161,6 @@ const latestTimestamp = useRef(null);
     if (!currentTherapistUid) return null;
     return activeTherapists.find(t => t.uid === currentTherapistUid) || null;
   }, [activeTherapists, currentTherapistUid]);
-
 
   const therapistDisplayName = useMemo(() => {
     if (aiActive && !currentTherapistUid) return "Support Assistant";
@@ -173,7 +185,7 @@ const latestTimestamp = useRef(null);
     return therapist?.profileImage || null;
   }, [currentTherapistUid, activeTherapists, aiActive]);
 
-  // Auto-disable AI + therapist join message
+  // Auto-disable AI when therapist joins
   useEffect(() => {
     if (!activeChatId || !currentTherapistUid || !aiActive) return;
 
@@ -193,7 +205,7 @@ const latestTimestamp = useRef(null);
       .catch((err) => console.error("Failed to disable AI", err));
   }, [currentTherapistUid, aiActive, activeChatId, therapistDisplayName]);
 
-  // Therapists listener (always active)
+  // Therapists listener
   useEffect(() => {
     const q = query(collection(db, "therapists"), limit(100));
     const unsub = onSnapshot(q, (snap) => {
@@ -209,7 +221,7 @@ const latestTimestamp = useRef(null);
     return unsub;
   }, []);
 
-  // Auto-welcome + initial choice in ONE message
+  // Auto-welcome + initial choice
   useEffect(() => {
     if (!activeChatId || !hasUserSentMessage || messages.length > 0 || pendingMessages.some(m => m.role === "ai")) return;
 
@@ -240,7 +252,7 @@ const latestTimestamp = useRef(null);
 
   }, [hasUserSentMessage, activeChatId, messages.length, pendingMessages]);
 
-  // Select chat
+  // Select chat from navigation state
   useEffect(() => {
     if (!userId) return;
     const selectId = location.state?.selectChatId;
@@ -264,86 +276,99 @@ const latestTimestamp = useRef(null);
     return () => clearInterval(interval);
   }, [activeChatId, userId]);
 
-  // Messages listener
+  // ─── MESSAGES LISTENER with initial load + real-time ───
   useEffect(() => {
+    unsubMessagesRef.current();
+
     if (!activeChatId) {
       setMessages([]);
       setPendingMessages([]);
-      setHasMoreMessages(true);
-      setIsInitialLoading(false);
+      setHasMoreMessages(false);
+      latestTimestamp.current = null;
+      earliestTimestamp.current = null;
       return;
     }
 
+    const chatRef = doc(db, "privateChats", activeChatId);
     setIsInitialLoading(true);
 
-    const chatRef = doc(db, "privateChats", activeChatId);
-    const messagesRef = collection(chatRef, "messages");
-
-    const loadInitial = async () => {
+    const loadInitialMessages = async () => {
       try {
         const q = query(
-          messagesRef,
+          collection(chatRef, "messages"),
           orderBy("timestamp", "asc"),
-          limitToLast(40)
+          limitToLast(30)
         );
-
-        const snap = await getDocs(q);
-        const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const snapshot = await getDocs(q);
+        const msgs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 
         setMessages(msgs);
-        setPendingMessages(prev => prev.filter(p => !msgs.some(m => m.id === p.id)));
-
-        setHasMoreMessages(snap.docs.length === 40);
+        setPendingMessages((prev) =>
+          prev.filter((p) => !msgs.some((m) => m.id === p.id))
+        );
+        setHasMoreMessages(snapshot.docs.length === 30);
 
         if (msgs.length > 0) {
-          earliestTimestamp.current = msgs[0].timestamp;
           latestTimestamp.current = msgs[msgs.length - 1].timestamp;
+          earliestTimestamp.current = msgs[0].timestamp;
+          playNotification();
+        }
 
-          // Real-time listener for NEW messages only
-          const newQ = query(
-            messagesRef,
-            orderBy("timestamp", "asc"),
-            startAfter(latestTimestamp.current)
-          );
-
-          const unsubNew = onSnapshot(newQ, snapshot => {
-            if (snapshot.empty) return;
-
-            const newMsgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            setMessages(prev => [...prev, ...newMsgs]);
-
-            setPendingMessages(prev =>
-              prev.filter(p => !newMsgs.some(m => m.text === p.text && m.role === p.role))
+        // ── Always set up real-time listener, even for brand-new (empty) chats ──
+        // If there are existing msgs, listen for messages AFTER the last one.
+        // If empty, listen to ALL messages from now on (no startAfter).
+        const newQ = latestTimestamp.current
+          ? query(
+              collection(chatRef, "messages"),
+              orderBy("timestamp", "asc"),
+              startAfter(latestTimestamp.current)
+            )
+          : query(
+              collection(chatRef, "messages"),
+              orderBy("timestamp", "asc")
             );
 
-            if (newMsgs.length > 0) {
-              playNotification();
-              latestTimestamp.current = newMsgs[newMsgs.length - 1].timestamp;
-            }
+        unsubMessagesRef.current = onSnapshot(newQ, (snap) => {
+          if (snap.empty) return;
+
+          const newMsgs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          setMessages((prev) => {
+            const existingIds = new Set(prev.map((m) => m.id));
+            const filtered = newMsgs.filter((m) => !existingIds.has(m.id));
+            if (filtered.length === 0) return prev;
+            return [...prev, ...filtered];
           });
 
-          return unsubNew;
-        }
+          setPendingMessages((prev) =>
+            prev.filter((p) => !newMsgs.some((m) => m.id === p.id))
+          );
+
+          if (newMsgs.length > 0) {
+            playNotification();
+            latestTimestamp.current = newMsgs[newMsgs.length - 1].timestamp;
+          }
+        }, (err) => {
+          console.error("Error fetching new messages:", err);
+          showError("Failed to load new messages.");
+        });
+
       } catch (err) {
-        console.error("Messages fetch error:", err);
-        showError("Failed to load messages");
+        console.error("Error fetching messages:", err);
+        showError("Failed to load messages.");
       } finally {
         setIsInitialLoading(false);
       }
     };
 
-    const unsub = loadInitial();
+    loadInitialMessages();
 
     return () => {
-      if (unsub && typeof unsub.then === 'function') {
-        unsub.then(u => u && u());
-      }
-      earliestTimestamp.current = null;
-      latestTimestamp.current = null;
+      unsubMessagesRef.current();
+      setPendingMessages([]);
     };
   }, [activeChatId, playNotification, showError]);
 
-  // Load older messages
+  // Load more (older messages)
   const loadMoreMessages = useCallback(async () => {
     if (!activeChatId || !hasMoreMessages || isLoadingOlder) return;
     setIsLoadingOlder(true);
@@ -354,215 +379,29 @@ const latestTimestamp = useRef(null);
         collection(chatRef, "messages"),
         orderBy("timestamp", "asc"),
         endBefore(earliestTimestamp.current),
-        limitToLast(40)
+        limitToLast(30)
       );
 
-      const snap = await getDocs(q);
-      const older = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const snapshot = await getDocs(q);
+      const newMsgs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      if (older.length > 0) {
-        setMessages(prev => {
-          const existing = new Set(prev.map(m => m.id));
-          const filtered = older.filter(m => !existing.has(m.id));
-          return [...filtered, ...prev];
-        });
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        const filtered = newMsgs.filter((m) => !existingIds.has(m.id));
+        return [...filtered, ...prev];
+      });
 
-        earliestTimestamp.current = older[0].timestamp;
-        setHasMoreMessages(snap.docs.length === 40);
+      setHasMoreMessages(snapshot.docs.length === 30);
+      if (newMsgs.length > 0) {
+        earliestTimestamp.current = newMsgs[0].timestamp;
       }
     } catch (err) {
-      console.error("Load older error:", err);
-      showError("Could not load older messages");
+      console.error("Load more error:", err);
+      showError("Failed to load older messages.");
     } finally {
       setIsLoadingOlder(false);
     }
   }, [activeChatId, hasMoreMessages, isLoadingOlder, showError]);
-
-  // Scroll handler – load more near top, track bottom position
-  const handleScroll = useCallback(() => {
-    if (!chatBoxRef.current) return;
-
-    const { scrollTop, scrollHeight, clientHeight } = chatBoxRef.current;
-    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-    const atBottom = distanceFromBottom < 140;
-
-    const wasNotAtBottom = !isUserAtBottom.current;
-    isUserAtBottom.current = atBottom;
-
-    setShowScrollToBottom(!atBottom);
-
-    if (atBottom && (wasNotAtBottom || firstUnreadMessageId)) {
-      setNewMessagesSinceLastScroll(0);
-      setFirstUnreadMessageId(null);
-      setHasJumpedToFirstUnread(false);
-
-      // Mark as read
-      const chatRef = doc(db, "privateChats", activeChatId);
-      updateDoc(chatRef, {
-        unreadCountForUser: 0,
-        lastSeenAt: serverTimestamp()
-      }).catch(() => {});
-
-      setLastReadIndex(combinedPrivateChat.length);
-    }
-
-    // Load older when near top
-    if (scrollTop < 300 && hasMoreMessages && !isLoadingOlder) {
-      loadMoreMessages();
-    }
-  }, [hasMoreMessages, isLoadingOlder, loadMoreMessages, firstUnreadMessageId, activeChatId]);
-
-  // Preserve scroll position when prepending older messages
-  useEffect(() => {
-    if (!isLoadingOlder || !chatBoxRef.current) return;
-
-    const container = chatBoxRef.current;
-    const prevHeight = container.scrollHeight;
-    const prevScroll = container.scrollTop;
-
-    setTimeout(() => {
-      const newHeight = container.scrollHeight;
-      const heightDiff = newHeight - prevHeight;
-      container.scrollTop = prevScroll + heightDiff;
-    }, 0);
-  }, [isLoadingOlder]);
-
-  // Attach scroll listener
-  useEffect(() => {
-    const box = chatBoxRef.current;
-    if (!box) return;
-
-    box.addEventListener("scroll", handleScroll);
-    handleScroll(); // initial check
-
-    return () => box.removeEventListener("scroll", handleScroll);
-  }, [handleScroll]);
-
-  // Combined list – now in ascending order
-  const combinedPrivateChat = useMemo(() => {
-    return [...messages, ...events, ...pendingMessages].sort(
-      (a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp)
-    );
-  }, [messages, events, pendingMessages, getTimestampMillis]);
-
-  // ─── New messages tracking & unread logic ───
-  useEffect(() => {
-    const currLen = combinedPrivateChat.length;
-    if (currLen <= prevMessageCount.current) return;
-
-    if (isLoadingOlder) {
-      prevMessageCount.current = currLen;
-      return;
-    }
-
-    if (isInitial.current) {
-      prevMessageCount.current = currLen;
-      return;
-    }
-
-    const added = currLen - prevMessageCount.current;
-    const newOnes = combinedPrivateChat.slice(-added);
-
-    const isOwnOrSystem = newOnes.every(m => 
-      m.role === "system" || m.userId === userId || m.role === "ai"
-    );
-
-    if (isOwnOrSystem) {
-      setLastReadIndex(prev => prev + added);
-    } else if (!isUserAtBottom.current) {
-      setNewMessagesSinceLastScroll(prev => prev + added);
-      setFirstUnreadMessageId(prev => prev || newOnes[0]?.id);
-    } else {
-      setNewMessagesSinceLastScroll(0);
-      setFirstUnreadMessageId(null);
-      setLastReadIndex(currLen);
-    }
-
-    prevMessageCount.current = currLen;
-  }, [combinedPrivateChat, userId, isUserAtBottom.current, isLoadingOlder]);
-
-  // Initial scroll + unread jump
-  useEffect(() => {
-    if (initialScrollDone || isInitialLoading || combinedPrivateChat.length === 0) return;
-
-    // You could also fetch lastSeenAt / unreadCountForUser from chat doc
-    // For simplicity we approximate unread from local state here
-    const unreadApprox = 0; // ← improve this later if needed
-
-    if (unreadApprox > 0 && lastReadIndex >= 0) {
-      const idx = lastReadIndex;
-      const el = document.getElementById(`msg-${combinedPrivateChat[idx]?.id}`);
-      if (el && chatBoxRef.current) {
-        const offset = el.offsetTop - 100;
-        chatBoxRef.current.scrollTo({ top: offset, behavior: "auto" });
-        el.classList.add("message-highlight");
-        setTimeout(() => el.classList.remove("message-highlight"), 2200);
-      }
-    } else {
-      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-    }
-
-    setInitialScrollDone(true);
-    isInitial.current = false;
-
-    setTimeout(() => {
-      setInitialPositioningDone(true);
-      handleScroll();
-    }, 120);
-  }, [initialScrollDone, isInitialLoading, combinedPrivateChat, lastReadIndex, handleScroll]);
-
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    setNewMessagesSinceLastScroll(0);
-    setFirstUnreadMessageId(null);
-    setLastReadIndex(combinedPrivateChat.length);
-  }, [combinedPrivateChat.length]);
-
-  const scrollToNewMessages = useCallback(() => {
-    if (hasJumpedToFirstUnread || !firstUnreadMessageId) {
-      scrollToBottom();
-      setHasJumpedToFirstUnread(false);
-      return;
-    }
-
-    const el = document.getElementById(`msg-${firstUnreadMessageId}`);
-    if (el && chatBoxRef.current) {
-      const offset = el.getBoundingClientRect().top - chatBoxRef.current.getBoundingClientRect().top - 80;
-      chatBoxRef.current.scrollBy({ top: offset, behavior: "smooth" });
-
-      el.classList.add("message-highlight");
-      setTimeout(() => el.classList.remove("message-highlight"), 1800);
-
-      setHasJumpedToFirstUnread(true);
-    } else {
-      scrollToBottom();
-    }
-  }, [firstUnreadMessageId, hasJumpedToFirstUnread, scrollToBottom]);
-
-  useEffect(() => {
-    const chatBox = chatBoxRef.current;
-    if (!chatBox) return;
-
-    const handleScroll = () => {
-      if (chatBox.scrollTop === 0 && hasMoreMessages && !isLoadingChat) {
-        loadMoreMessages();
-      }
-    };
-
-    chatBox.addEventListener("scroll", handleScroll);
-    return () => chatBox.removeEventListener("scroll", handleScroll);
-  }, [hasMoreMessages, isLoadingChat, loadMoreMessages]);
-
-  const scrollToMessage = useCallback((msgId) => {
-    const el = document.getElementById(`msg-${msgId}`);
-    if (!el) return;
-
-    document.querySelectorAll(".message-highlight").forEach((e) => e.classList.remove("message-highlight"));
-    el.classList.add("message-highlight");
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-
-    setTimeout(() => el.classList.remove("message-highlight"), 1600);
-  }, []);
 
   // Events listener
   useEffect(() => {
@@ -577,16 +416,211 @@ const latestTimestamp = useRef(null);
     return () => unsubscribe();
   }, [activeChatId]);
 
+  // Combined chat
+  const combinedPrivateChat = useMemo(() => {
+    return [...messages, ...events, ...pendingMessages].sort(
+      (a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp)
+    );
+  }, [messages, events, pendingMessages, getTimestampMillis]);
+
   // Pinned message
   const pinnedMessage = useMemo(() => {
-    return [...messages, ...pendingMessages].find((m) => m.pinned === true);
-  }, [messages, pendingMessages]);
+    return combinedPrivateChat.find((m) => m.pinned === true);
+  }, [combinedPrivateChat]);
+
+  // ─── SCROLL MANAGEMENT ───
+  const handleScroll = useCallback(() => {
+    if (!chatBoxRef.current) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = chatBoxRef.current;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    const atBottom = distanceFromBottom <= 120;
+
+    const wasNotAtBottom = !isUserAtBottom.current;
+    isUserAtBottom.current = atBottom;
+    setShowScrollToBottom(!atBottom);
+
+    if (atBottom && (wasNotAtBottom || firstUnreadMessageId)) {
+      setNewMessagesSinceLastScroll(0);
+      setFirstUnreadMessageId(null);
+      setHasJumpedToFirstUnread(false);
+      setLastReadIndex(combinedPrivateChat.length);
+      // Mark as read
+      if (activeChatId) {
+        const chatRef = doc(db, "privateChats", activeChatId);
+        updateDoc(chatRef, { unreadCountForUser: 0 }).catch(() => {});
+      }
+    }
+
+    if (scrollTop <= 400 && hasMoreMessages && !isLoadingOlder && initialPositioningDone) {
+      loadMoreMessages();
+    }
+  }, [hasMoreMessages, isLoadingOlder, loadMoreMessages, combinedPrivateChat.length, initialPositioningDone, firstUnreadMessageId, activeChatId]);
+
+  // Maintain scroll position when loading older
+  useEffect(() => {
+    if (!isLoadingOlder || !chatBoxRef.current) return;
+
+    const container = chatBoxRef.current;
+    const prevHeight = container.scrollHeight;
+    const prevTop = container.scrollTop;
+
+    const timer = setTimeout(() => {
+      const heightAdded = container.scrollHeight - prevHeight;
+      const targetTop = prevTop + heightAdded - 120;
+      container.scrollTo({ top: targetTop, behavior: "auto" });
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [isLoadingOlder, messages]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, events, pendingMessages, aiTyping]);
+    const chatBox = chatBoxRef.current;
+    if (!chatBox) return;
+    chatBox.addEventListener("scroll", handleScroll);
+    handleScroll();
+    return () => chatBox.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
 
-  // AI offer after inactivity (THERAPIST ONLY)
+  // Track combined length changes (for unread adjustment when loading older)
+  useEffect(() => {
+    const currLen = combinedPrivateChat.length;
+    const addedCount = currLen - prevCombinedLength.current;
+    if (addedCount > 0 && combinedPrivateChat[currLen - 1]?.id === prevLastMsgId.current) {
+      setLastReadIndex(prev => prev + addedCount);
+    }
+    prevCombinedLength.current = currLen;
+    prevLastMsgId.current = combinedPrivateChat[currLen - 1]?.id;
+  }, [combinedPrivateChat]);
+
+  // Set initial lastReadIndex based on unread count
+  useEffect(() => {
+    if (lastReadIndex !== -1 || isInitialLoading || combinedPrivateChat.length === 0) return;
+    const unread = chatData?.unreadCountForUser || 0;
+    setLastReadIndex(combinedPrivateChat.length - unread);
+    setInitialScrollDone(false);
+  }, [lastReadIndex, isInitialLoading, combinedPrivateChat, chatData]);
+
+  // Initial scroll positioning
+  useEffect(() => {
+    if (initialScrollDone || isInitialLoading || combinedPrivateChat.length === 0) return;
+
+    const unreadCount = chatData?.unreadCountForUser || 0;
+
+    if (unreadCount > 0 && lastReadIndex >= 0 && lastReadIndex < combinedPrivateChat.length) {
+      const targetEl = document.getElementById(`msg-${combinedPrivateChat[lastReadIndex]?.id}`);
+
+      if (targetEl && chatBoxRef.current) {
+        const offset = targetEl.offsetTop - 80;
+        chatBoxRef.current.scrollTo({ top: offset, behavior: "auto" });
+
+        targetEl.classList.add("message-highlight");
+        setTimeout(() => targetEl.classList.remove("message-highlight"), 2200);
+      } else {
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+      }
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+    }
+
+    setInitialScrollDone(true);
+    isInitial.current = false;
+
+    setTimeout(() => {
+      setInitialPositioningDone(true);
+      handleScroll();
+    }, 250);
+
+  }, [initialScrollDone, isInitialLoading, combinedPrivateChat, lastReadIndex, chatData, handleScroll, activeChatId]);
+
+  // Track new messages for badge/divider
+  useEffect(() => {
+    const currentCount = combinedPrivateChat?.length || 0;
+    if (currentCount <= prevMessageCount.current) return;
+
+    if (isLoadingOlder || isInitial.current) {
+      prevMessageCount.current = currentCount;
+      return;
+    }
+
+    const added = currentCount - prevMessageCount.current;
+    const newMsgs = combinedPrivateChat.slice(-added);
+
+    const isSelfOrSystem = newMsgs.every(
+      (msg) => msg.role === "system" || msg.userId === userId || msg.role === "ai"
+    );
+
+    if (isSelfOrSystem) {
+      setLastReadIndex((prev) => prev + added);
+      // Auto scroll to bottom for own/AI/system messages
+      if (!isUserAtBottom.current) {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      }
+    } else {
+      if (!isUserAtBottom.current) {
+        setNewMessagesSinceLastScroll((prev) => prev + added);
+        setHasJumpedToFirstUnread(false);
+        setFirstUnreadMessageId((current) => current || newMsgs[0]?.id);
+      } else {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+        setNewMessagesSinceLastScroll(0);
+        setFirstUnreadMessageId(null);
+        setLastReadIndex(combinedPrivateChat.length);
+      }
+    }
+
+    prevMessageCount.current = currentCount;
+  }, [combinedPrivateChat, userId, isLoadingOlder]);
+
+  const scrollToBottom = useCallback(() => {
+    if (messagesEndRef.current && chatBoxRef.current) {
+      chatBoxRef.current.scrollTo({
+        top: messagesEndRef.current.offsetTop,
+        behavior: "smooth"
+      });
+      setNewMessagesSinceLastScroll(0);
+      setFirstUnreadMessageId(null);
+      setLastReadIndex(combinedPrivateChat.length);
+    }
+  }, [combinedPrivateChat.length]);
+
+  const scrollToNewMessages = useCallback(() => {
+    if (hasJumpedToFirstUnread || !firstUnreadMessageId) {
+      scrollToBottom();
+      setHasJumpedToFirstUnread(false);
+      return;
+    }
+
+    const el = document.getElementById(`msg-${firstUnreadMessageId}`);
+    if (el && chatBoxRef.current) {
+      const containerTop = chatBoxRef.current.getBoundingClientRect().top;
+      const msgTop = el.getBoundingClientRect().top;
+      const offset = msgTop - containerTop - 60;
+
+      chatBoxRef.current.scrollBy({ top: offset, behavior: "smooth" });
+
+      el.classList.add("message-highlight");
+      setTimeout(() => el.classList.remove("message-highlight"), 1800);
+
+      setHasJumpedToFirstUnread(true);
+    } else {
+      scrollToBottom();
+      setHasJumpedToFirstUnread(true);
+    }
+  }, [firstUnreadMessageId, hasJumpedToFirstUnread, scrollToBottom]);
+
+  const scrollToMessage = useCallback((msgId) => {
+    const el = document.getElementById(`msg-${msgId}`);
+    if (!el) return;
+
+    document.querySelectorAll(".message-highlight").forEach((e) => e.classList.remove("message-highlight"));
+    el.classList.add("message-highlight");
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    setTimeout(() => el.classList.remove("message-highlight"), 1600);
+  }, []);
+
+  // AI offer after inactivity
   useEffect(() => {
     if (!activeChatId || !userId) return;
     if (!chatData) return;
@@ -601,7 +635,6 @@ const latestTimestamp = useRef(null);
     const allMsgs = [...messages, ...pendingMessages];
     if (allMsgs.length === 0) return;
 
-    // Therapist messages only
     const therapistMsgs = allMsgs.filter(
       (m) => m.role === "therapist" && m.timestamp?.toMillis?.()
     );
@@ -614,7 +647,6 @@ const latestTimestamp = useRef(null);
     const elapsed = Date.now() - lastRelevantTime;
     if (elapsed < 7000) return;
 
-    // Save AI offer as Firestore message instead of pending message
     const sendAiOffer = async () => {
       try {
         await runTransaction(db, async (tx) => {
@@ -622,10 +654,8 @@ const latestTimestamp = useRef(null);
           if (!snap.exists()) return;
           
           const data = snap.data();
-          // Double-check conditions inside transaction
           if (data.aiOffered || data.aiActive) return;
 
-          // Create the AI offer message
           tx.set(doc(collection(chatRef, "messages")), {
             text: "Looks like you are waiting too long. Would you like to chat with our support assistant while waiting for a therapist?",
             role: "ai",
@@ -636,7 +666,6 @@ const latestTimestamp = useRef(null);
             pinned: false,
           });
 
-          // Mark that AI offer has been sent
           tx.update(chatRef, { aiOffered: true });
         });
       } catch (err) {
@@ -657,7 +686,7 @@ const latestTimestamp = useRef(null);
     getTimestampMillis,
   ]);
 
-  // AI auto-reply when aiActive (only to user messages, only if not already handled, and only for messages from Firebase, not pending)
+  // AI auto-reply when aiActive
   useEffect(() => {
     if (!activeChatId || !aiActive || aiTyping || isSending) return;
 
@@ -673,17 +702,14 @@ const latestTimestamp = useRef(null);
     if (!last._aiEligible) return;
     if (last._handledByAI) return;
 
-    // CRITICAL: Only process messages from Firebase (not pending)
     if (!last.id || last.id.startsWith("pending-")) {
       return;
     }
 
-    // Check if we've already processed this message
     if (processedMessagesRef.current.has(last.id)) {
       return;
     }
 
-    // Mark as being processed
     processedMessagesRef.current.add(last.id);
 
     let cancelled = false;
@@ -699,11 +725,9 @@ const latestTimestamp = useRef(null);
       try {
         const chatRef = doc(db, "privateChats", activeChatId);
         
-        // FIRST: Mark the message as handled to prevent re-processing
         const userMsgRef = doc(chatRef, "messages", last.id);
         await updateDoc(userMsgRef, { _handledByAI: true });
 
-        // THEN: Generate AI response
         const history = allMsgs
           .filter((m) => m.role === "user" || m.role === "ai")
           .map((m) => ({
@@ -714,7 +738,6 @@ const latestTimestamp = useRef(null);
         const lastUserText = last.text || (last.fileUrl ? "[Attachment]" : " ");
         const aiText = await getAIResponse(lastUserText, history);
 
-        // FINALLY: Send AI message
         await runTransaction(db, async (t) => {
           t.set(doc(collection(chatRef, "messages")), {
             text: aiText,
@@ -755,7 +778,6 @@ const latestTimestamp = useRef(null);
 
   useEffect(() => {
     const pathChatId = location.pathname.split("/anonymous-dashboard/private-chat/")[1];
-
     const storedChatId = localStorage.getItem("activeChatId");
 
     if (pathChatId) {
@@ -764,7 +786,6 @@ const latestTimestamp = useRef(null);
       setActiveChatId(storedChatId);
     }
   }, []);
-
 
   // Send message
   const sendMessage = async (file = null, replyTo = null) => {
@@ -809,7 +830,6 @@ const latestTimestamp = useRef(null);
         fileUrl = await getDownloadURL(storageRef);
       }
 
-      // Check if replying to AI, replying to own message while AI active, or if AI is active
       const isReplyingToAI = replyTo?.role === "ai";
       const isReplyingToOwnMessage = replyTo?.role === "user" && replyTo?.userId === userId;
       const shouldTriggerManualAI = (isReplyingToAI || (isReplyingToOwnMessage && aiActive));
@@ -817,7 +837,6 @@ const latestTimestamp = useRef(null);
       const messageText = newMessage.trim();
       const chatRef = doc(db, "privateChats", currentChatId);
 
-      // Store user message data for AI to reply to
       let userMessageData = null;
 
       await runTransaction(db, async (t) => {
@@ -850,7 +869,7 @@ const latestTimestamp = useRef(null);
           displayName,
           role: "user",
           timestamp: serverTimestamp(),
-          _aiEligible: !shouldTriggerManualAI, // Only disable auto-AI if manual AI will trigger
+          _aiEligible: !shouldTriggerManualAI,
           reactions: {},
           pinned: false,
           replyTo: replyTo
@@ -867,7 +886,9 @@ const latestTimestamp = useRef(null);
         t.set(userMsgRef, userMessageData);
       });
 
-      // AI RESPONSE (if triggered by replying to AI or own message)
+      // Scroll to bottom after sending
+      setTimeout(() => scrollToBottom(), 100);
+
       if (shouldTriggerManualAI) {
         setAiTyping(true);
         try {
@@ -875,11 +896,9 @@ const latestTimestamp = useRef(null);
             .filter((m) => m.role === "user" || m.role === "ai")
             .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
 
-          // Build context-aware prompt when replying
           let aiPrompt = messageText || "Continue";
           if (replyTo) {
             if (isReplyingToAI) {
-              // Replying to AI
               aiPrompt = `[User is continuing the conversation about their previous message]
               Your previous response was about: "${replyTo.text || "[Previous AI response]"}"
 
@@ -887,7 +906,6 @@ const latestTimestamp = useRef(null);
 
               Please respond to the user's follow-up question or comment.`;
             } else if (isReplyingToOwnMessage) {
-              // Replying to own message - provide context about what they're elaborating on
               aiPrompt = `[User is adding more context to their previous message]
               User's original message: "${replyTo.text || (replyTo.fileUrl ? "[Attachment]" : "[Previous message]")}"
 
@@ -914,7 +932,6 @@ const latestTimestamp = useRef(null);
               reactions: {},
               pinned: false,
               _handledByAI: true,
-              // AI replies to user's message
               replyTo: userMessageData ? {
                 id: userMessageData.id,
                 displayName: userMessageData.displayName,
@@ -1036,11 +1053,10 @@ const latestTimestamp = useRef(null);
     }
   };
 
-  // Handlers (initial choice, AI choice, reactions, emoji)
+  // Initial choice handler
   const handleInitialChoice = async (choice) => {
     if (!activeChatId || initialChoiceMade) return;
     
-    // Immediately hide the buttons
     setInitialChoiceMade(true);
     
     const chatRef = doc(db, "privateChats", activeChatId);
@@ -1050,10 +1066,8 @@ const latestTimestamp = useRef(null);
         const snap = await t.get(chatRef);
         if (!snap.exists()) return;
 
-        const baseTime = Date.now();
         const choiceText = choice === "therapist" ? "Chat with Therapist" : "Chat with Support Assistant";
         
-        // User's choice message (comes first)
         t.set(doc(collection(chatRef, "messages")), {
           text: choiceText,
           userId,
@@ -1069,14 +1083,13 @@ const latestTimestamp = useRef(null);
           lastMessage: `${displayName}: ${choiceText || "Hello"}`,
           lastUpdated: serverTimestamp(),
           unreadCountForTherapist: increment(1),
-          initialChoiceMade: true, // Mark in database
+          initialChoiceMade: true,
         });
 
         if (choice === "assistant") {
           t.update(chatRef, { aiActive: true, aiOffered: false, status: "new" });
           setAiActive(true);
           
-          // System message (comes after user's choice)
           t.set(doc(collection(chatRef, "messages")), {
             text: "You are now chatting with our support assistant.",
             role: "system",
@@ -1090,7 +1103,6 @@ const latestTimestamp = useRef(null);
                 .filter((m) => m.role === "user" || m.role === "ai")
                 .sort((a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp));
 
-              // Send a welcoming greeting to start the conversation
               const welcomePrompt = `You are continuing a conversation where the user just chose to chat with you (the Support Assistant).
               They are ready to start. Please respond naturally without greeting them again, as you already welcomed them. 
               Just ask how you can help or invite them to share what's on their mind.`;
@@ -1121,11 +1133,6 @@ const latestTimestamp = useRef(null);
                   timestamp: serverTimestamp() 
                 });
               });
-              setPendingMessages((p) => [
-                ...p,
-                { id: `u-${Date.now()}`, text: choiceText, role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
-                { id: `err-${Date.now()}`, text: errMsg, role: "system", timestamp: { toMillis: () => Date.now() + 50 } },
-              ]);
             } finally {
               setAiTyping(false);
             }
@@ -1135,7 +1142,6 @@ const latestTimestamp = useRef(null);
           setAiActive(false);
           setHasUserSentMessage(true);
           
-          // System message (comes after user's choice)
           t.set(doc(collection(chatRef, "messages")), {
             text: "We are contacting an available therapist for you.",
             role: "system",
@@ -1147,7 +1153,6 @@ const latestTimestamp = useRef(null);
     } catch (err) {
       console.error("Initial choice error:", err);
       showError("Failed to process your choice.");
-      // Rollback on error
       setInitialChoiceMade(false);
     }
   };
@@ -1155,7 +1160,6 @@ const latestTimestamp = useRef(null);
   const handleAiChoice = async (choice) => {
     if (!activeChatId || aiOfferAnswered) return;
     
-    // Immediately hide the buttons
     setAiOfferAnswered(true);
     
     const chatRef = doc(db, "privateChats", activeChatId);
@@ -1165,9 +1169,6 @@ const latestTimestamp = useRef(null);
         const snap = await t.get(chatRef);
         if (!snap.exists()) return;
 
-        const baseTime = Date.now();
-
-        // User's choice message
         t.set(doc(collection(chatRef, "messages")), {
           text: choice === "yes" ? "Yes" : "No",
           userId,
@@ -1177,15 +1178,11 @@ const latestTimestamp = useRef(null);
           _handledByAI: true,
         });
         
-        // Mark AI offer as answered
-        t.update(chatRef, {
-          aiOfferAnswered: true,
-        });
+        t.update(chatRef, { aiOfferAnswered: true });
 
         if (choice === "yes") {
           t.update(chatRef, { aiActive: true, aiOffered: false });
           setAiActive(true);
-          // System message comes AFTER user's choice
           t.set(doc(collection(chatRef, "messages")), {
             text: "You are now chatting with our support assistant until a therapist joins.",
             role: "system",
@@ -1203,17 +1200,14 @@ const latestTimestamp = useRef(null);
                 .filter((m) => m.role === "user" && !["Yes", "No"].includes(m.text))
                 .sort((a, b) => getTimestampMillis(b.timestamp) - getTimestampMillis(a.timestamp));
 
-              let aiPrompt;
               let aiResp;
 
               if (recent.length > 0) {
-                // User has sent messages before - respond to their last message
                 const lastTxt = recent[0]?.text || (recent[0]?.fileUrl ? "Attachment" : "");
-                aiPrompt = `The user has been waiting and you're now available to help. Their last message was: "${lastTxt}". Please respond directly to what they said without introducing yourself, as this is a continuation of an existing conversation.`;
+                const aiPrompt = `The user has been waiting and you're now available to help. Their last message was: "${lastTxt}". Please respond directly to what they said without introducing yourself, as this is a continuation of an existing conversation.`;
                 aiResp = await getAIResponse(aiPrompt, allPrev);
               } else {
-                // No previous messages - send a welcoming greeting
-                aiPrompt = "The user accepted your offer to chat. You already introduced yourself. Just briefly acknowledge their choice and ask how you can help - no need to greet or introduce yourself again.";
+                const aiPrompt = "The user accepted your offer to chat. You already introduced yourself. Just briefly acknowledge their choice and ask how you can help - no need to greet or introduce yourself again.";
                 aiResp = await getAIResponse(aiPrompt, allPrev);
               }
 
@@ -1241,11 +1235,6 @@ const latestTimestamp = useRef(null);
                   timestamp: serverTimestamp() 
                 });
               });
-              setPendingMessages((p) => [
-                ...p,
-                { id: `u-${Date.now()}`, text: "Yes", role: "user", userId, displayName, timestamp: { toMillis: () => Date.now() } },
-                { id: `err-${Date.now()}`, text: errTxt, role: "system", timestamp: { toMillis: () => Date.now() + 50 } },
-              ]);
             } finally {
               setAiTyping(false);
             }
@@ -1253,7 +1242,6 @@ const latestTimestamp = useRef(null);
         } else {
           t.update(chatRef, { aiActive: false, aiOffered: false });
           setAiActive(false);
-          // System message comes AFTER user's choice
           t.set(doc(collection(chatRef, "messages")), {
             text: "Okay, please hold on while we connect you to a therapist.",
             role: "system",
@@ -1265,7 +1253,6 @@ const latestTimestamp = useRef(null);
     } catch (err) {
       console.error("AI choice error:", err);
       showError("Failed to process your request.");
-      // Rollback on error
       setAiOfferAnswered(false);
     }
   };
@@ -1277,9 +1264,7 @@ const latestTimestamp = useRef(null);
         setMenuOpen(false);
       }
     };
-    if (menuOpen) {
-      document.addEventListener("click", closeMenu);
-    }
+    if (menuOpen) document.addEventListener("click", closeMenu);
     return () => document.removeEventListener("click", closeMenu);
   }, [menuOpen]);
 
@@ -1418,7 +1403,6 @@ const latestTimestamp = useRef(null);
           </div>
 
           <div className="leave-participant">
-            {/* MENU TRIGGER */}
             <button
               className="menu-trigger"
               onClick={(e) => { 
@@ -1437,7 +1421,6 @@ const latestTimestamp = useRef(null);
                   setMenuOpen(prev => !prev);
                 }}
               >
-                {/* View Therapist Profile */}
                 {currentTherapist && (
                   <div className="menu-item" onClick={() => handleTherapistClick(currentTherapist)}>
                     <i className="fas fa-user"></i>
@@ -1449,7 +1432,6 @@ const latestTimestamp = useRef(null);
                   <span>Report</span>
                 </div>
                 <div className="menu-divider"></div>
-                {/* Leave Button */}
                 <div className="menu-item leave-button" onClick={() => setShowLeaveConfirm(true)}>
                   <i className="fas fa-sign-out-alt"></i>
                   <span>End Chat</span>
@@ -1510,73 +1492,82 @@ const latestTimestamp = useRef(null);
         )}
 
         <div className="chat-box" role="log" aria-live="polite" ref={chatBoxRef}>
+          {/* INITIAL LOADING */}
           {isInitialLoading && combinedPrivateChat.length === 0 && (
-              <div className="loading-messages-box">
-                <div className="loading-messages">
-                  <div className="spinner"></div>
-                  <p>Loading messages...</p>
+            <div className="loading-messages-box">
+              <div className="loading-messages">
+                <div className="spinner"></div>
+                <p>Loading messages...</p>
+              </div>
+            </div>
+          )}
+
+          {/* NO MESSAGES */}
+          {!isInitialLoading && combinedPrivateChat.length === 0 && (
+            <div className="empty-chat">
+              <p>Send your first message to start the conversation</p>
+            </div>
+          )}
+
+          {/* CHAT CONTENT */}
+          {combinedPrivateChat.length > 0 && (
+            <>
+              {/* LOADING OLDER */}
+              {isLoadingOlder && (
+                <div className="loading-older-messages">
+                  <div className="spinner small"></div>
+                  <p>Loading older messages...</p>
                 </div>
-              </div>
-            )}
+              )}
 
-            {isLoadingOlder && (
-              <div className="loading-older-messages">
-                <div className="spinner small"></div>
-                <p>Loading older messages...</p>
-              </div>
-            )}
+              {combinedPrivateChat.map((msg, index) => {
+                const previousMsg = index > 0 ? combinedPrivateChat[index - 1] : null;
+                const isGrouped = shouldGroupMessage(msg, previousMsg);
 
-            {!isInitialLoading && combinedPrivateChat.length === 0 && (
-              <div className="empty-chat">
-                <p>Send your first message to start the conversation</p>
-              </div>
-            )}
-
-            {!isInitialLoading && combinedPrivateChat.length > 0 && combinedPrivateChat.map((msg, index) => {
-              const previous = index > 0 ? combinedPrivateChat[index - 1] : null;
-              const isGrouped = shouldGroupMessage(msg, previous);
-
-              return (
-                <React.Fragment key={`${msg.id}-${msg.type || "msg"}`}>
-                  {/* New messages divider */}
-                  {lastReadIndex >= 0 &&
-                    index === lastReadIndex &&
-                    newMessagesSinceLastScroll > 0 &&
-                    !isUserAtBottom.current && (
-                      <div className="new-messages-divider">
-                        <div className="new-messages">
-                          {newMessagesSinceLastScroll} new message{newMessagesSinceLastScroll > 1 ? "s" : ""}
+                return (
+                  <React.Fragment key={`${msg.id}-${msg.type || "message"}`}>
+                    {/* Unread divider */}
+                    {lastReadIndex >= 0 &&
+                      index === lastReadIndex &&
+                      newMessagesSinceLastScroll > 0 &&
+                      !isUserAtBottom.current && (
+                        <div className="new-messages-divider">
+                          <div className="new-messages">
+                            {newMessagesSinceLastScroll} new message{newMessagesSinceLastScroll > 1 ? "s" : ""}
+                          </div>
                         </div>
-                      </div>
-                    )
-                  }
+                      )
+                    }
 
-                  <div className={`message ${isGrouped ? "grouped" : ""}`} id={`msg-${msg.id}`}>
-                    <ChatMessage
-                      msg={msg}
-                      toggleReaction={msg.id?.startsWith("pending-") ? () => {} : toggleReaction}
-                      currentUserId={userId}
-                      isPrivateChat={true}
-                      therapistInfo={{ role: "user" }}
-                      handleTherapistClick={() => {}}
-                      scrollToMessage={scrollToMessage}
-                      isAiOffer={msg.type === "ai-offer"}
-                      onAiYes={() => handleAiChoice("yes")}
-                      onAiNo={() => handleAiChoice("no")}
-                      isInitialChoice={msg.type === "initial-choice" || msg.type === "initial-choice-ai"}
-                      onInitialChoice={handleInitialChoice}
-                      aiTyping={aiTyping}
-                      isSending={isSending}
-                      onReply={handleReply}
-                      initialChoiceMade={initialChoiceMade}
-                      aiOfferAnswered={aiOfferAnswered}
-                      currentTherapistUid={currentTherapistUid}
-                    />
-                  </div>
-                </React.Fragment>
-              );
-          })}
+                    <div className={`message ${isGrouped ? 'grouped' : ''}`} id={`msg-${msg.id}`}>
+                      <ChatMessage
+                        msg={msg}
+                        toggleReaction={msg.id?.startsWith("pending-") ? () => {} : toggleReaction}
+                        currentUserId={userId}
+                        isPrivateChat={true}
+                        therapistInfo={{ role: "user" }}
+                        handleTherapistClick={() => {}}
+                        scrollToMessage={scrollToMessage}
+                        isAiOffer={msg.type === "ai-offer"}
+                        onAiYes={() => handleAiChoice("yes")}
+                        onAiNo={() => handleAiChoice("no")}
+                        isInitialChoice={msg.type === "initial-choice" || msg.type === "initial-choice-ai"}
+                        onInitialChoice={handleInitialChoice}
+                        aiTyping={aiTyping}
+                        isSending={isSending}
+                        onReply={handleReply}
+                        initialChoiceMade={initialChoiceMade}
+                        aiOfferAnswered={aiOfferAnswered}
+                        currentTherapistUid={currentTherapistUid}
+                      />
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+            </>
+          )}
 
+          {/* Typing Indicator */}
           {(typingUsers.length > 0 || aiTyping) && (
             <div className="typing-indicator">
               {aiTyping && <span className="ai-typing">Support Assistant</span>}
@@ -1597,10 +1588,10 @@ const latestTimestamp = useRef(null);
 
           {/* Scroll to bottom button */}
           {showScrollToBottom && (
-            <button
-              className="scroll-to-bottom-btn"
-              onClick={scrollToNewMessages}
-              aria-label="Scroll to new messages"
+            <button 
+              className="scroll-to-bottom-btn" 
+              onClick={scrollToNewMessages} 
+              aria-label="Jump to new messages"
             >
               <i className="fas fa-chevron-down"></i>
               {newMessagesSinceLastScroll > 0 && (
@@ -1664,7 +1655,7 @@ const latestTimestamp = useRef(null);
               style={{ display: "none" }}
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) handleSend("", file);
+                if (file) handleSend(file);
               }}
               aria-label="Upload file"
             />

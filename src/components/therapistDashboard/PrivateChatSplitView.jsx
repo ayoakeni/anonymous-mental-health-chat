@@ -724,7 +724,7 @@ function PrivateChatSplitView({
 
               {/* Typing Indicator */}
               {typingUsers.length > 0 && (
-                <p className="typing-indicator">
+                <div className="typing-indicator">
                   {typingUsers
                     .map(u => typeof u === "string" ? u : u?.name || "Someone")
                     .join(", ")}{" "}
@@ -734,7 +734,7 @@ function PrivateChatSplitView({
                     <span></span>
                     <span></span>
                   </div>
-                </p>
+                </div>
               )}
 
               {/* Scroll to bottom button */}
