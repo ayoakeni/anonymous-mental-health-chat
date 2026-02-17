@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   db,
@@ -21,7 +21,8 @@ import {
   getDocs,
   increment,
   startAfter,
-  Timestamp,
+  endBefore,
+  limitToLast,
 } from "firebase/firestore";
 import { useTypingStatus } from "../../hooks/useTypingStatus";
 import { getAIResponse } from "../../utils/AiChatIntegration";
@@ -29,6 +30,7 @@ import ChatMessage from "../ChatMessage";
 import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import TherapistProfile from "../TherapistProfile";
 import EmojiPicker from "emoji-picker-react";
+import { shouldGroupMessage } from "../../utils/messageGrouping";
 const AI_REPLY_DELAY = 2000;
 
 const useMediaQuery = (query) => {
@@ -70,6 +72,24 @@ function AnonymousPrivateChatView({
   const [hasUserSentMessage, setHasUserSentMessage] = useState(false);
   const [initialChoiceMade, setInitialChoiceMade] = useState(false);
   const [aiOfferAnswered, setAiOfferAnswered] = useState(false);
+
+  const [isInitialLoading, setIsInitialLoading] = useState(false);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [newMessagesSinceLastScroll, setNewMessagesSinceLastScroll] = useState(0);
+  const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(null);
+  const [lastReadIndex, setLastReadIndex] = useState(-1);
+  const [initialScrollDone, setInitialScrollDone] = useState(false);
+  const [hasJumpedToFirstUnread, setHasJumpedToFirstUnread] = useState(false);
+  const [initialPositioningDone, setInitialPositioningDone] = useState(false);
+
+const isUserAtBottom = useRef(true);
+const isInitial = useRef(true);
+const prevMessageCount = useRef(0);
+const prevCombinedLength = useRef(0);
+const prevLastMsgId = useRef(null);
+const earliestTimestamp = useRef(null);
+const latestTimestamp = useRef(null);
 
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
@@ -249,70 +269,275 @@ function AnonymousPrivateChatView({
     if (!activeChatId) {
       setMessages([]);
       setPendingMessages([]);
-      setHasMoreMessages(false);
+      setHasMoreMessages(true);
+      setIsInitialLoading(false);
       return;
     }
 
+    setIsInitialLoading(true);
+
     const chatRef = doc(db, "privateChats", activeChatId);
-    const q = query(
-      collection(chatRef, "messages"),
-      orderBy("timestamp", "desc"),
-      limit(50)
-    );
+    const messagesRef = collection(chatRef, "messages");
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const msgs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-        setMessages(msgs);
-
-        setPendingMessages((prev) =>
-          prev.filter((p) => !msgs.some((m) => m.id === p.id))
+    const loadInitial = async () => {
+      try {
+        const q = query(
+          messagesRef,
+          orderBy("timestamp", "asc"),
+          limitToLast(40)
         );
 
-        setHasMoreMessages(snapshot.docs.length === 50);
-        if (msgs.length > 0) playNotification();
-      },
-      (err) => {
-        console.error("Error fetching messages:", err);
-        showError("Failed to load messages.");
+        const snap = await getDocs(q);
+        const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        setMessages(msgs);
+        setPendingMessages(prev => prev.filter(p => !msgs.some(m => m.id === p.id)));
+
+        setHasMoreMessages(snap.docs.length === 40);
+
+        if (msgs.length > 0) {
+          earliestTimestamp.current = msgs[0].timestamp;
+          latestTimestamp.current = msgs[msgs.length - 1].timestamp;
+
+          // Real-time listener for NEW messages only
+          const newQ = query(
+            messagesRef,
+            orderBy("timestamp", "asc"),
+            startAfter(latestTimestamp.current)
+          );
+
+          const unsubNew = onSnapshot(newQ, snapshot => {
+            if (snapshot.empty) return;
+
+            const newMsgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            setMessages(prev => [...prev, ...newMsgs]);
+
+            setPendingMessages(prev =>
+              prev.filter(p => !newMsgs.some(m => m.text === p.text && m.role === p.role))
+            );
+
+            if (newMsgs.length > 0) {
+              playNotification();
+              latestTimestamp.current = newMsgs[newMsgs.length - 1].timestamp;
+            }
+          });
+
+          return unsubNew;
+        }
+      } catch (err) {
+        console.error("Messages fetch error:", err);
+        showError("Failed to load messages");
+      } finally {
+        setIsInitialLoading(false);
       }
-    );
+    };
+
+    const unsub = loadInitial();
 
     return () => {
-      unsubscribe();
-      setPendingMessages([]);
+      if (unsub && typeof unsub.then === 'function') {
+        unsub.then(u => u && u());
+      }
+      earliestTimestamp.current = null;
+      latestTimestamp.current = null;
     };
   }, [activeChatId, playNotification, showError]);
 
+  // Load older messages
   const loadMoreMessages = useCallback(async () => {
-    if (!activeChatId || !hasMoreMessages || isLoadingChat) return;
-    setIsLoadingChat(true);
+    if (!activeChatId || !hasMoreMessages || isLoadingOlder) return;
+    setIsLoadingOlder(true);
 
     try {
       const chatRef = doc(db, "privateChats", activeChatId);
-      const lastVisible = messages[messages.length - 1];
-
-      const nextQuery = query(
+      const q = query(
         collection(chatRef, "messages"),
-        orderBy("timestamp", "desc"),
-        startAfter(lastVisible?.timestamp),
-        limit(50)
+        orderBy("timestamp", "asc"),
+        endBefore(earliestTimestamp.current),
+        limitToLast(40)
       );
 
-      const snapshot = await getDocs(nextQuery);
-      const newMsgs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const snap = await getDocs(q);
+      const older = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-      setMessages((prev) => [...newMsgs, ...prev]);
-      setHasMoreMessages(snapshot.docs.length === 50);
+      if (older.length > 0) {
+        setMessages(prev => {
+          const existing = new Set(prev.map(m => m.id));
+          const filtered = older.filter(m => !existing.has(m.id));
+          return [...filtered, ...prev];
+        });
+
+        earliestTimestamp.current = older[0].timestamp;
+        setHasMoreMessages(snap.docs.length === 40);
+      }
     } catch (err) {
-      console.error("Load more error:", err);
-      showError("Failed to load older messages.");
+      console.error("Load older error:", err);
+      showError("Could not load older messages");
     } finally {
-      setIsLoadingChat(false);
+      setIsLoadingOlder(false);
     }
-  }, [activeChatId, hasMoreMessages, isLoadingChat, messages, showError]);
+  }, [activeChatId, hasMoreMessages, isLoadingOlder, showError]);
+
+  // Scroll handler – load more near top, track bottom position
+  const handleScroll = useCallback(() => {
+    if (!chatBoxRef.current) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = chatBoxRef.current;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    const atBottom = distanceFromBottom < 140;
+
+    const wasNotAtBottom = !isUserAtBottom.current;
+    isUserAtBottom.current = atBottom;
+
+    setShowScrollToBottom(!atBottom);
+
+    if (atBottom && (wasNotAtBottom || firstUnreadMessageId)) {
+      setNewMessagesSinceLastScroll(0);
+      setFirstUnreadMessageId(null);
+      setHasJumpedToFirstUnread(false);
+
+      // Mark as read
+      const chatRef = doc(db, "privateChats", activeChatId);
+      updateDoc(chatRef, {
+        unreadCountForUser: 0,
+        lastSeenAt: serverTimestamp()
+      }).catch(() => {});
+
+      setLastReadIndex(combinedPrivateChat.length);
+    }
+
+    // Load older when near top
+    if (scrollTop < 300 && hasMoreMessages && !isLoadingOlder) {
+      loadMoreMessages();
+    }
+  }, [hasMoreMessages, isLoadingOlder, loadMoreMessages, firstUnreadMessageId, activeChatId]);
+
+  // Preserve scroll position when prepending older messages
+  useEffect(() => {
+    if (!isLoadingOlder || !chatBoxRef.current) return;
+
+    const container = chatBoxRef.current;
+    const prevHeight = container.scrollHeight;
+    const prevScroll = container.scrollTop;
+
+    setTimeout(() => {
+      const newHeight = container.scrollHeight;
+      const heightDiff = newHeight - prevHeight;
+      container.scrollTop = prevScroll + heightDiff;
+    }, 0);
+  }, [isLoadingOlder]);
+
+  // Attach scroll listener
+  useEffect(() => {
+    const box = chatBoxRef.current;
+    if (!box) return;
+
+    box.addEventListener("scroll", handleScroll);
+    handleScroll(); // initial check
+
+    return () => box.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
+
+  // Combined list – now in ascending order
+  const combinedPrivateChat = useMemo(() => {
+    return [...messages, ...events, ...pendingMessages].sort(
+      (a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp)
+    );
+  }, [messages, events, pendingMessages, getTimestampMillis]);
+
+  // ─── New messages tracking & unread logic ───
+  useEffect(() => {
+    const currLen = combinedPrivateChat.length;
+    if (currLen <= prevMessageCount.current) return;
+
+    if (isLoadingOlder) {
+      prevMessageCount.current = currLen;
+      return;
+    }
+
+    if (isInitial.current) {
+      prevMessageCount.current = currLen;
+      return;
+    }
+
+    const added = currLen - prevMessageCount.current;
+    const newOnes = combinedPrivateChat.slice(-added);
+
+    const isOwnOrSystem = newOnes.every(m => 
+      m.role === "system" || m.userId === userId || m.role === "ai"
+    );
+
+    if (isOwnOrSystem) {
+      setLastReadIndex(prev => prev + added);
+    } else if (!isUserAtBottom.current) {
+      setNewMessagesSinceLastScroll(prev => prev + added);
+      setFirstUnreadMessageId(prev => prev || newOnes[0]?.id);
+    } else {
+      setNewMessagesSinceLastScroll(0);
+      setFirstUnreadMessageId(null);
+      setLastReadIndex(currLen);
+    }
+
+    prevMessageCount.current = currLen;
+  }, [combinedPrivateChat, userId, isUserAtBottom.current, isLoadingOlder]);
+
+  // Initial scroll + unread jump
+  useEffect(() => {
+    if (initialScrollDone || isInitialLoading || combinedPrivateChat.length === 0) return;
+
+    // You could also fetch lastSeenAt / unreadCountForUser from chat doc
+    // For simplicity we approximate unread from local state here
+    const unreadApprox = 0; // ← improve this later if needed
+
+    if (unreadApprox > 0 && lastReadIndex >= 0) {
+      const idx = lastReadIndex;
+      const el = document.getElementById(`msg-${combinedPrivateChat[idx]?.id}`);
+      if (el && chatBoxRef.current) {
+        const offset = el.offsetTop - 100;
+        chatBoxRef.current.scrollTo({ top: offset, behavior: "auto" });
+        el.classList.add("message-highlight");
+        setTimeout(() => el.classList.remove("message-highlight"), 2200);
+      }
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    }
+
+    setInitialScrollDone(true);
+    isInitial.current = false;
+
+    setTimeout(() => {
+      setInitialPositioningDone(true);
+      handleScroll();
+    }, 120);
+  }, [initialScrollDone, isInitialLoading, combinedPrivateChat, lastReadIndex, handleScroll]);
+
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setNewMessagesSinceLastScroll(0);
+    setFirstUnreadMessageId(null);
+    setLastReadIndex(combinedPrivateChat.length);
+  }, [combinedPrivateChat.length]);
+
+  const scrollToNewMessages = useCallback(() => {
+    if (hasJumpedToFirstUnread || !firstUnreadMessageId) {
+      scrollToBottom();
+      setHasJumpedToFirstUnread(false);
+      return;
+    }
+
+    const el = document.getElementById(`msg-${firstUnreadMessageId}`);
+    if (el && chatBoxRef.current) {
+      const offset = el.getBoundingClientRect().top - chatBoxRef.current.getBoundingClientRect().top - 80;
+      chatBoxRef.current.scrollBy({ top: offset, behavior: "smooth" });
+
+      el.classList.add("message-highlight");
+      setTimeout(() => el.classList.remove("message-highlight"), 1800);
+
+      setHasJumpedToFirstUnread(true);
+    } else {
+      scrollToBottom();
+    }
+  }, [firstUnreadMessageId, hasJumpedToFirstUnread, scrollToBottom]);
 
   useEffect(() => {
     const chatBox = chatBoxRef.current;
@@ -1117,10 +1342,6 @@ function AnonymousPrivateChatView({
     }, 100);
   }, []);
 
-  const combinedPrivateChat = [...messages, ...events, ...pendingMessages].sort(
-    (a, b) => getTimestampMillis(a.timestamp) - getTimestampMillis(b.timestamp)
-  );
-
   // Close modal on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -1289,41 +1510,72 @@ function AnonymousPrivateChatView({
         )}
 
         <div className="chat-box" role="log" aria-live="polite" ref={chatBoxRef}>
-          {isLoadingChat ? (
-            <div className="loading-messages">
-              <div className="spinner"></div>
-              <p>Loading messages...</p>
-            </div>
-          ) : combinedPrivateChat.length === 0 ? (
-            <div className="empty-chat">
-              <p>Send your first message to start the conversation</p>
-            </div>
-          ) : (
-            combinedPrivateChat.map((msg) => (
-              <div className="message" key={`${msg.id}-${msg.type || "message"}`}>
-                <ChatMessage
-                  msg={msg}
-                  toggleReaction={msg.id?.startsWith("pending-") ? () => {} : toggleReaction}
-                  currentUserId={userId}
-                  isPrivateChat={true}
-                  therapistInfo={{ role: "user" }}
-                  handleTherapistClick={() => {}}
-                  scrollToMessage={scrollToMessage}
-                  isAiOffer={msg.type === "ai-offer"}
-                  onAiYes={() => handleAiChoice("yes")}
-                  onAiNo={() => handleAiChoice("no")}
-                  isInitialChoice={msg.type === "initial-choice" || msg.type === "initial-choice-ai"}
-                  onInitialChoice={handleInitialChoice}
-                  aiTyping={aiTyping}
-                  isSending={isSending}
-                  onReply={handleReply}
-                  initialChoiceMade={initialChoiceMade}
-                  aiOfferAnswered={aiOfferAnswered}
-                  currentTherapistUid={currentTherapistUid}
-                />
+          {isInitialLoading && combinedPrivateChat.length === 0 && (
+              <div className="loading-messages-box">
+                <div className="loading-messages">
+                  <div className="spinner"></div>
+                  <p>Loading messages...</p>
+                </div>
               </div>
-            ))
-          )}
+            )}
+
+            {isLoadingOlder && (
+              <div className="loading-older-messages">
+                <div className="spinner small"></div>
+                <p>Loading older messages...</p>
+              </div>
+            )}
+
+            {!isInitialLoading && combinedPrivateChat.length === 0 && (
+              <div className="empty-chat">
+                <p>Send your first message to start the conversation</p>
+              </div>
+            )}
+
+            {!isInitialLoading && combinedPrivateChat.length > 0 && combinedPrivateChat.map((msg, index) => {
+              const previous = index > 0 ? combinedPrivateChat[index - 1] : null;
+              const isGrouped = shouldGroupMessage(msg, previous);
+
+              return (
+                <React.Fragment key={`${msg.id}-${msg.type || "msg"}`}>
+                  {/* New messages divider */}
+                  {lastReadIndex >= 0 &&
+                    index === lastReadIndex &&
+                    newMessagesSinceLastScroll > 0 &&
+                    !isUserAtBottom.current && (
+                      <div className="new-messages-divider">
+                        <div className="new-messages">
+                          {newMessagesSinceLastScroll} new message{newMessagesSinceLastScroll > 1 ? "s" : ""}
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  <div className={`message ${isGrouped ? "grouped" : ""}`} id={`msg-${msg.id}`}>
+                    <ChatMessage
+                      msg={msg}
+                      toggleReaction={msg.id?.startsWith("pending-") ? () => {} : toggleReaction}
+                      currentUserId={userId}
+                      isPrivateChat={true}
+                      therapistInfo={{ role: "user" }}
+                      handleTherapistClick={() => {}}
+                      scrollToMessage={scrollToMessage}
+                      isAiOffer={msg.type === "ai-offer"}
+                      onAiYes={() => handleAiChoice("yes")}
+                      onAiNo={() => handleAiChoice("no")}
+                      isInitialChoice={msg.type === "initial-choice" || msg.type === "initial-choice-ai"}
+                      onInitialChoice={handleInitialChoice}
+                      aiTyping={aiTyping}
+                      isSending={isSending}
+                      onReply={handleReply}
+                      initialChoiceMade={initialChoiceMade}
+                      aiOfferAnswered={aiOfferAnswered}
+                      currentTherapistUid={currentTherapistUid}
+                    />
+                  </div>
+                </React.Fragment>
+              );
+          })}
 
           {(typingUsers.length > 0 || aiTyping) && (
             <div className="typing-indicator">
@@ -1342,6 +1594,23 @@ function AnonymousPrivateChatView({
               </div>
             </div>
           )}
+
+          {/* Scroll to bottom button */}
+          {showScrollToBottom && (
+            <button
+              className="scroll-to-bottom-btn"
+              onClick={scrollToNewMessages}
+              aria-label="Scroll to new messages"
+            >
+              <i className="fas fa-chevron-down"></i>
+              {newMessagesSinceLastScroll > 0 && (
+                <span className="new-messages-badge">
+                  {newMessagesSinceLastScroll > 99 ? "99+" : newMessagesSinceLastScroll}
+                </span>
+              )}
+            </button>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
 
