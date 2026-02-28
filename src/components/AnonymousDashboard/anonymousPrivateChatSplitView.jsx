@@ -30,7 +30,7 @@ import ChatMessage from "../ChatMessage";
 import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import TherapistProfile from "../TherapistProfile";
 import EmojiPicker from "emoji-picker-react";
-import { shouldGroupMessage } from "../../utils/messageGrouping";
+import { shouldGroupMessage } from "../../utils/messagegrouping";
 
 const AI_REPLY_DELAY = 2000;
 

@@ -5,7 +5,7 @@ import ResizableSplitView from "../../components/resizableSplitView";
 import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import EmojiPicker from "emoji-picker-react";
 import { useTypingStatus } from "../../hooks/useTypingStatus";
-import { shouldGroupMessage } from "../../utils/messageGrouping";
+import { shouldGroupMessage } from "../../utils/messagegrouping";
 
 const useMediaQuery = (query) => {
   const [matches, setMatches] = useState(false);
