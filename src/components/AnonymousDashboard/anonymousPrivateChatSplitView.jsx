@@ -143,9 +143,8 @@ function AnonymousPrivateChatView({
           setInitialChoiceMade(true);
         }
         
-        if (data.aiOfferAnswered) {
-          setAiOfferAnswered(true);
-        }
+        setAiOfferAnswered(data.aiOfferAnswered ?? false);
+        setAiActive(data.aiActive ?? false);
       } else {
         setChatData(null);
       }
@@ -1034,6 +1033,7 @@ function AnonymousPrivateChatView({
           [`leftBy.${userId}`]: true,
           aiOffered: false,
           aiActive: false,
+          aiOfferAnswered: false,
         });
 
         t.set(doc(collection(chatRef, "events")), {
@@ -1370,7 +1370,20 @@ function AnonymousPrivateChatView({
             {isMobile && (
               <i
                 className="fa-solid fa-arrow-left mobile-back-btn"
-                onClick={() => {
+                onClick={async () => {
+                  if (activeChatId) {
+                    try {
+                      const chatRef = doc(db, "privateChats", activeChatId);
+                      if (!aiActive) {
+                        await updateDoc(chatRef, {
+                          aiOffered: false,
+                          aiOfferAnswered: false,
+                        });
+                      }
+                    } catch (err) {
+                      console.error("Failed to reset AI offer on back:", err);
+                    }
+                  }
                   setActiveChatId(null);
                   navigate("/anonymous-dashboard/");
                 }}

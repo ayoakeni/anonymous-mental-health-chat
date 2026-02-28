@@ -26,7 +26,7 @@ import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import EmojiPicker from "emoji-picker-react";
 import TherapistProfile from "../TherapistProfile";
 import { getAIResponse, mapMessagesForAI} from "../../utils/AiChatIntegration";
-import { shouldGroupMessage } from "../../utils/messagegrouping";
+import { shouldGroupMessage } from "../../utils/messageGrouping";
 
 /* -------------------------------------------------------------
    Simple media-query hook (no external deps)

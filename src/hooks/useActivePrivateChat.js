@@ -108,9 +108,10 @@ export function useActivePrivateChat(
 
         tx.update(chatRef, {
           activeTherapist: null,
-          status: "closed",
+          status: "requesting",
           aiActive: false,
           aiOffered: false,
+          aiOfferAnswered: false,
           participants: arrayRemove(therapistId),
         });
 
