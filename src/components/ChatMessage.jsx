@@ -49,14 +49,11 @@ const ChatMessage = memo(
     const showFailed = msg.failed;
     const showDeleting = msg.isPendingDelete;
 
-    // ──────────────────────────────────────────────────────────────
-    //  Determine message ownership class for GROUP CHATS
-    // ──────────────────────────────────────────────────────────────
+    // Determine message ownership class for BOTH group and private chats
     let ownershipClass = '';
-    if (!isPrivateChat && (msg.role === 'user' || msg.role === 'therapist')) {
+    if (msg.role === 'user' || msg.role === 'therapist') {
       ownershipClass = isOwnMessage ? 'own-message' : 'other-message';
     }
-
     // Special rendering for AI Offer Card (ANONYMOUS USER ONLY)
     if (isAiOffer && !therapistId) {
       // If already answered OR therapist has joined, show as message
