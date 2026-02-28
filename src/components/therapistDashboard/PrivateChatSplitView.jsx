@@ -4,7 +4,7 @@ import ResizableSplitView from "../../components/resizableSplitView";
 import { useIsInsideChat } from "../../hooks/useIsInsideChatMobile";
 import EmojiPicker from "emoji-picker-react";
 import { useTypingStatus } from "../../hooks/useTypingStatus";
-import { shouldGroupMessage } from "../../utils/messageGrouping";
+// import { shouldGroupMessage } from "../../utils/messageGrouping";
 
 /* -------------------------------------------------------------
    Simple media-query hook (no external deps)
