@@ -54,6 +54,7 @@ const ChatMessage = memo(
     if (msg.role === 'user' || msg.role === 'therapist') {
       ownershipClass = isOwnMessage ? 'own-message' : 'other-message';
     }
+    
     // Special rendering for AI Offer Card (ANONYMOUS USER ONLY)
     if (isAiOffer && !therapistId) {
       // If already answered OR therapist has joined, show as message

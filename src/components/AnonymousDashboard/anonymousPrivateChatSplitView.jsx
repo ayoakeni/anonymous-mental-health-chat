@@ -1141,14 +1141,20 @@ function AnonymousPrivateChatView({
           t.update(chatRef, { aiActive: false, aiOffered: false, status: "requesting" });
           setAiActive(false);
           setHasUserSentMessage(true);
-          
+        }
+      });
+      
+      // Write system message AFTER transaction so timestamp is strictly later
+      if (choice === "therapist") {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await runTransaction(db, async (t) => {
           t.set(doc(collection(chatRef, "messages")), {
             text: "We are contacting an available therapist for you.",
             role: "system",
             timestamp: serverTimestamp(),
           });
-        }
-      });
+        });
+      }
       setAiEnabled(choice === "assistant");
     } catch (err) {
       console.error("Initial choice error:", err);
