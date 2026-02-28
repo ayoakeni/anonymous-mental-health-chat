@@ -42,9 +42,7 @@ const ChatMessage = memo(
 
     const isOwnMessage = msg.userId === currentUserId || msg.userId === therapistId;
 
-    // ──────────────────────────────────────────────────────────────
-    //  Status helpers – cleaner to define once
-    // ──────────────────────────────────────────────────────────────
+    // Status helpers – cleaner to define once
     const showSending = msg.isPending && !msg.failed;
     const showFailed = msg.failed;
     const showDeleting = msg.isPendingDelete;
