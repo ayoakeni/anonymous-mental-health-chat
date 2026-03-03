@@ -294,6 +294,7 @@
 }
 
 .adh-chat-time {
+  display: flex;
   font-size: 0.72rem;
   color: var(--text-color);
   opacity: 0.5;

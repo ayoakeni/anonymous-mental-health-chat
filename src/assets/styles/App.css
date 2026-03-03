@@ -313,6 +313,46 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
+.chat-card.active-session {
+  border-left: 4px solid #d97706;
+  background: rgba(217, 119, 6, 0.08);
+}
+
+.chat-card.active-session:hover {
+  background: #c09d74;
+}
+
+.active-indicator {
+  color: #10b981;
+  font-weight: 600;
+  font-size: 0.85em;
+}
+
+.taken-indicator {
+  color: #ef4444;
+  font-style: italic;
+  font-size: 0.85em;
+}
+
+.new-request {
+  color: #d97706;
+  font-size: 0.85em;
+  font-weight: 600;
+  animation: pulse 2.5s infinite;
+}
+
+.available-indicator {
+  color: #3b82f6;
+  font-weight: 600;
+  font-size: 0.85em;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
 .chat-box-container {
   height: 100vh;
   display: flex;
