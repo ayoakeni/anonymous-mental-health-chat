@@ -735,8 +735,12 @@
   .tdh-root { padding: 0 16px 36px; }
   .tdh-body-grid { grid-template-columns: 1fr; }
   .tdh-notif-panel { grid-column: auto; }
+  .tdh-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
   .tdh-heading { font-size: 1.5rem; }
-  .tdh-date-chip { display: none; }
+  /* .tdh-date-chip { display: none; } */
 }
 
 @media (max-width: 480px) {
