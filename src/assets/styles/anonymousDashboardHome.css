@@ -55,13 +55,20 @@
 
 /* Eyebrow */
 .adh-greeting-line {
-  font-size: 0.78rem;
-  letter-spacing: 0.14em;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
   color: var(--primary-color);
-  font-weight: 600;
-  margin-bottom: 4px;
-  opacity: 0.85;
+  font-weight: 700;
+  margin-bottom: 5px;
+  opacity: 0.8;
+}
+
+.adh-greeting-icon {
+  font-size: 0.8rem;
 }
 
 /* Main heading */

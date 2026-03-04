@@ -11,6 +11,13 @@ const getGreeting = () => {
   return "Good evening";
 };
 
+const getGreetingIcon = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "fa-sun";
+  if (hour < 17) return "fa-cloud-sun";
+  return "fa-moon";
+};
+
 const AnonymousDashboardHome = ({
   groupChats = [],
   privateChats = [],
@@ -150,7 +157,10 @@ const AnonymousDashboardHome = ({
       <header className="adh-header">
         <div className="adh-header-inner">
           <div>
-            <p className="adh-greeting-line">✦ {getGreeting()}</p>
+            <p className="adh-greeting-line">
+              <i className={`fa-solid ${getGreetingIcon()} adh-greeting-icon`} />
+              {getGreeting()}
+            </p>
             <h1 className="adh-heading">
               Welcome back,{" "}
               <em>{displayName || "Friend"}</em>
