@@ -237,7 +237,7 @@
 .tdh-stat.is-urgent {
   border-color: var(--error-color);
   border-top-color: var(--error-color);
-  background: color-mix(in srgb, var(--error-color) 5%, var(--highlight-bg));
+  /* background: color-mix(in srgb, var(--error-color) 5%, var(--highlight-bg)); */
 }
 
 /* Icon bubble */
