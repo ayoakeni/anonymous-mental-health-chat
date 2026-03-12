@@ -417,22 +417,22 @@ function PrivateChatSplitView({
                           const userHasMessaged = !!chat.lastMessage;
 
                           if (iAmIn) {
-                            return <span className="active-indicator"> (Active • You)</span>;
+                            return <span className="active-indicator" title="Active • You"> (Active • You)</span>;
                           }
 
                           if (someoneElseIn) {
-                            return <span className="taken-indicator"> (Taken)</span>;
+                            return <span className="taken-indicator" title="Taken"> (Taken)</span>;
                           }
 
                           if (noOneInYet && userHasMessaged) {
                             if (chat.requestedTherapist === therapistId) {
-                              return <span className="new-request"> (New Request)</span>;
+                              return <span className="new-request" title="New Request"> (New Request)</span>;
                             }
                             // Add this to show AI is active
                             if (chat.aiActive) {
-                              return <span className="ai-active-indicator"> (With AI Assistant)</span>;
+                              return <span className="ai-active-indicator" title="With AI Assistant"> (With AI Assistant)</span>;
                             }
-                            return <span className="available-indicator"> (Available)</span>;
+                            return <span className="available-indicator" title="Available"> (Available)</span>;
                           }
 
                           return null;
