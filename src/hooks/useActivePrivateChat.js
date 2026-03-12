@@ -108,7 +108,7 @@ export function useActivePrivateChat(
 
         tx.update(chatRef, {
           activeTherapist: null,
-          status: "requesting",
+          status: "closed",
           aiActive: false,
           aiOffered: false,
           aiOfferAnswered: false,

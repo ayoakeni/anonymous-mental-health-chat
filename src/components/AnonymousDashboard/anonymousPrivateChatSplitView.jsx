@@ -852,6 +852,13 @@ function AnonymousPrivateChatView({
           lastSeenAt: serverTimestamp(),
         };
 
+        // Re-open the chat if it was ended by a therapist
+        if (data.status === "closed") {
+          chatUpdate.status = "requesting";
+          chatUpdate.aiOffered = false;
+          chatUpdate.aiOfferAnswered = false;
+        }
+
         if (needsGreeting) {
           chatUpdate.initialGreetingSent = true;
         }
