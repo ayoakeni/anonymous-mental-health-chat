@@ -26,19 +26,21 @@ export function usePrivateChats(showError) {
       }));
 
       const filtered = allChats.filter(chat => {
-        // 🔑 HIDE chats where user hasn't chosen therapist yet
-        // - status is "new" (before initial choice)
-        // - aiActive is true (user chose AI assistant instead)
-        if (chat.status === "new" || chat.aiActive === true) {
-          // Only show to therapist if they're already assigned
-          return chat.activeTherapist === uid;
-        }
-
-        // Therapist already handling it
+        // Therapist already handling it — always show
         if (chat.activeTherapist === uid) return true;
 
-        // Open queue (requesting / waiting) - user has chosen therapist
-        if (!chat.activeTherapist) return true;
+        // Hide chats taken by someone else
+        if (chat.activeTherapist && chat.activeTherapist !== uid) return false;
+
+        // Hide brand-new chats where user hasn't made their initial choice yet
+        if (chat.status === "new" && !chat.initialChoiceMade) return false;
+
+        // Show if user chose therapist (status is requesting/waiting)
+        if (chat.status === "requesting" || chat.status === "waiting") return true;
+
+        // Show if user is chatting with AI but no therapist has joined yet
+        // Therapist can still join and take over
+        if (chat.aiActive === true && !chat.activeTherapist) return true;
 
         return false;
       });

@@ -428,6 +428,10 @@ function PrivateChatSplitView({
                             if (chat.requestedTherapist === therapistId) {
                               return <span className="new-request"> (New Request)</span>;
                             }
+                            // Add this to show AI is active
+                            if (chat.aiActive) {
+                              return <span className="ai-active-indicator"> (With AI Assistant)</span>;
+                            }
                             return <span className="available-indicator"> (Available)</span>;
                           }
 
