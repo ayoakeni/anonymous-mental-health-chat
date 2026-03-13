@@ -1039,6 +1039,7 @@ function AnonymousPrivateChatView({
         t.update(chatRef, {
           [`leftBy.${userId}`]: true,
           aiOffered: false,
+          status: "closed",
           aiActive: false,
           aiOfferAnswered: false,
         });
