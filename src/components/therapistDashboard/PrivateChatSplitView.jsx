@@ -62,6 +62,8 @@ function PrivateChatSplitView({
   therapistId,
   userMoods,
   retrySend,
+  privateChatSearchQuery,
+  setPrivateChatSearchQuery, 
 }) {
   const { typingUsers, handleTyping } = useTypingStatus(
     therapistInfo?.name, 
@@ -94,6 +96,16 @@ function PrivateChatSplitView({
     privateChats.find((c) => c.id === activeChatId), 
     [privateChats, activeChatId]
   );
+
+  const filteredPrivateChats = useMemo(() => {
+    if (!privateChatSearchQuery?.trim()) return privateChats;
+    const lower = privateChatSearchQuery.toLowerCase();
+    return privateChats.filter((chat) => {
+      const name = (anonNames[chat.id] || "").toLowerCase();
+      const lastMsg = (chat.lastMessage || "").toLowerCase();
+      return name.includes(lower) || lastMsg.includes(lower);
+    });
+  }, [privateChats, privateChatSearchQuery, anonNames]);
 
   // Reset scroll state when changing chats
   useEffect(() => {
@@ -376,13 +388,38 @@ function PrivateChatSplitView({
   const leftPanel = (
     <div className="chat-box-card">
       <h3>Private Chats</h3>
+      <div className="group-search-box">
+        <i className="fa-solid fa-magnifying-glass group-search-icon"></i>
+        <input
+          className="group-search-input"
+          type="text"
+          placeholder="Search private chats..."
+          value={privateChatSearchQuery}
+          onChange={(e) => setPrivateChatSearchQuery(e.target.value)}
+          aria-label="Search private chats"
+        />
+        {privateChatSearchQuery && (
+          <button
+            className="group-search-clear"
+            onClick={() => setPrivateChatSearchQuery("")}
+            aria-label="Clear search"
+          >
+            <i className="fa-solid fa-times"></i>
+          </button>
+        )}
+      </div>
       <div className="chat-list-container">
         {isLoadingChats ? (
           <p>Loading private chats...</p>
-        ) : privateChats.length === 0 ? (
+        ) : filteredPrivateChats.length === 0 && !privateChatSearchQuery ? (
           <p>No private chats available</p>
+        ) : filteredPrivateChats.length === 0 && privateChatSearchQuery ? (
+          <div className="group-search-empty">
+            <i className="fa-solid fa-binoculars"></i>
+            No chats match "{privateChatSearchQuery}"
+          </div>
         ) : (
-          privateChats.map((chat) => {
+          filteredPrivateChats.map((chat) => {
             const lastTs = chat.lastUpdated;
             const { dateStr, timeStr } = formatTimestamp(lastTs || null);
             const anonName = anonNames[chat.id] || "Loading...";

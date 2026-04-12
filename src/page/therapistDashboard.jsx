@@ -89,7 +89,7 @@ function TherapistDashboard() {
     logout,
   } = useTherapistProfile(navigate, showError);
   const { groupChats, isLoadingGroupChats, groupSearchQuery, setGroupSearchQuery } = useGroupChats(showError);
-  const { privateChats, isLoadingPrivateChats } = usePrivateChats(showError);
+  const { privateChats, isLoadingPrivateChats, privateChatSearchQuery, setPrivateChatSearchQuery } = usePrivateChats(showError);
 
   const allParticipantUids = useMemo(() => {
     return [...new Set(
@@ -335,6 +335,8 @@ function TherapistDashboard() {
     therapistId,
     userMoods,
     privateMessagesEndRef,
+    privateChatSearchQuery,
+    setPrivateChatSearchQuery,
   };
 
   return (
