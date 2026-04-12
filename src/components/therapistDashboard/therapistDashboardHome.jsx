@@ -279,11 +279,14 @@ function TherapistDashboardHome({
                     tag = <span className="tdh-tag active"><i className="fa-solid fa-circle-dot" /> Active</span>;
                   else if (takenByOther)
                     tag = <span className="tdh-tag taken"><i className="fa-solid fa-ban" /> Taken</span>;
-                  else if (noOneIn && hasMsg)
-                    tag = chat.requestedTherapist === therapistId
-                      ? <span className="tdh-tag request"><i className="fa-solid fa-bell" /> New Request</span>
-                      : <span className="tdh-tag available"><i className="fa-solid fa-circle-check" /> Available</span>;
-
+                  else if (noOneIn && hasMsg) {
+                    if (chat.requestedTherapist === therapistId)
+                      tag = <span className="tdh-tag request"><i className="fa-solid fa-bell" /> New Request</span>;
+                    else if (chat.aiActive)
+                      tag = <span className="tdh-tag ai"><i className="fa-solid fa-robot" /> With AI</span>;
+                    else
+                      tag = <span className="tdh-tag available"><i className="fa-solid fa-circle-check" /> Available</span>;
+                  }
                   return (
                     <li
                       key={chat.id}

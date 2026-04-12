@@ -466,7 +466,7 @@ function PrivateChatSplitView({
                               return <span className="new-request" title="New Request"> (New Request)</span>;
                             }
                             if (chat.aiActive) {
-                              return <span className="ai-active-indicator" title="With AI Assistant"> (With AI Assistant)</span>;
+                              return <span className="tdh-tag ai"><i className="fa-solid fa-robot" /> With AI</span>;
                             }
                             return <span className="available-indicator" title="Available"> (Available)</span>;
                           }
