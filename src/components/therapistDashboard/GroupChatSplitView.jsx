@@ -410,13 +410,13 @@ function GroupChatSplitView({
       <div className="chat-list-container">
         {isLoadingChats ? (
           <p>Loading group chats...</p>
-        ) : groupChats.length === 0 ? (
-          <p>No group chats available</p>
         ) : groupChats.length === 0 && groupSearchQuery ? (
           <div className="group-search-empty">
             <i className="fa-solid fa-binoculars"></i>
             No groups match "{groupSearchQuery}"
           </div>
+        ) : groupChats.length === 0 ? (
+          <p>No group chats available</p>
         ) : (
           groupChats.map((group) => {
             const lastTs = group.lastMessage?.timestamp;
