@@ -58,6 +58,8 @@ function GroupChatSplitView({
   retrySend,
   navigate,
   markAsRead,
+  groupSearchQuery,
+  setGroupSearchQuery, 
 }) {
   const { groupId } = useParams();
   const chatBoxRef = useRef(null);
@@ -385,11 +387,36 @@ function GroupChatSplitView({
   const leftPanel = (
     <div className="chat-box-card">
       <h3>Group Chats</h3>
+      <div className="group-search-box">
+        <i className="fa-solid fa-magnifying-glass group-search-icon"></i>
+        <input
+          className="group-search-input"
+          type="text"
+          placeholder="Search group chats..."
+          value={groupSearchQuery}
+          onChange={(e) => setGroupSearchQuery(e.target.value)}
+          aria-label="Search group chats"
+        />
+        {groupSearchQuery && (
+          <button
+            className="group-search-clear"
+            onClick={() => setGroupSearchQuery("")}
+            aria-label="Clear search"
+          >
+            <i className="fa-solid fa-times"></i>
+          </button>
+        )}
+      </div>
       <div className="chat-list-container">
         {isLoadingChats ? (
           <p>Loading group chats...</p>
         ) : groupChats.length === 0 ? (
           <p>No group chats available</p>
+        ) : groupChats.length === 0 && groupSearchQuery ? (
+          <div className="group-search-empty">
+            <i className="fa-solid fa-binoculars"></i>
+            No groups match "{groupSearchQuery}"
+          </div>
         ) : (
           groupChats.map((group) => {
             const lastTs = group.lastMessage?.timestamp;

@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { db, auth } from "../utils/firebase";
 import { collection, query, onSnapshot, limit } from "firebase/firestore";
 
 export function useGroupChats(showError) {
   const [groupChats, setGroupChats] = useState([]);
   const [isLoadingGroupChats, setIsLoadingGroupChats] = useState(true);
+  const [groupSearchQuery, setGroupSearchQuery] = useState("");
 
   useEffect(() => {
     const therapistId = auth.currentUser?.uid;
@@ -24,7 +25,6 @@ export function useGroupChats(showError) {
           return {
             id: doc.id,
             ...data,
-            // Add flag: is this therapist currently a member?
             isMember: data.participants?.includes(therapistId) || false,
           };
         });
@@ -41,5 +41,14 @@ export function useGroupChats(showError) {
     return () => unsubscribe();
   }, [showError]);
 
-  return { groupChats, isLoadingGroupChats };
+  const filteredGroupChats = useMemo(() => {
+    if (!groupSearchQuery.trim()) return groupChats;
+    const lower = groupSearchQuery.toLowerCase();
+    return groupChats.filter((g) =>
+      (g.name || "").toLowerCase().includes(lower) ||
+      (g.lastMessage?.text || "").toLowerCase().includes(lower)
+    );
+  }, [groupChats, groupSearchQuery]);
+
+  return { groupChats: filteredGroupChats, isLoadingGroupChats, groupSearchQuery, setGroupSearchQuery };
 }

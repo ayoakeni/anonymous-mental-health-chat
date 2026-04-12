@@ -73,6 +73,7 @@ function AnonymousGroupChatSplitView({
   const [aiTyping, setAiTyping] = useState(false);
   const [pendingMessages, setPendingMessages] = useState([]);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [groupSearchQuery, setGroupSearchQuery] = useState("");
   
   // ─── NEW: Scroll & loading states ───
   const [isInitialLoading, setIsInitialLoading] = useState(false);
@@ -107,6 +108,15 @@ function AnonymousGroupChatSplitView({
     groupChats.find((g) => g.id === activeGroupId), 
     [groupChats, activeGroupId]
   );
+
+  const filteredGroupChats = useMemo(() => {
+    if (!groupSearchQuery.trim()) return groupChats;
+    const lower = groupSearchQuery.toLowerCase();
+    return groupChats.filter((g) =>
+      (g.name || "").toLowerCase().includes(lower) ||
+      (g.lastMessage?.text || "").toLowerCase().includes(lower)
+    );
+  }, [groupChats, groupSearchQuery]);
 
   // Reset scroll state when changing chats
   useEffect(() => {
@@ -1028,13 +1038,38 @@ function AnonymousGroupChatSplitView({
   const leftPanel = (
     <div className="chat-box-card">
       <h3>Group Chats</h3>
+      <div className="group-search-box">
+        <i className="fa-solid fa-magnifying-glass group-search-icon"></i>
+        <input
+          className="group-search-input"
+          type="text"
+          placeholder="Search group chats..."
+          value={groupSearchQuery}
+          onChange={(e) => setGroupSearchQuery(e.target.value)}
+          aria-label="Search group chats"
+        />
+        {groupSearchQuery && (
+          <button
+            className="group-search-clear"
+            onClick={() => setGroupSearchQuery("")}
+            aria-label="Clear search"
+          >
+            <i className="fa-solid fa-times"></i>
+          </button>
+        )}
+      </div>
       <div className="chat-list-container">
         {isLoadingChats ? (
           <p>Loading group chats...</p>
-        ) : groupChats.length === 0 ? (
+        ) : filteredGroupChats.length === 0 && !groupSearchQuery ? (
           <p>No group chats available</p>
+        ) : filteredGroupChats.length === 0 && groupSearchQuery ? (
+          <div className="group-search-empty">
+            <i className="fa-solid fa-binoculars"></i>
+            No groups match "{groupSearchQuery}"
+          </div>
         ) : (
-          groupChats.map((group) => {
+          filteredGroupChats.map((group) => {
             const lastTs = group.lastMessage?.timestamp;
             const { dateStr, timeStr } = formatTimestamp(lastTs);
             const isMember = group.isMember;

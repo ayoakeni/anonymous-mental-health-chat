@@ -88,8 +88,7 @@ function TherapistDashboard() {
     saveSettings: profileSaveSettings,
     logout,
   } = useTherapistProfile(navigate, showError);
-  
-  const { groupChats, isLoadingGroupChats } = useGroupChats(showError);
+  const { groupChats, isLoadingGroupChats, groupSearchQuery, setGroupSearchQuery } = useGroupChats(showError);
   const { privateChats, isLoadingPrivateChats } = usePrivateChats(showError);
 
   const allParticipantUids = useMemo(() => {
@@ -282,6 +281,8 @@ function TherapistDashboard() {
     isSendingGroup,  
     joinGroupChat: joinGroup,
     leaveGroupChat: leaveGroup,
+    groupSearchQuery,
+    setGroupSearchQuery,
     therapistInfo,
     therapistId,
     toggleReaction: toggleGroupReaction,
